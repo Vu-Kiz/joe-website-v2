@@ -1,8 +1,22 @@
-/backend/vendor/
-/backend/storage/
-/frontend/node_modules/
-/frontend/dist/
-/db/joe_db_data_dev/
-/db/joe_db_data_prod/
+# Global envs
 .env
-.DS_Store
+.env.*        # if you ever create env.production, env.test, etc.
+
+# Backend (Laravel)
+backend/.env
+backend/vendor/
+backend/storage/
+backend/storage/logs/
+backend/storage/framework/cache/
+backend/storage/framework/sessions/
+backend/storage/framework/views/
+
+# Frontend (Vite / React)
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.*   # env.local, env.production, etc.
+
+# Docker DB volume data
+db/data/
+db/
