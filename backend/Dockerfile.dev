@@ -1,0 +1,28 @@
+# Use PHP 8.4 so symfony/css-selector v8 is happy
+FROM php:8.4-apache
+
+# System deps + PHP extensions
+RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
+    libzip-dev \
+    libicu-dev \
+    libonig-dev \
+ && docker-php-ext-install pdo_mysql mbstring zip intl \
+ && a2enmod rewrite \
+ # 🔽 Point Apache to Laravel's public/ folder
+ && sed -ri 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/000-default.conf \
+ && sed -ri 's!<Directory /var/www/>!<Directory /var/www/html/public/>!g' /etc/apache2/apache2.conf \
+ && rm -rf /var/lib/apt/lists/*
+
+# Laravel app root
+WORKDIR /var/www/html
+
+# Copy app source into the image (build-time snapshot)
+COPY . /var/www/html
+
+# Install Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Install PHP dependencies
+RUN composer install
