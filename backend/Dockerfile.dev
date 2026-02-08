@@ -1,28 +1,30 @@
-# Use PHP 8.4 so symfony/css-selector v8 is happy
+# backend/Dockerfile.dev
 FROM php:8.4-apache
 
-# System deps + PHP extensions
+# System dependencies + PHP extensions for Laravel
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
     libzip-dev \
-    libicu-dev \
     libonig-dev \
- && docker-php-ext-install pdo_mysql mbstring zip intl \
- && a2enmod rewrite \
- # 🔽 Point Apache to Laravel's public/ folder
- && sed -ri 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/000-default.conf \
- && sed -ri 's!<Directory /var/www/>!<Directory /var/www/html/public/>!g' /etc/apache2/apache2.conf \
- && rm -rf /var/lib/apt/lists/*
+    libicu-dev \
+  && docker-php-ext-install pdo pdo_mysql mbstring zip intl \
+  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Laravel app root
+# Enable mod_rewrite
+RUN a2enmod rewrite
+
+# Use our Laravel vhost config
+COPY apache/000-default.conf /etc/apache2/sites-available/000-default.conf
+
+# Work in Laravel app root
 WORKDIR /var/www/html
 
-# Copy app source into the image (build-time snapshot)
+# Copy backend source into the image
 COPY . /var/www/html
 
-# Install Composer
+# Install Composer into the image
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Install PHP dependencies
-RUN composer install
+RUN composer install --no-interaction --prefer-dist --no-progress
