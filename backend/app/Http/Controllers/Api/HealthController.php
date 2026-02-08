@@ -8,11 +8,9 @@ use Throwable;
 
 class HealthController extends Controller
 {
-    public function index()
+    public static function payload(): array
     {
-        $dbStatus = [
-            'status' => 'unknown',
-        ];
+        $dbStatus = ['status' => 'unknown'];
 
         try {
             DB::select('SELECT 1');
@@ -30,16 +28,21 @@ class HealthController extends Controller
             ];
         }
 
-        return response()->json([
+        return [
             'status'   => 'ok',
             'app'      => config('app.name'),
             'env'      => config('app.env'),
-            'version'  => config('app.version', '2.1.0'),
+            'version'  => config('app.version', '0.1.0'),
             'timezone' => config('app.timezone'),
             'php'      => PHP_VERSION,
             'laravel'  => app()->version(),
             'database' => $dbStatus,
             'time'     => now()->toIso8601String(),
-        ]);
+        ];
+    }
+
+    public function index()
+    {
+        return response()->json(self::payload());
     }
 }

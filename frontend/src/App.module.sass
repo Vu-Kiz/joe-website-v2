@@ -1,17 +1,25 @@
 @use './styles/variables' as *
 
-.container
-  padding: 2rem
+.app
+  padding: $space-lg
+  min-height: 100vh
 
-.title
-  color: $color-accent
-  margin-bottom: 1rem
-
-.panel
+.healthCard
   background: $color-panel
-  padding: 1rem
-  border-radius: 8px
-  margin-top: 1rem
-  font-family: monospace
-  font-size: 0.9rem
-  white-space: pre-wrap
+  border: 1px solid $color-border
+  border-radius: $radius-md
+  padding: $space-lg
+  max-width: 640px
+  margin-top: $space-lg
+
+.error
+  color: $color-error
+  font-weight: 600
+
+.statusOk
+  color: $color-ok
+  font-weight: 600
+
+.statusBad
+  color: $color-error
+  font-weight: 600

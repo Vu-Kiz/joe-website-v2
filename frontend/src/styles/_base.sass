@@ -1,13 +1,16 @@
-@use 'variables' as *
+@use './variables' as *
 
 *
   box-sizing: border-box
 
-html, body, #root
-  height: 100%
-
-body
+html, body
   margin: 0
+  padding: 0
   background: $color-bg
   color: $color-text
-  font-family: $font-main
+  font-family: $font-sans
+
+hr
+  border: none
+  border-top: 1px solid $color-border
+  margin: $space-md 0
