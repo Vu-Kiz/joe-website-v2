@@ -14,7 +14,10 @@ services:
       - joe_prod_net
 
   backend:
-    image: joe-backend-v2:prod
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev   # 👈 use the same file you fixed in dev
+    image: joe-backend-v2:prod     # tag for the built image
     container_name: joe_backend_v2_prod
     restart: unless-stopped
     depends_on:
@@ -35,6 +38,9 @@ services:
       - nginx_proxy
 
   frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev   # or whatever you’ve called the frontend Dockerfile
     image: joe-frontend-v2:prod
     container_name: joe_frontend_v2_prod
     restart: unless-stopped
