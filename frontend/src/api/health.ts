@@ -1,14 +1,15 @@
-import client from "./client";
+// src/api/health.ts
+import { api } from "./client";
 
-export interface DatabaseStatus {
-  status: string;
-  driver?: string;
-  host?: string;
-  database?: string;
-  error?: string;
+export interface DatabaseHealth {
+  status: string;        // "ok" | "error"
+  driver?: string | null;
+  host?: string | null;
+  database?: string | null;
+  error?: string | null;
 }
 
-export interface HealthPayload {
+export interface HealthResponse {
   status: string;
   app: string;
   env: string;
@@ -17,10 +18,10 @@ export interface HealthPayload {
   php: string;
   laravel: string;
   time: string;
-  database: DatabaseStatus;
+  database: DatabaseHealth;
 }
 
-export async function fetchHealth(): Promise<HealthPayload> {
-  const res = await client.get<HealthPayload>("/health");
-  return res.data;
+export async function getHealth(): Promise<HealthResponse> {
+  const { data } = await api.get<HealthResponse>("/health");
+  return data;
 }

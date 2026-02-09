@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import type { HealthPayload } from "../api/health";
-import { fetchHealth } from "../api/health";
+import type { HealthResponse } from "../api/health";
+import { getHealth } from "../api/health";
 
 const HealthStatus: React.FC = () => {
-  const [data, setData] = useState<HealthPayload | null>(null);
+  const [data, setData] = useState<HealthResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -13,7 +13,7 @@ const HealthStatus: React.FC = () => {
     (async () => {
       try {
         setLoading(true);
-        const health = await fetchHealth();
+        const health = await getHealth();
         if (!cancelled) {
           setData(health);
           setError(null);

@@ -4,31 +4,24 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
-use Throwable;
 
 class HealthController extends Controller
 {
-    public static function payload(): array
+    public function index()
     {
-        $dbStatus = ['status' => 'unknown'];
+        $dbStatus  = 'ok';
+        $dbError   = null;
+        $driver    = config('database.default');
+        $connection = config("database.connections.{$driver}");
 
         try {
             DB::select('SELECT 1');
-
-            $dbStatus = [
-                'status'   => 'ok',
-                'driver'   => config('database.default'),
-                'host'     => config('database.connections.' . config('database.default') . '.host'),
-                'database' => config('database.connections.' . config('database.default') . '.database'),
-            ];
-        } catch (Throwable $e) {
-            $dbStatus = [
-                'status' => 'error',
-                'error'  => $e->getMessage(),
-            ];
+        } catch (\Throwable $e) {
+            $dbStatus = 'error';
+            $dbError  = $e->getMessage();
         }
 
-        return [
+        return response()->json([
             'status'   => 'ok',
             'app'      => config('app.name'),
             'env'      => config('app.env'),
@@ -36,13 +29,16 @@ class HealthController extends Controller
             'timezone' => config('app.timezone'),
             'php'      => PHP_VERSION,
             'laravel'  => app()->version(),
-            'database' => $dbStatus,
             'time'     => now()->toIso8601String(),
-        ];
-    }
 
-    public function index()
-    {
-        return response()->json(self::payload());
+            // 👇 matches your React component: data.database
+            'database' => [
+                'status'   => $dbStatus,
+                'driver'   => $driver,
+                'host'     => $connection['host']     ?? null,
+                'database' => $connection['database'] ?? null,
+                'error'    => $dbError,
+            ],
+        ]);
     }
 }
