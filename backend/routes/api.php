@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\MetaController;
 use App\Http\Controllers\Api\JobsController;
+use App\Http\Controllers\Api\LoadingTipController;
 
 /*
 |--------------------------------------------------------------------------
@@ -26,3 +27,4 @@ Route::prefix('jobs')->group(function () {
     Route::put('/{id}', [JobsController::class, 'update']);
     Route::delete('/{id}', [JobsController::class, 'destroy']);
 });
+Route::get('/loading-tip', [LoadingTipController::class, 'index']);
