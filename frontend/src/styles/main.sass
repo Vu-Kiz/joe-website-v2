@@ -1,64 +1,38 @@
-// frontend/src/styles/main.sass
+@use './variables' as *
+@use './base'
+@use './theme'
+@use './navbar' as navbar
 
-// If you have a variables file already, keep using it:
-@use "./variables" as *
-@use "./base" as *
+// RESPONSIVE SCALING FOR LARGE SCREENS
+// (Zoom-style scaling via .site-scale)
+// ============================================
 
-// JOEnet global palette
-$color-bg-main: #1e1e1e
-$color-bg-dots: rgba(255,255,255,0.06)
-$color-text: #ffffff
-$color-muted: rgba(255,255,255,0.6)
-$color-accent: #f5d546
-$color-border-soft: rgba(245,213,70,0.3)
+@media (min-width: 1440px)
+  .site-scale
+    transform: scale(1.15)
+    transform-origin: top center
 
-// Expose as CSS vars if you want them from plain CSS/JS
-:root
-  --joe-bg-main: #{$color-bg-main}
-  --joe-text: #{$color-text}
-  --joe-muted: #{$color-muted}
-  --joe-accent: #{$color-accent}
-  --joe-border-soft: #{$color-border-soft}
+@media (min-width: 1700px)
+  .site-scale
+    transform: scale(1.25)
+    transform-origin: top center
 
-// Reset-ish + global layout
-*, *::before, *::after
-  box-sizing: border-box
+@media (min-width: 2000px)
+  .site-scale
+    transform: scale(1.35)
+    transform-origin: top center
 
-html, body, #root
-  margin: 0
-  padding: 0
-  min-height: 100vh
-  background-color: $color-bg-main
-  // dotted texture like your PHP JOEnet
-  background-image: radial-gradient($color-bg-dots 1px, transparent 1px)
-  background-size: 6px 6px
-  background-position: 0 0
-  color: $color-text
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif
+@media (min-width: 2560px)
+  .site-scale
+    transform: scale(1.45)
+    transform-origin: top center
 
-body
-  color: $color-text
+  // Let the layout breathe a bit more on ultrawide
+  .app,
+  .main-nav,
+  .jen-ticker,
+  .site-footer-inner
+    max-width: 1500px
 
-a
-  color: $color-accent
-  text-decoration: none
-  cursor: pointer
-
-  &:hover
-    color: lighten($color-accent, 8%)
-
-p
-  margin: 0 0 0.75rem 0
-
-// Optional global shell/panel helpers you can reuse later:
-.page-shell
-  width: 100%
-  max-width: 1200px
-  margin: 0 auto
-  padding: 24px
-
-.panel
-  background: rgba(17,17,17,0.7)
-  border-radius: 8px
-  border: 1px solid $color-border-soft
-  padding: 16px
+  .navbar-banner
+    max-width: 560px

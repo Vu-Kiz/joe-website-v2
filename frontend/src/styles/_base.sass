@@ -1,16 +1,295 @@
-@use './variables' as *
+// ===== BASE / GLOBAL LAYOUT =====
 
-*
+body
+  font-family: 'Oxanium', sans-serif
+  background: #1e1e1e
+  background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px)
+  background-size: 6px 6px
+  background-position: 0 0
+  color: #fff
+  margin: 20px
+
+.site-scale
+  transform-origin: top center
+  transition: transform 0.3s ease
+
+.faction-title
+  color: var(--accent) !important
+  font-family: 'EngliBesh', sans-serif
+
+.small
+  font-size: 12px
+  color: rgba(255,255,255,0.7)
+
+// App grid
+
+.app
+  display: grid
+  grid-template-columns: 1fr 350px
+  gap: 20px
+  width: 100%
+  max-width: 1300px
+  margin: auto
+
+.app.app-full
+  grid-template-columns: 1fr
+
+// Boards / Panels
+
+.board,
+.panel
+  border-radius: 8px
+  border: 1px solid rgba(245,213,70,0.35)
+  padding: 12px 14px
+  margin-bottom: 16px
+  box-sizing: border-box
+  background-color: #111
+  background-image: radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(10,10,10,0.95) 0%, rgba(10,10,10,0.94) 35%, rgba(40,32,0,0.98) 100%)
+  background-size: 6px 6px, 100% 100%
+
+.board h1
+  font-family: 'EngliBesh', sans-serif
+  color: var(--accent) !important
+
+.section-block
+  margin-top: 18px
+  margin-bottom: 16px
+
+.section-block h2
+  font-family: 'EngliBesh', sans-serif
+  margin-bottom: 8px
+  color: var(--accent) !important
+
+.section-block h3
+  font-family: 'EngliBesh', sans-serif
+  margin-bottom: 8px
+  color: var(--accent) !important
+
+.section-list
+  margin: 0
+  padding-left: 18px
+
+// Faction / overview layout basics (detail tweaks in theme)
+
+.overview-layout
+  display: flex
+  gap: 20px
+  align-items: flex-start
+
+.overview-banner img
+  max-height: 420px
+  width: auto
+  height: auto
+  object-fit: contain
+  border-radius: 6px
+  border: 2px solid var(--accent)
+
+.overview-text
+  flex: 1
+
+// Twin suns & Jawa map helpers – used in faction SPA
+
+.twin-suns-icon
+  display: block
+  margin: 0 auto 12px
+  width: 95px
+  height: auto
+  filter: drop-shadow(0 0 8px rgba(246,163,0,0.4))
+  transition: filter 0.4s ease
+
+.jawa-map-container
+  width: 100%
+  display: flex
+  justify-content: center
+  margin: 20px 0
+
+.jawa-map
+  width: 100%
+  height: auto
+  max-width: 650px
+  border-radius: 12px
+
+// Panel banners & generic contact button
+
+.panel-banner
+  width: 100%
+  text-align: center
+  margin-bottom: 10px
+
+.panel-banner img
+  display: block
+  width: 100%
+  max-width: 320px
+  height: auto
+  border: 2px solid var(--accent)
+  border-radius: 6px
+  object-fit: cover
+
+.contact-button
+  display: block
+  width: 100%
+  max-width: 260px
+  margin: 12px auto 0 auto
+  white-space: normal
+  text-align: center
+  word-wrap: break-word
+  overflow-wrap: break-word
+  line-height: 1.2
+  padding: 10px 12px
+  font-size: 14px
+
+.contact-btn
+  display: inline-block
+  margin: 0 auto
+  max-width: 100%
+  white-space: normal !important
+  text-align: center
+  padding: 8px 14px
+
+// ===== INPUTS & BUTTONS =====
+
+select,
+input[type="number"],
+.btn
+  background: rgba(17,17,17,0.7)
+  border: 1px solid rgba(245,213,70,0.3)
+  color: #fff
+  border-radius: 4px
+  padding: 0.45em 0.65em
+  font-family: 'Oxanium', sans-serif
+  font-size: 1em
+  font-weight: 600
+  text-decoration: none
+  display: inline-flex
+  align-items: center
+  cursor: pointer
+  white-space: nowrap
+  text-align: center
+
+.btn:hover
+  background: rgba(245,213,70,0.2)
+  border-color: rgba(245,213,70,0.5)
+
+.btn.active
+  background: rgba(245,213,70,0.4)
+  border-color: rgba(245,213,70,0.8)
+  color: #fff
+
+.input,
+input[type="text"]
+  background: rgba(17,17,17,0.85)
+  border: 1px solid rgba(245,213,70,0.4)
+  color: #fff
+  border-radius: 4px
+  padding: 6px 8px
+  font-family: 'Oxanium', sans-serif
+  font-size: 13px
   box-sizing: border-box
 
-html, body
-  margin: 0
-  padding: 0
-  background: $color-bg
-  color: $color-text
-  font-family: $font-sans
+.admin-filter-form .input
+  min-width: 180px
 
-hr
-  border: none
-  border-top: 1px solid $color-border
-  margin: $space-md 0
+.input:focus,
+input[type="text"]:focus
+  outline: none
+  border-color: rgba(245,213,70,0.75)
+  box-shadow: 0 0 4px rgba(245,213,70,0.4)
+
+.btn.seg-btn
+  font-size: 12px
+  padding: 4px 10px
+  border-radius: 999px
+  border-color: rgba(245,213,70,0.5)
+  background: rgba(17,17,17,0.85)
+
+.btn.seg-btn:hover
+  background: rgba(245,213,70,0.2)
+  border-color: rgba(245,213,70,0.8)
+
+// Reusable textarea
+
+.form-box
+  width: 100%
+  box-sizing: border-box
+  background: rgba(17,17,17,0.7)
+  border: 1px solid rgba(245,213,70,0.3)
+  border-radius: 4px
+  color: #fff
+  padding: 8px
+  font-family: 'Oxanium', sans-serif
+  font-size: 1em
+  resize: vertical
+
+.form-box:focus
+  outline: none
+  border-color: rgba(245,213,70,0.6)
+  box-shadow: 0 0 4px rgba(245,213,70,0.35)
+
+// Generic loading overlay bits (DroidBrain etc. – your fake page uses module styles)
+
+.loading-backdrop
+  position: fixed
+  inset: 0
+  background: rgba(0,0,0,0.65)
+  z-index: 9999
+  display: none
+  align-items: center
+  justify-content: center
+
+.loading-spinner
+  width: 26px
+  height: 26px
+  border-radius: 999px
+  border: 3px solid rgba(255,255,255,0.25)
+  border-top-color: #fff
+  animation: db-spin 0.8s linear infinite
+  margin: 0 auto 8px
+
+.tiny
+  font-size: 11px
+  color: var(--muted)
+
+@keyframes db-spin
+  to
+    transform: rotate(360deg)
+
+// Pagination
+
+.pagination
+  display: flex
+  justify-content: center
+  gap: 6px
+  margin: 10px 0
+
+.pagination a.page-link
+  text-decoration: none
+  color: var(--accent)
+  padding: 3px 8px
+  border-radius: 999px
+  border: 1px solid var(--guide)
+  display: inline-flex
+  align-items: center
+  justify-content: center
+
+.pagination a.page-link:hover
+  background: rgba(245,213,70,0.15)
+  border-color: rgba(245,213,70,0.5)
+
+.page-current
+  display: inline-flex
+  align-items: center
+  justify-content: center
+  padding: 3px 8px
+  border-radius: 999px
+  background: rgba(245,213,70,0.25)
+  border: 1px solid rgba(245,213,70,0.5)
+  font-weight: 600
+  color: var(--accent)
+
+// Tab panels
+
+.tab-panel
+  display: none
+
+.tab-panel.is-active
+  display: block

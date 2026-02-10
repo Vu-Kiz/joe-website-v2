@@ -1,17 +1,27 @@
-$color-bg: #020617
-$color-panel: #020617
-$color-border: #1e293b
+@import url('https://fonts.googleapis.com/css2?family=Oxanium:wght@200;400;700;800&display=swap')
 
-$color-text: #e5e7eb
-$color-muted: #94a3b8
+:root
+  --accent: #f5d546
+  --accent-2: #2ecc71
+  --jen-orange: #F6A300
+  --guide: rgba(245,213,70,0.3)
+  --muted: rgba(255,255,255,0.6)
+  --panel-bg: #111
 
-$color-ok: #22c55e
-$color-error: #ef4444
+@font-face
+  font-family: 'EngliBesh'
+  src: url('/assets/fonts/EngliBesh.ttf') format('truetype')
+  font-display: swap
 
-$radius-sm: 6px
-$radius-md: 8px
-$space-sm: 0.5rem
-$space-md: 1rem
-$space-lg: 1.5rem
+@font-face
+  font-family: 'Jawaese'
+  src: url('/assets/fonts/Jawaese.ttf') format('truetype')
+  font-display: swap
 
-$font-sans: system-ui, -apple-system, BlinkMacSystemFont, sans-serif
+// ===== SASS VARIABLES (can be used as $space-lg, etc.) =====
+
+$space-xs: 4px
+$space-sm: 8px
+$space-md: 12px
+$space-lg: 20px
+$space-xl: 28px

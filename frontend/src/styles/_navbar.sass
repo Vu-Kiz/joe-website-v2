@@ -1,0 +1,189 @@
+
+.main-nav
+  width: 100%                // 👈 NEW: match ticker + app container
+  max-width: 1300px
+  box-sizing: border-box     // 👈 NEW: include border in that width
+
+  margin: 0 auto 10px auto
+  position: sticky
+  top: 0
+  z-index: 999
+
+  // Panel-style visuals (MATCHES .board / .panel)
+  border-radius: 8px
+  border: 1px solid rgba(245,213,70,0.35)
+
+  background-color: #111
+  background-image: radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(10,10,10,0.95) 0%, rgba(10,10,10,0.94) 35%, rgba(40,32,0,0.98) 100%)
+  background-size: 6px 6px, 100% 100%
+
+  padding: 10px 16px 18px
+
+
+.main-nav-inner
+  display: flex
+  align-items: center
+  justify-content: space-between
+  gap: 16px
+
+/* ----------------------------
+   Brand / Logo
+   ---------------------------- */
+
+.main-nav-brand
+  display: flex
+  align-items: center
+  gap: 10px
+  text-decoration: none
+  color: var(--accent)
+  font-weight: 800
+  letter-spacing: 0.06em
+  text-transform: uppercase
+
+.main-nav-logo
+  width: 36px
+  height: 36px
+  border-radius: 50%
+  border: 2px solid var(--accent)
+  object-fit: cover
+
+/* ----------------------------
+   Menu + links
+   ---------------------------- */
+
+.main-nav-menu
+  display: flex
+  align-items: center
+  gap: 16px
+
+.main-nav-links
+  list-style: none
+  display: flex
+  gap: 8px
+  margin: 0
+  padding: 0
+
+/* ----------------------------
+   Auth block
+   ---------------------------- */
+
+.main-nav-auth
+  display: flex
+  flex-direction: column
+  align-items: flex-end
+  gap: 4px
+
+.main-nav-auth-row
+  display: flex
+  align-items: center
+  gap: 8px
+
+.main-nav-avatar
+  width: 36px
+  height: 36px
+  border-radius: 50%
+  border: 2px solid var(--accent)
+  object-fit: cover
+
+.nav-cgt
+  padding: 3px 8px
+  border-radius: 8px
+  border: 1px solid var(--jen-orange)
+  color: var(--jen-orange)
+  font-size: 11px
+  white-space: nowrap
+  opacity: 0.9
+  text-align: right
+
+/* ----------------------------
+   Tools dropdown
+   ---------------------------- */
+
+.main-nav-tools
+  position: relative
+
+.main-nav-tools-toggle
+  white-space: nowrap
+
+.main-nav-tools-menu
+  position: absolute
+  right: 0
+  top: calc(100% + 4px)
+  background: rgba(17,17,17,0.95)
+  border: 1px solid rgba(245,213,70,0.3)
+  border-radius: 6px
+  list-style: none
+  padding: 4px 0
+  margin: 0
+  min-width: 160px
+  display: none
+  z-index: 1000
+
+.main-nav-tools.open .main-nav-tools-menu
+  display: block
+
+.main-nav-tools-menu li a
+  display: block
+  padding: 6px 10px
+  font-size: 13px
+  color: rgba(255,255,255,0.85)
+  text-decoration: none
+
+.main-nav-tools-menu li a:hover,
+.main-nav-tools-menu li a.active
+  background: rgba(245,213,70,0.2)
+  color: #fff
+
+/* ----------------------------
+   Mobile menu
+   ---------------------------- */
+
+.main-nav-toggle
+  display: none
+
+@media (max-width: 900px)
+  .main-nav
+    position: static
+    margin-bottom: 12px
+
+  .main-nav-toggle
+    display: inline-flex
+    align-items: center
+    justify-content: center
+    padding: 6px 12px
+    border: 1px solid var(--accent)
+    background: transparent
+    color: var(--accent)
+    border-radius: 4px
+    cursor: pointer
+
+  .main-nav-menu
+    display: none
+    flex-direction: column
+    align-items: flex-start
+    gap: 10px
+    margin-top: 10px
+    width: 100%
+
+  .main-nav-menu.open
+    display: flex
+
+  .main-nav-links
+    flex-direction: column
+    width: 100%
+
+  .main-nav-links .btn
+    width: 100%
+    justify-content: flex-start
+
+  .main-nav-auth
+    width: 100%
+    align-items: flex-start
+
+  .main-nav-tools
+    width: 100%
+
+  .main-nav-tools-menu
+    position: static
+    width: 100%
+    margin-top: 4px

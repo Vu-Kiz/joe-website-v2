@@ -1,0 +1,113 @@
+@use './variables' as *
+
+.root
+  display: grid
+  grid-template-columns: minmax(0, 2.2fr) minmax(280px, 1fr)
+  gap: $space-lg
+  padding: $space-lg
+  align-items: flex-start
+
+.main
+  display: flex
+  flex-direction: column
+  gap: $space-md
+
+.side
+  display: flex
+  flex-direction: column
+  gap: $space-md
+
+.headerRow
+  display: flex
+  align-items: center
+  gap: 0.75rem
+  margin-bottom: $space-md
+
+.logo
+  width: 64px
+  height: 64px
+  border-radius: 50%
+  border: 2px solid var(--accent)
+  object-fit: cover
+
+.title
+  margin: 0
+  font-size: 1.5rem
+  letter-spacing: 0.06em
+  text-transform: uppercase
+
+.tabs
+  display: flex
+  gap: 0.5rem
+  border-bottom: 1px solid rgba(245, 213, 70, 0.35)
+  margin-bottom: $space-md
+
+.tab
+  padding: 0.35rem 0.9rem
+  border: none
+  background: transparent
+  font-size: 0.85rem
+  letter-spacing: 0.08em
+  text-transform: uppercase
+  cursor: pointer
+  border-bottom: 2px solid transparent
+  color: rgba(255,255,255,0.7)
+  transition: color 0.15s ease, border-color 0.15s ease
+
+.tabActive
+  color: var(--accent)
+  border-bottom-color: var(--accent)
+
+.tabInactive:hover
+  color: var(--accent)
+  border-bottom-color: rgba(245, 213, 70, 0.4)
+
+.views
+  margin-top: $space-md
+
+.overviewLayout
+  display: grid
+  grid-template-columns: 230px minmax(0, 1fr)
+  gap: $space-md
+  align-items: flex-start
+
+.banner
+  img
+    display: block
+    width: 100%
+    height: auto
+    border-radius: 8px
+    border: 2px solid var(--accent)
+    object-fit: cover
+
+.mapContainer
+  width: 100%
+  display: flex
+  justify-content: center
+  margin: $space-md 0
+
+.map
+  width: 100%
+  height: auto
+  max-width: 650px
+  border-radius: 12px
+
+.small
+  font-size: 0.85rem
+  line-height: 1.5
+
+.sidePanel
+  // Just spacing; visual comes from .joe-box
+  display: flex
+  flex-direction: column
+
+.contactButton
+  margin-top: 0.75rem
+  align-self: center
+
+@media (max-width: 960px)
+  .root
+    grid-template-columns: minmax(0, 1fr)
+
+  .overviewLayout
+    grid-template-columns: minmax(0, 1fr)
