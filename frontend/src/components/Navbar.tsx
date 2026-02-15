@@ -1,173 +1,167 @@
-// src/components/Navbar.tsx
-import React, { useState, useEffect } from "react";
-import { Link, NavLink, useLocation } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 
 import jawaLogo from "../assets/branding/jawalogo.png";
+import {
+  fetchAuthMe,
+  apiLogout,
+  getBackendOrigin,   // ⬅ change here
+} from "../api/auth";
+import type { SwcUser } from "../api/auth";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
-
-  // 🔕 Do NOT show navbar on the fake loading screen
-  if (location.pathname === "/") {
-    return null;
-  }
-
   const [menuOpen, setMenuOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
-
-  // TODO: replace this with real auth state from /api/me or a useAuth() hook
-  const user: null | {
-    handle: string;
-    is_sysadmin?: boolean;
-    is_admin?: boolean;
-    isJOEMember?: boolean;
-    is_intel?: boolean;
-    avatar_url?: string | null;
-  } = null;
-
-  const isLoggedIn = !!user;
-
-  // Role flags (future: read from real user)
-  const isSysadmin = !!user?.is_sysadmin;
-  const isAdmin = !!user?.is_admin;
-  const isJOEMember = !!user?.isJOEMember;
-  const isIntel = !!user?.is_intel;
-
-  // Gating rules (sysadmin overrides everything)
-  const canAccessJobs = isSysadmin || isAdmin || isJOEMember;
-  const canAccessTools = isSysadmin || isIntel;
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<SwcUser | null>(null);
 
   useEffect(() => {
-    setMenuOpen(false);
-    setToolsOpen(false);
-  }, [location.pathname]);
+    let cancelled = false;
 
-  const mainNavItems = [
-    { label: "Dashboard", to: "/home" },
-    { label: "JEN", to: "/jen" },
-  ];
+    (async () => {
+      try {
+        const data = await fetchAuthMe();
+        if (!cancelled && data.ok) {
+          setUser(data.user);
+        }
+      } catch {
+        // ignore for now; show as guest
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const isActive = (path: string) => location.pathname === path;
+
+  const handleLogin = () => {
+    const origin = getBackendOrigin();
+
+    if (!origin) {
+      // worst case: just fall back to /oauth relative to current host
+      window.location.href = "/oauth";
+      return;
+    }
+
+    // You can add a ?redirect=/current/path later if you want
+    window.location.href = `${origin}/oauth`;
+  };
+
+  const handleLogout = async () => {
+    try {
+      await apiLogout();
+      setUser(null);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const displayName = user?.name || user?.handle || "Guest";
 
   return (
     <nav className="main-nav">
       <div className="main-nav-inner">
-        {/* Brand / logo */}
+        {/* Brand */}
         <Link to="/home" className="main-nav-brand">
-          <img
-            src={jawaLogo}
-            alt="Jawa Offworld Enterprises"
-            className="main-nav-logo"
-          />
+          <img src={jawaLogo} alt="JOE Logo" className="main-nav-logo" />
           <span>Jawa Offworld Enterprises</span>
         </Link>
 
-        {/* Mobile toggle */}
+        {/* Mobile burger */}
         <button
-          type="button"
           className="main-nav-toggle"
-          onClick={() => setMenuOpen((open) => !open)}
+          type="button"
+          onClick={() => setMenuOpen((o) => !o)}
         >
           ☰ Menu
         </button>
 
-        {/* Right side: nav + auth */}
+        {/* Right side menu */}
         <div className={`main-nav-menu ${menuOpen ? "open" : ""}`}>
-          {/* Left: primary links */}
           <ul className="main-nav-links">
-            {mainNavItems.map((item) => (
-              <li key={item.to}>
-                <NavLink
-                  to={item.to}
-                  className={({ isActive }) =>
-                    `btn ${isActive ? "active" : ""}`
-                  }
-                >
-                  {item.label}
-                </NavLink>
-              </li>
-            ))}
-
-            {/* Jobs – gated */}
-            {canAccessJobs && (
-              <li>
-                <NavLink
-                  to="/jobs"
-                  className={({ isActive }) =>
-                    `btn ${isActive ? "active" : ""}`
-                  }
-                >
-                  Jobs
-                </NavLink>
-              </li>
-            )}
-
-            {/* Tools dropdown – also gated */}
-            {canAccessTools && (
-              <li
-                className={`main-nav-tools ${toolsOpen ? "open" : ""}`}
+            <li>
+              <Link
+                to="/home"
+                className={`btn ${isActive("/home") ? "active" : ""}`}
               >
-                <button
-                  type="button"
-                  className="btn main-nav-tools-toggle"
-                  onClick={() => setToolsOpen((open) => !open)}
-                >
-                  Tools ▾
-                </button>
-                <ul className="main-nav-tools-menu">
-                  <li>
-                    <NavLink
-                      to="/intel/droidbrain"
-                      className={({ isActive }) =>
-                        isActive ? "active" : ""
-                      }
-                    >
-                      DroidBrain Intel
-                    </NavLink>
-                  </li>
-                  {/* Add more tools here later */}
-                </ul>
-              </li>
-            )}
+                Home
+              </Link>
+            </li>
+
+            <li>
+              <Link
+                to="/jobs"
+                className={`btn ${isActive("/jobs") ? "active" : ""}`}
+              >
+                Jobs
+              </Link>
+            </li>
+
+            {/* Tools dropdown – can gate later on user flags */}
+            <li
+              className={`main-nav-tools ${toolsOpen ? "open" : ""}`}
+              onMouseEnter={() => setToolsOpen(true)}
+              onMouseLeave={() => setToolsOpen(false)}
+            >
+              <button
+                type="button"
+                className="btn main-nav-tools-toggle"
+                onClick={() => setToolsOpen((o) => !o)}
+              >
+                Tools ▾
+              </button>
+              <ul className="main-nav-tools-menu">
+                <li>
+                  <Link to="/intel" className="tools-link">
+                    Intel (DroidBrain)
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/admin" className="tools-link">
+                    Admin
+                  </Link>
+                </li>
+              </ul>
+            </li>
           </ul>
 
-          {/* Right: auth area */}
+          {/* Auth section (right side) */}
           <div className="main-nav-auth">
             <div className="main-nav-auth-row">
-              {isLoggedIn ? (
+              {!loading && user && (
                 <>
-                  {user?.avatar_url && (
-                    <img
-                      src={user.avatar_url}
-                      alt={user.handle}
-                      className="main-nav-avatar"
-                    />
-                  )}
-                  <span className="small">{user?.handle}</span>
+                  <span className="small">Logged in as {displayName}</span>
                   <button
                     type="button"
                     className="btn seg-btn"
-                    onClick={() => {
-                      window.location.href = "/oauth/logout";
-                    }}
+                    onClick={handleLogout}
                   >
-                    Log out
+                    Logout
                   </button>
                 </>
-              ) : (
-                <>
-                  <span className="small">Guest</span>
-                  <a
-                    href="/oauth/login"
-                    className="btn seg-btn"
-                  >
-                    Log in with SWC
-                  </a>
-                </>
               )}
+
+              {!loading && !user && (
+                <button
+                  type="button"
+                  className="btn seg-btn"
+                  onClick={handleLogin}
+                >
+                  Login via SWC
+                </button>
+              )}
+
+              {loading && <span className="small">Checking session…</span>}
             </div>
 
-            {/* CGT clock placeholder */}
+            {/* CGT clock placeholder – you can wire this later */}
             <div className="nav-cgt">
-              CGT clock coming soon…
+              CGT time: <span>Loading…</span>
             </div>
           </div>
         </div>

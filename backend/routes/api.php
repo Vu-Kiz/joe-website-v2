@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\HealthController;
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MetaController;
 use App\Http\Controllers\Api\JobsController;
 use App\Http\Controllers\Api\LoadingTipController;
@@ -17,6 +18,11 @@ use App\Http\Controllers\Api\LoadingTipController;
 */
 
 Route::get('/health', [HealthController::class, 'index']);
+
+Route::prefix('auth')->group(function () {
+    Route::get('/me', [AuthController::class, 'me']);
+    Route::post('/logout', [AuthController::class, 'logout']);
+});
 
 Route::get('/meta', [MetaController::class, 'index']);
 
