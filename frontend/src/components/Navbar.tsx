@@ -61,7 +61,7 @@ const Navbar: React.FC = () => {
     }
   };
 
-  const displayName = user?.name || user?.handle || "Guest";
+  const displayName = user?.handle || "Guest";
 
   return (
     <nav className="main-nav">
@@ -95,10 +95,10 @@ const Navbar: React.FC = () => {
 
             <li>
               <Link
-                to="/jobs"
-                className={`btn ${isActive("/jobs") ? "active" : ""}`}
+                to="/blogs"
+                className={`btn ${isActive("/blogs") ? "active" : ""}`}
               >
-                Jobs
+                Blog
               </Link>
             </li>
 
@@ -129,13 +129,19 @@ const Navbar: React.FC = () => {
               </ul>
             </li>
           </ul>
-
+          
           {/* Auth section (right side) */}
           <div className="main-nav-auth">
             <div className="main-nav-auth-row">
               {!loading && user && (
                 <>
-                  <span className="small">Logged in as {displayName}</span>
+                  <span className="small">
+                    Logged in as{" "}
+                    <Link to="/aboutme" className="nav-user-link small">
+                      {displayName}
+                    </Link>
+                  </span>
+
                   <button
                     type="button"
                     className="btn seg-btn"

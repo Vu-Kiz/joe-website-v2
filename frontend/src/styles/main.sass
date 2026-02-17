@@ -1,38 +1,13 @@
 @use './variables' as *
 @use './base'
 @use './theme'
-@use './navbar' as navbar
+@use "./navbar" as *
 
-// RESPONSIVE SCALING FOR LARGE SCREENS
-// (Zoom-style scaling via .site-scale)
-// ============================================
+body
+  line-height: 1.5
 
-@media (min-width: 1440px)
-  .site-scale
-    transform: scale(1.15)
-    transform-origin: top center
+p
+  margin: 0 0 10px 0
 
-@media (min-width: 1700px)
-  .site-scale
-    transform: scale(1.25)
-    transform-origin: top center
-
-@media (min-width: 2000px)
-  .site-scale
-    transform: scale(1.35)
-    transform-origin: top center
-
-@media (min-width: 2560px)
-  .site-scale
-    transform: scale(1.45)
-    transform-origin: top center
-
-  // Let the layout breathe a bit more on ultrawide
-  .app,
-  .main-nav,
-  .jen-ticker,
-  .site-footer-inner
-    max-width: 1500px
-
-  .navbar-banner
-    max-width: 560px
+p:last-child
+  margin-bottom: 0

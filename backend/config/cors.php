@@ -1,81 +1,19 @@
 <?php
 
-use Illuminate\Support\Str;
-
-$csv = static function (string $value): array {
-    return array_filter(
-        array_map('trim', explode(',', $value)),
-        fn ($v) => $v !== ''
-    );
-};
-
 return [
+    'paths' => ['api/*', 'oauth', 'oauth/*'],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Paths
-    |--------------------------------------------------------------------------
-    */
+    'allowed_methods' => ['*'],
 
-    'paths' => $csv(env('CORS_PATHS', 'api/*,sanctum/csrf-cookie,oauth/*')),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Allowed methods
-    |--------------------------------------------------------------------------
-    */
-
-    'allowed_methods' => $csv(env('CORS_ALLOWED_METHODS', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Allowed origins
-    |--------------------------------------------------------------------------
-    */
-
-    'allowed_origins' => $csv(env('CORS_ALLOWED_ORIGINS', 'http://localhost:5173')),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Allowed origins patterns
-    |--------------------------------------------------------------------------
-    */
+    'allowed_origins' => array_filter(array_map('trim', explode(',', env('CORS_ALLOWED_ORIGINS', '')))),
 
     'allowed_origins_patterns' => [],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Allowed headers
-    |--------------------------------------------------------------------------
-    */
+    'allowed_headers' => ['*'],
 
-    'allowed_headers' => $csv(env('CORS_ALLOWED_HEADERS', '*')),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Exposed headers
-    |--------------------------------------------------------------------------
-    */
-
-    'exposed_headers' => $csv(env('CORS_EXPOSED_HEADERS', '')),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Max age
-    |--------------------------------------------------------------------------
-    */
+    'exposed_headers' => [],
 
     'max_age' => 0,
 
-    /*
-    |--------------------------------------------------------------------------
-    | Supports credentials
-    |--------------------------------------------------------------------------
-    */
-
-    'supports_credentials' => filter_var(
-        env('CORS_SUPPORTS_CREDENTIALS', true),
-        FILTER_VALIDATE_BOOL
-    ),
-
+    'supports_credentials' => (bool) env('CORS_SUPPORTS_CREDENTIALS', false),
 ];

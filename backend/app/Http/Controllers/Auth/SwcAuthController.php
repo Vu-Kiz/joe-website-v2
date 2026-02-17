@@ -4,38 +4,35 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
-use App\Http\ApiClient;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\JsonResponse;
+use App\Models\User;
+use App\Support\Swc\SwcHttp;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class SwcAuthController extends Controller
 {
-    /**
-     * Step 1: Redirect user to SWC OAuth authorize endpoint.
-     */
     public function redirect(Request $request): RedirectResponse
     {
-        $clientId     = Config::get('swc.client_id');
-        $authorizeUrl = rtrim((string) Config::get('swc.authorize_url'), '/');
-        $redirectUri  = Config::get('swc.redirect_uri');
-        $scope        = Config::get('swc.default_scope', 'character_read');
+        $clientId     = (string) Config::get('swc.client_id', '');
+        $authorizeUrl = rtrim((string) Config::get('swc.authorize_url', ''), '/');
+        $redirectUri  = (string) Config::get('swc.redirect_uri', '');
+        $scope        = (string) Config::get('swc.default_scope', 'character_read');
+        $accessType   = (string) Config::get('swc.access_type', 'online');
 
-        if (! $clientId || ! $authorizeUrl || ! $redirectUri) {
+        if ($clientId === '' || $authorizeUrl === '' || $redirectUri === '') {
             Log::error('SWC OAuth misconfigured', [
-                'client_id'     => (bool) $clientId,
-                'authorize_url' => (bool) $authorizeUrl,
-                'redirect_uri'  => (bool) $redirectUri,
+                'client_id'     => $clientId !== '',
+                'authorize_url' => $authorizeUrl !== '',
+                'redirect_uri'  => $redirectUri !== '',
             ]);
-
             abort(500, 'SWC OAuth is not configured correctly.');
         }
 
-        // CSRF protection – store state in the session
         $state = Str::random(32);
         $request->session()->put('swc_oauth_state', $state);
 
@@ -44,114 +41,159 @@ class SwcAuthController extends Controller
             'client_id'     => $clientId,
             'redirect_uri'  => $redirectUri,
             'scope'         => $scope,
-            // if you want offline refresh tokens:
-            // 'access_type'   => 'offline',
             'state'         => $state,
+            'access_type'   => $accessType, // online/offline
         ]);
 
-        return redirect()->away("{$authorizeUrl}?{$query}");
+        // Docs show /ws/oauth2/auth/ and query string
+        return redirect()->away("{$authorizeUrl}/?{$query}");
     }
 
-    /**
-     * Step 2: SWC redirects back here with ?code=&state=...
-     *
-     * CURRENTLY: debug mode – we stop after exchanging the code and dump
-     * the raw token response so we can see exactly what SWC sends back.
-     */
-    public function callback(Request $request): JsonResponse
+    public function callback(Request $request): RedirectResponse
     {
-        $code  = $request->query('code');
-        $state = $request->query('state');
+        $code  = (string) $request->query('code', '');
+        $state = (string) $request->query('state', '');
 
-        if (! $code) {
-            return response()->json([
-                'ok'    => false,
-                'step'  => 'callback-error',
-                'error' => 'Missing "code" parameter from SWC.',
-            ], 400);
+        if ($code === '') {
+            abort(400, 'Missing "code" parameter from SWC.');
         }
 
-        // CSRF / state check
-        $sessionState = $request->session()->pull('swc_oauth_state');
-
-        if (! $sessionState || ! hash_equals((string) $sessionState, (string) $state)) {
+        $sessionState = (string) $request->session()->pull('swc_oauth_state', '');
+        if ($sessionState === '' || !hash_equals($sessionState, $state)) {
             Log::warning('SWC OAuth state mismatch', [
                 'session_state' => $sessionState,
                 'query_state'   => $state,
             ]);
-
-            return response()->json([
-                'ok'    => false,
-                'step'  => 'callback-error',
-                'error' => 'Invalid OAuth state.',
-            ], 400);
+            abort(400, 'Invalid OAuth state.');
         }
 
-        $clientId     = Config::get('swc.client_id');
-        $clientSecret = Config::get('swc.client_secret');
-        $tokenUrl     = rtrim((string) Config::get('swc.token_url'), '/');
-        $redirectUri  = Config::get('swc.redirect_uri');
+        $clientId     = (string) Config::get('swc.client_id', '');
+        $clientSecret = (string) Config::get('swc.client_secret', '');
+        $tokenUrl     = rtrim((string) Config::get('swc.token_url', ''), '/');
+        $redirectUri  = (string) Config::get('swc.redirect_uri', '');
 
-        if (! $clientId || ! $clientSecret || ! $tokenUrl || ! $redirectUri) {
+        if ($clientId === '' || $clientSecret === '' || $tokenUrl === '' || $redirectUri === '') {
             Log::error('SWC OAuth token config missing', [
-                'client_id'     => (bool) $clientId,
-                'client_secret' => (bool) $clientSecret,
-                'token_url'     => (bool) $tokenUrl,
-                'redirect_uri'  => (bool) $redirectUri,
+                'client_id'     => $clientId !== '',
+                'client_secret' => $clientSecret !== '',
+                'token_url'     => $tokenUrl !== '',
+                'redirect_uri'  => $redirectUri !== '',
             ]);
-
-            return response()->json([
-                'ok'    => false,
-                'step'  => 'callback-error',
-                'error' => 'SWC OAuth token configuration is incomplete.',
-            ], 500);
+            abort(500, 'SWC OAuth token configuration is incomplete.');
         }
 
-        // --- Step 2a: Exchange code for token, with SWC headers set ---
-        try {
-            $tokenResponse = ApiClient::swc()
-                ->asForm()
-                ->post($tokenUrl, [
-                    'grant_type'    => 'authorization_code',
-                    'code'          => $code,
-                    'client_id'     => $clientId,
-                    'client_secret' => $clientSecret,
-                    'redirect_uri'  => $redirectUri,
-                ]);
-        } catch (\Throwable $e) {
-            Log::error('SWC OAuth token request failed', [
-                'exception'   => $e->getMessage(),
-                'token_url'   => $tokenUrl,
-                'redirectUri' => $redirectUri,
+        // Exchange code -> token
+        $tokenRes = SwcHttp::make()
+            ->asForm()
+            ->post($tokenUrl . '/', [
+                'grant_type'    => 'authorization_code',
+                'code'          => $code,
+                'redirect_uri'  => $redirectUri,
+                'client_id'     => $clientId,
+                'client_secret' => $clientSecret,
             ]);
 
-            return response()->json([
-                'ok'         => false,
-                'step'       => 'token-request-exception',
-                'error'      => 'Exception during SWC token request.',
-                'token_url'  => $tokenUrl,
-                'exception'  => $e->getMessage(),
-                'exception_class' => get_class($e),
-            ], 502);
+        if (!$tokenRes->ok()) {
+            Log::warning('SWC token exchange failed', [
+                'status' => $tokenRes->status(),
+                'body'   => $tokenRes->body(),
+            ]);
+            abort(502, 'SWC token exchange failed.');
         }
 
-        $payload = [
-            'code'         => $code,
-            'client_id'    => $clientId,
-            'client_secret'=> '[redacted]', // don’t echo secrets back
-            'redirect_uri' => $redirectUri,
-            'grant_type'   => 'authorization_code',
-        ];
+        $tokenData   = $tokenRes->json() ?? [];
+        $accessToken = (string) ($tokenData['access_token'] ?? '');
 
-        // 🔍 DEBUG: show exactly what SWC returned
-        return response()->json([
-            'ok'        => true,
-            'step'      => 'debug-token',
-            'status'    => $tokenResponse->status(),
-            'payload'   => $payload,
-            'headers'   => $tokenResponse->headers(),
-            'raw_body'  => $tokenResponse->body(),
-            'json_body' => $tokenResponse->json(),
-        ]);
+        if ($accessToken === '') {
+            Log::warning('SWC token response missing access_token', [
+                'status' => $tokenRes->status(),
+                'body'   => $tokenRes->body(),
+                'json'   => $tokenData,
+            ]);
+            abort(502, 'SWC response did not include an access_token.');
+        }
+
+        // Fetch character (SWC returns JSON in your successful run)
+        $apiBase    = rtrim((string) Config::get('swc.api_base', 'https://www.swcombine.com/ws/v2.0'), '/');
+        $profileUrl = $apiBase . '/character/';
+
+        $profileRes = SwcHttp::make($accessToken)->get($profileUrl);
+
+        if (!$profileRes->ok()) {
+            Log::warning('SWC character fetch failed', [
+                'url'    => $profileUrl,
+                'status' => $profileRes->status(),
+                'body'   => mb_substr((string) $profileRes->body(), 0, 800),
+            ]);
+            abort(502, 'Could not fetch character profile from SWC.');
+        }
+
+        $profile = $profileRes->json() ?? [];
+
+        // Your payload shape: swcapi.character.uid/name/image/factions[]
+        $charUid  = (string) data_get($profile, 'swcapi.character.uid', '');
+        $charName = (string) data_get($profile, 'swcapi.character.name', '');
+        $avatar   = (string) data_get($profile, 'swcapi.character.image', '');
+
+        // UID looks like "1:1479821" -> take right side for numeric id
+        $charId = null;
+        if ($charUid !== '' && str_contains($charUid, ':')) {
+            $parts = explode(':', $charUid);
+            $maybe = end($parts);
+            if (is_numeric($maybe)) $charId = (int) $maybe;
+        }
+
+        // Flags from factions array
+        $factions = (array) data_get($profile, 'swcapi.character.factions', []);
+        $factionNames = array_map(
+            fn ($f) => (string) (is_array($f) ? ($f['value'] ?? '') : ''),
+            $factions
+        );
+
+        $hasFaction = function (string $needle) use ($factionNames): bool {
+            foreach ($factionNames as $n) {
+                if (stripos($n, $needle) !== false) return true;
+            }
+            return false;
+        };
+
+        $isJoeMember = $hasFaction('Jawa Offworld Enterprises');
+        $isGarry     = $hasFaction('GARRY');
+        $isRaid      = $hasFaction('RAID');
+
+        // Upsert user
+        $user = null;
+
+        if ($charId !== null) {
+            $user = User::query()->where('swc_character_id', $charId)->first();
+        }
+
+        if (!$user) {
+            $user = new User();
+        }
+
+        $user->swc_character_id = $charId;
+        $user->swc_handle       = $charName !== '' ? $charName : null; // keep backticks exactly (Vu K`iz)
+        $user->swc_avatar_url   = $avatar !== '' ? $avatar : null;
+
+        $user->is_joe_member = $isJoeMember;
+        $user->is_garry      = $isGarry;
+        $user->is_raid       = $isRaid;
+
+        // leave these false until you implement admin/sysadmin/intel gates
+        $user->is_admin    = (bool) ($user->is_admin ?? false);
+        $user->is_sysadmin = (bool) ($user->is_sysadmin ?? false);
+        $user->is_intel    = (bool) ($user->is_intel ?? false);
+
+        $user->save();
+
+        // Log the user in (session cookie)
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        // Send browser back to frontend
+        $frontend = (string) Config::get('swc.frontend_url', 'https://dev-v2.swc-joe.com/home');
+
+        return redirect()->away($frontend);
     }
 }

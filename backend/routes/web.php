@@ -1,12 +1,17 @@
 <?php
 
-use App\Http\Controllers\Auth\SwcAuthController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\SwcAuthController;
+use App\Http\Controllers\Api\AuthController;
 
-Route::get('/', function () {
-    return view('welcome'); // or whatever
+Route::get('/', fn () => view('welcome'));
+
+// OAuth entrypoints (session-based)
+Route::get('/oauth', [SwcAuthController::class, 'redirect']);
+Route::get('/oauth/callback', [SwcAuthController::class, 'callback']);
+
+// Session-backed endpoints used by the SPA
+Route::prefix('api')->group(function () {
+    Route::get('/auth/me', [AuthController::class, 'me']);
+    Route::post('/auth/logout', [AuthController::class, 'logout']);
 });
-
-// SWC OAuth
-Route::get('/oauth', [SwcAuthController::class, 'redirect'])->name('swc.oauth.redirect');
-Route::get('/oauth/callback', [SwcAuthController::class, 'callback'])->name('swc.oauth.callback');

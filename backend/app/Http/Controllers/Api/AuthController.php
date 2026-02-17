@@ -13,30 +13,26 @@ class AuthController extends Controller
 {
     public function me(Request $request): JsonResponse
     {
-        $user = Auth::user();
-
-        if (! $user) {
-            return response()->json([
-                'ok'   => true,
-                'user' => null,
-            ]);
-        }
-
         return response()->json([
-            'ok'   => true,
-            'user' => [
-                'id'              => $user->id,
-                'name'            => $user->name,
-                'handle'          => $user->swc_handle,
-                'avatarUrl'       => $user->swc_avatar_url,
-                'swcCharacterId'  => $user->swc_character_id,
-                'isJoeMember'     => $user->is_joe_member,
-                'isAdmin'         => $user->is_admin,
-                'isSysadmin'      => $user->is_sysadmin,
-                'isIntel'         => $user->is_intel,
-                'isGarry'         => $user->is_garry,
-                'isRaid'          => $user->is_raid,
+            'ok' => true,
+            'debug' => [
+                'has_session_cookie' => $request->hasCookie(config('session.cookie')),
+                'session_cookie_name' => config('session.cookie'),
+                'session_id' => $request->session()->getId(),
+                'auth_check' => Auth::check(),
             ],
+            'user' => Auth::user() ? [
+                'id' => Auth::user()->id,
+                'swc_character_id' => Auth::user()->swc_character_id,
+                'handle' => Auth::user()->swc_handle,
+                'avatar_url' => Auth::user()->swc_avatar_url,
+                'is_joe_member' => (bool) Auth::user()->is_joe_member,
+                'is_admin' => (bool) Auth::user()->is_admin,
+                'is_sysadmin' => (bool) Auth::user()->is_sysadmin,
+                'is_intel' => (bool) Auth::user()->is_intel,
+                'is_garry' => (bool) Auth::user()->is_garry,
+                'is_raid' => (bool) Auth::user()->is_raid,
+            ] : null,
         ]);
     }
 
@@ -46,8 +42,6 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return response()->json([
-            'ok' => true,
-        ]);
+        return response()->json(['ok' => true]);
     }
 }

@@ -4,22 +4,21 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
+    use HasFactory;
     use Notifiable;
 
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
+    protected $table = 'users';
 
+    protected $fillable = [
         'swc_character_id',
         'swc_handle',
         'swc_avatar_url',
-
         'is_joe_member',
         'is_admin',
         'is_sysadmin',
@@ -28,19 +27,17 @@ class User extends Authenticatable
         'is_raid',
     ];
 
-    protected $hidden = [
-        'password',
-        'remember_token',
+    protected $casts = [
+        'swc_character_id' => 'integer',
+        'is_joe_member' => 'boolean',
+        'is_admin' => 'boolean',
+        'is_sysadmin' => 'boolean',
+        'is_intel' => 'boolean',
+        'is_garry' => 'boolean',
+        'is_raid' => 'boolean',
     ];
 
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-
-        'is_joe_member' => 'bool',
-        'is_admin'      => 'bool',
-        'is_sysadmin'   => 'bool',
-        'is_intel'      => 'bool',
-        'is_garry'      => 'bool',
-        'is_raid'       => 'bool',
+    protected $hidden = [
+        'remember_token',
     ];
 }

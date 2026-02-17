@@ -1,13 +1,22 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import LoadingScreen from "./components/LoadingScreen";
-import HomePage from "./components/HomePage";
+
+import AppLayout from "./layouts/AppLayout";
+import LoadingScreen from "./pages/LoadingScreen";
+import HomePage from "./pages/HomePage";
+import AboutMe from "./pages/AboutMe";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* No navbar here */}
         <Route path="/" element={<LoadingScreen />} />
-        <Route path="/home" element={<HomePage />} />
+
+        {/* Everything below has Navbar via AppLayout */}
+        <Route element={<AppLayout />}>
+          <Route path="/home" element={<HomePage />} />
+          <Route path="/aboutme" element={<AboutMe />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   );
