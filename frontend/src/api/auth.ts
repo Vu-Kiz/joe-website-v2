@@ -17,9 +17,10 @@ export type AuthMeResponse = {
   user: SwcUser | null;
 };
 
-function envString(name: string): string {
+function requireEnv(name: string): string {
   const v = (import.meta as any).env?.[name] as string | undefined;
-  return (v ?? "").trim();
+  if (!v) return "";
+  return String(v).trim();
 }
 
 /**
@@ -27,7 +28,7 @@ function envString(name: string): string {
  * Example: https://dev-v2-api.swc-joe.com/api
  */
 export function getApiBaseUrl(): string {
-  return envString("VITE_API_BASE_URL").replace(/\/+$/, "");
+  return requireEnv("VITE_API_BASE_URL").replace(/\/+$/, "");
 }
 
 /**
@@ -37,58 +38,74 @@ export function getApiBaseUrl(): string {
 export function getBackendOrigin(): string {
   const api = getApiBaseUrl();
   if (!api) return "";
-
-  // Remove a trailing "/api" or "/api/" only (does not touch "/api/v2" etc.)
   return api.replace(/\/api\/?$/, "");
 }
 
-function joinUrl(base: string, path: string): string {
-  const b = base.replace(/\/+$/, "");
-  const p = path.startsWith("/") ? path : `/${path}`;
-  return `${b}${p}`;
+/** Ensure Laravel issues XSRF-TOKEN cookie (Sanctum SPA) */
+export async function ensureCsrfCookie(): Promise<void> {
+  const origin = getBackendOrigin();
+  if (!origin) throw new Error("VITE_API_BASE_URL is missing");
+  await fetch(`${origin}/sanctum/csrf-cookie`, {
+    method: "GET",
+    credentials: "include",
+  });
 }
 
-async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+/** Read XSRF token from cookie (Laravel uses XSRF-TOKEN) */
+function getCookie(name: string): string {
+  const m = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return m ? decodeURIComponent(m[1]) : "";
+}
+
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const base = getApiBaseUrl();
   if (!base) throw new Error("VITE_API_BASE_URL is missing");
 
-  const url = joinUrl(base, path);
+  const url = `${base}${path.startsWith("/") ? "" : "/"}${path}`;
 
-  // Only set JSON content-type if we actually send a body.
-  const hasBody = init.body != null;
-  const headers: Record<string, string> = {
-    ...(hasBody ? { "Content-Type": "application/json" } : {}),
-    ...(init.headers as Record<string, string> | undefined),
+  const method = (init?.method || "GET").toUpperCase();
+  const isWrite = method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
+
+  // For write requests, ensure CSRF cookie exists and send X-XSRF-TOKEN header
+  let headers: Record<string, string> = {
+    ...(init?.headers as any),
   };
+
+  if (isWrite) {
+    // Make sure we have XSRF-TOKEN cookie set
+    await ensureCsrfCookie();
+    const xsrf = getCookie("XSRF-TOKEN");
+    if (xsrf) headers["X-XSRF-TOKEN"] = xsrf;
+  }
+
+  // JSON by default (unless caller overrides)
+  if (!headers["Content-Type"]) headers["Content-Type"] = "application/json";
+  headers["Accept"] = "application/json";
 
   const res = await fetch(url, {
     ...init,
-    credentials: "include", // required for Laravel session cookies
+    credentials: "include",
     headers,
   });
 
-  const contentType = res.headers.get("content-type") || "";
   const text = await res.text();
-
-  const isJson = contentType.includes("application/json");
-  const json = isJson && text ? (() => { try { return JSON.parse(text); } catch { return null; } })() : null;
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    // not json
+  }
 
   if (!res.ok) {
+    // Laravel 419 returns an HTML page by default
     const msg =
-      (json as any)?.error ||
-      (json as any)?.message ||
-      (text ? text.slice(0, 200) : "") ||
-      `Request failed (${res.status}) at ${url}`;
+      json?.message ||
+      json?.error ||
+      (text?.startsWith("<!DOCTYPE") ? `Request failed (${res.status}) - CSRF/session issue` : `Request failed (${res.status}) at ${url}`);
     throw new Error(msg);
   }
 
-  // If backend returns non-json for some reason, keep it explicit
-  if (!isJson) {
-    // Most of your API should be JSON. If you ever hit this, you’ll know why.
-    throw new Error(`Expected JSON but got "${contentType}" from ${url}`);
-  }
-
-  return (json as T) ?? ({} as T);
+  return json as T;
 }
 
 export function fetchAuthMe(): Promise<AuthMeResponse> {
@@ -97,7 +114,4 @@ export function fetchAuthMe(): Promise<AuthMeResponse> {
 
 export function apiLogout(): Promise<{ ok: true }> {
   return apiFetch<{ ok: true }>("/auth/logout", { method: "POST" });
-}
-export function fetchAuthAbout(): Promise<AuthMeResponse> {
-  return apiFetch<AuthMeResponse>("/auth/about");
 }

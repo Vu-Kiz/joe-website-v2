@@ -10,8 +10,3 @@ Route::get('/', fn () => view('welcome'));
 Route::get('/oauth', [SwcAuthController::class, 'redirect']);
 Route::get('/oauth/callback', [SwcAuthController::class, 'callback']);
 
-// Session-backed endpoints used by the SPA
-Route::prefix('api')->group(function () {
-    Route::get('/auth/me', [AuthController::class, 'me']);
-    Route::post('/auth/logout', [AuthController::class, 'logout']);
-});

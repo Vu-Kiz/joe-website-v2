@@ -36,7 +36,7 @@ class AuthController extends Controller
         ]);
     }
 
-    public function logout(Request $request): JsonResponse
+    public function logout(Request $request)
     {
         Auth::logout();
         $request->session()->invalidate();

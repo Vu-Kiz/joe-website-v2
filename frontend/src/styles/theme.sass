@@ -1,19 +1,61 @@
 @use './variables' as *
 
 // ============================
-// LAYOUT GRID (matches V1)
+// APP LAYOUTS & PANELS
 // ============================
 
 .app
-  display: grid
-  grid-template-columns: 1fr 350px
-  gap: 20px
   width: 100%
-  max-width: 1300px
-  margin: auto
+  max-width: $site-max
+  margin: 0 auto
+
+  display: grid
+  gap: $space-lg
+  align-items: start
+
+// 1-column: single main panel (full width)
+.app--one
+  grid-template-columns: minmax(0, 1fr)
+
+// 2-column: main + side (classic)
+.app--two
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr)
+
+// 3-column: main + two side columns (main half, sides quarter each)
+.app--three
+  grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr) minmax(250px, 1fr)
+
+.page-shell
+  width: 100%
+  max-width: var(--site-max, 1800px)
+  margin: 0 auto
+  padding: 0 16px 20px
+  box-sizing: border-box
+
+@media (max-width: 1100px)
+  .app--three
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr)
+
+@media (max-width: 980px)
+  .app--two,
+  .app--three
+    grid-template-columns: minmax(0, 1fr)
+
+  // ============================
+// Columns
+// ============================
+
+.main-col
+  min-width: 0
+
+.side-col
+  display: flex
+  flex-direction: column
+  gap: $space-md
+  min-width: 0
 
 // ============================
-// BOARDS & PANELS (V1 boxes)
+// BOARDS & PANELS (v1 boxes)
 // ============================
 
 .board,
@@ -22,7 +64,6 @@
   border: 1px solid rgba(245,213,70,0.35)
   padding: 12px 14px
   margin-bottom: 16px
-  box-sizing: border-box
   background-color: #111
 
   // Dot-matrix + yellow fade background
@@ -34,143 +75,13 @@
   )
   background-size: 6px 6px, 100% 100%
 
-.board h1
-  font-family: 'EngliBesh', sans-serif
-  color: var(--accent) !important
-
 .section-block
   margin-top: 18px
   margin-bottom: 16px
 
-.section-block h2
-  font-family: 'EngliBesh', sans-serif
-  margin-bottom: 8px
-  color: var(--accent) !important
-
-.section-block h3
-  font-family: 'EngliBesh', sans-serif
-  margin-bottom: 8px
-  color: var(--accent) !important
-
-.section-list
-  margin: 0
-  padding-left: 18px
-
 // ============================
-// FACTION / TERRITORIES SPA
+// PANEL BANNERS (ported from v1)
 // ============================
-
-.faction-panel
-
-.panel-tabs
-  display: flex
-  gap: 8px
-  border-bottom: 1px solid rgba(245,213,70,0.35)
-  margin-bottom: 12px
-
-.panel-tab
-  padding: 6px 12px
-  border: none
-  background: transparent
-  color: rgba(255,255,255,0.7)
-  cursor: pointer
-  font-size: 12px
-  letter-spacing: 0.08em
-  text-transform: uppercase
-  font-family: 'Oxanium', sans-serif
-  border-bottom: 2px solid transparent
-  transition: color 0.15s ease, border-color 0.15s ease
-
-.panel-tab.active
-  color: var(--accent)
-  border-bottom-color: var(--accent)
-
-.panel-view
-  display: none
-
-.panel-view.is-active
-  display: block
-
-.panel-view h2
-  font-family: 'EngliBesh', sans-serif
-  color: var(--accent)
-  margin-top: 0
-
-@media (max-width: 600px)
-  .panel-tabs
-    flex-wrap: wrap
-
-  .panel-tab
-    flex: 1 1 auto
-    text-align: center
-
-// ============================
-// INFO ROWS (V1 layout)
-// ============================
-
-.row
-  display: grid
-  grid-template-columns: 1fr auto
-  gap: 8px
-  margin: 10px 0
-
-.value
-  font-weight: bold
-  color: var(--accent)
-
-.badge
-  background: rgba(245,213,70,0.2)
-  color: var(--accent)
-  padding: 4px 8px
-  border-radius: 4px
-  font-size: 12px
-  border: 1px solid rgba(245,213,70,0.5)
-  display: inline-block
-  white-space: nowrap
-  vertical-align: middle
-
-.hint,
-.small
-  font-size: 12px
-  color: rgba(255,255,255,0.7)
-
-// ============================
-// FACTION PAGE SPLIT (board + sidebar)
-// ============================
-
-.app.faction-page
-  grid-template-columns: 1fr 1fr
-  align-items: flex-start
-
-.side-column
-  display: flex
-  flex-wrap: wrap
-  gap: 16px
-  align-items: stretch
-
-.side-column .panel
-  box-sizing: border-box
-  flex: 0 0 calc(50% - 8px)
-  padding: 12px 14px
-  display: flex
-  flex-direction: column
-
-.side-column .panel.wide
-  flex: 0 0 100%
-
-// Panel headings + centered variants
-
-.small
-  font-size: 0.85rem
-  line-height: 1.5
-  color: rgba(255,255,255,0.85)
-
-.board, .panel
-  h1, h2, h3
-    margin: 0 0 10px 0
-
-.panel.centered
-  text-align: center
 
 .panel-banner
   width: 100%
@@ -194,10 +105,11 @@
 .panel-banner.is-vert
   width: 100%
   display: flex
-  justify-content: center
+  justify-content: left
   align-items: flex-start
   margin-bottom: 10px
 
+  // IMPORTANT: don’t crop the image
   overflow: visible
 
   img
@@ -205,40 +117,40 @@
     width: auto
     height: auto
     max-width: 100%
-    max-height: 420px
+    max-height: 700px
     object-fit: contain
     border: 2px solid var(--accent)
     border-radius: 8px
 
+// ============================
+// HOME PAGE SPECIFIC HELPERS (matches your current JSX classNames)
+// ============================
 
-.contact-button
-  display: block
+.overview-layout
+  display: grid
+  grid-template-columns: 230px minmax(0, 1fr)
+  gap: $space-md
+  align-items: start
+
+@media (max-width: 980px)
+  .overview-layout
+    grid-template-columns: 1fr
+
+.side-column
+  display: flex
+  flex-direction: column
+  gap: $space-md
+
+.jawa-map-container
   width: 100%
-  max-width: 260px
-  margin: 12px auto 0 auto
-  white-space: normal
-  text-align: center
-  word-wrap: break-word
-  overflow-wrap: break-word
-  line-height: 1.2
-  padding: 10px 12px
-  font-size: 14px
+  display: flex
+  justify-content: center
+  margin: $space-md 0
 
-.contact-btn
-  display: inline-block
-  margin: 0 auto
-  max-width: 100%
-  white-space: normal !important
-  text-align: center
-  padding: 8px 14px
+.jawa-map
+  width: 100%
+  max-width: 650px
+  height: auto
+  border-radius: 12px
 
-@media (max-width: 900px)
-  .app.faction-page
-    display: block
-
-  .side-column
-    gap: 12px
-
-  .side-column .panel,
-  .side-column .panel.wide
-    flex: 0 0 100%
+  

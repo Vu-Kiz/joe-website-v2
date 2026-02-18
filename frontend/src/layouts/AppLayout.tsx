@@ -4,10 +4,15 @@ import Navbar from "../components/Navbar";
 
 const AppLayout: React.FC = () => {
   return (
-    <div className="site-scale">
-      <Navbar />
-      <Outlet />
-    </div>
+    <>
+      <div className="page-shell">
+        <Navbar />
+      </div>
+
+      <div className="page-shell">
+        <Outlet />
+      </div>
+    </>
   );
 };
 

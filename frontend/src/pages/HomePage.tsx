@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import styles from "../styles/home.module.sass";
-
 import jawaLogo from "../assets/branding/jawalogo.png";
 import vertBanner from "../assets/home/VertBanner.png";
 import jawaMap from "../assets/home/JawaMap.gif";
@@ -18,10 +17,9 @@ const HomePage: React.FC = () => {
   const showTerritories = activeTab === "territories";
 
   return (
-    <div className={styles.root}>
+    <div className="app app--three faction-page">
       {/* MAIN (50%) */}
-      <main className={styles.main}>
-        <section className="panel">
+      <main className="board main-col">
           <div className={styles.headerRow}>
             <img src={jawaLogo} alt="JOE" className={styles.logo} />
             <h1 className={styles.title}>Jawa Offworld Enterprises</h1>
@@ -52,47 +50,35 @@ const HomePage: React.FC = () => {
                 </div>
 
                 <div className={styles.small}>
-                  <p>Founded by prominent Jawas Jic Uiji, Kolomon Seph, and
-                      Ini Kedi in YR 19, Jawa Offworld Enterprises is a
-                      megacorporation-turned regional government which primarily
-                      profits through the investment in and creation of Jawa and
-                      Jawa-adjacent business ventures. Initially the
-                      conglomerate of clans quickly rose to prominence in the
-                      galaxy, being at the center of a number of galactic
-                      events and achievements. This has been largely attributed
-                      by the group to the natural skill at conducting business
-                      possessed by the Jawa people.</p>
-                  <p>Ironically, the group of “Offworld” Jawas has had
-                      considerable activity focused on their homeworld of
-                      Tatooine, after assuming control of the planet in mid YR
-                      21. Since that point, peaceful relations between Jawas and
-                      Tusken tribes have thrived and prospered and even human
-                      moisture farmer burnings have substantially decreased in
-                      per capita reportings.</p>
-                  <p>Originally only allowing Jawas to hold seats of prominence
-                      within the organization, JOE leadership eventually made
-                      the decision to allow non-Jawas to also share limited
-                      rights within the prestigious Jawa Council of clan
-                      representatives. This led to the eventual business merger
-                      of the formerly transient Veilhal Nomad group, later
-                      rebranding to Jawa Outer Colonies and overseeing all
-                      operations and ventures in the once-JOE-controlled Xappyh
-                      Sector to the far north alongside Regional Governor Bli
-                      Tokla of JOE.</p>
-                  <p>The once pirate organization known as Requiem, led by
-                      charlatan and corsair Redjon Mirrabel, was also later
-                      indoctrinated into the JOE ranks and heavily contributing
-                      to the group&apos;s combat and espionage efficiency in
-                      tackling rogue business dealings and unpaid debts. With
-                      them they brought various substantial land holdings in the
-                      galactic Core which allowed JOE to once again exert its
-                      influence and expand its reach throughout the galaxy.</p>
-                  <p>Jawa Offworld Enterprises has since used a variety of
-                      business tactics and acumen both overt and otherwise to
-                      grow into the role of being the de facto government of
-                      multiple sectors, four galactic systems, one hundred
-                      planetary bodies, and holding political sway over several
-                      races of sentient beings.</p>
+                  <p>
+                    Founded by prominent Jawas Jic Uiji, Kolomon Seph, and Ini Kedi in YR 19, Jawa Offworld Enterprises is a
+                    megacorporation turned regional government which primarily profits through the investment in and creation
+                    of Jawa and Jawa-adjacent business ventures. Initially the conglomerate of clans quickly rose to prominence
+                    in the galaxy, being at the center of a number of galactic events and achievements. This has been largely
+                    attributed by the group to the natural skill at conducting business possessed by the Jawa people. Ironically,
+                    the group of "Offworld" Jawas has had considerable activity focused on their homeworld of Tatooine, after
+                    assuming control of the planet in mid YR 21. Since that point, peaceful relations between Jawas and Tusken
+                    tribes have thrived and prospered and even human moisture farmer burnings have substantially decreased in
+                    per capita reportings.
+                  </p>
+
+                  <p>
+                    Originally only allowing Jawas to hold seats of prominence within the organization, JOE leadership eventually
+                    made the decision to allow non-Jawas to also share limited rights within the prestigious Jawa Council of clan
+                    representatives. This led to the eventual business merger of the formerly transient Veilhal Nomad group, later
+                    rebranding to Jawa Outer Colonies and overseeing all operations and ventures in the once-JOE-controlled Xappyh
+                    Sector to the far north alongside Regional Governor Bli Tokla of JOE. The once pirate organization known as
+                    Requiem, led by charlatan and corsair Redjon Mirrabel, was also later indoctrinated into the JOE ranks and heavily
+                    contributing to the groups combat and espionage efficiency in tackling rogue business dealings and unpaid debts.
+                    With them they brought various substantial land holdings in the galactic Core which allowed JOE to once again exert
+                    its influence and expand its reach throughout the galaxy.
+                  </p>
+
+                  <p>
+                    Jawa Offworld Enterprises has since used a variety of business tactics and acumen both overt and otherwise to grow
+                    into the role of being the de facto government of multiple sectors, four galactic systems, one hundred planetary
+                    bodies, and holding political sway over four races of sentient beings.
+                  </p>
                 </div>
               </div>
             )}
@@ -141,17 +127,16 @@ const HomePage: React.FC = () => {
               </>
             )}
           </div>
-        </section>
       </main>
 
       {/* SIDE COL 1 (25%) */}
-      <aside className={styles.side}>
+      <aside className="side-col">
         <section className="panel">
           <div className="panel-banner">
             <img src={weatherBanner} alt="Mos Espa Weather Control" />
           </div>
 
-          <img src={twinSuns} alt="Twin Suns" className="twin-suns-icon" />
+          <img src={twinSuns} alt="Twin Suns" className={styles.twinSunsIcon} />
 
           <p className={styles.small} style={{ marginTop: 10 }}>
             Initialising Mos Espa Weather Control network…
@@ -162,8 +147,6 @@ const HomePage: React.FC = () => {
           <div className="panel-banner">
             <img src={employeeBanner} alt="Employee of the Month" />
           </div>
-
-          <h2>Employee of the Month</h2>
           <div className={styles.small}>
             <p>
               Our current Employee of the Month is being pulled from the Jawa archives.
@@ -174,7 +157,7 @@ const HomePage: React.FC = () => {
       </aside>
 
       {/* SIDE COL 2 (25%) */}
-      <aside className={styles.side}>
+      <aside className="side-col">
         <section className="panel centered">
           <div className="panel-banner">
             <img src={contactBanner} alt="Contact JOE" />

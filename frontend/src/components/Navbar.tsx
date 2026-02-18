@@ -1,20 +1,22 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 import jawaLogo from "../assets/branding/jawalogo.png";
-import {
-  fetchAuthMe,
-  apiLogout,
-  getBackendOrigin,   // ⬅ change here
-} from "../api/auth";
+import { fetchAuthMe, apiLogout, getBackendOrigin } from "../api/auth";
 import type { SwcUser } from "../api/auth";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [toolsOpen, setToolsOpen] = useState(false);
+
+  // ✅ separate concerns
+  const [navOpen, setNavOpen] = useState(false); // mobile menu
+  const [dropdownOpen, setDropdownOpen] = useState(false); // Tools dropdown
+
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<SwcUser | null>(null);
+
+  // Only used for dropdown outside-click detection
+  const dropdownRef = useRef<HTMLLIElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -22,11 +24,9 @@ const Navbar: React.FC = () => {
     (async () => {
       try {
         const data = await fetchAuthMe();
-        if (!cancelled && data.ok) {
-          setUser(data.user);
-        }
+        if (!cancelled && data.ok) setUser(data.user);
       } catch {
-        // ignore for now; show as guest
+        // ignore; show guest
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -37,19 +37,44 @@ const Navbar: React.FC = () => {
     };
   }, []);
 
+  // Close menus on route change (prevents stale open states)
+  useEffect(() => {
+    setDropdownOpen(false);
+    setNavOpen(false);
+  }, [location.pathname]);
+
+  // Close dropdown on outside click / escape
+  useEffect(() => {
+    if (!dropdownOpen) return;
+
+    const onPointerDown = (e: PointerEvent) => {
+      const el = dropdownRef.current;
+      if (!el) return;
+
+      const path = (e.composedPath?.() ?? []) as EventTarget[];
+      const inside = path.includes(el) || el.contains(e.target as Node);
+
+      if (!inside) setDropdownOpen(false);
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDropdownOpen(false);
+    };
+
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [dropdownOpen]);
+
   const isActive = (path: string) => location.pathname === path;
 
   const handleLogin = () => {
     const origin = getBackendOrigin();
-
-    if (!origin) {
-      // worst case: just fall back to /oauth relative to current host
-      window.location.href = "/oauth";
-      return;
-    }
-
-    // You can add a ?redirect=/current/path later if you want
-    window.location.href = `${origin}/oauth`;
+    window.location.href = origin ? `${origin}/oauth` : "/oauth";
   };
 
   const handleLogout = async () => {
@@ -69,67 +94,76 @@ const Navbar: React.FC = () => {
         {/* Brand */}
         <Link to="/home" className="main-nav-brand">
           <img src={jawaLogo} alt="JOE Logo" className="main-nav-logo" />
-          <span>Jawa Offworld Enterprises</span>
         </Link>
 
         {/* Mobile burger */}
         <button
           className="main-nav-toggle"
           type="button"
-          onClick={() => setMenuOpen((o) => !o)}
+          onClick={() => setNavOpen((o) => !o)}
+          aria-expanded={navOpen}
+          aria-label="Toggle navigation"
         >
           ☰ Menu
         </button>
 
         {/* Right side menu */}
-        <div className={`main-nav-menu ${menuOpen ? "open" : ""}`}>
+        <div className={`main-nav-menu ${navOpen ? "open" : ""}`}>
           <ul className="main-nav-links">
             <li>
-              <Link
-                to="/home"
-                className={`btn ${isActive("/home") ? "active" : ""}`}
-              >
+              <Link to="/home" className={`btn ${isActive("/home") ? "active" : ""}`}>
                 Home
               </Link>
             </li>
 
             <li>
-              <Link
-                to="/blogs"
-                className={`btn ${isActive("/blogs") ? "active" : ""}`}
-              >
-                Blog
+              <Link to="/blogs" className={`btn ${isActive("/blogs") ? "active" : ""}`}>
+                JEN
               </Link>
             </li>
 
-            {/* Tools dropdown – can gate later on user flags */}
-            <li
-              className={`main-nav-tools ${toolsOpen ? "open" : ""}`}
-              onMouseEnter={() => setToolsOpen(true)}
-              onMouseLeave={() => setToolsOpen(false)}
-            >
+            {/* Dropdown uses GENERIC dropdown styles (no tools-specific class names) */}
+            <li ref={dropdownRef} className={`dropdown ${dropdownOpen ? "is-open" : ""}`}>
               <button
                 type="button"
-                className="btn main-nav-tools-toggle"
-                onClick={() => setToolsOpen((o) => !o)}
+                className="btn dropdown__toggle"
+                aria-haspopup="menu"
+                aria-expanded={dropdownOpen}
+                onPointerDown={(e) => {
+                  // pointerdown stops "drag off" glitches
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDropdownOpen((o) => !o);
+                }}
               >
                 Tools ▾
               </button>
-              <ul className="main-nav-tools-menu">
-                <li>
-                  <Link to="/intel" className="tools-link">
+
+              <ul className="dropdown__menu" role="menu">
+                <li role="none">
+                  <Link
+                    to="/intel"
+                    className="dropdown__item"
+                    role="menuitem"
+                    onClick={() => setDropdownOpen(false)}
+                  >
                     Intel (DroidBrain)
                   </Link>
                 </li>
-                <li>
-                  <Link to="/admin" className="tools-link">
+                <li role="none">
+                  <Link
+                    to="/admin"
+                    className="dropdown__item"
+                    role="menuitem"
+                    onClick={() => setDropdownOpen(false)}
+                  >
                     Admin
                   </Link>
                 </li>
               </ul>
             </li>
           </ul>
-          
+
           {/* Auth section (right side) */}
           <div className="main-nav-auth">
             <div className="main-nav-auth-row">
@@ -142,22 +176,14 @@ const Navbar: React.FC = () => {
                     </Link>
                   </span>
 
-                  <button
-                    type="button"
-                    className="btn seg-btn"
-                    onClick={handleLogout}
-                  >
+                  <button type="button" className="btn seg-btn" onClick={handleLogout}>
                     Logout
                   </button>
                 </>
               )}
 
               {!loading && !user && (
-                <button
-                  type="button"
-                  className="btn seg-btn"
-                  onClick={handleLogin}
-                >
+                <button type="button" className="btn seg-btn" onClick={handleLogin}>
                   Login via SWC
                 </button>
               )}
@@ -165,7 +191,6 @@ const Navbar: React.FC = () => {
               {loading && <span className="small">Checking session…</span>}
             </div>
 
-            {/* CGT clock placeholder – you can wire this later */}
             <div className="nav-cgt">
               CGT time: <span>Loading…</span>
             </div>

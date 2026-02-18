@@ -11,9 +11,15 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       host: true,
-      port: 9010,
+      port: 5173,
       strictPort: true,
       allowedHosts,
     },
+    hmr: {
+      protocol: "wss",
+      host: "dev-v2.swc-joe.com",
+      clientPort: 443,
+    },
   };
+  
 });

@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'paths' => ['api/*', 'oauth', 'oauth/*'],
+    'paths' => ['api/*', 'sanctum/csrf-cookie', 'oauth/*'],
 
     'allowed_methods' => ['*'],
 
@@ -15,5 +15,6 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => (bool) env('CORS_SUPPORTS_CREDENTIALS', false),
+    'supports_credentials' => (bool) env('CORS_SUPPORTS_CREDENTIALS', true),
 ];
+
