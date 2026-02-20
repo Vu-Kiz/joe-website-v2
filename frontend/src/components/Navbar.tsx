@@ -117,7 +117,7 @@ const Navbar: React.FC = () => {
             </li>
 
             <li>
-              <Link to="/blogs" className={`btn ${isActive("/blogs") ? "active" : ""}`}>
+              <Link to="/jen" className={`btn ${isActive("/jen") ? "active" : ""}`}>
                 JEN
               </Link>
             </li>

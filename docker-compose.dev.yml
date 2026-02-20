@@ -34,6 +34,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
     volumes:
       - ./backend:/var/www/html
+      - joe_backend_storage_dev:/var/www/html/storage
     ports:
       - "9011:80"
 
@@ -70,3 +71,6 @@ services:
       PMA_HOST: db
     ports:
       - "9013:80"
+
+volumes:
+  joe_backend_storage_dev:
