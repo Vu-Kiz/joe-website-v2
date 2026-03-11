@@ -1,22 +1,21 @@
 import React, { useState } from "react";
+import JenTicker from "../components/jen/JenTicker";
+import EotmPanel from "../components/home/EotmPanel";
+import WeatherPanel from "../components/home/WatherPanel";
 import styles from "../styles/home.module.sass";
 import jawaLogo from "../assets/branding/jawalogo.png";
 import vertBanner from "../assets/home/VertBanner.png";
 import jawaMap from "../assets/home/JawaMap.gif";
-import weatherBanner from "../assets/home/WeatherBanner.png";
-import employeeBanner from "../assets/home/EmployeeBanner.png";
-import twinSuns from "../assets/home/twin-suns.png";
 import contactBanner from "../assets/home/DiplomacyBanner.png";
 
 type TabKey = "overview" | "territories";
-
 const HomePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
-
   const showOverview = activeTab === "overview";
   const showTerritories = activeTab === "territories";
-
   return (
+    <>
+      <JenTicker />
     <div className="app app--three faction-page">
       {/* MAIN (50%) */}
       <main className="board main-col">
@@ -124,6 +123,12 @@ const HomePage: React.FC = () => {
                   operations keeping the heavily trafficked Arvala-7 safe zone
                   free from pirate activities, peace is maintained by a mix of
                   commerce and Jawa “encouragement”.</p>
+                  <h3>Outer Habitation Belt</h3>
+                  <p className={styles.small}>The vast flowing asteroid fields of the greater Arkanis, Hunnovers, Savareen, Dalchon, Grohl and Trans-nebular sectors.
+                  These fields and the habitable planetoids within them are claimed sovereign territories of Jawa Offworld Enterprises and affiliated organizations. 
+                  Heavily patrolled, highly militarized, and notoriously deadly; many pockets of the belt are home to pirate and spacefaring cartel groups. 
+                  Through various means both diplomatic and aggressive many of the operators within these areas have pledged loyalty to JOE.
+                  Those that don’t are obliterated or have their technology repossessed by Jawa operatives.</p>
               </>
             )}
           </div>
@@ -131,29 +136,8 @@ const HomePage: React.FC = () => {
 
       {/* SIDE COL 1 (25%) */}
       <aside className="side-col">
-        <section className="panel">
-          <div className="panel-banner">
-            <img src={weatherBanner} alt="Mos Espa Weather Control" />
-          </div>
-
-          <img src={twinSuns} alt="Twin Suns" className={styles.twinSunsIcon} />
-
-          <p className={styles.small} style={{ marginTop: 10 }}>
-            Initialising Mos Espa Weather Control network…
-          </p>
-        </section>
-
-        <section className="panel centered">
-          <div className="panel-banner">
-            <img src={employeeBanner} alt="Employee of the Month" />
-          </div>
-          <div className={styles.small}>
-            <p>
-              Our current Employee of the Month is being pulled from the Jawa archives.
-              This panel will be wired to the official JOE records shortly.
-            </p>
-          </div>
-        </section>
+          <WeatherPanel />
+          <EotmPanel />
       </aside>
 
       {/* SIDE COL 2 (25%) */}
@@ -184,6 +168,7 @@ const HomePage: React.FC = () => {
         {/* optional: put a 4th panel here later */}
       </aside>
     </div>
+    </>
   );
 };
 

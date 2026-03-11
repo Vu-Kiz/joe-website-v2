@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\MetaController;
 use App\Http\Controllers\Api\JobsController;
@@ -8,21 +9,54 @@ use App\Http\Controllers\Api\LoadingTipController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BlogController;
 use App\Http\Controllers\Api\UploadController;
+use App\Http\Controllers\Api\TimeController;
+use App\Http\Controllers\Api\AdminUserController;
+use App\Http\Controllers\Api\Sys\UniversePullController;
+use App\Http\Controllers\Api\AdminLoadingTipController;
+use App\Http\Controllers\Api\EmployeeSpotlightController;
+use App\Http\Controllers\Api\AdminEmployeeSpotlightController;
+use App\Http\Controllers\Api\TatooineWeatherController;
+use App\Http\Controllers\Api\AdminWeatherController;
+use App\Http\Controllers\Api\AdminActionLogController;
+use App\Http\Controllers\Api\AdminSiteLockController;
+use App\Http\Controllers\Api\SiteLockStatusController;
 
+
+// Public utility
 Route::get('/health', [HealthController::class, 'index']);
 Route::get('/meta', [MetaController::class, 'index']);
 Route::get('/loading-tip', [LoadingTipController::class, 'index']);
+Route::get('/time', [TimeController::class, 'show']);
 
-Route::prefix('blog')->group(function () {
-    Route::get('/', [BlogController::class, 'index']);
-    Route::get('/{id}', [BlogController::class, 'show']);
-    Route::post('/', [BlogController::class, 'store']);
-    Route::put('/{id}', [BlogController::class, 'update']);
-    Route::delete('/{id}', [BlogController::class, 'destroy']);
+// Auth
+Route::prefix('auth')->group(function () {
+    Route::get('/me', [AuthController::class, 'me']);
+    Route::post('/logout', [AuthController::class, 'logout']);
 });
 
-Route::post('/upload', [UploadController::class, 'store']);
+// Blog (public read)
+Route::get('/blog', [BlogController::class, 'index']);
+Route::get('/blog/{id}', [BlogController::class, 'show']);
 
+// Blog create/edit/upload: can_manage_blog OR is_admin OR sysadmin override
+Route::middleware(['auth:sanctum', 'require_any:can_manage_blog,is_admin'])->group(function () {
+    Route::post('/blog', [BlogController::class, 'store']);
+    Route::put('/blog/{id}', [BlogController::class, 'update']);
+    Route::post('/upload', [UploadController::class, 'store']);
+});
+
+// Blog delete: admin only (plus sysadmin override)
+Route::middleware(['auth:sanctum', 'require_any:is_admin'])->group(function () {
+    Route::delete('/blog/{id}', [BlogController::class, 'destroy']);
+});
+
+// Admin user permissions: admin only (plus sysadmin override)
+Route::middleware(['auth:sanctum', 'require_any:is_admin'])->prefix('admin')->group(function () {
+    Route::get('/users', [AdminUserController::class, 'index']);
+    Route::patch('/users/{user}/permissions', [AdminUserController::class, 'updatePermissions']);
+});
+
+// Jobs
 Route::prefix('jobs')->group(function () {
     Route::get('/', [JobsController::class, 'index']);
     Route::get('/{id}', [JobsController::class, 'show']);
@@ -31,7 +65,50 @@ Route::prefix('jobs')->group(function () {
     Route::delete('/{id}', [JobsController::class, 'destroy']);
 });
 
-Route::prefix('auth')->group(function () {
-    Route::get('/me', [AuthController::class, 'me']);
-    Route::post('/logout', [AuthController::class, 'logout']);
+// Sysadmin-only: heavy/system actions
+Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('sys')->group(function () {
+    Route::post('/universe/pull', [UniversePullController::class, 'run']);
+});
+
+// Loading tip management: can_manage_tips OR is_admin OR sysadmin override
+Route::middleware(['auth:sanctum', 'require_any:can_manage_tips,is_admin'])->group(function () {
+    Route::get('/admin/loading-tips', [AdminLoadingTipController::class, 'index']);
+    Route::post('/admin/loading-tips', [AdminLoadingTipController::class, 'store']);
+    Route::put('/admin/loading-tips/{loadingTip}', [AdminLoadingTipController::class, 'update']);
+    Route::delete('/admin/loading-tips/{loadingTip}', [AdminLoadingTipController::class, 'destroy']);
+});
+
+Route::get('/eotm/current', [EmployeeSpotlightController::class, 'current']);
+
+Route::middleware(['auth:sanctum', 'require_any:can_manage_eotm,is_admin'])->group(function () {
+    Route::get('/admin/eotm', [AdminEmployeeSpotlightController::class, 'index']);
+    Route::post('/admin/eotm', [AdminEmployeeSpotlightController::class, 'store']);
+    Route::put('/admin/eotm/{employeeSpotlight}', [AdminEmployeeSpotlightController::class, 'update']);
+    Route::delete('/admin/eotm/{employeeSpotlight}', [AdminEmployeeSpotlightController::class, 'destroy']);
+});
+
+Route::get('/weather/tatooine', [TatooineWeatherController::class, 'show']);
+
+Route::middleware(['auth:sanctum', 'require_any:is_admin'])->group(function () {
+    Route::get('/admin/weather', [AdminWeatherController::class, 'index']);
+    Route::put('/admin/weather/settings', [AdminWeatherController::class, 'updateSettings']);
+
+    Route::post('/admin/weather/adjectives', [AdminWeatherController::class, 'storeAdjective']);
+    Route::put('/admin/weather/adjectives/{hotAdjective}', [AdminWeatherController::class, 'updateAdjective']);
+    Route::delete('/admin/weather/adjectives/{hotAdjective}', [AdminWeatherController::class, 'destroyAdjective']);
+
+    Route::post('/admin/weather/advice', [AdminWeatherController::class, 'storeAdvice']);
+    Route::put('/admin/weather/advice/{weatherAdvice}', [AdminWeatherController::class, 'updateAdvice']);
+    Route::delete('/admin/weather/advice/{weatherAdvice}', [AdminWeatherController::class, 'destroyAdvice']);
+});
+
+Route::middleware(['auth:sanctum', 'require_any:is_admin'])->group(function () {
+    Route::get('/admin/action-logs', [AdminActionLogController::class, 'index']);
+});
+
+Route::get('/site-lock-status', [SiteLockStatusController::class, 'show']);
+
+Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('admin')->group(function () {
+    Route::get('/site-lock', [AdminSiteLockController::class, 'show']);
+    Route::post('/site-lock', [AdminSiteLockController::class, 'update']);
 });

@@ -4,18 +4,17 @@ import { Link, useLocation } from "react-router-dom";
 import jawaLogo from "../assets/branding/jawalogo.png";
 import { fetchAuthMe, apiLogout, getBackendOrigin } from "../api/auth";
 import type { SwcUser } from "../api/auth";
+import CgtPill from "./CgtPill";
+import { canAccessAdmin } from "../auth/permissions";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
 
-  // ✅ separate concerns
-  const [navOpen, setNavOpen] = useState(false); // mobile menu
-  const [dropdownOpen, setDropdownOpen] = useState(false); // Tools dropdown
-
+  const [navOpen, setNavOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<SwcUser | null>(null);
 
-  // Only used for dropdown outside-click detection
   const dropdownRef = useRef<HTMLLIElement | null>(null);
 
   useEffect(() => {
@@ -24,11 +23,15 @@ const Navbar: React.FC = () => {
     (async () => {
       try {
         const data = await fetchAuthMe();
-        if (!cancelled && data.ok) setUser(data.user);
+        if (!cancelled && data.ok) {
+          setUser(data.user);
+        }
       } catch {
-        // ignore; show guest
+        // guest state
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     })();
 
@@ -37,13 +40,11 @@ const Navbar: React.FC = () => {
     };
   }, []);
 
-  // Close menus on route change (prevents stale open states)
   useEffect(() => {
     setDropdownOpen(false);
     setNavOpen(false);
   }, [location.pathname]);
 
-  // Close dropdown on outside click / escape
   useEffect(() => {
     if (!dropdownOpen) return;
 
@@ -54,11 +55,15 @@ const Navbar: React.FC = () => {
       const path = (e.composedPath?.() ?? []) as EventTarget[];
       const inside = path.includes(el) || el.contains(e.target as Node);
 
-      if (!inside) setDropdownOpen(false);
+      if (!inside) {
+        setDropdownOpen(false);
+      }
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setDropdownOpen(false);
+      if (e.key === "Escape") {
+        setDropdownOpen(false);
+      }
     };
 
     document.addEventListener("pointerdown", onPointerDown, true);
@@ -86,28 +91,26 @@ const Navbar: React.FC = () => {
     }
   };
 
-  const displayName = user?.handle || "Guest";
+  const displayName = user?.handle || user?.handle || "Guest";
+  const showAdminTools = canAccessAdmin(user);
 
   return (
     <nav className="main-nav">
       <div className="main-nav-inner">
-        {/* Brand */}
-        <Link to="/home" className="main-nav-brand">
+        <Link to="/home" className="main-nav-brand" aria-label="Go to home">
           <img src={jawaLogo} alt="JOE Logo" className="main-nav-logo" />
         </Link>
 
-        {/* Mobile burger */}
         <button
           className="main-nav-toggle"
           type="button"
-          onClick={() => setNavOpen((o) => !o)}
+          onClick={() => setNavOpen((open) => !open)}
           aria-expanded={navOpen}
           aria-label="Toggle navigation"
         >
           ☰ Menu
         </button>
 
-        {/* Right side menu */}
         <div className={`main-nav-menu ${navOpen ? "open" : ""}`}>
           <ul className="main-nav-links">
             <li>
@@ -122,24 +125,38 @@ const Navbar: React.FC = () => {
               </Link>
             </li>
 
-            {/* Dropdown uses GENERIC dropdown styles (no tools-specific class names) */}
-            <li ref={dropdownRef} className={`dropdown ${dropdownOpen ? "is-open" : ""}`}>
+            <li
+              ref={dropdownRef}
+              className={`dropdown ${dropdownOpen ? "is-open" : ""}`}
+            >
               <button
                 type="button"
                 className="btn dropdown__toggle"
                 aria-haspopup="menu"
                 aria-expanded={dropdownOpen}
                 onPointerDown={(e) => {
-                  // pointerdown stops "drag off" glitches
                   e.preventDefault();
                   e.stopPropagation();
-                  setDropdownOpen((o) => !o);
+                  setDropdownOpen((open) => !open);
                 }}
               >
                 Tools ▾
               </button>
 
               <ul className="dropdown__menu" role="menu">
+                {showAdminTools && (
+                  <li role="none">
+                    <Link
+                      to="/admin"
+                      className="dropdown__item"
+                      role="menuitem"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      Admin
+                    </Link>
+                  </li>
+                )}
+
                 <li role="none">
                   <Link
                     to="/intel"
@@ -150,21 +167,10 @@ const Navbar: React.FC = () => {
                     Intel (DroidBrain)
                   </Link>
                 </li>
-                <li role="none">
-                  <Link
-                    to="/admin"
-                    className="dropdown__item"
-                    role="menuitem"
-                    onClick={() => setDropdownOpen(false)}
-                  >
-                    Admin
-                  </Link>
-                </li>
               </ul>
             </li>
           </ul>
 
-          {/* Auth section (right side) */}
           <div className="main-nav-auth">
             <div className="main-nav-auth-row">
               {!loading && user && (
@@ -192,7 +198,7 @@ const Navbar: React.FC = () => {
             </div>
 
             <div className="nav-cgt">
-              CGT time: <span>Loading…</span>
+              <CgtPill />
             </div>
           </div>
         </div>

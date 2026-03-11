@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "./auth";
+import { apiFetch } from "./auth";
 
 export type BlogPost = {
   id: number;
@@ -6,35 +6,18 @@ export type BlogPost = {
   body: string;
   image_path: string | null;
   image_url: string | null;
-  author_uid: string;
-  author_handle: string;
-  created_at: string;
-  updated_at: string | null;
+  author_uid: string | null;
+  author_handle: string | null;
   cgt_created: string | null;
+  created_at: string;
 };
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const base = getApiBaseUrl();
-  const url = `${base}${path.startsWith("/") ? "" : "/"}${path}`;
-
-  const res = await fetch(url, {
-    ...init,
-    credentials: "include",
-    headers: {
-      "Accept": "application/json",
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
-
-  const text = await res.text();
-  if (!res.ok) throw new Error(text || `Request failed (${res.status})`);
-
-  return (text ? JSON.parse(text) : null) as T;
+export function listBlog(): Promise<{ ok: true; posts: BlogPost[] }> {
+  return apiFetch<{ ok: true; posts: BlogPost[] }>("/blog");
 }
 
-export function listBlog(): Promise<{ ok: true; posts: BlogPost[] }> {
-  return apiFetch("/blog");
+export function getBlogPost(id: number): Promise<{ ok: true; post: BlogPost }> {
+  return apiFetch<{ ok: true; post: BlogPost }>(`/blog/${id}`);
 }
 
 export function createBlog(payload: {
@@ -43,5 +26,29 @@ export function createBlog(payload: {
   image_path?: string | null;
   image_url?: string | null;
 }): Promise<{ ok: true; post: BlogPost }> {
-  return apiFetch("/blog", { method: "POST", body: JSON.stringify(payload) });
+  return apiFetch<{ ok: true; post: BlogPost }>("/blog", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateBlog(
+  id: number,
+  payload: {
+    title?: string;
+    body?: string;
+    image_path?: string | null;
+    image_url?: string | null;
+  }
+): Promise<{ ok: true; post: BlogPost }> {
+  return apiFetch<{ ok: true; post: BlogPost }>(`/blog/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteBlog(id: number): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>(`/blog/${id}`, {
+    method: "DELETE",
+  });
 }

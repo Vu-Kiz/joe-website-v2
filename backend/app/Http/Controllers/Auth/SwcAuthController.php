@@ -184,6 +184,7 @@ class SwcAuthController extends Controller
         $user->is_admin    = (bool) ($user->is_admin ?? false);
         $user->is_sysadmin = (bool) ($user->is_sysadmin ?? false);
         $user->is_intel    = (bool) ($user->is_intel ?? false);
+        $user->can_manage_blog = (bool) ($user->can_manage_blog ?? false);
 
         $user->save();
 

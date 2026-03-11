@@ -1,0 +1,330 @@
+// src/styles/jen.sass
+@use './variables' as *
+
+// Scope to the JEN board so we don't leak styles elsewhere
+.jen-board
+  display: flex
+  flex-direction: column
+  gap: $space-md
+
+  h1
+    margin-top: 0
+    margin-bottom: $space-md
+
+  // 4 panels across on large screens
+  .jen-grid
+    display: grid
+    grid-template-columns: repeat(4, minmax(0, 1fr))
+    gap: $space-md
+
+    @media (max-width: 1200px)
+      grid-template-columns: repeat(3, minmax(0, 1fr))
+
+    @media (max-width: 900px)
+      grid-template-columns: repeat(2, minmax(0, 1fr))
+
+    @media (max-width: 640px)
+      grid-template-columns: minmax(0, 1fr)
+
+  // Inner JEN panels – piggy-back on .panel look from theme.sass
+  .jen-panel
+    position: relative
+    display: flex
+    flex-direction: column
+    gap: 0.45rem
+
+  .jen-panel__header
+    display: flex
+    align-items: flex-start
+    justify-content: space-between
+    gap: 0.5rem
+
+  .jen-panel__title-block
+    display: flex
+    flex-direction: column
+    gap: 0.15rem
+
+  .jen-panel__title
+    margin: 0
+    font-size: 0.95rem
+    font-weight: 600
+
+  .jen-panel__meta
+    opacity: 0.8
+    font-size: 0.8rem
+
+  // collapsed thumbnail image
+  .jen-panel__thumb
+    margin-top: 0.35rem
+
+    img
+      display: block
+      width: 100%
+      height: auto
+      border-radius: 4px
+
+  .jen-panel__preview
+    margin-top: 0.35rem
+    font-size: 0.8rem
+    line-height: 1.4
+
+  // Hamburger → X toggle
+  .jen-panel__toggle
+    width: 26px
+    height: 22px
+    display: inline-flex
+    flex-direction: column
+    justify-content: center
+    align-items: stretch
+    gap: 3px
+    background: transparent
+    border: none
+    padding: 0
+    cursor: pointer
+
+    span
+      height: 2px
+      border-radius: 2px
+      background: #fff
+      transition: transform 0.15s ease, opacity 0.15s ease
+
+    &:focus-visible
+      outline: 2px solid #fff
+      outline-offset: 2px
+
+  .jen-panel__toggle--open span:nth-child(1)
+    transform: translateY(5px) rotate(45deg)
+
+  .jen-panel__toggle--open span:nth-child(2)
+    opacity: 0
+
+  .jen-panel__toggle--open span:nth-child(3)
+    transform: translateY(-5px) rotate(-45deg)
+
+  // Expanded body
+  .jen-panel__body
+    margin-top: 0.5rem
+    padding-top: 0.5rem
+    border-top: 1px solid rgba(255,255,255,0.25)
+
+  .jen-panel__body-image
+    margin-bottom: 0.5rem
+
+    img
+      display: block
+      max-width: 100%
+      height: auto
+      border-radius: 4px
+
+  .jen-panel__body-text
+    font-size: 0.85rem
+    line-height: 1.5
+
+    // Universal image sizing
+// - Thumbs: fixed height with object-fit cover (consistent cards)
+// - Expanded: max-height with object-fit contain (no stretching/cropping)
+
+.jen-board
+  // thumbnail in collapsed panel
+.jen-board
+  .jen-panel__thumb
+    margin-top: 0.35rem
+
+    img
+      display: block
+      width: 100%
+      height: 250px            // ✅ smaller thumbnail
+      object-fit: contain     // ✅ no cropping (won't cut off)
+      border-radius: 4px
+
+  // expanded image
+  .jen-panel__body-image
+    margin-bottom: 0.5rem
+
+    img
+      display: block
+      width: 100%
+      max-height: 260px       // ✅ universal max height
+      object-fit: contain     // ✅ show full image without crop
+      border-radius: 4px
+      background: rgba(0,0,0,0.25)
+
+.bb-quote
+  margin: 0.75rem 0
+  padding: 0.5rem 0.75rem
+  border-left: 3px solid rgba(255,255,255,0.25)
+  background: rgba(0,0,0,0.2)
+
+.bb-code
+  margin: 0.75rem 0
+  padding: 0.5rem 0.75rem
+  border-radius: 4px
+  background: rgba(0,0,0,0.35)
+  overflow: auto
+
+.bb-img
+  display: block
+  max-width: 100%
+  max-height: 260px
+  object-fit: contain
+  margin: 0.5rem 0
+  border-radius: 4px
+
+.bb-left
+  text-align: left
+
+.bb-center
+  text-align: center
+
+.bb-right
+  text-align: right
+
+.bb-hr
+  border: 0
+  border-top: 1px solid rgba(255,255,255,0.2)
+  margin: 0.75rem 0
+
+.bb-spoiler
+  background: rgba(255,255,255,0.08)
+  color: transparent
+  border-radius: 3px
+  padding: 0 0.25rem
+  transition: color 0.15s ease
+
+  &:hover
+    color: inherit
+
+.bbcode-editor
+  display: flex
+  flex-direction: column
+  gap: 0.75rem
+
+.bbcode-toolbar
+  display: flex
+  flex-wrap: wrap
+  gap: 0.4rem
+
+.bbcode-editor__textarea
+  width: 100%
+  min-height: 260px
+  resize: vertical
+
+.bbcode-editor__preview
+  padding: 0.75rem
+
+.jen-poster
+  display: flex
+  flex-direction: column
+  gap: 1rem
+
+.jen-poster__row
+  display: flex
+  flex-direction: column
+  gap: 0.35rem
+
+.jen-poster__file-controls
+  display: flex
+  flex-wrap: wrap
+  gap: 0.5rem
+  align-items: center
+
+.jen-poster__actions
+  margin-top: 0.5rem
+
+.bbcode-color-tools
+  display: flex
+  flex-direction: column
+  gap: 0.75rem
+  padding: 0.75rem
+
+.bbcode-color-tools__row
+  display: flex
+  flex-direction: column
+  gap: 0.25rem
+
+.bbcode-color-tools__actions
+  display: flex
+  gap: 0.5rem
+  flex-wrap: wrap
+
+.bbcode-editor
+  display: flex
+  flex-direction: column
+  gap: 0.75rem
+
+.bbcode-toolbar
+  display: flex
+  flex-wrap: wrap
+  gap: 0.4rem
+  align-items: center
+
+.bbcode-editor__textarea
+  width: 100%
+  min-height: 260px
+  resize: vertical
+
+.bbcode-editor__preview
+  padding: 0.75rem
+
+.bbcode-btn--bold
+  font-weight: 700
+
+.bbcode-btn--italic
+  font-style: italic
+
+.bbcode-btn--underline
+  text-decoration: underline
+
+.bbcode-btn--strike
+  text-decoration: line-through
+
+.bbcode-btn--center
+  text-align: center
+
+.bbcode-btn--link
+  text-decoration: underline
+
+.bbcode-btn--color
+  display: inline-flex
+  align-items: center
+  gap: 0.35rem
+
+.bbcode-btn__color-dot
+  width: 10px
+  height: 10px
+  border-radius: 999px
+  display: inline-block
+  border: 1px solid rgba(255,255,255,0.4)
+
+.bbcode-size-picker
+  display: inline-flex
+  align-items: center
+  gap: 0.35rem
+  flex-wrap: wrap
+
+.bbcode-size-picker__select
+  width: auto
+  min-width: 90px
+  padding: 0.25rem 0.4rem
+
+.bbcode-color-tools
+  display: flex
+  flex-direction: column
+  gap: 0.75rem
+  padding: 0.75rem
+
+.bbcode-color-tools__row
+  display: flex
+  flex-direction: column
+  gap: 0.25rem
+
+.bbcode-color-tools__actions
+  display: flex
+  gap: 0.5rem
+  flex-wrap: wrap
+
+.bbcode-help
+  display: flex
+  flex-direction: column
+  gap: 0.35rem
+  padding: 0.75rem

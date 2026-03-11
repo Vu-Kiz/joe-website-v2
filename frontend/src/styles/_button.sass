@@ -1,0 +1,89 @@
+.ui-btn
+  display: inline-flex
+  align-items: center
+  justify-content: center
+  min-height: 40px
+  padding: 0.65rem 0.95rem
+  border-radius: 12px
+  border: 1px solid rgba(255,255,255,0.08)
+  background: rgba(255,255,255,0.03)
+  color: rgba(255,255,255,0.92)
+  font-weight: 700
+  line-height: 1
+  text-decoration: none
+  cursor: pointer
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease
+  appearance: none
+
+  &:hover:not(:disabled)
+    border-color: rgba(245,213,70,0.28)
+    background: rgba(245,213,70,0.07)
+    transform: translateY(-1px)
+
+  &:disabled
+    opacity: 0.55
+    cursor: not-allowed
+    transform: none
+
+.ui-btn--primary
+  border-color: rgba(245,213,70,0.34)
+  background: rgba(245,213,70,0.10)
+  color: #f2c46f
+  box-shadow: inset 0 0 0 1px rgba(245,213,70,0.08)
+
+  &:hover:not(:disabled)
+    border-color: rgba(245,213,70,0.45)
+    background: rgba(245,213,70,0.14)
+
+.ui-btn--soft
+  border-color: rgba(255,255,255,0.10)
+  background: rgba(255,255,255,0.025)
+
+.ui-btn--danger
+  border-color: rgba(255,120,120,0.28)
+  background: rgba(255,120,120,0.08)
+  color: #ffb8b8
+
+  &:hover:not(:disabled)
+    border-color: rgba(255,120,120,0.40)
+    background: rgba(255,120,120,0.12)
+
+.ui-btn--small
+  min-height: 34px
+  padding: 0.5rem 0.8rem
+  border-radius: 10px
+  font-size: 0.88rem
+
+.ui-pagination
+  display: flex
+  align-items: center
+  justify-content: space-between
+  gap: 1rem
+  flex-wrap: wrap
+
+.ui-pagination__meta
+  display: flex
+  align-items: center
+  gap: 1rem
+  flex-wrap: wrap
+
+.ui-pagination__size
+  display: flex
+  align-items: center
+  gap: 0.5rem
+
+  .input
+    width: auto
+    min-width: 120px
+
+.ui-pagination__controls
+  display: flex
+  align-items: center
+  gap: 0.5rem
+  flex-wrap: wrap
+
+.ui-pagination__pages
+  display: flex
+  align-items: center
+  gap: 0.35rem
+  flex-wrap: wrap

@@ -32,6 +32,7 @@ class AuthController extends Controller
                 'is_intel' => (bool) Auth::user()->is_intel,
                 'is_garry' => (bool) Auth::user()->is_garry,
                 'is_raid' => (bool) Auth::user()->is_raid,
+                'can_manage_blog' => (bool) Auth::user()->can_manage_blog,
             ] : null,
         ]);
     }

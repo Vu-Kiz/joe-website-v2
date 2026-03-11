@@ -21,6 +21,7 @@ class Kernel extends HttpKernel
         \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
         \App\Http\Middleware\TrimStrings::class,
         \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
+        \App\Http\Middleware\CheckSiteLock::class,
     ];
 
     /**
@@ -64,5 +65,9 @@ class Kernel extends HttpKernel
         'signed' => \App\Http\Middleware\ValidateSignature::class,
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
+        'can_manage_blog' => \App\Http\Middleware\CanManageBlog::class,
+        'require_any'    => \App\Http\Middleware\RequireAnyFlag::class,
+        'require_all'    => \App\Http\Middleware\RequireAllFlags::class,
+        'sysadmin_only'  => \App\Http\Middleware\SysadminOnly::class,
     ];
 }

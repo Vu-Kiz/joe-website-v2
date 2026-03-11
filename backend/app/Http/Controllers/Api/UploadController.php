@@ -10,8 +10,7 @@ use Illuminate\Validation\ValidationException;
 class UploadController extends Controller
 {
     /**
-     * Expandability lives here.
-     * Add new buckets later without touching blog code.
+     * Expandable type → directory mapping.
      */
     private const TYPES = [
         'blog'     => ['dir' => 'uploads/blog',     'max_kb' => 5120],
@@ -23,10 +22,12 @@ class UploadController extends Controller
 
     public function store(Request $request)
     {
-        $type = strtolower(trim((string) $request->query('type', $request->input('type', 'misc'))));
+        $type = $request->query('type', 'misc');
 
-        if (!array_key_exists($type, self::TYPES)) {
-            throw ValidationException::withMessages(['type' => ['Invalid upload type.']]);
+        if (!isset(self::TYPES[$type])) {
+            throw ValidationException::withMessages([
+                'type' => ["Unknown upload type '{$type}'"],
+            ]);
         }
 
         $cfg = self::TYPES[$type];
@@ -35,15 +36,17 @@ class UploadController extends Controller
             'file' => ['required', 'file', 'image', 'max:' . $cfg['max_kb']],
         ]);
 
-        // Store in "public" disk so it can be served via /storage
+        // Store on "public" disk → served via /storage symlink
         $path = $request->file('file')->store($cfg['dir'], 'public');
-        $url  = Storage::disk('public')->url($path);
+
+        // IMPORTANT: store URL as a *relative* /storage/... path
+        $relativeUrl = '/storage/' . ltrim($path, '/');
 
         return response()->json([
             'ok'   => true,
             'type' => $type,
-            'path' => $path,
-            'url'  => $url,
+            'path' => $path,        // e.g. "uploads/blog/xxx.png"
+            'url'  => $relativeUrl, // e.g. "/storage/uploads/blog/xxx.png"
         ]);
     }
 }
