@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\MetaController;
 use App\Http\Controllers\Api\JobsController;
+use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\LoadingTipController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BlogController;
@@ -20,6 +21,7 @@ use App\Http\Controllers\Api\AdminWeatherController;
 use App\Http\Controllers\Api\AdminActionLogController;
 use App\Http\Controllers\Api\AdminSiteLockController;
 use App\Http\Controllers\Api\SiteLockStatusController;
+use App\Http\Controllers\Api\SwcAuthorizationController;
 
 
 // Public utility
@@ -60,9 +62,28 @@ Route::middleware(['auth:sanctum', 'require_any:is_admin'])->prefix('admin')->gr
 Route::prefix('jobs')->group(function () {
     Route::get('/', [JobsController::class, 'index']);
     Route::get('/{id}', [JobsController::class, 'show']);
-    Route::post('/', [JobsController::class, 'store']);
-    Route::put('/{id}', [JobsController::class, 'update']);
-    Route::delete('/{id}', [JobsController::class, 'destroy']);
+
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/', [JobsController::class, 'store']);
+        Route::put('/{id}', [JobsController::class, 'update']);
+        Route::delete('/{id}', [JobsController::class, 'destroy']);
+        Route::post('/{id}/take', [JobsController::class, 'take']);
+        Route::post('/{id}/complete', [JobsController::class, 'complete']);
+        Route::post('/{id}/close', [JobsController::class, 'close']);
+        Route::post('/{id}/join', [JobsController::class, 'join']);
+    });
+});
+
+Route::middleware('auth:sanctum')->prefix('job-assignments')->group(function () {
+    Route::post('/{id}/complete', [JobsController::class, 'completeAssignment']);
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/payments', [\App\Http\Controllers\Api\PaymentController::class, 'index']);
+    Route::get('/payments/owed-to-me', [\App\Http\Controllers\Api\PaymentController::class, 'owedToMe']);
+    Route::get('/payment-transfers', [\App\Http\Controllers\Api\PaymentController::class, 'transfers']);
+    Route::post('/payments/build-single', [\App\Http\Controllers\Api\PaymentController::class, 'buildSingle']);
+    Route::post('/payments/build-bulk', [\App\Http\Controllers\Api\PaymentController::class, 'buildBulk']);
 });
 
 // Sysadmin-only: heavy/system actions
@@ -112,3 +133,5 @@ Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('admin')->group(fun
     Route::get('/site-lock', [AdminSiteLockController::class, 'show']);
     Route::post('/site-lock', [AdminSiteLockController::class, 'update']);
 });
+
+Route::get('/swc/authorization', [SwcAuthorizationController::class, 'show']);

@@ -125,6 +125,12 @@ const Navbar: React.FC = () => {
               </Link>
             </li>
 
+            <li>
+              <Link to="/payments" className={`btn ${isActive("/payments") ? "active" : ""}`}>
+                Payments
+              </Link>
+            </li>
+
             <li
               ref={dropdownRef}
               className={`dropdown ${dropdownOpen ? "is-open" : ""}`}
@@ -156,6 +162,17 @@ const Navbar: React.FC = () => {
                     </Link>
                   </li>
                 )}
+
+                <li role="none">
+                  <Link
+                    to="/members"
+                    className="dropdown__item"
+                    role="menuitem"
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    Members
+                  </Link>
+                </li>
 
                 <li role="none">
                   <Link

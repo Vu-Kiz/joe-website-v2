@@ -35,9 +35,25 @@ class User extends Authenticatable
         'is_intel' => 'boolean',
         'is_garry' => 'boolean',
         'is_raid' => 'boolean',
+        'has_swc_payments_access' => 'boolean',
     ];
 
     protected $hidden = [
         'remember_token',
     ];
+
+    public function factions()
+    {
+        return $this->belongsToMany(\App\Models\Faction::class)
+            ->withPivot([
+                'can_view_payments',
+                'can_mark_payments_paid',
+                'can_manage_jobs',
+            ])
+            ->withTimestamps();
+    }
+    public function swcAuthorization()
+    {
+        return $this->hasOne(\App\Models\SwcAuthorization::class);
+    }
 }

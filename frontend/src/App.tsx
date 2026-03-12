@@ -7,6 +7,8 @@ import HomePage from "./pages/HomePage";
 import AboutMe from "./pages/AboutMe";
 import JenPage from "./pages/JenPage";
 import AdminPage from "./pages/AdminPage";
+import MembersPage from "./pages/MembersPage";
+import PaymentsPage from "./pages/PaymentsPage";
 import AdminRoute from "./components/auth/AdminRoute";
 import SiteLockState from "./components/common/SiteLockState";
 import { fetchSiteLockStatus } from "./api/siteLock";
@@ -80,6 +82,8 @@ function App() {
           <Route path="/home" element={<HomePage />} />
           <Route path="/aboutme" element={<AboutMe />} />
           <Route path="/jen" element={<JenPage />} />
+          <Route path="/members" element={<MembersPage />} />
+          <Route path="/payments" element={<PaymentsPage />} />
 
           <Route
             path="/admin"

@@ -3,116 +3,223 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Job;
+use App\Models\JobAssignment;
+use App\Support\Jobs\JobService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class JobsController extends Controller
 {
-    /**
-     * GET /api/jobs
-     * List jobs – stub data for now.
-     */
-    public function index(): JsonResponse
+    public function __construct(
+        protected JobService $jobService
+    ) {
+    }
+
+    public function index(Request $request): JsonResponse
     {
-        // TODO: replace with Job::query()->latest()->paginate(...)
-        $jobs = [
-            [
-                'id'          => 1,
-                'title'       => 'Escort convoy from Tatooine to Corellia',
-                'status'      => 'open',
-                'reward'      => 2500000,
-                'currency'    => 'credits',
-                'created_at'  => now()->subDays(2)->toIso8601String(),
-                'updated_at'  => now()->subDay()->toIso8601String(),
-            ],
-            [
-                'id'          => 2,
-                'title'       => 'Salvage operation in Outer Rim',
-                'status'      => 'in_progress',
-                'reward'      => 5000000,
-                'currency'    => 'credits',
-                'created_at'  => now()->subDays(5)->toIso8601String(),
-                'updated_at'  => now()->toIso8601String(),
-            ],
-        ];
+        $user = $request->user();
+
+        $query = Job::query()
+            ->with('assignments')
+            ->latest();
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status'));
+        }
+
+        if ($request->filled('scope') && $user) {
+            if ($request->string('scope') === 'mine_posted') {
+                $query->where('created_by_user_id', $user->id);
+            }
+
+            if ($request->string('scope') === 'mine_taken') {
+                $query->where(function ($q) use ($user) {
+                    $q->where('assigned_to_user_id', $user->id)
+                      ->orWhereHas('assignments', function ($q2) use ($user) {
+                          $q2->where('worker_user_id', $user->id);
+                      });
+                });
+            }
+        }
 
         return response()->json([
-            'data' => $jobs,
+            'ok' => true,
+            'data' => $query->get(),
         ]);
     }
 
-    /**
-     * GET /api/jobs/{id}
-     * Show a single job – stub detail.
-     */
     public function show(int $id): JsonResponse
     {
-        // TODO: replace with Job::findOrFail($id)
-        $job = [
-            'id'          => $id,
-            'title'       => "Example Job #{$id}",
-            'description' => 'This is a placeholder job. Replace with real data from the database.',
-            'status'      => 'open',
-            'reward'      => 1000000,
-            'currency'    => 'credits',
-            'created_at'  => now()->subDays(3)->toIso8601String(),
-            'updated_at'  => now()->toIso8601String(),
-        ];
+        $job = Job::with('assignments')->findOrFail($id);
 
         return response()->json([
+            'ok' => true,
             'data' => $job,
         ]);
     }
 
-    /**
-     * POST /api/jobs
-     * Create a job (stub – no DB write yet).
-     */
     public function store(Request $request): JsonResponse
     {
-        // TODO: validate + persist:
-        // $data = $request->validate([...]);
-        // $job  = Job::create($data);
+        $user = $request->user();
 
-        $data = $request->only(['title', 'description', 'reward', 'currency']);
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'job_mode' => ['required', 'in:single,multi,open_ended'],
+            'pay_type' => ['required', 'in:fixed,per_day_hyper'],
+            'reward_amount' => ['required', 'integer', 'min:0'],
+            'bonus_amount' => ['nullable', 'integer', 'min:0'],
+            'bonus_reward' => ['nullable', 'string', 'max:255'],
+            'bonus_note' => ['nullable', 'string', 'max:255'],
+            'payer_subject_type' => ['required', 'in:user,faction'],
+            'payer_subject_id' => ['nullable', 'integer'],
+            'payer_label' => ['nullable', 'string', 'max:150'],
+        ]);
+
+        $job = $this->jobService->createJob($user, $data);
 
         return response()->json([
-            'message' => 'Job creation stub – implement persistence later.',
-            'input'   => $data,
+            'ok' => true,
+            'data' => $job,
         ], 201);
     }
 
-    /**
-     * PUT /api/jobs/{id}
-     * Update a job (stub – no DB write yet).
-     */
     public function update(Request $request, int $id): JsonResponse
     {
-        // TODO: validate + update:
-        // $data = $request->validate([...]);
-        // $job  = Job::findOrFail($id);
-        // $job->update($data);
+        $job = Job::findOrFail($id);
+        $user = $request->user();
 
-        $data = $request->only(['title', 'description', 'reward', 'currency', 'status']);
+        if (!$user || (int) $job->created_by_user_id !== (int) $user->id) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        $data = $request->validate([
+            'title' => ['sometimes', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'bonus_amount' => ['sometimes', 'integer', 'min:0'],
+            'bonus_reward' => ['nullable', 'string', 'max:255'],
+            'bonus_note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $job->update($data);
 
         return response()->json([
-            'message' => 'Job update stub – implement persistence later.',
-            'id'      => $id,
-            'input'   => $data,
+            'ok' => true,
+            'data' => $job->fresh(),
         ]);
     }
 
-    /**
-     * DELETE /api/jobs/{id}
-     * Delete a job (stub – no DB delete yet).
-     */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        // TODO: Job::findOrFail($id)->delete();
+        $job = Job::findOrFail($id);
+        $user = $request->user();
+
+        if (!$user || (int) $job->created_by_user_id !== (int) $user->id) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        $job->delete();
 
         return response()->json([
-            'message' => 'Job delete stub – implement persistence later.',
-            'id'      => $id,
+            'ok' => true,
+        ]);
+    }
+
+    public function take(Request $request, int $id): JsonResponse
+    {
+        $job = Job::findOrFail($id);
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $job = $this->jobService->takeSingleJob($job, $user);
+
+        return response()->json([
+            'ok' => true,
+            'data' => $job,
+        ]);
+    }
+
+    public function complete(Request $request, int $id): JsonResponse
+    {
+        $job = Job::findOrFail($id);
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $data = $request->validate([
+            'days_taken' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $job = $this->jobService->completeSingleJob($job, $user, $data['days_taken'] ?? null);
+
+        return response()->json([
+            'ok' => true,
+            'data' => $job,
+        ]);
+    }
+
+    public function close(Request $request, int $id): JsonResponse
+    {
+        $job = Job::findOrFail($id);
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $job = $this->jobService->closeOpenEndedJob($job, $user);
+
+        return response()->json([
+            'ok' => true,
+            'data' => $job,
+        ]);
+    }
+
+    public function join(Request $request, int $id): JsonResponse
+    {
+        $job = Job::findOrFail($id);
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $assignment = $this->jobService->createAssignment($job, $user);
+
+        return response()->json([
+            'ok' => true,
+            'data' => $assignment,
+        ], 201);
+    }
+
+    public function completeAssignment(Request $request, int $id): JsonResponse
+    {
+        $assignment = JobAssignment::with('job')->findOrFail($id);
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $data = $request->validate([
+            'days_taken' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $assignment = $this->jobService->completeAssignment($assignment, $user, $data['days_taken'] ?? null);
+
+        return response()->json([
+            'ok' => true,
+            'data' => $assignment,
         ]);
     }
 }
