@@ -9,5 +9,7 @@ export type SwcAuthorizationStatus = {
 };
 
 export async function getSwcAuthorizationStatus() {
-  return apiFetch<{ ok: true; data: SwcAuthorizationStatus }>(`/swc/authorization`);
+  return apiFetch<{ ok: true; data: SwcAuthorizationStatus }>(
+    `/swc/authorization`
+  );
 }

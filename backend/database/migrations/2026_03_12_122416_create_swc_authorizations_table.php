@@ -28,8 +28,8 @@ return new class extends Migration
 
             $table->timestamps();
 
-            $table->unique('user_id', 'swc_auth_user_unique');
-            $table->index('swc_character_id', 'swc_auth_character_idx');
+            $table->unique('user_id', 'swc_event_auth_user_unique');
+            $table->index('swc_character_id', 'swc_event_auth_character_idx');
         });
     }
 

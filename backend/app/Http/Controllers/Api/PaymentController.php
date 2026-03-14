@@ -124,6 +124,45 @@ class PaymentController extends Controller
             ->where('status', 'pending')
             ->get();
 
+        if ($items->isEmpty()) {
+            return response()->json([
+                'message' => 'No pending payment items were found.',
+            ], 404);
+        }
+
+        $distinctPayers = $items
+            ->map(fn (PaymentItem $item) => $item->payer_subject_type . ':' . ($item->payer_subject_id ?? ''))
+            ->unique();
+
+        if ($distinctPayers->count() !== 1) {
+            return response()->json([
+                'message' => 'Selected payment items must share the same payer context.',
+            ], 422);
+        }
+
+        $payerType = $items->first()->payer_subject_type;
+
+        if ($payerType === 'faction') {
+            if (!$this->swcAuthorizationService->hasFactionEventsAccess($user)) {
+                return response()->json([
+                    'message' => 'Faction SWC events access is required.',
+                ], 403);
+            }
+
+            $payerFactionId = $items->first()->payer_subject_id;
+
+            $canUseFaction = $user->factions()
+                ->where('faction_id', $payerFactionId)
+                ->wherePivot('can_view_payments', true)
+                ->exists();
+
+            if (!$canUseFaction) {
+                return response()->json([
+                    'message' => 'You are not allowed to pay as this faction.',
+                ], 403);
+            }
+        }
+
         $transfers = $this->transferBuilder->createGroupedTransfers($items, 'single_link');
 
         if ($transfers->count() !== 1) {
@@ -164,6 +203,45 @@ class PaymentController extends Controller
             ->whereIn('id', $data['payment_item_ids'])
             ->where('status', 'pending')
             ->get();
+
+        if ($items->isEmpty()) {
+            return response()->json([
+                'message' => 'No pending payment items were found.',
+            ], 404);
+        }
+
+        $distinctPayers = $items
+            ->map(fn (PaymentItem $item) => $item->payer_subject_type . ':' . ($item->payer_subject_id ?? ''))
+            ->unique();
+
+        if ($distinctPayers->count() !== 1) {
+            return response()->json([
+                'message' => 'Selected payment items must share the same payer context.',
+            ], 422);
+        }
+
+        $payerType = $items->first()->payer_subject_type;
+
+        if ($payerType === 'faction') {
+            if (!$this->swcAuthorizationService->hasFactionEventsAccess($user)) {
+                return response()->json([
+                    'message' => 'Faction SWC events access is required.',
+                ], 403);
+            }
+
+            $payerFactionId = $items->first()->payer_subject_id;
+
+            $canUseFaction = $user->factions()
+                ->where('faction_id', $payerFactionId)
+                ->wherePivot('can_view_payments', true)
+                ->exists();
+
+            if (!$canUseFaction) {
+                return response()->json([
+                    'message' => 'You are not allowed to pay as this faction.',
+                ], 403);
+            }
+        }
 
         $transfers = $this->transferBuilder->createGroupedTransfers($items, 'bulk_copy');
 

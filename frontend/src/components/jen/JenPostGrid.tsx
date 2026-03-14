@@ -5,34 +5,37 @@ import JenPostCard from "./JenPostCard";
 
 type Props = {
   posts: BlogPost[];
-  openId: number | null;
+  overlayOpenId: number | null;
   user: SwcUser | null;
   busyDeleteId: number | null;
   manageMode: boolean;
-  onToggle: (id: number) => void;
+  onOpenFromCard: (post: BlogPost, element: HTMLElement) => void;
+  onCloseOverlay: () => void;
   onDelete: (post: BlogPost) => void;
 };
 
 const JenPostGrid: React.FC<Props> = ({
   posts,
-  openId,
+  overlayOpenId,
   user,
   busyDeleteId,
   manageMode,
-  onToggle,
+  onOpenFromCard,
+  onCloseOverlay,
   onDelete,
 }) => {
   return (
-    <div className="jen-grid">
+    <div className={"jen-grid" + (overlayOpenId ? " jen-grid--has-open" : "")}>
       {posts.map((post) => (
         <JenPostCard
           key={post.id}
           post={post}
-          isOpen={openId === post.id}
+          isOverlayOpen={overlayOpenId === post.id}
           user={user}
           busyDelete={busyDeleteId === post.id}
           manageMode={manageMode}
-          onToggle={() => onToggle(post.id)}
+          onOpenFromCard={onOpenFromCard}
+          onCloseOverlay={onCloseOverlay}
           onDelete={onDelete}
         />
       ))}

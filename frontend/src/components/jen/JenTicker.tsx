@@ -72,7 +72,7 @@ const JenTicker: React.FC = () => {
                   </Link>
 
                   <span className="jen-ticker__author">
-                    — by {post.author_handle ?? "Unknown"}
+                    — {post.author_handle ?? "Unknown"}
                   </span>
                 </span>
               );

@@ -4,6 +4,7 @@ namespace App\Support\Swc;
 
 use App\Models\SwcAuthorization;
 use App\Models\User;
+use Carbon\Carbon;
 
 class SwcAuthorizationService
 {
@@ -29,6 +30,11 @@ class SwcAuthorizationService
     ): SwcAuthorization {
         $scopeString = implode(' ', $grantedScopes);
 
+        $expiresAt = null;
+        if (!empty($tokenData['expires_in']) && is_numeric($tokenData['expires_in'])) {
+            $expiresAt = Carbon::now()->addSeconds((int) $tokenData['expires_in']);
+        }
+
         return SwcAuthorization::updateOrCreate(
             ['user_id' => $user->id],
             [
@@ -36,9 +42,13 @@ class SwcAuthorizationService
                 'granted_scopes' => $scopeString,
                 'has_personal_events_access' => in_array('character_events', $grantedScopes, true),
                 'has_faction_events_access' => in_array('character_events', $grantedScopes, true),
-                'access_token_encrypted' => $tokenData['access_token'] ?? null,
-                'refresh_token_encrypted' => $tokenData['refresh_token'] ?? null,
-                'token_expires_at' => isset($tokenData['expires_at']) ? $tokenData['expires_at'] : null,
+                'access_token_encrypted' => !empty($tokenData['access_token'])
+                    ? encrypt((string) $tokenData['access_token'])
+                    : null,
+                'refresh_token_encrypted' => !empty($tokenData['refresh_token'])
+                    ? encrypt((string) $tokenData['refresh_token'])
+                    : null,
+                'token_expires_at' => $expiresAt,
                 'last_verified_at' => now(),
                 'revoked_at' => null,
             ]

@@ -3,6 +3,7 @@ import React from "react";
 export type AdminView =
   | "home"
   | "tips"
+  | "tenets"
   | "eotm"
   | "weather"
   | "users"
@@ -32,6 +33,7 @@ const AdminNav: React.FC<Props> = ({
   const items: NavItem[] = [
     { key: "home", label: "Overview" },
     { key: "tips", label: "Tips" },
+    { key: "tenets", label: "Tenets" },
     { key: "eotm", label: "EoTM" },
     { key: "weather", label: "Weather" },
     { key: "users", label: "Users" },

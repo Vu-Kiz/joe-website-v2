@@ -22,6 +22,8 @@ use App\Http\Controllers\Api\AdminActionLogController;
 use App\Http\Controllers\Api\AdminSiteLockController;
 use App\Http\Controllers\Api\SiteLockStatusController;
 use App\Http\Controllers\Api\SwcAuthorizationController;
+use App\Http\Controllers\Api\TenetOfSalvageController;
+use App\Http\Controllers\Api\AdminTenetOfSalvageController;
 
 
 // Public utility
@@ -134,4 +136,15 @@ Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('admin')->group(fun
     Route::post('/site-lock', [AdminSiteLockController::class, 'update']);
 });
 
-Route::get('/swc/authorization', [SwcAuthorizationController::class, 'show']);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/swc/authorization', [SwcAuthorizationController::class, 'show']);
+});
+
+Route::get('/tenets-of-salvage', [TenetOfSalvageController::class, 'index']);
+
+Route::middleware(['auth:sanctum', 'require_any:is_admin'])->group(function () {
+    Route::get('/admin/tenets-of-salvage', [AdminTenetOfSalvageController::class, 'index']);
+    Route::post('/admin/tenets-of-salvage', [AdminTenetOfSalvageController::class, 'store']);
+    Route::put('/admin/tenets-of-salvage/{tenetOfSalvage}', [AdminTenetOfSalvageController::class, 'update']);
+    Route::delete('/admin/tenets-of-salvage/{tenetOfSalvage}', [AdminTenetOfSalvageController::class, 'destroy']);
+});

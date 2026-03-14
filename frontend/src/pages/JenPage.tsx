@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { listBlog, deleteBlog, type BlogPost } from "../api/blog";
@@ -7,6 +7,9 @@ import { fetchAuthMe, type SwcUser } from "../api/auth";
 import JenHeader from "../components/jen/JenHeader";
 import JenPostGrid from "../components/jen/JenPostGrid";
 import JenEditorShell from "../components/jen/JenEditorShell";
+import JenExpandedOverlay from "../components/jen/JenExpandedOverlay";
+
+import JENBanner from "../assets/jen/JENBanner1.png";
 
 import {
   canManageBlog,
@@ -16,6 +19,13 @@ import {
 
 import "../styles/main.sass";
 import "../styles/_jen.sass";
+
+type OverlayRect = {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+};
 
 const JenPage: React.FC = () => {
   const navigate = useNavigate();
@@ -29,29 +39,32 @@ const JenPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [openId, setOpenId] = useState<number | null>(null);
+
+  const [overlayPost, setOverlayPost] = useState<BlogPost | null>(null);
+  const [overlaySourceRect, setOverlaySourceRect] = useState<OverlayRect | null>(null);
 
   const [user, setUser] = useState<SwcUser | null>(null);
   const [busyDeleteId, setBusyDeleteId] = useState<number | null>(null);
+
+  const autoOpenedPostIdRef = useRef<number | null>(null);
 
   const refreshPosts = async () => {
     const blog = await listBlog();
     const list = blog.posts ?? [];
     setPosts(list);
 
-    if (list.length > 0) {
-      const requested =
-        Number.isFinite(requestedPostId) && requestedPostId > 0
-          ? list.find((p) => p.id === requestedPostId)
-          : null;
+    if (!list.length) {
+      setOverlayPost(null);
+      setOverlaySourceRect(null);
+      return;
+    }
 
-      setOpenId((current) => {
-        if (requested) return requested.id;
-        if (current != null && list.some((p) => p.id === current)) return current;
-        return list[0].id;
-      });
-    } else {
-      setOpenId(null);
+    if (overlayPost) {
+      const refreshedOverlayPost = list.find((p) => p.id === overlayPost.id) ?? null;
+      setOverlayPost(refreshedOverlayPost);
+      if (!refreshedOverlayPost) {
+        setOverlaySourceRect(null);
+      }
     }
   };
 
@@ -75,17 +88,9 @@ const JenPage: React.FC = () => {
         setUser(currentUser);
         setPosts(list);
         setError(null);
-
-        if (list.length > 0) {
-          const requested =
-            Number.isFinite(requestedPostId) && requestedPostId > 0
-              ? list.find((p) => p.id === requestedPostId)
-              : null;
-
-          setOpenId(requested ? requested.id : list[0].id);
-        } else {
-          setOpenId(null);
-        }
+        setOverlayPost(null);
+        setOverlaySourceRect(null);
+        autoOpenedPostIdRef.current = null;
       } catch (e: any) {
         if (!cancelled) {
           setError(e?.message ?? "Failed to load JEN posts");
@@ -100,10 +105,70 @@ const JenPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [requestedPostId]);
+  }, []);
 
-  const togglePanel = (id: number) => {
-    setOpenId((current) => (current === id ? null : id));
+  useEffect(() => {
+    if (loading) return;
+    if (!requestedPostId || !Number.isFinite(requestedPostId)) return;
+    if (!posts.length) return;
+    if (overlayPost?.id === requestedPostId) return;
+    if (autoOpenedPostIdRef.current === requestedPostId) return;
+
+    const requestedPost = posts.find((p) => p.id === requestedPostId);
+    if (!requestedPost) return;
+
+    const card = document.querySelector<HTMLElement>(`[data-post-id="${requestedPostId}"]`);
+    if (!card) return;
+
+    autoOpenedPostIdRef.current = requestedPostId;
+
+    card.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+
+    const timer = window.setTimeout(() => {
+      const rect = card.getBoundingClientRect();
+
+      setOverlayPost(requestedPost);
+      setOverlaySourceRect({
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      });
+
+      const nextParams = new URLSearchParams(searchParams.toString());
+      nextParams.delete("post");
+
+      const nextQuery = nextParams.toString();
+      navigate(
+        {
+          pathname: "/jen",
+          search: nextQuery ? `?${nextQuery}` : "",
+        },
+        { replace: true }
+      );
+    }, 650);
+
+    return () => window.clearTimeout(timer);
+  }, [loading, requestedPostId, posts, overlayPost, navigate, searchParams]);
+
+  const handleOpenFromCard = (post: BlogPost, element: HTMLElement) => {
+    const rect = element.getBoundingClientRect();
+
+    setOverlayPost(post);
+    setOverlaySourceRect({
+      top: rect.top,
+      left: rect.left,
+      width: rect.width,
+      height: rect.height,
+    });
+  };
+
+  const handleCloseOverlay = () => {
+    setOverlayPost(null);
+    setOverlaySourceRect(null);
   };
 
   const handleDelete = async (post: BlogPost) => {
@@ -117,7 +182,10 @@ const JenPage: React.FC = () => {
       await deleteBlog(post.id);
       await refreshPosts();
 
-      setOpenId((current) => (current === post.id ? null : current));
+      if (overlayPost?.id === post.id) {
+        setOverlayPost(null);
+        setOverlaySourceRect(null);
+      }
     } catch (e: any) {
       alert(e?.message ?? "Failed to delete post");
     } finally {
@@ -139,12 +207,20 @@ const JenPage: React.FC = () => {
     !!user &&
     canEditBlogPost(user, editingPost);
 
+  const banner = (
+    <img
+      src={JENBanner}
+      alt="Jawa Entertainment Network"
+      className="jen-board__banner"
+    />
+  );
+
   if (loading) {
     return (
       <div className="site-scale">
         <div className="app app--one">
           <main className="board jen-board">
-            <h1>Jawa Entertainment Network</h1>
+            {banner}
             <p className="small">Loading JEN posts…</p>
           </main>
         </div>
@@ -157,7 +233,7 @@ const JenPage: React.FC = () => {
       <div className="site-scale">
         <div className="app app--one">
           <main className="board jen-board">
-            <h1>Jawa Entertainment Network</h1>
+            {banner}
             <p className="small" style={{ color: "salmon" }}>
               {error}
             </p>
@@ -184,17 +260,33 @@ const JenPage: React.FC = () => {
               }}
             />
           ) : !posts.length ? (
-            <p className="small">No JEN posts yet. Soon™.</p>
+            <>
+              {banner}
+              <p className="small">No JEN posts yet. Soon™.</p>
+            </>
           ) : (
-            <JenPostGrid
-              posts={posts}
-              openId={openId}
-              user={user}
-              busyDeleteId={busyDeleteId}
-              manageMode={manageMode}
-              onToggle={togglePanel}
-              onDelete={handleDelete}
-            />
+            <>
+              {banner}
+
+              <JenPostGrid
+                posts={posts}
+                overlayOpenId={overlayPost?.id ?? null}
+                user={user}
+                busyDeleteId={busyDeleteId}
+                manageMode={manageMode}
+                onOpenFromCard={handleOpenFromCard}
+                onCloseOverlay={handleCloseOverlay}
+                onDelete={handleDelete}
+              />
+
+              {overlayPost && overlaySourceRect && (
+                <JenExpandedOverlay
+                  post={overlayPost}
+                  sourceRect={overlaySourceRect}
+                  onClose={handleCloseOverlay}
+                />
+              )}
+            </>
           )}
         </main>
       </div>

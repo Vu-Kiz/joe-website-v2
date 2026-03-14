@@ -41,13 +41,15 @@ const WeatherPanel: React.FC = () => {
         <img src={weatherBanner} alt="Mos Espa Weather Control" />
       </div>
 
-      <img src={twinSuns} alt="Twin Suns" className={styles.twinSunsIcon} />
+      <div className={styles.weatherPanelTop}>
+        <img src={twinSuns} alt="Twin Suns" className={styles.twinSunsIcon} />
 
-      {temp != null && (
-        <div className={styles.weatherTemp}>
-          {temp}° Standard
+        <div className={styles.weatherTempWrap}>
+          <div className={styles.weatherTemp}>
+            {temp != null ? `${temp}°` : "—°"}
+          </div>
         </div>
-      )}
+      </div>
 
       <p className={styles.small} style={{ marginTop: 10 }}>
         {loading ? "Initialising Mos Espa Weather Control network…" : message}

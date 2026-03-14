@@ -13,11 +13,9 @@
   border: 1px solid rgba(245,213,70,0.35)
 
   background-color: #111
-  background-image: radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(10,10,10,0.95) 0%, rgba(10,10,10,0.94) 35%, rgba(40,32,0,0.98) 100%)
-  background-size: 6px 6px, 100% 100%
 
   // keep nav "shell" full width; content aligns via inner container
-  padding: 10px 0 18px
+  padding: 10px 0 10px
   box-sizing: border-box
 
 .main-nav-inner
@@ -44,9 +42,7 @@
   white-space: nowrap
 
 .main-nav-logo
-  width: 36px
-  height: 36px
-  border-radius: 50%
+  width: 100%
   border: 2px solid var(--accent)
   object-fit: cover
 
@@ -79,6 +75,7 @@
 
 .nav-user-link
   color: var(--accent)
+  font-family: 'EngliBesh', sans-serif
   font-weight: 800
   text-decoration: underline
   text-underline-offset: 2px

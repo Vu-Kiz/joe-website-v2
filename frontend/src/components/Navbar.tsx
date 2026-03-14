@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
-import jawaLogo from "../assets/branding/jawalogo.png";
+import jawaLogo from "../assets/branding/joe-banner.png";
 import { fetchAuthMe, apiLogout, getBackendOrigin } from "../api/auth";
 import type { SwcUser } from "../api/auth";
 import CgtPill from "./CgtPill";
@@ -171,17 +171,6 @@ const Navbar: React.FC = () => {
                     onClick={() => setDropdownOpen(false)}
                   >
                     Members
-                  </Link>
-                </li>
-
-                <li role="none">
-                  <Link
-                    to="/intel"
-                    className="dropdown__item"
-                    role="menuitem"
-                    onClick={() => setDropdownOpen(false)}
-                  >
-                    Intel (DroidBrain)
                   </Link>
                 </li>
               </ul>

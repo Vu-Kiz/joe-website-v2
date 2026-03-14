@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { fetchAuthMe, type SwcUser } from "../api/auth";
+import {
+  fetchAuthMe,
+  getBackendOrigin,
+  type SwcUser,
+} from "../api/auth";
 import {
   buildBulkPayment,
   buildSinglePayment,
@@ -116,6 +120,12 @@ const PaymentsPage: React.FC = () => {
     );
   }
 
+  function onConnectEvents() {
+    const backendOrigin = getBackendOrigin();
+    if (!backendOrigin) return;
+    window.location.href = `${backendOrigin}/oauth/events`;
+  }
+
   async function reloadPayments() {
     const [swcAuthRes, pendingRes, owedRes, transferRes] = await Promise.all([
       getSwcAuthorizationStatus(),
@@ -200,21 +210,17 @@ const PaymentsPage: React.FC = () => {
           </p>
 
           <div className="panel">
-            <h2>SWC Payment Verification</h2>
+            <h2>SWC Events Verification</h2>
 
             {!swcAuth?.connected && (
-              <p className="small">
-                Payments verification is not connected yet.
-              </p>
+              <p className="small">SWC events access is not connected yet.</p>
             )}
 
             {swcAuth?.connected && (
               <>
                 <p className="small">
                   Personal events access:{" "}
-                  {swcAuth.has_personal_events_access
-                    ? "Connected"
-                    : "Missing"}
+                  {swcAuth.has_personal_events_access ? "Connected" : "Missing"}
                 </p>
                 <p className="small">
                   Faction events access:{" "}
@@ -223,8 +229,8 @@ const PaymentsPage: React.FC = () => {
               </>
             )}
 
-            <button className="btn" type="button">
-              Connect Payments
+            <button className="btn" type="button" onClick={onConnectEvents}>
+              Connect Events Access
             </button>
           </div>
 
@@ -239,9 +245,7 @@ const PaymentsPage: React.FC = () => {
               )}
 
               {grouped.map((group) => {
-                const canPayPersonally =
-                  group.payerType === "user" &&
-                  !!swcAuth?.has_personal_events_access;
+                const canPayPersonally = group.payerType === "user";
 
                 const canPayAsFaction =
                   group.payerType === "faction" &&
@@ -262,16 +266,21 @@ const PaymentsPage: React.FC = () => {
                     </p>
                     <p className="small">
                       Payment source:{" "}
-                      {group.payerType === "faction"
-                        ? "Faction"
-                        : "Personal"}
+                      {group.payerType === "faction" ? "Faction" : "Personal"}
                     </p>
 
-                    {!canPay && (
+                    {group.payerType === "user" &&
+                      !swcAuth?.has_personal_events_access && (
+                        <p className="small">
+                          This payment can still be made, but it will not
+                          auto-verify until events access is connected.
+                        </p>
+                      )}
+
+                    {!canPay && group.payerType === "faction" && (
                       <p className="small" style={{ color: "salmon" }}>
-                        {group.payerType === "faction"
-                          ? "Faction events access is required before paying as this faction."
-                          : "Personal events access is required before paying personally."}
+                        Faction events access is required before paying as this
+                        faction.
                       </p>
                     )}
 
@@ -317,6 +326,10 @@ const PaymentsPage: React.FC = () => {
 
               <div className="admin-card">
                 <strong>Bulk Payment</strong>
+                <p className="small">
+                  Bulk payments must use one payer context at a time.
+                </p>
+
                 <div
                   style={{
                     display: "flex",

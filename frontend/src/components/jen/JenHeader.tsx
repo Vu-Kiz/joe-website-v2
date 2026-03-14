@@ -9,7 +9,6 @@ type Props = {
 const JenHeader: React.FC<Props> = ({ canCreate, manageMode }) => {
   return (
     <div className="jen-header-row">
-      <h1 style={{ marginTop: 0 }}>Jawa Entertainment Network</h1>
 
       {canCreate && (
         <div className="jen-header-row__actions">

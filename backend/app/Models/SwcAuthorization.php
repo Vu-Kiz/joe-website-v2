@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SwcAuthorization extends Model
 {
+    protected $table = 'swc_authorizations';
+
     protected $fillable = [
         'user_id',
         'swc_character_id',

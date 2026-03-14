@@ -33,10 +33,13 @@
   object-fit: cover
 
 .title
-  margin: 0
+  margin: auto
+  font-family: 'EngliBesh', sans-serif
   font-size: 1.5rem
   letter-spacing: 0.06em
   text-transform: uppercase
+  color: var(--accent)
+  text-align: center
 
 .tabs
   display: flex
@@ -55,6 +58,7 @@
   border-bottom: 2px solid transparent
   color: rgba(255,255,255,0.7)
   transition: color 0.15s ease, border-color 0.15s ease
+  font-family: 'Tektur', sans-serif
 
 .tabActive
   color: var(--accent)
@@ -69,7 +73,7 @@
 
 .overviewLayout
   display: grid
-  grid-template-columns: 180px minmax(0, 1fr) // reduce banner column
+  grid-template-columns: 120px minmax(0, 1fr) // reduce banner column
   gap: 16px
   align-items: stretch
 
@@ -93,7 +97,6 @@
 
 .twinSunsIcon 
   display: block
-  margin: 0 auto 12px
   width: 95px
   height: auto
   filter: drop-shadow(0 0 8px rgba(246,163,0,0.4))
@@ -103,36 +106,32 @@
   filter: drop-shadow(0 0 12px rgba(246,163,0,0.7))
 
 .small
-  font-size: 0.85rem
-  line-height: 1.5
+  font-size: 1rem
+  line-height: 1.15
 
 @media (max-width: 1100px)
   .root
     grid-template-columns: minmax(0, 1fr)
 
-.eotmReason
-  text-align: center
+.eotmPanel
+  display: flex
+  align-items: flex-start
+  gap: 1rem
+  margin-top: 0.75rem
 
-  p
-    margin-top: 0
+.eotmLeft
+  display: flex
+  flex-direction: column
+  align-items: center
+  flex-shrink: 0
+  width: 180px
 
-  ul,
-  ol
-    display: inline-block
-    text-align: left
-
-.eotmName
-  margin: 0
-  font-size: 1.1rem
-  text-align: center
-  width: 100%
+.eotmRight
+  flex: 1
+  min-width: 0
 
 .eotmImageWrap
   width: 100%
-  max-width: 100px
-  margin: 0 auto
-  display: flex
-  justify-content: center
 
 .eotmImage
   width: 100%
@@ -141,3 +140,48 @@
   margin: 0 auto
   border-radius: 12px
   object-fit: cover
+
+.eotmName
+  margin: 0.6rem 0 0
+  text-align: center
+  font-family: "EngliBesh", sans-serif;
+  font-weight: normal
+
+.eotmReason
+  margin: 0
+
+.weatherPanelTop
+  display: flex
+  align-items: center
+  justify-content: center
+  gap: 1.5rem
+  margin-top: 0.75rem
+
+.weatherTempWrap
+  display: flex
+  align-items: center
+
+.weatherTemp
+  font-family: 'Bitcount Grid Single', monospace
+  font-size: 4rem
+  font-weight: 600
+  color: var(--jen-orange)
+  line-height: 1
+  filter: drop-shadow(0 0 8px rgba(246,163,0,0.4))
+
+.tenetsPanel
+  display: flex
+  flex-direction: column
+  gap: 0.75rem
+  text-align: center
+  align-items: center
+
+.tenetsTitle
+  margin: 0
+  color: var(--jen-orange)
+  text-align: center
+
+.tenetsBody
+  font-size: 0.9rem
+  line-height: 1.6
+  text-align: center

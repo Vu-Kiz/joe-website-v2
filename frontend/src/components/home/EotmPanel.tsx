@@ -49,7 +49,7 @@ const EotmPanel: React.FC = () => {
   const imageSrc = useMemo(() => resolveImageUrl(entry?.image_url ?? null), [entry]);
 
   return (
-    <section className="panel centered">
+    <section className="panel">
       <div className="panel-banner">
         <img src={employeeBanner} alt="Employee of the Month" />
       </div>
@@ -74,16 +74,20 @@ const EotmPanel: React.FC = () => {
 
       {!loading && !error && entry && (
         <div className={styles.eotmPanel}>
-          {imageSrc && (
-            <div className={styles.eotmImageWrap}>
-              <img src={imageSrc} alt={entry.name} className={styles.eotmImage} />
+          <div className={styles.eotmLeft}>
+            {imageSrc && (
+              <div className={styles.eotmImageWrap}>
+                <img src={imageSrc} alt={entry.name} className={styles.eotmImage} />
+              </div>
+            )}
+
+            <h3 className={styles.eotmName}>{entry.name}</h3>
+          </div>
+
+          <div className={styles.eotmRight}>
+            <div className={styles.small}>
+              <BBCodeView value={entry.reason} className={styles.eotmReason} />
             </div>
-          )}
-
-          <h3 className={styles.eotmName}>{entry.name}</h3>
-
-          <div className={styles.small}>
-            <BBCodeView value={entry.reason} className={styles.eotmReason} />
           </div>
         </div>
       )}

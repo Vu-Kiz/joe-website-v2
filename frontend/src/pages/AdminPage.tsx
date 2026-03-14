@@ -6,6 +6,7 @@ import AdminHeader from "../components/admin/AdminHeader";
 import AdminNav, { type AdminView } from "../components/admin/AdminNav";
 import AdminHomePanel from "../components/admin/AdminHomePanel";
 import AdminTipsPanel from "../components/admin/AdminTipsPanel";
+import AdminTenetsPanel from "../components/admin/AdminTenetsPanel";
 import AdminEotmPanel from "../components/admin/AdminEotmPanel";
 import AdminSystemPanel from "../components/admin/AdminSystemPanel";
 import AdminUsersPanel from "../components/admin/AdminUsersPanel";
@@ -58,11 +59,11 @@ const AdminPage: React.FC = () => {
   const showSystemTools = useMemo(() => canAccessSysadmin(user), [user]);
   const canSeeLogs = useMemo(() => canAccessSysadmin(user), [user]);
 
-useEffect(() => {
-  if (!showSystemTools && (activeView === "system" || activeView === "logs")) {
-    setActiveView("home");
-  }
-}, [showSystemTools, canSeeLogs, activeView]);
+  useEffect(() => {
+    if (!showSystemTools && (activeView === "system" || activeView === "logs")) {
+      setActiveView("home");
+    }
+  }, [showSystemTools, canSeeLogs, activeView]);
 
   if (loading) {
     return (
@@ -136,6 +137,7 @@ useEffect(() => {
             <AdminHomePanel showSystemTools={showSystemTools} />
           )}
           {activeView === "tips" && <AdminTipsPanel />}
+          {activeView === "tenets" && <AdminTenetsPanel />}
           {activeView === "eotm" && <AdminEotmPanel />}
           {activeView === "users" && <AdminUsersPanel />}
           {activeView === "logs" && canSeeLogs && <AdminActionLogPanel />}

@@ -1,18 +1,18 @@
-import React from "react";
+import React, { useRef } from "react";
 import { Link } from "react-router-dom";
 import type { BlogPost } from "../../api/blog";
 import type { SwcUser } from "../../api/auth";
 import { getBackendOrigin } from "../../api/auth";
-import BBCodeView from "../bbcode/BBCodeView";
 import { canDeleteBlog, canEditBlogPost } from "../../auth/permissions";
 
 type Props = {
   post: BlogPost;
-  isOpen: boolean;
+  isOverlayOpen: boolean;
   user: SwcUser | null;
   busyDelete: boolean;
   manageMode: boolean;
-  onToggle: () => void;
+  onOpenFromCard: (post: BlogPost, element: HTMLElement) => void;
+  onCloseOverlay: () => void;
   onDelete: (post: BlogPost) => void;
 };
 
@@ -39,21 +39,38 @@ const resolveImageUrl = (post: BlogPost): string | null => {
 
 const JenPostCard: React.FC<Props> = ({
   post,
-  isOpen,
+  isOverlayOpen,
   user,
   busyDelete,
   manageMode,
-  onToggle,
+  onOpenFromCard,
+  onCloseOverlay,
   onDelete,
 }) => {
+  const cardRef = useRef<HTMLElement | null>(null);
   const imgSrc = resolveImageUrl(post);
   const cgt = post.cgt_created?.trim() ? post.cgt_created.trim() : "CGT Unknown";
 
   const showEdit = manageMode && canEditBlogPost(user, post);
   const showDelete = manageMode && canDeleteBlog(user);
 
+  const handleHamburgerClick = () => {
+    if (isOverlayOpen) {
+      onCloseOverlay();
+      return;
+    }
+
+    if (cardRef.current) {
+      onOpenFromCard(post, cardRef.current);
+    }
+  };
+
   return (
-    <article className={"panel jen-panel" + (isOpen ? " jen-panel--open" : "")}>
+    <article
+      ref={cardRef}
+      data-post-id={post.id}
+      className={"panel jen-panel" + (isOverlayOpen ? " jen-panel--active" : "")}
+    >
       <header className="jen-panel__header">
         <div className="jen-panel__title-block">
           <h2 className="jen-panel__title">{post.title}</h2>
@@ -92,9 +109,10 @@ const JenPostCard: React.FC<Props> = ({
 
           <button
             type="button"
-            className={"jen-panel__toggle" + (isOpen ? " jen-panel__toggle--open" : "")}
-            onClick={onToggle}
-            aria-label={isOpen ? "Close post" : "Open post"}
+            className="jen-panel__toggle"
+            onClick={handleHamburgerClick}
+            aria-label={isOverlayOpen ? "Close post" : "Open post"}
+            aria-expanded={isOverlayOpen}
           >
             <span />
             <span />
@@ -103,21 +121,9 @@ const JenPostCard: React.FC<Props> = ({
         </div>
       </header>
 
-      {imgSrc && !isOpen && (
+      {imgSrc && (
         <div className="jen-panel__thumb">
           <img src={imgSrc} alt={post.title} />
-        </div>
-      )}
-
-      {isOpen && (
-        <div className="jen-panel__body">
-          {imgSrc && (
-            <div className="jen-panel__body-image">
-              <img src={imgSrc} alt={post.title} />
-            </div>
-          )}
-
-          <BBCodeView value={post.body} className="jen-panel__body-text small" />
         </div>
       )}
     </article>
