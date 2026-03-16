@@ -9,7 +9,7 @@ return [
     'api_base'      => env('SWC_OAUTH_API_BASE', 'https://www.swcombine.com/ws/v2.0'),
 
     'default_scope' => env('SWC_OAUTH_DEFAULT_SCOPE', 'character_read'),
-    'events_scope'  => env('SWC_OAUTH_EVENTS_SCOPE', 'character_read character_events'),
+    'events_scope'  => env('SWC_OAUTH_EVENTS_SCOPE', 'character_read character_events character_privileges'),
 
     'access_type'   => env('SWC_OAUTH_ACCESS_TYPE', 'online'),
     'events_access_type' => env('SWC_OAUTH_EVENTS_ACCESS_TYPE', 'offline'),

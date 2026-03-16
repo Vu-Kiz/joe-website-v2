@@ -4,6 +4,7 @@ export type SwcAuthorizationStatus = {
   connected: boolean;
   has_personal_events_access: boolean;
   has_faction_events_access: boolean;
+  has_character_privileges_access: boolean;
   granted_scopes: string | null;
   token_expires_at: string | null;
 };

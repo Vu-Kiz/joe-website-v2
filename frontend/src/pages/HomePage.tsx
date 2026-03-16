@@ -25,7 +25,6 @@ const HomePage: React.FC = () => {
         <main className="board main-col">
           <div className={styles.headerRow}>
             <img src={jawaLogo} alt="JOE" className={styles.logo} />
-            <h1 className={styles.title}>Jawa Offworld Enterprises</h1>
           </div>
 
           <div className={styles.tabs}>

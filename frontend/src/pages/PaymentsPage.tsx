@@ -17,6 +17,10 @@ import {
   getSwcAuthorizationStatus,
   type SwcAuthorizationStatus,
 } from "../api/swcAuthorization";
+import {
+  getMyFactionPrivileges,
+  type FactionPrivilegeCheckResult,
+} from "../api/factionPrivileges";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import PaymentsNav, { type PaymentsView } from "../components/payments/PaymentsNav";
 
@@ -35,6 +39,11 @@ const PaymentsPage: React.FC = () => {
   const [selected, setSelected] = useState<number[]>([]);
   const [bulkLines, setBulkLines] = useState("");
   const [bulkUrl, setBulkUrl] = useState<string | null>(null);
+  const [privileges, setPrivileges] = useState<FactionPrivilegeCheckResult[]>([]);
+
+  // Replace these once you confirm the real SWC privilege pair.
+  const privilegeGroup = "finance";
+  const privilegeName = "pay";
 
   useEffect(() => {
     let cancelled = false;
@@ -43,13 +52,14 @@ const PaymentsPage: React.FC = () => {
       try {
         setLoading(true);
 
-        const [authRes, swcAuthRes, pendingRes, owedRes, transferRes] =
+        const [authRes, swcAuthRes, pendingRes, owedRes, transferRes, privilegeRes] =
           await Promise.all([
             fetchAuthMe(),
             getSwcAuthorizationStatus(),
             getPayments(),
             getPaymentsOwedToMe(),
             getPaymentTransfers(),
+            getMyFactionPrivileges(privilegeGroup, privilegeName),
           ]);
 
         if (cancelled) return;
@@ -59,6 +69,7 @@ const PaymentsPage: React.FC = () => {
         setPendingItems(pendingRes?.data ?? []);
         setOwedItems(owedRes?.data ?? []);
         setTransfers(transferRes?.data ?? []);
+        setPrivileges(privilegeRes?.data ?? []);
         setError(null);
       } catch (e: any) {
         if (!cancelled) {
@@ -68,6 +79,7 @@ const PaymentsPage: React.FC = () => {
           setPendingItems([]);
           setOwedItems([]);
           setTransfers([]);
+          setPrivileges([]);
         }
       } finally {
         if (!cancelled) {
@@ -106,6 +118,7 @@ const PaymentsPage: React.FC = () => {
       payee: items[0]?.payee_handle ?? "Unknown",
       payer: items[0]?.payer_label ?? "Unknown",
       payerType: items[0]?.payer_subject_type ?? "user",
+      payerSubjectId: items[0]?.payer_subject_id ?? null,
     }));
   }, [pendingItems]);
 
@@ -127,17 +140,20 @@ const PaymentsPage: React.FC = () => {
   }
 
   async function reloadPayments() {
-    const [swcAuthRes, pendingRes, owedRes, transferRes] = await Promise.all([
-      getSwcAuthorizationStatus(),
-      getPayments(),
-      getPaymentsOwedToMe(),
-      getPaymentTransfers(),
-    ]);
+    const [swcAuthRes, pendingRes, owedRes, transferRes, privilegeRes] =
+      await Promise.all([
+        getSwcAuthorizationStatus(),
+        getPayments(),
+        getPaymentsOwedToMe(),
+        getPaymentTransfers(),
+        getMyFactionPrivileges(privilegeGroup, privilegeName),
+      ]);
 
     setSwcAuth(swcAuthRes.data);
     setPendingItems(pendingRes.data);
     setOwedItems(owedRes.data);
     setTransfers(transferRes.data);
+    setPrivileges(privilegeRes.data);
   }
 
   async function onBuildSingle(ids: number[]) {
@@ -226,6 +242,10 @@ const PaymentsPage: React.FC = () => {
                   Faction events access:{" "}
                   {swcAuth.has_faction_events_access ? "Connected" : "Missing"}
                 </p>
+                <p className="small">
+                  Character privileges access:{" "}
+                  {swcAuth.has_character_privileges_access ? "Connected" : "Missing"}
+                </p>
               </>
             )}
 
@@ -245,11 +265,20 @@ const PaymentsPage: React.FC = () => {
               )}
 
               {grouped.map((group) => {
+                const factionPrivilege =
+                  group.payerType === "faction"
+                    ? privileges.find((f) => f.id === group.payerSubjectId)
+                    : null;
+
+                const hasFactionPrivilege = !!factionPrivilege?.check?.allowed;
+
                 const canPayPersonally = group.payerType === "user";
 
                 const canPayAsFaction =
                   group.payerType === "faction" &&
-                  !!swcAuth?.has_faction_events_access;
+                  !!swcAuth?.has_faction_events_access &&
+                  !!swcAuth?.has_character_privileges_access &&
+                  hasFactionPrivilege;
 
                 const canPay = canPayPersonally || canPayAsFaction;
 
@@ -277,11 +306,29 @@ const PaymentsPage: React.FC = () => {
                         </p>
                       )}
 
-                    {!canPay && group.payerType === "faction" && (
-                      <p className="small" style={{ color: "salmon" }}>
-                        Faction events access is required before paying as this
-                        faction.
-                      </p>
+                    {group.payerType === "faction" && (
+                      <>
+                        <p className="small">
+                          SWC faction privilege ({privilegeGroup}/{privilegeName}):{" "}
+                          {factionPrivilege?.check?.ok
+                            ? factionPrivilege.check.allowed
+                              ? "Allowed"
+                              : "Denied"
+                            : factionPrivilege?.check?.message ?? "Not checked"}
+                        </p>
+
+                        {!canPay && (
+                          <p className="small" style={{ color: "salmon" }}>
+                            {!swcAuth?.has_faction_events_access
+                              ? "Faction events access is required before paying as this faction."
+                              : !swcAuth?.has_character_privileges_access
+                              ? "Character privileges access is required before paying as this faction."
+                              : !hasFactionPrivilege
+                              ? "SWC faction privilege check did not allow this action."
+                              : "Faction payment is not available."}
+                          </p>
+                        )}
+                      </>
                     )}
 
                     {group.items.map((item) => (

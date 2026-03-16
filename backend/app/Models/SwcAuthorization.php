@@ -15,6 +15,7 @@ class SwcAuthorization extends Model
         'granted_scopes',
         'has_personal_events_access',
         'has_faction_events_access',
+        'has_character_privileges_access',
         'access_token_encrypted',
         'refresh_token_encrypted',
         'token_expires_at',
@@ -25,6 +26,7 @@ class SwcAuthorization extends Model
     protected $casts = [
         'has_personal_events_access' => 'boolean',
         'has_faction_events_access' => 'boolean',
+        'has_character_privileges_access' => 'boolean',
         'token_expires_at' => 'datetime',
         'last_verified_at' => 'datetime',
         'revoked_at' => 'datetime',

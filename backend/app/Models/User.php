@@ -48,6 +48,7 @@ class User extends Authenticatable
         return $this->belongsToMany(\App\Models\Faction::class)
             ->withPivot([
                 'can_view_payments',
+                'can_pay_from_faction',
                 'can_mark_payments_paid',
                 'can_manage_jobs',
             ])

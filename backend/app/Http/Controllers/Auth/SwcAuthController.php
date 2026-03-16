@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Support\Swc\SwcAuthorizationService;
 use App\Support\Swc\SwcHttp;
+use App\Support\Swc\SwcFactionSyncService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,7 +19,8 @@ use Illuminate\Support\Str;
 class SwcAuthController extends Controller
 {
     public function __construct(
-        protected SwcAuthorizationService $swcAuthorizationService
+        protected SwcAuthorizationService $swcAuthorizationService,
+        protected SwcFactionSyncService $swcFactionSyncService
     ) {
     }
 
@@ -231,6 +233,11 @@ class SwcAuthController extends Controller
             fn ($f) => (string) (is_array($f) ? ($f['value'] ?? '') : ''),
             $factions
         );
+        
+        Log::info('SWC profile factions', [
+            'factions_raw' => $factions,
+            'factions_names' => $factionNames,
+        ]);
 
         $hasFaction = function (string $needle) use ($factionNames): bool {
             foreach ($factionNames as $n) {
@@ -269,8 +276,16 @@ class SwcAuthController extends Controller
         $user->can_manage_blog = (bool) ($user->can_manage_blog ?? false);
 
         $user->save();
-
-        return $user;
+        try {
+            $this->swcFactionSyncService->syncUserFactions($user, $factions);
+        } catch (\Exception $e) {
+            \Log::error('Failed to sync user factions.', [
+                'user_id' => $user->id,
+                'swc_handle' => $user->swc_handle,
+                'message' => $e->getMessage(),
+            ]);
+        }
+        return $user->fresh();
     }
 
     protected function normalizeScopes(mixed $scopeValue): array

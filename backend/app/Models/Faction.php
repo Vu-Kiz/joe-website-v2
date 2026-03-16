@@ -18,6 +18,7 @@ class Faction extends Model
         return $this->belongsToMany(User::class)
             ->withPivot([
                 'can_view_payments',
+                'can_pay_from_faction',
                 'can_mark_payments_paid',
                 'can_manage_jobs',
             ])

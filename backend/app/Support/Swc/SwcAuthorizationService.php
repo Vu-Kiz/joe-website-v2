@@ -23,6 +23,11 @@ class SwcAuthorizationService
         return (bool) $user->swcAuthorization?->has_faction_events_access;
     }
 
+    public function hasCharacterPrivilegesAccess(User $user): bool
+    {
+        return (bool) $user->swcAuthorization?->has_character_privileges_access;
+    }
+
     public function upsertAuthorization(
         User $user,
         array $tokenData,
@@ -42,6 +47,7 @@ class SwcAuthorizationService
                 'granted_scopes' => $scopeString,
                 'has_personal_events_access' => in_array('character_events', $grantedScopes, true),
                 'has_faction_events_access' => in_array('character_events', $grantedScopes, true),
+                'has_character_privileges_access' => in_array('character_privileges', $grantedScopes, true),
                 'access_token_encrypted' => !empty($tokenData['access_token'])
                     ? encrypt((string) $tokenData['access_token'])
                     : null,

@@ -12,6 +12,7 @@ import PaymentsPage from "./pages/PaymentsPage";
 import AdminRoute from "./components/auth/AdminRoute";
 import SiteLockState from "./components/common/SiteLockState";
 import { fetchSiteLockStatus } from "./api/siteLock";
+import SysDebugPage from "./pages/SysDebugPage";
 
 function App() {
   const [checkingSiteLock, setCheckingSiteLock] = useState(true);
@@ -84,6 +85,7 @@ function App() {
           <Route path="/jen" element={<JenPage />} />
           <Route path="/members" element={<MembersPage />} />
           <Route path="/payments" element={<PaymentsPage />} />
+          <Route path="/sys/debug" element={<SysDebugPage />} />
 
           <Route
             path="/admin"

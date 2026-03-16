@@ -24,6 +24,10 @@ use App\Http\Controllers\Api\SiteLockStatusController;
 use App\Http\Controllers\Api\SwcAuthorizationController;
 use App\Http\Controllers\Api\TenetOfSalvageController;
 use App\Http\Controllers\Api\AdminTenetOfSalvageController;
+use App\Http\Controllers\Api\SysadminDebugController;
+use App\Http\Controllers\Api\FactionController;
+use App\Http\Controllers\Api\FactionPrivilegeController;
+
 
 
 // Public utility
@@ -148,3 +152,19 @@ Route::middleware(['auth:sanctum', 'require_any:is_admin'])->group(function () {
     Route::put('/admin/tenets-of-salvage/{tenetOfSalvage}', [AdminTenetOfSalvageController::class, 'update']);
     Route::delete('/admin/tenets-of-salvage/{tenetOfSalvage}', [AdminTenetOfSalvageController::class, 'destroy']);
 });
+
+Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('sys/debug')->group(function () {
+    Route::get('/swc-auth', [SysadminDebugController::class, 'swcAuth']);
+    Route::get('/payments', [SysadminDebugController::class, 'payments']);
+    Route::get('/factions', [SysadminDebugController::class, 'factions']);
+    Route::get('/raw-swc', [SysadminDebugController::class, 'rawSwc']);
+    Route::get('/test-faction-privilege', [SysadminDebugController::class, 'testFactionPrivilege']);
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/factions/mine', [FactionController::class, 'mine']);
+    Route::get('/factions/mine/payable', [FactionController::class, 'minePayable']);
+});
+
+Route::get('/factions/mine/privileges', [FactionPrivilegeController::class, 'mine']);
+

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\PaymentItem;
 use App\Models\PaymentTransfer;
+use App\Support\Factions\FactionPermissionService;
 use App\Support\Payments\BulkPaymentExportService;
 use App\Support\Payments\PaymentTransferBuilder;
 use App\Support\Payments\SwcPaymentUrlBuilder;
@@ -18,7 +19,8 @@ class PaymentController extends Controller
         protected PaymentTransferBuilder $transferBuilder,
         protected SwcPaymentUrlBuilder $urlBuilder,
         protected BulkPaymentExportService $bulkExportService,
-        protected SwcAuthorizationService $swcAuthorizationService
+        protected SwcAuthorizationService $swcAuthorizationService,
+        protected FactionPermissionService $factionPermissionService
     ) {
     }
 
@@ -149,14 +151,9 @@ class PaymentController extends Controller
                 ], 403);
             }
 
-            $payerFactionId = $items->first()->payer_subject_id;
+            $payerFactionId = (int) $items->first()->payer_subject_id;
 
-            $canUseFaction = $user->factions()
-                ->where('faction_id', $payerFactionId)
-                ->wherePivot('can_view_payments', true)
-                ->exists();
-
-            if (!$canUseFaction) {
+            if (!$this->factionPermissionService->canPayFromFaction($user, $payerFactionId)) {
                 return response()->json([
                     'message' => 'You are not allowed to pay as this faction.',
                 ], 403);
@@ -229,14 +226,9 @@ class PaymentController extends Controller
                 ], 403);
             }
 
-            $payerFactionId = $items->first()->payer_subject_id;
+            $payerFactionId = (int) $items->first()->payer_subject_id;
 
-            $canUseFaction = $user->factions()
-                ->where('faction_id', $payerFactionId)
-                ->wherePivot('can_view_payments', true)
-                ->exists();
-
-            if (!$canUseFaction) {
+            if (!$this->factionPermissionService->canPayFromFaction($user, $payerFactionId)) {
                 return response()->json([
                     'message' => 'You are not allowed to pay as this faction.',
                 ], 403);
