@@ -24,6 +24,7 @@ class PaymentTransfer extends Model
         'opened_at',
         'verified_at',
         'verified_event_id',
+        'verified_transaction_id',
         'paid_at',
         'meta',
     ];

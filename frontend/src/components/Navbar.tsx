@@ -43,7 +43,7 @@ const Navbar: React.FC = () => {
   useEffect(() => {
     setDropdownOpen(false);
     setNavOpen(false);
-  }, [location.pathname]);
+  }, [location.pathname, location.search, location.hash]);
 
   useEffect(() => {
     if (!dropdownOpen) return;
@@ -79,7 +79,10 @@ const Navbar: React.FC = () => {
 
   const handleLogin = () => {
     const origin = getBackendOrigin();
-    window.location.href = origin ? `${origin}/oauth` : "/oauth";
+    const returnTo = `${location.pathname}${location.search}${location.hash}`;
+    const qs = `return_to=${encodeURIComponent(returnTo)}`;
+
+    window.location.href = origin ? `${origin}/oauth?${qs}` : `/oauth?${qs}`;
   };
 
   const handleLogout = async () => {
@@ -91,7 +94,7 @@ const Navbar: React.FC = () => {
     }
   };
 
-  const displayName = user?.handle || user?.handle || "Guest";
+  const displayName = user?.handle || "Guest";
   const showAdminTools = canAccessAdmin(user);
 
   return (

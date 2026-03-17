@@ -8,6 +8,7 @@ use App\Models\PaymentTransfer;
 use App\Support\Factions\FactionPermissionService;
 use App\Support\Payments\BulkPaymentExportService;
 use App\Support\Payments\PaymentTransferBuilder;
+use App\Support\Payments\PaymentVerificationService;
 use App\Support\Payments\SwcPaymentUrlBuilder;
 use App\Support\Swc\SwcAuthorizationService;
 use Illuminate\Http\JsonResponse;
@@ -20,7 +21,8 @@ class PaymentController extends Controller
         protected SwcPaymentUrlBuilder $urlBuilder,
         protected BulkPaymentExportService $bulkExportService,
         protected SwcAuthorizationService $swcAuthorizationService,
-        protected FactionPermissionService $factionPermissionService
+        protected FactionPermissionService $factionPermissionService,
+        protected PaymentVerificationService $paymentVerificationService
     ) {
     }
 
@@ -145,9 +147,9 @@ class PaymentController extends Controller
         $payerType = $items->first()->payer_subject_type;
 
         if ($payerType === 'faction') {
-            if (!$this->swcAuthorizationService->hasFactionEventsAccess($user)) {
+            if (!$this->swcAuthorizationService->hasFactionCreditLogAccess($user)) {
                 return response()->json([
-                    'message' => 'Faction SWC events access is required.',
+                    'message' => 'Faction SWC credit log access is required.',
                 ], 403);
             }
 
@@ -220,9 +222,9 @@ class PaymentController extends Controller
         $payerType = $items->first()->payer_subject_type;
 
         if ($payerType === 'faction') {
-            if (!$this->swcAuthorizationService->hasFactionEventsAccess($user)) {
+            if (!$this->swcAuthorizationService->hasFactionCreditLogAccess($user)) {
                 return response()->json([
-                    'message' => 'Faction SWC events access is required.',
+                    'message' => 'Faction SWC credit log access is required.',
                 ], 403);
             }
 
@@ -254,5 +256,44 @@ class PaymentController extends Controller
                 'pipe_lines' => $this->bulkExportService->toPipeLines($transfers),
             ],
         ]);
+    }
+
+    public function verify(Request $request, PaymentTransfer $paymentTransfer): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        if ($paymentTransfer->payer_subject_type === 'faction') {
+            $payerFactionId = (int) $paymentTransfer->payer_subject_id;
+
+            if (!$this->factionPermissionService->canPayFromFaction($user, $payerFactionId)) {
+                return response()->json([
+                    'message' => 'You are not allowed to verify this faction payment.',
+                ], 403);
+            }
+
+            if (!$this->swcAuthorizationService->hasFactionCreditLogAccess($user)) {
+                return response()->json([
+                    'message' => 'Faction SWC credit log access is required.',
+                ], 403);
+            }
+        } else {
+            if (!$this->swcAuthorizationService->hasPersonalCreditLogAccess($user)) {
+                return response()->json([
+                    'message' => 'Personal SWC credit log access is required.',
+                ], 403);
+            }
+        }
+
+        $result = $this->paymentVerificationService->verifyTransferForUserContext($user, $paymentTransfer);
+
+        return response()->json([
+            'ok' => $result['ok'],
+            'data' => $result,
+            'transfer' => $paymentTransfer->fresh('items'),
+        ], $result['ok'] ? 200 : 422);
     }
 }

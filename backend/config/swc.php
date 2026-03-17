@@ -9,10 +9,12 @@ return [
     'api_base'      => env('SWC_OAUTH_API_BASE', 'https://www.swcombine.com/ws/v2.0'),
 
     'default_scope' => env('SWC_OAUTH_DEFAULT_SCOPE', 'character_read'),
-    'events_scope'  => env('SWC_OAUTH_EVENTS_SCOPE', 'character_read character_events character_privileges'),
+    'creditlog_scope' => env('SWC_OAUTH_CREDITLOG_SCOPE','character_read character_credits faction_credits_read character_privileges'),
+    'debug_scope'   => env('SWC_OAUTH_DEBUG_SCOPE', 'character_all faction_all messages_all'),
 
     'access_type'   => env('SWC_OAUTH_ACCESS_TYPE', 'online'),
-    'events_access_type' => env('SWC_OAUTH_EVENTS_ACCESS_TYPE', 'offline'),
+    'creditlog_access_type' => env('SWC_OAUTH_CREDITLOG_ACCESS_TYPE', 'offline'),
+    'debug_access_type'  => env('SWC_OAUTH_DEBUG_ACCESS_TYPE', 'offline'),
 
     'redirect_uri'  => env('SWC_OAUTH_REDIRECT_URI'),
 

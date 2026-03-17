@@ -39,6 +39,7 @@ export type PaymentTransfer = {
   opened_at: string | null;
   verified_at: string | null;
   paid_at: string | null;
+  verified_transaction_id?: number | null;
   items?: PaymentItem[];
 };
 
@@ -72,5 +73,20 @@ export async function buildBulkPayment(payment_item_ids: number[]) {
   }>(`/payments/build-bulk`, {
     method: "POST",
     body: JSON.stringify({ payment_item_ids }),
+  });
+}
+
+export async function verifyPaymentTransfer(id: number) {
+  return apiFetch<{
+    ok: boolean;
+    data: {
+      ok: boolean;
+      already_verified: boolean;
+      matched_transaction_id: number | null;
+      message: string;
+    };
+    transfer: PaymentTransfer;
+  }>(`/payment-transfers/${id}/verify`, {
+    method: "POST",
   });
 }

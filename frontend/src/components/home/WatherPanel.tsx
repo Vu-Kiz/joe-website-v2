@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import weatherBanner from "../../assets/home/WeatherBanner.png";
-import twinSuns from "../../assets/home/twin-suns.png";
+import twinSuns from "../../assets/home/WeatherLogo.png";
 import { getTatooineWeather } from "../../api/weather";
 import styles from "../../styles/home.module.sass";
 

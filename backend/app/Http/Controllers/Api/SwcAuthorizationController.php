@@ -22,8 +22,8 @@ class SwcAuthorizationController extends Controller
             'ok' => true,
             'data' => [
                 'connected' => (bool) $auth,
-                'has_personal_events_access' => (bool) $auth?->has_personal_events_access,
-                'has_faction_events_access' => (bool) $auth?->has_faction_events_access,
+                'has_personal_credit_log_access' => (bool) $auth?->has_personal_credit_log_access,
+                'has_faction_credit_log_access' => (bool) $auth?->has_faction_credit_log_access,
                 'has_character_privileges_access' => (bool) $auth?->has_character_privileges_access,
                 'granted_scopes' => $auth?->granted_scopes,
                 'token_expires_at' => $auth?->token_expires_at?->toIso8601String(),

@@ -7,19 +7,33 @@ use App\Models\Faction;
 use App\Models\PaymentItem;
 use App\Models\PaymentTransfer;
 use App\Models\User;
+use App\Support\Swc\SwcHttp;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 
 class SysadminDebugController extends Controller
 {
-    public function swcAuth(Request $request): JsonResponse
+    protected function resolveTargetUser(Request $request, array $with = []): ?User
     {
         $targetUserId = (int) $request->query('user_id', 0);
 
-        $user = $targetUserId > 0
-            ? User::with(['swcAuthorization', 'factions'])->find($targetUserId)
-            : $request->user()?->load(['swcAuthorization', 'factions']);
+        if ($targetUserId > 0) {
+            return User::with($with)->find($targetUserId);
+        }
+
+        $user = $request->user();
+
+        if (!$user) {
+            return null;
+        }
+
+        return !empty($with) ? $user->load($with) : $user;
+    }
+
+    public function swcAuth(Request $request): JsonResponse
+    {
+        $user = $this->resolveTargetUser($request, ['swcAuthorization', 'factions']);
 
         if (!$user) {
             return response()->json([
@@ -37,6 +51,7 @@ class SysadminDebugController extends Controller
                     'id' => $user->id,
                     'swc_handle' => $user->swc_handle,
                     'swc_character_id' => $user->swc_character_id,
+                    'is_sysadmin' => (bool) $user->is_sysadmin,
                 ],
                 'authorization' => [
                     'exists' => (bool) $auth,
@@ -54,6 +69,7 @@ class SysadminDebugController extends Controller
                         'id' => $faction->id,
                         'name' => $faction->name,
                         'swc_uid' => $faction->swc_uid,
+                        'abbreviation' => $faction->abbreviation,
                         'pivot' => [
                             'can_view_payments' => (bool) $faction->pivot?->can_view_payments,
                             'can_pay_from_faction' => (bool) $faction->pivot?->can_pay_from_faction,
@@ -69,8 +85,10 @@ class SysadminDebugController extends Controller
                     'redirect_uri' => Config::get('swc.redirect_uri'),
                     'default_scope' => Config::get('swc.default_scope'),
                     'events_scope' => Config::get('swc.events_scope'),
+                    'debug_scope' => Config::get('swc.debug_scope'),
                     'access_type' => Config::get('swc.access_type'),
                     'events_access_type' => Config::get('swc.events_access_type'),
+                    'debug_access_type' => Config::get('swc.debug_access_type'),
                 ],
             ],
         ]);
@@ -78,11 +96,7 @@ class SysadminDebugController extends Controller
 
     public function payments(Request $request): JsonResponse
     {
-        $targetUserId = (int) $request->query('user_id', 0);
-
-        $user = $targetUserId > 0
-            ? User::with(['factions'])->find($targetUserId)
-            : $request->user()?->load(['factions']);
+        $user = $this->resolveTargetUser($request, ['factions']);
 
         if (!$user) {
             return response()->json([
@@ -106,7 +120,7 @@ class SysadminDebugController extends Controller
                         ->whereIn('payer_subject_id', $factionIds);
                 });
             })
-            ->orderBy('id', 'desc')
+            ->orderByDesc('id')
             ->limit(50)
             ->get();
 
@@ -131,7 +145,9 @@ class SysadminDebugController extends Controller
                 'user' => [
                     'id' => $user->id,
                     'swc_handle' => $user->swc_handle,
+                    'swc_character_id' => $user->swc_character_id,
                 ],
+                'visible_faction_ids' => $factionIds->values(),
                 'pending_items' => $pendingItems,
                 'transfers' => $transfers,
             ],
@@ -149,88 +165,157 @@ class SysadminDebugController extends Controller
             'data' => $factions,
         ]);
     }
+
     public function rawSwc(Request $request): JsonResponse
-{
-    $user = $request->user();
+    {
+        $user = $this->resolveTargetUser($request, ['swcAuthorization']);
 
-    if (!$user) {
-        return response()->json(['message' => 'Unauthenticated.'], 401);
-    }
+        if (!$user) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'User not found.',
+            ], 404);
+        }
 
-    $auth = $user->swcAuthorization;
+        $auth = $user->swcAuthorization;
 
-    if (!$auth || empty($auth->access_token_encrypted)) {
-        return response()->json(['message' => 'No SWC authorization token found.'], 422);
-    }
+        if (!$auth || empty($auth->access_token_encrypted)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No SWC authorization token found for target user.',
+            ], 422);
+        }
 
-    $path = trim((string) $request->query('path', ''));
-    if ($path === '') {
-        return response()->json(['message' => 'path is required'], 422);
-    }
+        $path = trim((string) $request->query('path', ''));
 
-    $query = $request->query();
-    unset($query['path']);
+        if ($path === '') {
+            return response()->json([
+                'ok' => false,
+                'message' => 'path is required.',
+            ], 422);
+        }
 
-    $accessToken = decrypt($auth->access_token_encrypted);
+        $query = $request->query();
+        unset($query['path'], $query['user_id']);
 
-    $url = rtrim((string) config('swc.api_base'), '/') . '/' . ltrim($path, '/');
+        $normalizedPath = ltrim($path, '/');
 
-    $response = \App\Support\Swc\SwcHttp::make($accessToken)->get($url, $query);
+        if (!str_contains($normalizedPath, '?') && !str_ends_with($normalizedPath, '/')) {
+            $normalizedPath .= '/';
+        }
 
-    return response()->json([
-        'ok' => $response->ok(),
-        'status' => $response->status(),
-        'url' => $url,
-        'query' => $query,
-        'body' => $response->body(),
-        'json' => $response->json(),
-    ]);
-    public function testFactionPrivilege(Request $request): JsonResponse
-{
-    $user = $request->user();
+        $accessToken = decrypt($auth->access_token_encrypted);
+        $url = rtrim((string) config('swc.api_base'), '/') . '/' . $normalizedPath;
 
-    if (!$user) {
-        return response()->json(['message' => 'Unauthenticated.'], 401);
-    }
+        $prefer = trim((string) $request->query('prefer_auth', 'oauth'));
+        $modes = $prefer === 'bearer'
+            ? ['bearer', 'oauth']
+            : ['oauth', 'bearer'];
 
-    $auth = $user->swcAuthorization;
+        $attempt = SwcHttp::getWithOrderedAuthFallback($url, $query, $accessToken, $modes);
+        $response = $attempt['response'];
 
-    if (!$auth || empty($auth->access_token_encrypted)) {
-        return response()->json(['message' => 'No SWC authorization token found.'], 422);
-    }
-
-    $group = trim((string) $request->query('group', ''));
-    $privilege = trim((string) $request->query('privilege', ''));
-    $factionId = trim((string) $request->query('faction_id', ''));
-
-    if ($group === '' || $privilege === '' || $factionId === '') {
         return response()->json([
-            'message' => 'group, privilege, and faction_id are required',
-        ], 422);
+            'ok' => $response->ok(),
+            'status' => $response->status(),
+            'auth_mode_used' => $attempt['mode'],
+            'auth_modes_tried' => $modes,
+            'attempts' => $attempt['attempts'],
+            'target_user' => [
+                'id' => $user->id,
+                'swc_handle' => $user->swc_handle,
+                'swc_character_id' => $user->swc_character_id,
+            ],
+            'authorization_summary' => [
+                'has_auth_row' => (bool) $auth,
+                'has_access_token' => !empty($auth->access_token_encrypted),
+                'token_expires_at' => $auth?->token_expires_at?->toIso8601String(),
+                'revoked_at' => $auth?->revoked_at?->toIso8601String(),
+                'last_verified_at' => $auth?->last_verified_at?->toIso8601String(),
+                'granted_scopes' => $auth?->granted_scopes,
+            ],
+            'url' => $url,
+            'query' => $query,
+            'body' => $response->body(),
+            'json' => $response->json(),
+        ], 200);
     }
 
-    $accessToken = decrypt($auth->access_token_encrypted);
-    $characterUid = '1:' . $user->swc_character_id;
+    public function testFactionPrivilege(Request $request): JsonResponse
+    {
+        $user = $this->resolveTargetUser($request, ['swcAuthorization']);
 
-    $url = rtrim((string) config('swc.api_base'), '/')
-        . '/character/' . urlencode($characterUid)
-        . '/privileges/' . urlencode($group)
-        . '/' . urlencode($privilege) . '/';
+        if (!$user) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'User not found.',
+            ], 404);
+        }
 
-    $response = \App\Support\Swc\SwcHttp::make($accessToken)->get($url, [
-        'faction_id' => $factionId,
-    ]);
+        $auth = $user->swcAuthorization;
 
-    return response()->json([
-        'ok' => $response->ok(),
-        'status' => $response->status(),
-        'url' => $url,
-        'query' => [
+        if (!$auth || empty($auth->access_token_encrypted)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No SWC authorization token found for target user.',
+            ], 422);
+        }
+
+        $group = trim((string) $request->query('group', ''));
+        $privilege = trim((string) $request->query('privilege', ''));
+        $factionId = trim((string) $request->query('faction_id', ''));
+
+        if ($group === '' || $privilege === '' || $factionId === '') {
+            return response()->json([
+                'ok' => false,
+                'message' => 'group, privilege, and faction_id are required.',
+            ], 422);
+        }
+
+        if (!$user->swc_character_id) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Target user does not have an SWC character id.',
+            ], 422);
+        }
+
+        $accessToken = decrypt($auth->access_token_encrypted);
+        $characterUid = '1:' . $user->swc_character_id;
+
+        $url = rtrim((string) config('swc.api_base'), '/')
+            . '/character/' . urlencode($characterUid)
+            . '/privileges/' . urlencode($group)
+            . '/' . urlencode($privilege) . '/';
+
+        $attempt = SwcHttp::getWithAuthFallback($url, [
             'faction_id' => $factionId,
-        ],
-        'body' => $response->body(),
-        'json' => $response->json(),
-    ]);
-}
-}
+        ], $accessToken);
+
+        $response = $attempt['response'];
+
+        return response()->json([
+            'ok' => $response->ok(),
+            'status' => $response->status(),
+            'auth_mode_used' => $attempt['mode'],
+            'target_user' => [
+                'id' => $user->id,
+                'swc_handle' => $user->swc_handle,
+                'swc_character_id' => $user->swc_character_id,
+            ],
+            'authorization_summary' => [
+                'has_auth_row' => (bool) $auth,
+                'has_access_token' => !empty($auth->access_token_encrypted),
+                'token_expires_at' => $auth?->token_expires_at?->toIso8601String(),
+                'revoked_at' => $auth?->revoked_at?->toIso8601String(),
+                'last_verified_at' => $auth?->last_verified_at?->toIso8601String(),
+                'granted_scopes' => $auth?->granted_scopes,
+            ],
+            'url' => $url,
+            'query' => [
+                'faction_id' => $factionId,
+            ],
+            'body' => $response->body(),
+            'json' => $response->json(),
+        ], 200);
+    }
 }

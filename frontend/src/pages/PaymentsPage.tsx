@@ -10,6 +10,7 @@ import {
   getPaymentTransfers,
   getPayments,
   getPaymentsOwedToMe,
+  verifyPaymentTransfer,
   type PaymentItem,
   type PaymentTransfer,
 } from "../api/payments";
@@ -41,7 +42,6 @@ const PaymentsPage: React.FC = () => {
   const [bulkUrl, setBulkUrl] = useState<string | null>(null);
   const [privileges, setPrivileges] = useState<FactionPrivilegeCheckResult[]>([]);
 
-  // Replace these once you confirm the real SWC privilege pair.
   const privilegeGroup = "finance";
   const privilegeName = "pay";
 
@@ -133,10 +133,10 @@ const PaymentsPage: React.FC = () => {
     );
   }
 
-  function onConnectEvents() {
+  function onConnectCreditLog() {
     const backendOrigin = getBackendOrigin();
     if (!backendOrigin) return;
-    window.location.href = `${backendOrigin}/oauth/events`;
+    window.location.href = `${backendOrigin}/oauth/creditlog`;
   }
 
   async function reloadPayments() {
@@ -169,6 +169,12 @@ const PaymentsPage: React.FC = () => {
     setBulkLines(res.data.pipe_lines);
     setBulkUrl(res.data.bulk_page_url);
     await navigator.clipboard.writeText(res.data.pipe_lines);
+    await reloadPayments();
+  }
+
+  async function onVerifyTransfer(id: number) {
+    const res = await verifyPaymentTransfer(id);
+    alert(res.data.message);
     await reloadPayments();
   }
 
@@ -221,26 +227,25 @@ const PaymentsPage: React.FC = () => {
         <main className="board admin-board">
           <h1>Payments</h1>
           <p className="small">
-            Transfers are tracked locally and can be verified later against SWC
-            events by reference.
+            Transfers are tracked locally and verified against SWC credit log by reference, amount and recipient.
           </p>
 
           <div className="panel">
-            <h2>SWC Events Verification</h2>
+            <h2>SWC Credit Log Verification</h2>
 
             {!swcAuth?.connected && (
-              <p className="small">SWC events access is not connected yet.</p>
+              <p className="small">SWC credit log access is not connected yet.</p>
             )}
 
             {swcAuth?.connected && (
               <>
                 <p className="small">
-                  Personal events access:{" "}
-                  {swcAuth.has_personal_events_access ? "Connected" : "Missing"}
+                  Personal credit log access:{" "}
+                  {swcAuth.has_personal_credit_log_access ? "Connected" : "Missing"}
                 </p>
                 <p className="small">
-                  Faction events access:{" "}
-                  {swcAuth.has_faction_events_access ? "Connected" : "Missing"}
+                  Faction credit log access:{" "}
+                  {swcAuth.has_faction_credit_log_access ? "Connected" : "Missing"}
                 </p>
                 <p className="small">
                   Character privileges access:{" "}
@@ -249,8 +254,8 @@ const PaymentsPage: React.FC = () => {
               </>
             )}
 
-            <button className="btn" type="button" onClick={onConnectEvents}>
-              Connect Events Access
+            <button className="btn" type="button" onClick={onConnectCreditLog}>
+              Connect Credit Log Access
             </button>
           </div>
 
@@ -276,7 +281,7 @@ const PaymentsPage: React.FC = () => {
 
                 const canPayAsFaction =
                   group.payerType === "faction" &&
-                  !!swcAuth?.has_faction_events_access &&
+                  !!swcAuth?.has_faction_credit_log_access &&
                   !!swcAuth?.has_character_privileges_access &&
                   hasFactionPrivilege;
 
@@ -299,10 +304,9 @@ const PaymentsPage: React.FC = () => {
                     </p>
 
                     {group.payerType === "user" &&
-                      !swcAuth?.has_personal_events_access && (
+                      !swcAuth?.has_personal_credit_log_access && (
                         <p className="small">
-                          This payment can still be made, but it will not
-                          auto-verify until events access is connected.
+                          This payment can still be made, but it will not auto-verify until personal credit log access is connected.
                         </p>
                       )}
 
@@ -319,8 +323,8 @@ const PaymentsPage: React.FC = () => {
 
                         {!canPay && (
                           <p className="small" style={{ color: "salmon" }}>
-                            {!swcAuth?.has_faction_events_access
-                              ? "Faction events access is required before paying as this faction."
+                            {!swcAuth?.has_faction_credit_log_access
+                              ? "Faction credit log access is required before paying as this faction."
                               : !swcAuth?.has_character_privileges_access
                               ? "Character privileges access is required before paying as this faction."
                               : !hasFactionPrivilege
@@ -466,6 +470,21 @@ const PaymentsPage: React.FC = () => {
                   <p className="small">
                     Method: {transfer.payment_method} · Status: {transfer.status}
                   </p>
+                  {transfer.verified_transaction_id && (
+                    <p className="small">
+                      Verified SWC transaction: {transfer.verified_transaction_id}
+                    </p>
+                  )}
+
+                  {transfer.status !== "verified" && transfer.status !== "paid" && (
+                    <button
+                      className="btn"
+                      type="button"
+                      onClick={() => onVerifyTransfer(transfer.id)}
+                    >
+                      Verify in Credit Log
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

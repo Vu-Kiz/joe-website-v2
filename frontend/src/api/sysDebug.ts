@@ -1,12 +1,13 @@
 import { apiFetch } from "./auth";
 
 export type DebugSwcAuthResponse = {
-  ok: true;
+  ok: boolean;
   data: {
     user: {
       id: number;
       swc_handle: string | null;
       swc_character_id: number | null;
+      is_sysadmin?: boolean;
     };
     authorization: {
       exists: boolean;
@@ -23,8 +24,10 @@ export type DebugSwcAuthResponse = {
       id: number;
       name: string;
       swc_uid: number | null;
+      abbreviation?: string | null;
       pivot: {
         can_view_payments: boolean;
+        can_pay_from_faction?: boolean;
         can_mark_payments_paid: boolean;
         can_manage_jobs: boolean;
       };
@@ -43,19 +46,21 @@ export type DebugSwcAuthResponse = {
 };
 
 export type DebugPaymentsResponse = {
-  ok: true;
+  ok: boolean;
   data: {
     user: {
       id: number;
       swc_handle: string | null;
+      swc_character_id?: number | null;
     };
+    visible_faction_ids?: number[];
     pending_items: any[];
     transfers: any[];
   };
 };
 
 export type DebugFactionsResponse = {
-  ok: true;
+  ok: boolean;
   data: Array<{
     id: number;
     name: string;
@@ -64,30 +69,90 @@ export type DebugFactionsResponse = {
   }>;
 };
 
-export function getDebugSwcAuth(userId?: number) {
-  const qs = userId ? `?user_id=${userId}` : "";
-  return apiFetch<DebugSwcAuthResponse>(`/sys/debug/swc-auth${qs}`);
+export type DebugRawSwcResponse = {
+  ok: boolean;
+  status: number;
+  target_user?: {
+    id: number;
+    swc_handle: string | null;
+    swc_character_id: number | null;
+  };
+  url: string;
+  query: Record<string, string>;
+  body: string | null;
+  json: any;
+};
+
+export type DebugFactionPrivilegeResponse = {
+  ok: boolean;
+  status: number;
+  target_user?: {
+    id: number;
+    swc_handle: string | null;
+    swc_character_id: number | null;
+  };
+  url: string;
+  query: {
+    faction_id: string;
+  };
+  body: string | null;
+  json: any;
+};
+
+function withOptionalUserId(params: URLSearchParams, userId?: number) {
+  if (userId && Number.isFinite(userId) && userId > 0) {
+    params.set("user_id", String(userId));
+  }
+  return params;
+}
+
+export function getDebugSwcAuth(userId?: number, p0?: boolean) {
+  const params = withOptionalUserId(new URLSearchParams(), userId);
+  const qs = params.toString();
+  return apiFetch<DebugSwcAuthResponse>(`/sys/debug/swc-auth${qs ? `?${qs}` : ""}`);
 }
 
 export function getDebugPayments(userId?: number) {
-  const qs = userId ? `?user_id=${userId}` : "";
-  return apiFetch<DebugPaymentsResponse>(`/sys/debug/payments${qs}`);
+  const params = withOptionalUserId(new URLSearchParams(), userId);
+  const qs = params.toString();
+  return apiFetch<DebugPaymentsResponse>(`/sys/debug/payments${qs ? `?${qs}` : ""}`);
 }
 
 export function getDebugFactions() {
   return apiFetch<DebugFactionsResponse>(`/sys/debug/factions`);
 }
 
+export function getDebugRawSwc(
+  path: string,
+  queryParams?: Record<string, string>,
+  userId?: number
+) {
+  const params = withOptionalUserId(new URLSearchParams(), userId);
+  params.set("path", path);
+
+  if (queryParams) {
+    for (const [key, value] of Object.entries(queryParams)) {
+      if (key.trim() && value != null) {
+        params.set(key, String(value));
+      }
+    }
+  }
+
+  return apiFetch<DebugRawSwcResponse>(`/sys/debug/raw-swc?${params.toString()}`);
+}
+
 export function testFactionPrivilege(
   group: string,
   privilege: string,
-  factionId: number | string
+  factionId: number | string,
+  userId?: number
 ) {
-  const params = new URLSearchParams({
-    group,
-    privilege,
-    faction_id: String(factionId),
-  });
+  const params = withOptionalUserId(new URLSearchParams(), userId);
+  params.set("group", group);
+  params.set("privilege", privilege);
+  params.set("faction_id", String(factionId));
 
-  return apiFetch<any>(`/sys/debug/test-faction-privilege?${params.toString()}`);
+  return apiFetch<DebugFactionPrivilegeResponse>(
+    `/sys/debug/test-faction-privilege?${params.toString()}`
+  );
 }

@@ -35,7 +35,7 @@ class SwcAuthController extends Controller
         );
     }
 
-    public function eventsRedirect(Request $request): RedirectResponse
+    public function creditLogRedirect(Request $request): RedirectResponse
     {
         if (!Auth::check()) {
             $frontend = (string) Config::get('swc.frontend_url', 'https://dev-v2.swc-joe.com');
@@ -44,10 +44,13 @@ class SwcAuthController extends Controller
 
         return $this->redirectForFlow(
             request: $request,
-            stateSessionKey: 'swc_events_oauth_state',
+            stateSessionKey: 'swc_creditlog_oauth_state',
             redirectUri: (string) Config::get('swc.redirect_uri', ''),
-            scope: (string) Config::get('swc.events_scope', 'character_read character_events'),
-            accessType: (string) Config::get('swc.events_access_type', 'offline')
+            scope: (string) Config::get(
+                'swc.creditlog_scope',
+                'character_read character_credits faction_credits_read character_privileges'
+            ),
+            accessType: (string) Config::get('swc.creditlog_access_type', 'offline')
         );
     }
 
@@ -56,15 +59,15 @@ class SwcAuthController extends Controller
         $state = (string) $request->query('state', '');
 
         $normalState = (string) $request->session()->get('swc_oauth_state', '');
-        $eventsState = (string) $request->session()->get('swc_events_oauth_state', '');
+        $creditLogState = (string) $request->session()->get('swc_creditlog_oauth_state', '');
 
         $frontend = (string) Config::get('swc.frontend_url', 'https://dev-v2.swc-joe.com');
 
         try {
-            if ($eventsState !== '' && hash_equals($eventsState, $state)) {
+            if ($creditLogState !== '' && hash_equals($creditLogState, $state)) {
                 [$tokenData, $profile] = $this->handleCallbackForFlow(
                     request: $request,
-                    stateSessionKey: 'swc_events_oauth_state',
+                    stateSessionKey: 'swc_creditlog_oauth_state',
                     redirectUri: (string) Config::get('swc.redirect_uri', '')
                 );
 
@@ -72,7 +75,7 @@ class SwcAuthController extends Controller
                 $currentUser = Auth::user();
 
                 if ($currentUser && (int) $currentUser->id !== (int) $oauthUser->id) {
-                    return redirect()->away($frontend . '/payments?events_oauth_error=' . urlencode('Events OAuth character does not match the current signed-in user.'));
+                    return redirect()->away($frontend . '/payments?creditlog_oauth_error=' . urlencode('Credit log OAuth character does not match the current signed-in user.'));
                 }
 
                 Auth::login($oauthUser);
@@ -107,8 +110,8 @@ class SwcAuthController extends Controller
                 'full_url' => $request->fullUrl(),
             ]);
 
-            if ($eventsState !== '' && hash_equals($eventsState, $state)) {
-                return redirect()->away($frontend . '/payments?events_oauth_error=' . urlencode($e->getMessage()));
+            if ($creditLogState !== '' && hash_equals($creditLogState, $state)) {
+                return redirect()->away($frontend . '/payments?creditlog_oauth_error=' . urlencode($e->getMessage()));
             }
 
             return redirect()->away($frontend . '/?oauth_error=' . urlencode($e->getMessage()));
@@ -219,83 +222,41 @@ class SwcAuthController extends Controller
         $charName = (string) data_get($profile, 'swcapi.character.name', '');
         $avatar   = (string) data_get($profile, 'swcapi.character.image', '');
 
-        $charId = null;
-        if ($charUid !== '' && str_contains($charUid, ':')) {
-            $parts = explode(':', $charUid);
-            $maybe = end($parts);
-            if (is_numeric($maybe)) {
-                $charId = (int) $maybe;
-            }
+        if ($charUid === '' || $charName === '') {
+            throw new \RuntimeException('SWC profile response was missing character details.');
         }
 
-        $factions = (array) data_get($profile, 'swcapi.character.factions', []);
-        $factionNames = array_map(
-            fn ($f) => (string) (is_array($f) ? ($f['value'] ?? '') : ''),
-            $factions
+        $numericCharacterId = null;
+        if (preg_match('/^1:(\d+)$/', $charUid, $matches)) {
+            $numericCharacterId = (int) $matches[1];
+        }
+
+        if (!$numericCharacterId) {
+            throw new \RuntimeException('Could not determine SWC character id.');
+        }
+
+        $user = User::updateOrCreate(
+            ['swc_character_id' => $numericCharacterId],
+            [
+                'swc_handle' => $charName,
+                'swc_avatar_url' => $avatar !== '' ? $avatar : null,
+                'is_joe_member' => true,
+            ]
         );
-        
-        Log::info('SWC profile factions', [
-            'factions_raw' => $factions,
-            'factions_names' => $factionNames,
-        ]);
 
-        $hasFaction = function (string $needle) use ($factionNames): bool {
-            foreach ($factionNames as $n) {
-                if (stripos($n, $needle) !== false) {
-                    return true;
-                }
-            }
-            return false;
-        };
+        $this->swcFactionSyncService->syncForUser($user);
 
-        $isJoeMember = $hasFaction('Jawa Offworld Enterprises');
-        $isGarry     = $hasFaction('GARRY');
-        $isRaid      = $hasFaction('RAID');
-
-        $user = null;
-
-        if ($charId !== null) {
-            $user = User::query()->where('swc_character_id', $charId)->first();
-        }
-
-        if (!$user) {
-            $user = new User();
-        }
-
-        $user->swc_character_id = $charId;
-        $user->swc_handle       = $charName !== '' ? $charName : null;
-        $user->swc_avatar_url   = $avatar !== '' ? $avatar : null;
-
-        $user->is_joe_member = $isJoeMember;
-        $user->is_garry      = $isGarry;
-        $user->is_raid       = $isRaid;
-
-        $user->is_admin        = (bool) ($user->is_admin ?? false);
-        $user->is_sysadmin     = (bool) ($user->is_sysadmin ?? false);
-        $user->is_intel        = (bool) ($user->is_intel ?? false);
-        $user->can_manage_blog = (bool) ($user->can_manage_blog ?? false);
-
-        $user->save();
-        try {
-            $this->swcFactionSyncService->syncUserFactions($user, $factions);
-        } catch (\Exception $e) {
-            \Log::error('Failed to sync user factions.', [
-                'user_id' => $user->id,
-                'swc_handle' => $user->swc_handle,
-                'message' => $e->getMessage(),
-            ]);
-        }
-        return $user->fresh();
+        return $user;
     }
 
     protected function normalizeScopes(mixed $scopeValue): array
     {
         if (is_array($scopeValue)) {
-            return array_values(array_filter(array_map('strval', $scopeValue)));
+            return array_values(array_unique(array_filter(array_map('trim', $scopeValue))));
         }
 
         if (is_string($scopeValue) && trim($scopeValue) !== '') {
-            return preg_split('/\s+/', trim($scopeValue)) ?: [];
+            return array_values(array_unique(array_filter(preg_split('/\s+/', trim($scopeValue)))));
         }
 
         return [];

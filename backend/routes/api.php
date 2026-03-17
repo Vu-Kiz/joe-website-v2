@@ -90,6 +90,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/payment-transfers', [\App\Http\Controllers\Api\PaymentController::class, 'transfers']);
     Route::post('/payments/build-single', [\App\Http\Controllers\Api\PaymentController::class, 'buildSingle']);
     Route::post('/payments/build-bulk', [\App\Http\Controllers\Api\PaymentController::class, 'buildBulk']);
+    Route::post('/payment-transfers/{paymentTransfer}/verify', [\App\Http\Controllers\Api\PaymentController::class, 'verify']);
 });
 
 // Sysadmin-only: heavy/system actions
