@@ -10,6 +10,7 @@ use App\Support\Payments\BulkPaymentExportService;
 use App\Support\Payments\PaymentTransferBuilder;
 use App\Support\Payments\PaymentVerificationService;
 use App\Support\Payments\SwcPaymentUrlBuilder;
+use App\Support\Payments\ManualPaymentTemplateService;
 use App\Support\Swc\SwcAuthorizationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,13 +23,15 @@ class PaymentController extends Controller
         protected BulkPaymentExportService $bulkExportService,
         protected SwcAuthorizationService $swcAuthorizationService,
         protected FactionPermissionService $factionPermissionService,
-        protected PaymentVerificationService $paymentVerificationService
+        protected PaymentVerificationService $paymentVerificationService,
+        protected ManualPaymentTemplateService $manualPaymentTemplateService
     ) {
     }
 
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
+        $this->manualPaymentTemplateService->generatePaymentsForDueTemplates();
 
         if (!$user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);

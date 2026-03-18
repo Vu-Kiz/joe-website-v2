@@ -7,13 +7,20 @@ use App\Models\Faction;
 use App\Models\PaymentItem;
 use App\Models\PaymentTransfer;
 use App\Models\User;
+use App\Support\Payments\PaymentVerificationService;
 use App\Support\Swc\SwcHttp;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Validation\Rule;
 
 class SysadminDebugController extends Controller
 {
+    public function __construct(
+        protected PaymentVerificationService $paymentVerificationService
+    ) {
+    }
+
     protected function resolveTargetUser(Request $request, array $with = []): ?User
     {
         $targetUserId = (int) $request->query('user_id', 0);
@@ -44,6 +51,23 @@ class SysadminDebugController extends Controller
 
         $auth = $user->swcAuthorization;
 
+        $grantedScopes = trim((string) ($auth?->granted_scopes ?? ''));
+        $scopes = $grantedScopes !== ''
+            ? preg_split('/\s+/', $grantedScopes) ?: []
+            : [];
+
+        $hasPersonalCreditLogAccess =
+            in_array('character_credits', $scopes, true) ||
+            in_array('character_all', $scopes, true);
+
+        $hasFactionCreditLogAccess =
+            in_array('faction_credits_read', $scopes, true) ||
+            in_array('faction_all', $scopes, true);
+
+        $hasCharacterPrivilegesAccess =
+            in_array('character_privileges', $scopes, true) ||
+            in_array('character_all', $scopes, true);
+
         return response()->json([
             'ok' => true,
             'data' => [
@@ -56,8 +80,9 @@ class SysadminDebugController extends Controller
                 'authorization' => [
                     'exists' => (bool) $auth,
                     'granted_scopes' => $auth?->granted_scopes,
-                    'has_personal_events_access' => (bool) $auth?->has_personal_events_access,
-                    'has_faction_events_access' => (bool) $auth?->has_faction_events_access,
+                    'has_personal_credit_log_access' => $hasPersonalCreditLogAccess,
+                    'has_faction_credit_log_access' => $hasFactionCreditLogAccess,
+                    'has_character_privileges_access' => $hasCharacterPrivilegesAccess,
                     'token_expires_at' => $auth?->token_expires_at?->toIso8601String(),
                     'last_verified_at' => $auth?->last_verified_at?->toIso8601String(),
                     'revoked_at' => $auth?->revoked_at?->toIso8601String(),
@@ -261,31 +286,26 @@ class SysadminDebugController extends Controller
             ], 422);
         }
 
-        $group = trim((string) $request->query('group', ''));
-        $privilege = trim((string) $request->query('privilege', ''));
+        $group = trim((string) $request->query('group', 'finance'));
+        $privilege = trim((string) $request->query('privilege', 'can_transfer'));
         $factionId = trim((string) $request->query('faction_id', ''));
 
-        if ($group === '' || $privilege === '' || $factionId === '') {
+        if ($factionId === '') {
             return response()->json([
                 'ok' => false,
-                'message' => 'group, privilege, and faction_id are required.',
-            ], 422);
-        }
-
-        if (!$user->swc_character_id) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'Target user does not have an SWC character id.',
+                'message' => 'faction_id is required.',
             ], 422);
         }
 
         $accessToken = decrypt($auth->access_token_encrypted);
-        $characterUid = '1:' . $user->swc_character_id;
-
         $url = rtrim((string) config('swc.api_base'), '/')
-            . '/character/' . urlencode($characterUid)
-            . '/privileges/' . urlencode($group)
-            . '/' . urlencode($privilege) . '/';
+            . '/character/'
+            . urlencode((string) $user->swc_character_id)
+            . '/privilege/'
+            . urlencode($group)
+            . '/'
+            . urlencode($privilege)
+            . '/';
 
         $attempt = SwcHttp::getWithAuthFallback($url, [
             'faction_id' => $factionId,
@@ -317,5 +337,98 @@ class SysadminDebugController extends Controller
             'body' => $response->body(),
             'json' => $response->json(),
         ], 200);
+    }
+
+    public function testPayment(Request $request): JsonResponse
+    {
+        $user = $this->resolveTargetUser($request, ['swcAuthorization']);
+
+        if (!$user) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'User not found.',
+            ], 404);
+        }
+
+        $data = $request->validate([
+            'payment_transfer_id' => ['nullable', 'integer', 'exists:payment_transfers,id'],
+            'payer_subject_type' => ['nullable', Rule::in(['user', 'faction'])],
+            'payer_subject_id' => ['nullable', 'integer'],
+            'amount' => ['nullable', 'integer', 'min:1'],
+            'receiver_uid' => ['nullable', 'string', 'max:50'],
+            'communication' => ['nullable', 'string', 'max:255'],
+            'item_count' => ['nullable', 'integer', 'min:1', 'max:250'],
+        ]);
+
+        $itemCount = (int) ($data['item_count'] ?? 100);
+
+        if (!empty($data['payment_transfer_id'])) {
+            $transfer = PaymentTransfer::with('items')->find($data['payment_transfer_id']);
+
+            if (!$transfer) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Payment transfer not found.',
+                ], 404);
+            }
+
+            $inspection = $this->paymentVerificationService
+                ->inspectTransferForUserContext($user, $transfer);
+
+            return response()->json([
+                'ok' => true,
+                'mode' => 'transfer',
+                'target_user' => [
+                    'id' => $user->id,
+                    'swc_handle' => $user->swc_handle,
+                    'swc_character_id' => $user->swc_character_id,
+                ],
+                'transfer' => [
+                    'id' => $transfer->id,
+                    'reference' => $transfer->reference,
+                    'payer_subject_type' => $transfer->payer_subject_type,
+                    'payer_subject_id' => $transfer->payer_subject_id,
+                    'payee_swc_uid' => $transfer->payee_swc_uid,
+                    'payee_handle' => $transfer->payee_handle,
+                    'total_amount' => $transfer->total_amount,
+                    'communication' => $transfer->communication,
+                    'status' => $transfer->status,
+                ],
+                'inspection' => $inspection,
+            ]);
+        }
+
+        if (
+            empty($data['payer_subject_type']) ||
+            empty($data['payer_subject_id']) ||
+            empty($data['amount'])
+        ) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Provide either payment_transfer_id or manual test fields: payer_subject_type, payer_subject_id, amount.',
+            ], 422);
+        }
+
+        $inspection = $this->paymentVerificationService->inspectExpectedPaymentForUserContext(
+            $user,
+            payerSubjectType: (string) $data['payer_subject_type'],
+            payerSubjectId: (int) $data['payer_subject_id'],
+            expectedAmount: (int) $data['amount'],
+            expectedReceiverUid: (string) ($data['receiver_uid'] ?? ''),
+            expectedCommunication: (string) ($data['communication'] ?? ''),
+            itemCount: $itemCount,
+            transferReference: null,
+        );
+
+        return response()->json([
+            'ok' => true,
+            'mode' => 'manual',
+            'target_user' => [
+                'id' => $user->id,
+                'swc_handle' => $user->swc_handle,
+                'swc_character_id' => $user->swc_character_id,
+            ],
+            'inspection' => $inspection,
+        ]);
     }
 }

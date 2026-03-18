@@ -1,9 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  fetchAuthMe,
-  getBackendOrigin,
-  type SwcUser,
-} from "../api/auth";
+import { fetchAuthMe, type SwcUser } from "../api/auth";
 import {
   buildBulkPayment,
   buildSinglePayment,
@@ -23,10 +19,18 @@ import {
   type FactionPrivilegeCheckResult,
 } from "../api/factionPrivileges";
 import NotLoggedInState from "../components/common/NotLoggedInState";
-import PaymentsNav, { type PaymentsView } from "../components/payments/PaymentsNav";
+import PaymentsNav from "../components/payments/PaymentsNav";
+import PaymentsStatusPanel from "../components/payments/PaymentsStatusPanel";
+import PendingPaymentsPanel from "../components/payments/PendingPaymentsPanel";
+import OwedPaymentsPanel from "../components/payments/OwedPaymentsPanel";
+import PaymentHistoryPanel from "../components/payments/PaymentHistoryPanel";
+import type { PaymentGroup, PaymentsActionState, PaymentsView } from "../components/payments/types";
 
 import "../styles/main.sass";
 import "../styles/_admin.sass";
+
+const privilegeGroup = "finance";
+const privilegeName = "pay";
 
 const PaymentsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -35,67 +39,21 @@ const PaymentsPage: React.FC = () => {
   const [owedItems, setOwedItems] = useState<PaymentItem[]>([]);
   const [transfers, setTransfers] = useState<PaymentTransfer[]>([]);
   const [swcAuth, setSwcAuth] = useState<SwcAuthorizationStatus | null>(null);
+  const [privileges, setPrivileges] = useState<FactionPrivilegeCheckResult[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<PaymentsView>("pending");
   const [selected, setSelected] = useState<number[]>([]);
   const [bulkLines, setBulkLines] = useState("");
   const [bulkUrl, setBulkUrl] = useState<string | null>(null);
-  const [privileges, setPrivileges] = useState<FactionPrivilegeCheckResult[]>([]);
-
-  const privilegeGroup = "finance";
-  const privilegeName = "pay";
-
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        setLoading(true);
-
-        const [authRes, swcAuthRes, pendingRes, owedRes, transferRes, privilegeRes] =
-          await Promise.all([
-            fetchAuthMe(),
-            getSwcAuthorizationStatus(),
-            getPayments(),
-            getPaymentsOwedToMe(),
-            getPaymentTransfers(),
-            getMyFactionPrivileges(privilegeGroup, privilegeName),
-          ]);
-
-        if (cancelled) return;
-
-        setUser(authRes?.user ?? null);
-        setSwcAuth(swcAuthRes?.data ?? null);
-        setPendingItems(pendingRes?.data ?? []);
-        setOwedItems(owedRes?.data ?? []);
-        setTransfers(transferRes?.data ?? []);
-        setPrivileges(privilegeRes?.data ?? []);
-        setError(null);
-      } catch (e: any) {
-        if (!cancelled) {
-          setError(e?.message ?? "Failed to load payments");
-          setUser(null);
-          setSwcAuth(null);
-          setPendingItems([]);
-          setOwedItems([]);
-          setTransfers([]);
-          setPrivileges([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const [actionState, setActionState] = useState<PaymentsActionState>({
+    working: false,
+    message: null,
+    error: null,
+  });
 
   const isLoggedIn = !!user;
 
-  const grouped = useMemo(() => {
+  const grouped = useMemo<PaymentGroup[]>(() => {
     const map = new Map<string, PaymentItem[]>();
 
     for (const item of pendingItems) {
@@ -127,16 +85,74 @@ const PaymentsPage: React.FC = () => {
     setBulkUrl(null);
   }, [selected]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const [
+          authRes,
+          swcAuthRes,
+          pendingRes,
+          owedRes,
+          transferRes,
+          privilegeRes,
+        ] = await Promise.all([
+          fetchAuthMe(),
+          getSwcAuthorizationStatus(),
+          getPayments(),
+          getPaymentsOwedToMe(),
+          getPaymentTransfers(),
+          getMyFactionPrivileges(privilegeGroup, privilegeName),
+        ]);
+
+        if (cancelled) return;
+
+        setUser(authRes?.user ?? null);
+        setSwcAuth(swcAuthRes?.data ?? null);
+        setPendingItems(pendingRes?.data ?? []);
+        setOwedItems(owedRes?.data ?? []);
+        setTransfers(transferRes?.data ?? []);
+        setPrivileges(privilegeRes?.data ?? []);
+      } catch (e: any) {
+        if (cancelled) return;
+
+        setError(e?.message ?? "Failed to load payments");
+        setUser(null);
+        setSwcAuth(null);
+        setPendingItems([]);
+        setOwedItems([]);
+        setTransfers([]);
+        setPrivileges([]);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function clearActionState() {
+    setActionState({
+      working: false,
+      message: null,
+      error: null,
+    });
+  }
+
   function toggleItem(id: number) {
     setSelected((curr) =>
       curr.includes(id) ? curr.filter((x) => x !== id) : [...curr, id]
     );
-  }
-
-  function onConnectCreditLog() {
-    const backendOrigin = getBackendOrigin();
-    if (!backendOrigin) return;
-    window.location.href = `${backendOrigin}/oauth/creditlog`;
   }
 
   async function reloadPayments() {
@@ -156,26 +172,90 @@ const PaymentsPage: React.FC = () => {
     setPrivileges(privilegeRes.data);
   }
 
-  async function onBuildSingle(ids: number[]) {
-    const res = await buildSinglePayment(ids);
-    window.open(res.data.url, "_blank", "noopener,noreferrer");
-    await reloadPayments();
+  async function onPayRecipient(ids: number[]) {
+    try {
+      setActionState({
+        working: true,
+        message: "Opening payment link…",
+        error: null,
+      });
+
+      const res = await buildSinglePayment(ids);
+      window.open(res.data.url, "_blank", "noopener,noreferrer");
+
+      await reloadPayments();
+
+      setActionState({
+        working: false,
+        message: "Payment link opened.",
+        error: null,
+      });
+    } catch (e: any) {
+      setActionState({
+        working: false,
+        message: null,
+        error: e?.message ?? "Failed to build single payment",
+      });
+    }
   }
 
   async function onBuildBulk() {
     if (selected.length === 0) return;
 
-    const res = await buildBulkPayment(selected);
-    setBulkLines(res.data.pipe_lines);
-    setBulkUrl(res.data.bulk_page_url);
-    await navigator.clipboard.writeText(res.data.pipe_lines);
-    await reloadPayments();
+    try {
+      setActionState({
+        working: true,
+        message: "Building bulk payment lines…",
+        error: null,
+      });
+
+      const res = await buildBulkPayment(selected);
+      setBulkLines(res.data.pipe_lines);
+      setBulkUrl(res.data.bulk_page_url);
+
+      if (res.data.pipe_lines) {
+        await navigator.clipboard.writeText(res.data.pipe_lines);
+      }
+
+      await reloadPayments();
+
+      setActionState({
+        working: false,
+        message: "Bulk payment lines copied to clipboard.",
+        error: null,
+      });
+    } catch (e: any) {
+      setActionState({
+        working: false,
+        message: null,
+        error: e?.message ?? "Failed to build bulk payment",
+      });
+    }
   }
 
   async function onVerifyTransfer(id: number) {
-    const res = await verifyPaymentTransfer(id);
-    alert(res.data.message);
-    await reloadPayments();
+    try {
+      setActionState({
+        working: true,
+        message: "Checking credit log…",
+        error: null,
+      });
+
+      const res = await verifyPaymentTransfer(id);
+      await reloadPayments();
+
+      setActionState({
+        working: false,
+        message: res.data.message,
+        error: null,
+      });
+    } catch (e: any) {
+      setActionState({
+        working: false,
+        message: null,
+        error: e?.message ?? "Failed to verify transfer",
+      });
+    }
   }
 
   if (loading) {
@@ -227,267 +307,55 @@ const PaymentsPage: React.FC = () => {
         <main className="board admin-board">
           <h1>Payments</h1>
           <p className="small">
-            Transfers are tracked locally and verified against SWC credit log by reference, amount and recipient.
+            Transfers are tracked locally and verified against SWC credit log by
+            reference, amount and recipient.
           </p>
 
-          <div className="panel">
-            <h2>SWC Credit Log Verification</h2>
+          {(actionState.message || actionState.error) && (
+            <div className="panel">
+              {actionState.message && (
+                <p className="small">{actionState.message}</p>
+              )}
 
-            {!swcAuth?.connected && (
-              <p className="small">SWC credit log access is not connected yet.</p>
-            )}
+              {actionState.error && (
+                <p className="small" style={{ color: "salmon" }}>
+                  {actionState.error}
+                </p>
+              )}
 
-            {swcAuth?.connected && (
-              <>
-                <p className="small">
-                  Personal credit log access:{" "}
-                  {swcAuth.has_personal_credit_log_access ? "Connected" : "Missing"}
-                </p>
-                <p className="small">
-                  Faction credit log access:{" "}
-                  {swcAuth.has_faction_credit_log_access ? "Connected" : "Missing"}
-                </p>
-                <p className="small">
-                  Character privileges access:{" "}
-                  {swcAuth.has_character_privileges_access ? "Connected" : "Missing"}
-                </p>
-              </>
-            )}
+              <button className="btn" type="button" onClick={clearActionState}>
+                Clear
+              </button>
+            </div>
+          )}
 
-            <button className="btn" type="button" onClick={onConnectCreditLog}>
-              Connect Credit Log Access
-            </button>
-          </div>
+          <PaymentsStatusPanel swcAuth={swcAuth} />
 
           <PaymentsNav activeView={activeView} onChange={setActiveView} />
 
           {activeView === "pending" && (
-            <div className="panel">
-              <h2>Pending</h2>
-
-              {grouped.length === 0 && (
-                <p className="small">No pending payments.</p>
-              )}
-
-              {grouped.map((group) => {
-                const factionPrivilege =
-                  group.payerType === "faction"
-                    ? privileges.find((f) => f.id === group.payerSubjectId)
-                    : null;
-
-                const hasFactionPrivilege = !!factionPrivilege?.check?.allowed;
-
-                const canPayPersonally = group.payerType === "user";
-
-                const canPayAsFaction =
-                  group.payerType === "faction" &&
-                  !!swcAuth?.has_faction_credit_log_access &&
-                  !!swcAuth?.has_character_privileges_access &&
-                  hasFactionPrivilege;
-
-                const canPay = canPayPersonally || canPayAsFaction;
-
-                return (
-                  <div
-                    key={group.key}
-                    className="admin-card"
-                    style={{ marginBottom: 12 }}
-                  >
-                    <strong>{group.payee}</strong>
-                    <p className="small">
-                      Payer: {group.payer} · Total:{" "}
-                      {group.total.toLocaleString()}
-                    </p>
-                    <p className="small">
-                      Payment source:{" "}
-                      {group.payerType === "faction" ? "Faction" : "Personal"}
-                    </p>
-
-                    {group.payerType === "user" &&
-                      !swcAuth?.has_personal_credit_log_access && (
-                        <p className="small">
-                          This payment can still be made, but it will not auto-verify until personal credit log access is connected.
-                        </p>
-                      )}
-
-                    {group.payerType === "faction" && (
-                      <>
-                        <p className="small">
-                          SWC faction privilege ({privilegeGroup}/{privilegeName}):{" "}
-                          {factionPrivilege?.check?.ok
-                            ? factionPrivilege.check.allowed
-                              ? "Allowed"
-                              : "Denied"
-                            : factionPrivilege?.check?.message ?? "Not checked"}
-                        </p>
-
-                        {!canPay && (
-                          <p className="small" style={{ color: "salmon" }}>
-                            {!swcAuth?.has_faction_credit_log_access
-                              ? "Faction credit log access is required before paying as this faction."
-                              : !swcAuth?.has_character_privileges_access
-                              ? "Character privileges access is required before paying as this faction."
-                              : !hasFactionPrivilege
-                              ? "SWC faction privilege check did not allow this action."
-                              : "Faction payment is not available."}
-                          </p>
-                        )}
-                      </>
-                    )}
-
-                    {group.items.map((item) => (
-                      <label
-                        key={item.id}
-                        className="small"
-                        style={{ display: "flex", gap: 8 }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selected.includes(item.id)}
-                          onChange={() => toggleItem(item.id)}
-                        />
-                        <span>
-                          #{item.id} {item.source_type} ·{" "}
-                          {item.total_amount.toLocaleString()}
-                        </span>
-                      </label>
-                    ))}
-
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 8,
-                        marginTop: 8,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <button
-                        className="btn"
-                        onClick={() =>
-                          onBuildSingle(group.items.map((i) => i.id))
-                        }
-                        disabled={!canPay}
-                      >
-                        Pay Recipient
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-
-              <div className="admin-card">
-                <strong>Bulk Payment</strong>
-                <p className="small">
-                  Bulk payments must use one payer context at a time.
-                </p>
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 8,
-                    marginTop: 8,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <button
-                    className="btn"
-                    onClick={onBuildBulk}
-                    disabled={selected.length === 0}
-                  >
-                    Copy Bulk Payment Lines
-                  </button>
-
-                  {bulkUrl && (
-                    <a
-                      className="btn"
-                      href={bulkUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Open Combine Bulk Page
-                    </a>
-                  )}
-                </div>
-
-                {bulkLines && (
-                  <textarea
-                    className="input"
-                    readOnly
-                    value={bulkLines}
-                    style={{ minHeight: 220, marginTop: 12, width: "100%" }}
-                  />
-                )}
-              </div>
-            </div>
+            <PendingPaymentsPanel
+              grouped={grouped}
+              selected={selected}
+              bulkLines={bulkLines}
+              bulkUrl={bulkUrl}
+              swcAuth={swcAuth}
+              privileges={privileges}
+              privilegeGroup={privilegeGroup}
+              privilegeName={privilegeName}
+              onToggleItem={toggleItem}
+              onPayRecipient={onPayRecipient}
+              onBuildBulk={onBuildBulk}
+            />
           )}
 
-          {activeView === "owed" && (
-            <div className="panel">
-              <h2>Owed To Me</h2>
-
-              {owedItems.length === 0 && (
-                <p className="small">Nothing is currently owed to you.</p>
-              )}
-
-              {owedItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="admin-card"
-                  style={{ marginBottom: 12 }}
-                >
-                  <strong>{item.tool_key}</strong>
-                  <p className="small">
-                    Source: {item.source_type} #{item.source_id}
-                  </p>
-                  <p className="small">
-                    Payer: {item.payer_label ?? "-"} · Total:{" "}
-                    {item.total_amount.toLocaleString()} · Status: {item.status}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
+          {activeView === "owed" && <OwedPaymentsPanel items={owedItems} />}
 
           {activeView === "history" && (
-            <div className="panel">
-              <h2>History</h2>
-
-              {transfers.length === 0 && (
-                <p className="small">No transfer history yet.</p>
-              )}
-
-              {transfers.map((transfer) => (
-                <div
-                  key={transfer.id}
-                  className="admin-card"
-                  style={{ marginBottom: 12 }}
-                >
-                  <strong>{transfer.payee_handle}</strong>
-                  <p className="small">
-                    Ref: {transfer.reference} · Total:{" "}
-                    {transfer.total_amount.toLocaleString()}
-                  </p>
-                  <p className="small">
-                    Method: {transfer.payment_method} · Status: {transfer.status}
-                  </p>
-                  {transfer.verified_transaction_id && (
-                    <p className="small">
-                      Verified SWC transaction: {transfer.verified_transaction_id}
-                    </p>
-                  )}
-
-                  {transfer.status !== "verified" && transfer.status !== "paid" && (
-                    <button
-                      className="btn"
-                      type="button"
-                      onClick={() => onVerifyTransfer(transfer.id)}
-                    >
-                      Verify in Credit Log
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
+            <PaymentHistoryPanel
+              transfers={transfers}
+              onVerifyTransfer={onVerifyTransfer}
+            />
           )}
         </main>
       </div>

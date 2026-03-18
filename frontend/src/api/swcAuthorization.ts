@@ -7,6 +7,8 @@ export type SwcAuthorizationStatus = {
   has_character_privileges_access: boolean;
   granted_scopes: string | null;
   token_expires_at: string | null;
+  last_verified_at: string | null;
+  revoked_at: string | null;
 };
 
 export async function getSwcAuthorizationStatus() {

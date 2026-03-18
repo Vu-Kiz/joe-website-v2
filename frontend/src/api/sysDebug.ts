@@ -12,8 +12,9 @@ export type DebugSwcAuthResponse = {
     authorization: {
       exists: boolean;
       granted_scopes: string | null;
-      has_personal_events_access: boolean;
-      has_faction_events_access: boolean;
+      has_personal_credit_log_access: boolean;
+      has_faction_credit_log_access: boolean;
+      has_character_privileges_access: boolean;
       token_expires_at: string | null;
       last_verified_at: string | null;
       revoked_at: string | null;
@@ -39,8 +40,10 @@ export type DebugSwcAuthResponse = {
       redirect_uri: string | null;
       default_scope: string | null;
       events_scope: string | null;
+      debug_scope?: string | null;
       access_type: string | null;
       events_access_type: string | null;
+      debug_access_type?: string | null;
     };
   };
 };
@@ -99,6 +102,46 @@ export type DebugFactionPrivilegeResponse = {
   json: any;
 };
 
+export type DebugTestPaymentResponse = {
+  ok: boolean;
+  mode: "transfer" | "manual";
+  target_user?: {
+    id: number;
+    swc_handle: string | null;
+    swc_character_id: number | null;
+  };
+  transfer?: {
+    id: number;
+    reference: string;
+    payer_subject_type: "user" | "faction";
+    payer_subject_id: number | null;
+    payee_swc_uid: string | null;
+    payee_handle: string | null;
+    total_amount: number;
+    communication: string | null;
+    status: string;
+  };
+  inspection: {
+    ok: boolean;
+    matched: boolean;
+    transfer_reference?: string | null;
+    expected: {
+      payer_subject_type: "user" | "faction";
+      payer_subject_id: number;
+      amount: number;
+      receiver_uid: string;
+      communication: string;
+    };
+    matched_transaction: any | null;
+    searched_transaction_count: number;
+    near_matches: Array<{
+      score: number;
+      summary: any;
+    }>;
+    searched_transactions_preview: any[];
+  };
+};
+
 function withOptionalUserId(params: URLSearchParams, userId?: number) {
   if (userId && Number.isFinite(userId) && userId > 0) {
     params.set("user_id", String(userId));
@@ -106,7 +149,7 @@ function withOptionalUserId(params: URLSearchParams, userId?: number) {
   return params;
 }
 
-export function getDebugSwcAuth(userId?: number, p0?: boolean) {
+export function getDebugSwcAuth(userId?: number) {
   const params = withOptionalUserId(new URLSearchParams(), userId);
   const qs = params.toString();
   return apiFetch<DebugSwcAuthResponse>(`/sys/debug/swc-auth${qs ? `?${qs}` : ""}`);
@@ -154,5 +197,43 @@ export function testFactionPrivilege(
 
   return apiFetch<DebugFactionPrivilegeResponse>(
     `/sys/debug/test-faction-privilege?${params.toString()}`
+  );
+}
+
+export function testPaymentTransfer(paymentTransferId: number, userId?: number) {
+  const params = withOptionalUserId(new URLSearchParams(), userId);
+  const qs = params.toString();
+
+  return apiFetch<DebugTestPaymentResponse>(
+    `/sys/debug/test-payment${qs ? `?${qs}` : ""}`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        payment_transfer_id: paymentTransferId,
+      }),
+    }
+  );
+}
+
+export function testManualPayment(
+  payload: {
+    payer_subject_type: "user" | "faction";
+    payer_subject_id: number;
+    amount: number;
+    receiver_uid?: string;
+    communication?: string;
+    item_count?: number;
+  },
+  userId?: number
+) {
+  const params = withOptionalUserId(new URLSearchParams(), userId);
+  const qs = params.toString();
+
+  return apiFetch<DebugTestPaymentResponse>(
+    `/sys/debug/test-payment${qs ? `?${qs}` : ""}`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
   );
 }

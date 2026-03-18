@@ -1,6 +1,5 @@
 import React from "react";
-
-export type PaymentsView = "pending" | "owed" | "history";
+import type { PaymentsView } from "./types";
 
 type Props = {
   activeView: PaymentsView;

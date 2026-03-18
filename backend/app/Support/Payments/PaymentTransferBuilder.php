@@ -31,6 +31,8 @@ class PaymentTransferBuilder
 
                 $reference = $this->generateReference();
 
+                $communicationPrefix = $this->resolveCommunicationPrefix($groupItems, $reference);
+
                 $transfer = PaymentTransfer::create([
                     'payer_subject_type' => $first->payer_subject_type,
                     'payer_subject_id' => $first->payer_subject_id,
@@ -42,7 +44,7 @@ class PaymentTransferBuilder
                     'payee_label' => $first->payee_label,
                     'total_amount' => (int) $groupItems->sum('total_amount'),
                     'reference' => $reference,
-                    'communication' => 'JOE payout ' . $reference,
+                    'communication' => $communicationPrefix,
                     'payment_method' => $method,
                     'status' => 'draft',
                 ]);
@@ -57,6 +59,21 @@ class PaymentTransferBuilder
         });
 
         return $transfers;
+    }
+
+    protected function resolveCommunicationPrefix(Collection $groupItems, string $reference): string
+    {
+        /** @var PaymentItem $first */
+        $first = $groupItems->first();
+
+        $meta = is_array($first->meta) ? $first->meta : [];
+        $prefix = trim((string) ($meta['communication_prefix'] ?? ''));
+
+        if ($prefix !== '') {
+            return $prefix . ' ' . $reference;
+        }
+
+        return 'JOE payout ' . $reference;
     }
 
     protected function generateReference(): string

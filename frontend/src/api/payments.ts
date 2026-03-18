@@ -1,11 +1,13 @@
 import { apiFetch } from "./auth";
 
+export type PaymentSubjectType = "user" | "faction";
+
 export type PaymentItem = {
   id: number;
   tool_key: string;
   source_type: string;
   source_id: number;
-  payer_subject_type: "user" | "faction";
+  payer_subject_type: PaymentSubjectType;
   payer_subject_id: number | null;
   payer_label: string | null;
   payee_subject_type: "user";
@@ -23,7 +25,7 @@ export type PaymentItem = {
 
 export type PaymentTransfer = {
   id: number;
-  payer_subject_type: "user" | "faction";
+  payer_subject_type: PaymentSubjectType;
   payer_subject_id: number | null;
   payer_label: string | null;
   payee_subject_type: "user";
@@ -43,50 +45,75 @@ export type PaymentTransfer = {
   items?: PaymentItem[];
 };
 
+export type PaymentsResponse = {
+  ok: true;
+  data: PaymentItem[];
+};
+
+export type PaymentTransfersResponse = {
+  ok: true;
+  data: PaymentTransfer[];
+};
+
+export type BuildSinglePaymentResponse = {
+  ok: true;
+  data: {
+    transfer: PaymentTransfer;
+    url: string;
+  };
+};
+
+export type BuildBulkPaymentResponse = {
+  ok: true;
+  data: {
+    transfers: PaymentTransfer[];
+    bulk_page_url: string | null;
+    pipe_lines: string;
+  };
+};
+
+export type VerifyPaymentTransferResponse = {
+  ok: boolean;
+  data: {
+    ok: boolean;
+    already_verified: boolean;
+    matched_transaction_id: number | null;
+    message: string;
+  };
+  transfer: PaymentTransfer;
+};
+
 export async function getPayments() {
-  return apiFetch<{ ok: true; data: PaymentItem[] }>(`/payments`);
+  return apiFetch<PaymentsResponse>("/payments");
 }
 
 export async function getPaymentsOwedToMe() {
-  return apiFetch<{ ok: true; data: PaymentItem[] }>(`/payments/owed-to-me`);
+  return apiFetch<PaymentsResponse>("/payments/owed-to-me");
 }
 
 export async function getPaymentTransfers() {
-  return apiFetch<{ ok: true; data: PaymentTransfer[] }>(`/payment-transfers`);
+  return apiFetch<PaymentTransfersResponse>("/payment-transfers");
 }
 
 export async function buildSinglePayment(payment_item_ids: number[]) {
-  return apiFetch<{ ok: true; data: { transfer: PaymentTransfer; url: string } }>(`/payments/build-single`, {
+  return apiFetch<BuildSinglePaymentResponse>("/payments/build-single", {
     method: "POST",
     body: JSON.stringify({ payment_item_ids }),
   });
 }
 
 export async function buildBulkPayment(payment_item_ids: number[]) {
-  return apiFetch<{
-    ok: true;
-    data: {
-      transfers: PaymentTransfer[];
-      bulk_page_url: string | null;
-      pipe_lines: string;
-    };
-  }>(`/payments/build-bulk`, {
+  return apiFetch<BuildBulkPaymentResponse>("/payments/build-bulk", {
     method: "POST",
     body: JSON.stringify({ payment_item_ids }),
   });
 }
 
 export async function verifyPaymentTransfer(id: number) {
-  return apiFetch<{
-    ok: boolean;
-    data: {
-      ok: boolean;
-      already_verified: boolean;
-      matched_transaction_id: number | null;
-      message: string;
-    };
-    transfer: PaymentTransfer;
-  }>(`/payment-transfers/${id}/verify`, {
-    method: "POST",
-  });
+  return apiFetch<VerifyPaymentTransferResponse>(
+    `/payment-transfers/${id}/verify`,
+    {
+      method: "POST",
+    }
+  );
 }

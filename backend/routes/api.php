@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\AdminTenetOfSalvageController;
 use App\Http\Controllers\Api\SysadminDebugController;
 use App\Http\Controllers\Api\FactionController;
 use App\Http\Controllers\Api\FactionPrivilegeController;
+use App\Http\Controllers\Api\ManualPaymentTemplateController;
 
 
 
@@ -160,12 +161,17 @@ Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('sys/debug')->group
     Route::get('/factions', [SysadminDebugController::class, 'factions']);
     Route::get('/raw-swc', [SysadminDebugController::class, 'rawSwc']);
     Route::get('/test-faction-privilege', [SysadminDebugController::class, 'testFactionPrivilege']);
+    Route::post('/test-payment', [SysadminDebugController::class, 'testPayment']);
 });
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/factions/mine', [FactionController::class, 'mine']);
     Route::get('/factions/mine/payable', [FactionController::class, 'minePayable']);
+    Route::get('/manual-payment-templates', [ManualPaymentTemplateController::class, 'index']);
+    Route::post('/manual-payment-templates', [ManualPaymentTemplateController::class, 'store']);
+    Route::put('/manual-payment-templates/{manualPaymentTemplate}', [ManualPaymentTemplateController::class, 'update']);
+    Route::post('/manual-payment-templates/{manualPaymentTemplate}/toggle', [ManualPaymentTemplateController::class, 'toggle']);
+    Route::post('/manual-payment-templates/{manualPaymentTemplate}/generate', [ManualPaymentTemplateController::class, 'generate']);
+    Route::get('/factions/mine/privileges', [FactionPrivilegeController::class, 'mine']);
+    
 });
-
-Route::get('/factions/mine/privileges', [FactionPrivilegeController::class, 'mine']);
-

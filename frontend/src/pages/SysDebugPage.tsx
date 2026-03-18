@@ -6,6 +6,8 @@ import {
   getDebugRawSwc,
   getDebugSwcAuth,
   testFactionPrivilege,
+  testManualPayment,
+  testPaymentTransfer,
 } from "../api/sysDebug";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import "../styles/main.sass";
@@ -23,7 +25,8 @@ type PanelKey =
   | "payments"
   | "factions"
   | "rawSwc"
-  | "privilegeTest";
+  | "privilegeTest"
+  | "paymentTest";
 
 const emptyPanel = (): DebugPanelState => ({
   loading: false,
@@ -38,6 +41,7 @@ const initialPanels: Record<PanelKey, DebugPanelState> = {
   factions: emptyPanel(),
   rawSwc: emptyPanel(),
   privilegeTest: emptyPanel(),
+  paymentTest: emptyPanel(),
 };
 
 const pretty = (value: any) => JSON.stringify(value, null, 2);
@@ -83,6 +87,14 @@ const SysDebugPage: React.FC = () => {
   const [privGroup, setPrivGroup] = useState("finance");
   const [privName, setPrivName] = useState("can_transfer");
   const [privFactionId, setPrivFactionId] = useState("");
+
+  const [paymentTransferId, setPaymentTransferId] = useState("");
+  const [manualPayerType, setManualPayerType] = useState<"user" | "faction">("user");
+  const [manualPayerId, setManualPayerId] = useState("");
+  const [manualAmount, setManualAmount] = useState("");
+  const [manualReceiverUid, setManualReceiverUid] = useState("");
+  const [manualCommunication, setManualCommunication] = useState("");
+  const [manualItemCount, setManualItemCount] = useState("100");
 
   const targetLabel = useMemo(() => {
     return activeTargetUserId ? `User #${activeTargetUserId}` : "Me";
@@ -225,6 +237,57 @@ const SysDebugPage: React.FC = () => {
           privGroup,
           privName,
           privFactionId.trim(),
+          activeTargetUserId
+        ),
+      (res) => res
+    );
+  }
+
+  async function onRunPaymentTransferTest() {
+    const parsedTransferId = Number(paymentTransferId);
+
+    if (!Number.isFinite(parsedTransferId) || parsedTransferId <= 0) {
+      setPanelError("paymentTest", new Error("Valid payment transfer ID is required."));
+      return;
+    }
+
+    await runPanel(
+      "paymentTest",
+      () => testPaymentTransfer(parsedTransferId, activeTargetUserId),
+      (res) => res
+    );
+  }
+
+  async function onRunManualPaymentTest() {
+    const parsedPayerId = Number(manualPayerId);
+    const parsedAmount = Number(manualAmount);
+    const parsedItemCount = Number(manualItemCount || "100");
+
+    if (!Number.isFinite(parsedPayerId) || parsedPayerId <= 0) {
+      setPanelError("paymentTest", new Error("Valid payer subject ID is required."));
+      return;
+    }
+
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      setPanelError("paymentTest", new Error("Valid amount is required."));
+      return;
+    }
+
+    await runPanel(
+      "paymentTest",
+      () =>
+        testManualPayment(
+          {
+            payer_subject_type: manualPayerType,
+            payer_subject_id: parsedPayerId,
+            amount: parsedAmount,
+            receiver_uid: manualReceiverUid.trim() || undefined,
+            communication: manualCommunication.trim() || undefined,
+            item_count:
+              Number.isFinite(parsedItemCount) && parsedItemCount > 0
+                ? parsedItemCount
+                : 100,
+          },
           activeTargetUserId
         ),
       (res) => res
@@ -514,6 +577,113 @@ const SysDebugPage: React.FC = () => {
                 >
                   Run privilege test
                 </button>
+              </div>
+            </div>
+          )}
+
+          {renderPanel(
+            "paymentTest",
+            "Payment Credit Log Test",
+            <div style={{ display: "grid", gap: 14, marginBottom: 12 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gap: 10,
+                  padding: 12,
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  borderRadius: 8,
+                }}
+              >
+                <h3 style={{ margin: 0 }}>Test existing transfer</h3>
+                <p className="small" style={{ margin: 0 }}>
+                  Uses a real local payment transfer and checks whether the backend can match it in SWC credit log.
+                </p>
+                <input
+                  className="input"
+                  value={paymentTransferId}
+                  onChange={(e) => setPaymentTransferId(e.target.value)}
+                  placeholder="Payment transfer ID"
+                />
+                <div>
+                  <button
+                    className="btn"
+                    type="button"
+                    onClick={onRunPaymentTransferTest}
+                    disabled={panels.paymentTest.loading}
+                  >
+                    Test transfer
+                  </button>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gap: 10,
+                  padding: 12,
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  borderRadius: 8,
+                }}
+              >
+                <h3 style={{ margin: 0 }}>Manual test</h3>
+                <p className="small" style={{ margin: 0 }}>
+                  Checks whether a payment with these exact details is visible in the payer credit log.
+                </p>
+
+                <select
+                  className="input"
+                  value={manualPayerType}
+                  onChange={(e) => setManualPayerType(e.target.value as "user" | "faction")}
+                >
+                  <option value="user">user</option>
+                  <option value="faction">faction</option>
+                </select>
+
+                <input
+                  className="input"
+                  value={manualPayerId}
+                  onChange={(e) => setManualPayerId(e.target.value)}
+                  placeholder="Payer subject ID"
+                />
+
+                <input
+                  className="input"
+                  value={manualAmount}
+                  onChange={(e) => setManualAmount(e.target.value)}
+                  placeholder="Amount"
+                />
+
+                <input
+                  className="input"
+                  value={manualReceiverUid}
+                  onChange={(e) => setManualReceiverUid(e.target.value)}
+                  placeholder="Receiver SWC UID (optional, e.g. 1:1479821)"
+                />
+
+                <input
+                  className="input"
+                  value={manualCommunication}
+                  onChange={(e) => setManualCommunication(e.target.value)}
+                  placeholder="Communication (optional, but best for exact match)"
+                />
+
+                <input
+                  className="input"
+                  value={manualItemCount}
+                  onChange={(e) => setManualItemCount(e.target.value)}
+                  placeholder="Credit log item count to search (default 100)"
+                />
+
+                <div>
+                  <button
+                    className="btn"
+                    type="button"
+                    onClick={onRunManualPaymentTest}
+                    disabled={panels.paymentTest.loading}
+                  >
+                    Run manual payment test
+                  </button>
+                </div>
               </div>
             </div>
           )}

@@ -244,7 +244,7 @@ class SwcAuthController extends Controller
             ]
         );
 
-        $this->swcFactionSyncService->syncForUser($user);
+        $this->swcFactionSyncService->syncForUser($user, $profile);
 
         return $user;
     }

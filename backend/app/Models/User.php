@@ -51,6 +51,7 @@ class User extends Authenticatable
                 'can_pay_from_faction',
                 'can_mark_payments_paid',
                 'can_manage_jobs',
+                'can_manage_manual_payments',
             ])
             ->withTimestamps();
     }

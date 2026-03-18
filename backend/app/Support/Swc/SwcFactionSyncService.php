@@ -8,6 +8,20 @@ use App\Models\User;
 class SwcFactionSyncService
 {
     /**
+     * Sync factions directly from a SWC profile payload.
+     */
+    public function syncForUser(User $user, array $profile = []): void
+    {
+        $swcFactions = $this->extractFactionsFromProfile($profile);
+
+        if (empty($swcFactions)) {
+            return;
+        }
+
+        $this->syncUserFactions($user, $swcFactions);
+    }
+
+    /**
      * @param array<int, mixed> $swcFactions
      */
     public function syncUserFactions(User $user, array $swcFactions): void
@@ -24,8 +38,8 @@ class SwcFactionSyncService
                 continue;
             }
 
-            $name = trim((string) ($factionData['value'] ?? ''));
-            $uidRaw = trim((string) (($factionData['attributes']['uid'] ?? '')));
+            $name = trim((string) ($factionData['value'] ?? $factionData['name'] ?? ''));
+            $uidRaw = trim((string) (($factionData['attributes']['uid'] ?? $factionData['uid'] ?? '')));
 
             if ($name === '') {
                 continue;
@@ -78,6 +92,39 @@ class SwcFactionSyncService
         }
     }
 
+    /**
+     * @return array<int, mixed>
+     */
+    protected function extractFactionsFromProfile(array $profile): array
+    {
+        $candidates = [
+            data_get($profile, 'swcapi.character.factions.faction'),
+            data_get($profile, 'swcapi.character.factions'),
+            data_get($profile, 'swcapi.character.faction'),
+            data_get($profile, 'swcapi.factions.faction'),
+            data_get($profile, 'swcapi.factions'),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (is_array($candidate)) {
+                if ($this->isAssoc($candidate)) {
+                    if (isset($candidate['value']) || isset($candidate['name']) || isset($candidate['attributes'])) {
+                        return [$candidate];
+                    }
+                }
+
+                return array_values(array_filter($candidate, fn ($item) => is_array($item)));
+            }
+        }
+
+        return [];
+    }
+
+    protected function isAssoc(array $array): bool
+    {
+        return array_keys($array) !== range(0, count($array) - 1);
+    }
+
     protected function guessAbbreviation(string $name): string
     {
         return match ($name) {
@@ -85,6 +132,9 @@ class SwcFactionSyncService
             'Jawa Offworld Enterprises: GARRY' => 'GARRY',
             'Jawa Offworld Enterprises: RAID' => 'RAID',
             'Anarchy Industries' => 'AI',
+            'Jawa Offworld Enterprises: RICH' => 'RICH',
+            'Jawa Outer Colonies' => 'JOC',
+            'Twin Suns Trading' => 'TST',
             default => strtoupper(substr($name, 0, 8)),
         };
     }

@@ -27,6 +27,8 @@ class SwcAuthorizationController extends Controller
                 'has_character_privileges_access' => (bool) $auth?->has_character_privileges_access,
                 'granted_scopes' => $auth?->granted_scopes,
                 'token_expires_at' => $auth?->token_expires_at?->toIso8601String(),
+                'last_verified_at' => $auth?->last_verified_at?->toIso8601String(),
+                'revoked_at' => $auth?->revoked_at?->toIso8601String(),
             ],
         ]);
     }
