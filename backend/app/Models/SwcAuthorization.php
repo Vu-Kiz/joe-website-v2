@@ -11,6 +11,7 @@ class SwcAuthorization extends Model
 
     protected $fillable = [
         'user_id',
+        'user_swc_account_id',
         'swc_character_id',
         'granted_scopes',
         'has_personal_credit_log_access',
@@ -35,5 +36,10 @@ class SwcAuthorization extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function userSwcAccount(): BelongsTo
+    {
+        return $this->belongsTo(UserSwcAccount::class);
     }
 }

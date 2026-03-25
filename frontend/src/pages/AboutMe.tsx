@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { fetchAuthMe } from "../api/auth";
+import { useSearchParams } from "react-router-dom";
+import { fetchAuthMe, getBackendOrigin } from "../api/auth";
 import type { SwcUser } from "../api/auth";
 import "../styles/_aboutme.sass";
 
 type Pill = { key: string; label: string };
 
 const AboutMe: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<SwcUser | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +37,14 @@ const AboutMe: React.FC = () => {
       cancelled = true;
     };
   }, []);
+
+  const swcLinked = searchParams.get("swc_linked") === "1";
+
+  function onLinkSwc() {
+    const backendOrigin = getBackendOrigin();
+    if (!backendOrigin) return;
+    window.location.href = `${backendOrigin}/oauth`;
+  }
 
   const pills: Pill[] = useMemo(() => {
     if (!user) return [];
@@ -82,6 +92,10 @@ const AboutMe: React.FC = () => {
     <div className="panel">
       <h1 className="h1">About Me</h1>
 
+      {swcLinked && (
+        <p className="small">Your SWC account has been linked to this profile.</p>
+      )}
+
       <div className="aboutme-header">
         {user.avatar_url ? (
           <img className="aboutme-avatar" src={user.avatar_url} alt={user.handle ?? "Avatar"} />
@@ -101,6 +115,20 @@ const AboutMe: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <hr className="divider" />
+
+      <h2 className="h2">SWC Account</h2>
+
+      <p className="muted">
+        {user.swc_character_id
+          ? `Linked as ${user.handle ?? "Unknown"} (${user.swc_character_id}).`
+          : "No SWC account linked yet."}
+      </p>
+
+      <button className="btn" type="button" onClick={onLinkSwc}>
+        {user.swc_character_id ? "Relink SWC Account" : "Link SWC Account"}
+      </button>
 
       <hr className="divider" />
 

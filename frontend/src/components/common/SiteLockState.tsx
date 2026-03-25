@@ -7,7 +7,7 @@ type Props = {
 };
 
 const SiteLockState: React.FC<Props> = ({ message, isAuthenticated }) => {
-  const oauthUrl = `${getBackendOrigin()}/oauth`;
+  const oauthUrl = `${getBackendOrigin()}/auth/discord`;
 
   return (
     <div className="site-scale">

@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\LoadingTipController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BlogController;
+use App\Http\Controllers\Api\UniverseController;
+use App\Http\Controllers\Api\Sys\SectorCellAnnotationController;
 use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\TimeController;
 use App\Http\Controllers\Api\AdminUserController;
@@ -20,6 +22,7 @@ use App\Http\Controllers\Api\TatooineWeatherController;
 use App\Http\Controllers\Api\AdminWeatherController;
 use App\Http\Controllers\Api\AdminActionLogController;
 use App\Http\Controllers\Api\AdminSiteLockController;
+use App\Http\Controllers\Api\AdminEntityStatsController;
 use App\Http\Controllers\Api\SiteLockStatusController;
 use App\Http\Controllers\Api\SwcAuthorizationController;
 use App\Http\Controllers\Api\TenetOfSalvageController;
@@ -92,11 +95,51 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/payments/build-single', [\App\Http\Controllers\Api\PaymentController::class, 'buildSingle']);
     Route::post('/payments/build-bulk', [\App\Http\Controllers\Api\PaymentController::class, 'buildBulk']);
     Route::post('/payment-transfers/{paymentTransfer}/verify', [\App\Http\Controllers\Api\PaymentController::class, 'verify']);
+    Route::get('/universe/sectors', [UniverseController::class, 'sectors']);
+    Route::get('/universe/map-systems', [UniverseController::class, 'mapSystems']);
+    Route::get('/universe/sectors/{sector}', [UniverseController::class, 'sector']);
+    Route::get('/universe/systems/{system}', [UniverseController::class, 'system']);
+    Route::get('/universe/cell-annotations', [SectorCellAnnotationController::class, 'index']);
+    Route::post('/universe/cell-annotations', [SectorCellAnnotationController::class, 'upsert']);
+    Route::get('/universe/station-types', [UniverseController::class, 'stationTypes']);
+    Route::get('/universe/station-types/{stationType}', [UniverseController::class, 'stationType']);
+    Route::get('/universe/facility-types', [UniverseController::class, 'facilityTypes']);
+    Route::get('/universe/facility-types/{facilityType}', [UniverseController::class, 'facilityType']);
+    Route::get('/universe/item-types', [UniverseController::class, 'itemTypes']);
+    Route::get('/universe/item-types/{itemType}', [UniverseController::class, 'itemType']);
+    Route::get('/universe/ship-types', [UniverseController::class, 'shipTypes']);
+    Route::get('/universe/ship-types/{shipType}', [UniverseController::class, 'shipType']);
+    Route::get('/universe/terrain-types', [UniverseController::class, 'terrainTypes']);
+    Route::get('/universe/terrain-types/{terrainType}', [UniverseController::class, 'terrainType']);
+    Route::get('/universe/material-types', [UniverseController::class, 'materialTypes']);
+    Route::get('/universe/material-types/{materialType}', [UniverseController::class, 'materialType']);
 });
 
 // Sysadmin-only: heavy/system actions
 Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('sys')->group(function () {
     Route::post('/universe/pull', [UniversePullController::class, 'run']);
+    Route::post('/universe/pull-sector-stream', [UniversePullController::class, 'runSectorStream']);
+    Route::post('/universe/pull-system-stream', [UniversePullController::class, 'runSystemStream']);
+    Route::post('/universe/pull-all-sectors', [UniversePullController::class, 'runAllSectors']);
+    Route::post('/universe/pull-all-station-types', [UniversePullController::class, 'runAllStationTypes']);
+    Route::post('/universe/pull-all-station-types-stream', [UniversePullController::class, 'runAllStationTypesStream']);
+    Route::post('/universe/pull-all-facility-types', [UniversePullController::class, 'runAllFacilityTypes']);
+    Route::post('/universe/pull-all-facility-types-stream', [UniversePullController::class, 'runAllFacilityTypesStream']);
+    Route::post('/universe/pull-all-item-types', [UniversePullController::class, 'runAllItemTypes']);
+    Route::post('/universe/pull-all-item-types-stream', [UniversePullController::class, 'runAllItemTypesStream']);
+    Route::post('/universe/pull-all-ship-types', [UniversePullController::class, 'runAllShipTypes']);
+    Route::post('/universe/pull-all-ship-types-stream', [UniversePullController::class, 'runAllShipTypesStream']);
+    Route::post('/universe/pull-all-terrain-types', [UniversePullController::class, 'runAllTerrainTypes']);
+    Route::post('/universe/pull-all-terrain-types-stream', [UniversePullController::class, 'runAllTerrainTypesStream']);
+    Route::post('/universe/pull-all-material-types', [UniversePullController::class, 'runAllMaterialTypes']);
+    Route::post('/universe/pull-all-material-types-stream', [UniversePullController::class, 'runAllMaterialTypesStream']);
+    Route::post('/universe/refresh-planets', [UniversePullController::class, 'refreshStoredPlanets']);
+    Route::post('/universe/refresh-planets-stream', [UniversePullController::class, 'refreshStoredPlanetsStream']);
+    Route::post('/universe/pull-all-sectors-stream', [UniversePullController::class, 'runAllSectorsStream']);
+    Route::post('/universe/full-sync-runs', [UniversePullController::class, 'startFullSync']);
+    Route::get('/universe/full-sync-runs/latest', [UniversePullController::class, 'latestFullSync']);
+    Route::get('/universe/full-sync-runs/{run}', [UniversePullController::class, 'showFullSync']);
+    Route::post('/universe/full-sync-runs/{run}/cancel', [UniversePullController::class, 'cancelFullSync']);
 });
 
 // Loading tip management: can_manage_tips OR is_admin OR sysadmin override
@@ -140,6 +183,9 @@ Route::get('/site-lock-status', [SiteLockStatusController::class, 'show']);
 Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('admin')->group(function () {
     Route::get('/site-lock', [AdminSiteLockController::class, 'show']);
     Route::post('/site-lock', [AdminSiteLockController::class, 'update']);
+    Route::post('/entity-stats/station-icons/populate', [AdminEntityStatsController::class, 'populateStationIcons']);
+    Route::post('/entity-stats/material-icons/populate', [AdminEntityStatsController::class, 'populateMaterialIcons']);
+    Route::put('/entity-stats/{entityType}/{entityId}', [AdminEntityStatsController::class, 'update']);
 });
 
 Route::middleware('auth:sanctum')->group(function () {

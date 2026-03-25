@@ -21,4 +21,8 @@ return [
     'frontend_url'  => env('SWC_FRONTEND_URL'),
 
     'http_user_agent' => env('SWC_HTTP_USER_AGENT', 'JOE API Client'),
+    'http_connect_timeout' => (int) env('SWC_HTTP_CONNECT_TIMEOUT', 30),
+    'http_timeout' => (int) env('SWC_HTTP_TIMEOUT', 120),
+    'http_retry_attempts' => (int) env('SWC_HTTP_RETRY_ATTEMPTS', 3),
+    'http_retry_backoff_ms' => (int) env('SWC_HTTP_RETRY_BACKOFF_MS', 1000),
 ];

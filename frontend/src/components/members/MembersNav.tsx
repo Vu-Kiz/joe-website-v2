@@ -1,6 +1,6 @@
 import React from "react";
 
-export type MembersView = "overview" | "jobs";
+export type MembersView = "overview" | "jobs" | "universe";
 
 type Props = {
   activeView: MembersView;
@@ -11,6 +11,7 @@ const MembersNav: React.FC<Props> = ({ activeView, onChange }) => {
   const items: Array<{ key: MembersView; label: string }> = [
     { key: "overview", label: "Overview" },
     { key: "jobs", label: "Jobs" },
+    { key: "universe", label: "Universe" },
   ];
 
   return (

@@ -2,6 +2,10 @@
 
 export type SwcUser = {
   id: number;
+  discord_user_id?: string | null;
+  discord_username?: string | null;
+  discord_global_name?: string | null;
+  discord_avatar_url?: string | null;
   swc_character_id: number | null;
   handle: string | null;
   avatar_url: string | null;

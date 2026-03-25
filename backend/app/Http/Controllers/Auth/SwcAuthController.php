@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\UserSwcAccount;
 use App\Support\Swc\SwcAuthorizationService;
 use App\Support\Swc\SwcHttp;
 use App\Support\Swc\SwcFactionSyncService;
@@ -26,6 +27,11 @@ class SwcAuthController extends Controller
 
     public function redirect(Request $request): RedirectResponse
     {
+        if (!Auth::check()) {
+            $frontend = (string) Config::get('swc.frontend_url', 'https://dev-v2.swc-joe.com');
+            return redirect()->away($frontend . '/home?oauth_error=' . urlencode('Sign in with Discord before linking SWC.'));
+        }
+
         return $this->redirectForFlow(
             request: $request,
             stateSessionKey: 'swc_oauth_state',
@@ -98,12 +104,18 @@ class SwcAuthController extends Controller
                 redirectUri: (string) Config::get('swc.redirect_uri', '')
             );
 
-            $user = $this->upsertUserFromProfile($profile);
+            $currentUser = Auth::user();
+
+            if (!$currentUser) {
+                throw new \RuntimeException('Sign in with Discord before linking SWC.');
+            }
+
+            $user = $this->linkSwcProfileToUser($currentUser, $profile);
 
             Auth::login($user);
             $request->session()->regenerate();
 
-            return redirect()->away($frontend);
+            return redirect()->away($frontend . '/aboutme?swc_linked=1');
         } catch (\Throwable $e) {
             Log::warning('SWC OAuth callback failed', [
                 'message' => $e->getMessage(),
@@ -247,6 +259,64 @@ class SwcAuthController extends Controller
         $this->swcFactionSyncService->syncForUser($user, $profile);
 
         return $user;
+    }
+
+    protected function linkSwcProfileToUser(User $user, array $profile): User
+    {
+        $charUid = (string) data_get($profile, 'swcapi.character.uid', '');
+        $charName = (string) data_get($profile, 'swcapi.character.name', '');
+        $avatar = (string) data_get($profile, 'swcapi.character.image', '');
+
+        if ($charUid === '' || $charName === '') {
+            throw new \RuntimeException('SWC profile response was missing character details.');
+        }
+
+        if (!preg_match('/^1:(\d+)$/', $charUid, $matches)) {
+            throw new \RuntimeException('Could not determine SWC character id.');
+        }
+
+        $numericCharacterId = (int) $matches[1];
+
+        $existing = UserSwcAccount::query()
+            ->where('swc_character_id', $numericCharacterId)
+            ->where('user_id', '!=', $user->id)
+            ->first();
+
+        if ($existing) {
+            throw new \RuntimeException('That SWC character is already linked to another account.');
+        }
+
+        UserSwcAccount::query()
+            ->where('user_id', $user->id)
+            ->where('is_primary', true)
+            ->update([
+                'is_primary' => false,
+                'unlinked_at' => now(),
+            ]);
+
+        $account = UserSwcAccount::updateOrCreate(
+            ['swc_character_id' => $numericCharacterId],
+            [
+                'user_id' => $user->id,
+                'swc_handle' => $charName,
+                'swc_avatar_url' => $avatar !== '' ? $avatar : null,
+                'is_primary' => true,
+                'linked_at' => now(),
+                'last_seen_at' => now(),
+                'unlinked_at' => null,
+            ]
+        );
+
+        $user->forceFill([
+            'swc_character_id' => $numericCharacterId,
+            'swc_handle' => $charName,
+            'swc_avatar_url' => $avatar !== '' ? $avatar : null,
+            'is_joe_member' => true,
+        ])->save();
+
+        $this->swcFactionSyncService->syncForUser($user, $profile);
+
+        return $user->fresh();
     }
 
     protected function normalizeScopes(mixed $scopeValue): array

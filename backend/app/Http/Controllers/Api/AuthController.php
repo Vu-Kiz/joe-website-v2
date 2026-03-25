@@ -23,9 +23,15 @@ class AuthController extends Controller
             ],
             'user' => Auth::user() ? [
                 'id' => Auth::user()->id,
+                'discord_user_id' => Auth::user()->discord_user_id,
+                'discord_username' => Auth::user()->discord_username,
+                'discord_global_name' => Auth::user()->discord_global_name,
+                'discord_avatar_url' => Auth::user()->discord_avatar_url,
                 'swc_character_id' => Auth::user()->swc_character_id,
-                'handle' => Auth::user()->swc_handle,
-                'avatar_url' => Auth::user()->swc_avatar_url,
+                'handle' => Auth::user()->swc_handle
+                    ?: Auth::user()->discord_global_name
+                    ?: Auth::user()->discord_username,
+                'avatar_url' => Auth::user()->swc_avatar_url ?: Auth::user()->discord_avatar_url,
                 'is_joe_member' => (bool) Auth::user()->is_joe_member,
                 'is_admin' => (bool) Auth::user()->is_admin,
                 'is_sysadmin' => (bool) Auth::user()->is_sysadmin,

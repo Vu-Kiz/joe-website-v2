@@ -7,7 +7,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use App\Models\SwcAuthorization;
 
 class User extends Authenticatable
 {
@@ -17,6 +16,11 @@ class User extends Authenticatable
     protected $table = 'users';
 
     protected $fillable = [
+        'discord_user_id',
+        'discord_username',
+        'discord_global_name',
+        'discord_avatar_url',
+        'discord_linked_at',
         'swc_character_id',
         'swc_handle',
         'swc_avatar_url',
@@ -29,6 +33,7 @@ class User extends Authenticatable
     ];
 
     protected $casts = [
+        'discord_linked_at' => 'datetime',
         'swc_character_id' => 'integer',
         'is_joe_member' => 'boolean',
         'is_admin' => 'boolean',
@@ -55,8 +60,21 @@ class User extends Authenticatable
             ])
             ->withTimestamps();
     }
+
     public function swcAuthorization()
     {
         return $this->hasOne(\App\Models\SwcAuthorization::class);
+    }
+
+    public function swcAccounts()
+    {
+        return $this->hasMany(\App\Models\UserSwcAccount::class);
+    }
+
+    public function currentSwcAccount()
+    {
+        return $this->hasOne(\App\Models\UserSwcAccount::class)
+            ->where('is_primary', true)
+            ->whereNull('unlinked_at');
     }
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import AppLayout from "./layouts/AppLayout";
@@ -13,6 +13,8 @@ import AdminRoute from "./components/auth/AdminRoute";
 import SiteLockState from "./components/common/SiteLockState";
 import { fetchSiteLockStatus } from "./api/siteLock";
 import SysDebugPage from "./pages/SysDebugPage";
+import SysUniversePage from "./pages/SysUniversePage";
+import MembersUniverseSystemPage from "./pages/MembersUniverseSystemPage";
 
 function App() {
   const [checkingSiteLock, setCheckingSiteLock] = useState(true);
@@ -84,8 +86,10 @@ function App() {
           <Route path="/aboutme" element={<AboutMe />} />
           <Route path="/jen" element={<JenPage />} />
           <Route path="/members" element={<MembersPage />} />
+          <Route path="/members/universe/system/:systemIdentifier" element={<MembersUniverseSystemPage />} />
           <Route path="/payments" element={<PaymentsPage />} />
           <Route path="/sys/debug" element={<SysDebugPage />} />
+          <Route path="/sys/debug/universe" element={<SysUniversePage />} />
 
           <Route
             path="/admin"

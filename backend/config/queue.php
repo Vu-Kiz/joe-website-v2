@@ -36,8 +36,8 @@ return [
 
         'database' => [
             'driver' => 'database',
-            'table' => 'jobs',
-            'queue' => 'default',
+            'table' => env('QUEUE_DATABASE_TABLE', 'queue_jobs'),
+            'queue' => env('QUEUE_DATABASE_QUEUE', 'default'),
             'retry_after' => 90,
             'after_commit' => false,
         ],

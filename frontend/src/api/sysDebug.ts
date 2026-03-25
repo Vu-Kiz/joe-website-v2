@@ -142,6 +142,25 @@ export type DebugTestPaymentResponse = {
   };
 };
 
+export type DebugUniversePullResponse = {
+  ok: boolean;
+  message: string;
+  data: any;
+  persistence?: any;
+};
+
+export type SectorCellAnnotation = {
+  id?: number;
+  sector_uid: string;
+  galx: number;
+  galy: number;
+  marker_type: string | null;
+  label: string | null;
+  notes: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
 function withOptionalUserId(params: URLSearchParams, userId?: number) {
   if (userId && Number.isFinite(userId) && userId > 0) {
     params.set("user_id", String(userId));
@@ -231,6 +250,50 @@ export function testManualPayment(
 
   return apiFetch<DebugTestPaymentResponse>(
     `/sys/debug/test-payment${qs ? `?${qs}` : ""}`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export function runUniversePull(
+  payload: {
+    resource: "system" | "sector" | "planet" | "station";
+    identifier: string;
+    persist?: boolean;
+    deep?: boolean;
+  }
+) {
+  return apiFetch<DebugUniversePullResponse>(`/sys/universe/pull`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function runUniversePullAllSectors() {
+  return apiFetch<DebugUniversePullResponse>(`/sys/universe/pull-all-sectors`, {
+    method: "POST",
+  });
+}
+
+export function getSectorCellAnnotations(sectorUid: string) {
+  const params = new URLSearchParams({ sector_uid: sectorUid });
+  return apiFetch<{ ok: boolean; data: SectorCellAnnotation[] }>(
+    `/sys/universe/cell-annotations?${params.toString()}`
+  );
+}
+
+export function saveSectorCellAnnotation(payload: {
+  sector_uid: string;
+  galx: number;
+  galy: number;
+  marker_type?: string | null;
+  label?: string | null;
+  notes?: string | null;
+}) {
+  return apiFetch<{ ok: boolean; message: string; data: SectorCellAnnotation | null }>(
+    `/sys/universe/cell-annotations`,
     {
       method: "POST",
       body: JSON.stringify(payload),

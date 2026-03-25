@@ -1,4 +1,3 @@
-import React from "react";
 import type { PaymentsView } from "./types";
 
 type Props = {
@@ -6,11 +5,12 @@ type Props = {
   onChange: (view: PaymentsView) => void;
 };
 
-const PaymentsNav: React.FC<Props> = ({ activeView, onChange }) => {
+const PaymentsNav = ({ activeView, onChange }: Props) => {
   const items: Array<{ key: PaymentsView; label: string }> = [
     { key: "pending", label: "Pending" },
     { key: "owed", label: "Owed To Me" },
     { key: "history", label: "History" },
+    { key: "templates", label: "Manual Templates" },
   ];
 
   return (

@@ -1,0 +1,216 @@
+.sysuniverse-board
+  background: linear-gradient(180deg, rgba(0,0,0,0.98), rgba(3,3,8,0.98))
+  border: 1px solid rgba(255,255,255,0.08)
+  box-shadow: 0 28px 80px rgba(0,0,0,0.35)
+
+.sysuniverse-stack
+  display: grid
+  gap: 14px
+
+.sysuniverse-stack--tight
+  display: grid
+  gap: 8px
+
+.sysuniverse-stat-grid
+  display: grid
+  gap: 10px
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))
+
+.sysuniverse-card
+  display: grid
+  gap: 8px
+  padding: 12px
+  border: 1px solid rgba(255,255,255,0.12)
+  border-radius: 10px
+  background: linear-gradient(180deg, rgba(14,22,40,0.92), rgba(8,14,28,0.9)), radial-gradient(circle at top, rgba(117,162,255,0.12), transparent 55%)
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 14px 40px rgba(0,0,0,0.24)
+
+.sysuniverse-card--highlight
+  margin-top: 8px
+  border-color: rgba(245, 213, 70, 0.35)
+
+.sysuniverse-toolbar
+  display: flex
+  justify-content: space-between
+  gap: 8px
+  align-items: center
+  flex-wrap: wrap
+
+.sysuniverse-toolbar__actions
+  display: flex
+  gap: 8px
+  align-items: center
+  flex-wrap: wrap
+
+.sysuniverse-chip-row
+  display: flex
+  gap: 8px
+  flex-wrap: wrap
+
+.sysuniverse-copy-reset
+  margin: 0
+
+.sysuniverse-muted
+  opacity: 0.75
+
+.sysuniverse-error
+  color: salmon
+
+.sysuniverse-block-end
+  margin-bottom: 12px
+
+.sysuniverse-form
+  display: grid
+  gap: 10px
+  margin-bottom: 12px
+
+.sysuniverse-explorer
+  display: grid
+  gap: 10px
+  padding: 12px
+  border: 1px solid rgba(255,255,255,0.12)
+  border-radius: 8px
+
+.sysuniverse-map-viewport
+  position: relative
+  width: 100%
+  min-height: 520px
+  max-height: 72vh
+  overflow: hidden
+  border-radius: 10px
+  border: 1px solid rgba(255,255,255,0.1)
+  background: linear-gradient(180deg, rgba(0,0,0,0.98), rgba(5,5,10,0.98))
+  cursor: grab
+
+  &.is-dragging
+    cursor: grabbing
+
+.sysuniverse-map-viewport--planet
+  background: linear-gradient(180deg, rgba(8,8,8,0.98), rgba(18,18,18,0.98))
+
+.sysuniverse-map-viewport__stars
+  position: absolute
+  inset: 0
+  background-image: radial-gradient(circle at 12% 18%, rgba(255,255,255,0.8) 0 1px, transparent 1.5px), radial-gradient(circle at 28% 72%, rgba(255,255,255,0.55) 0 1px, transparent 1.5px), radial-gradient(circle at 63% 31%, rgba(255,255,255,0.75) 0 1px, transparent 1.5px), radial-gradient(circle at 82% 61%, rgba(255,255,255,0.6) 0 1px, transparent 1.5px), radial-gradient(circle at 45% 48%, rgba(255,255,255,0.4) 0 1px, transparent 1.5px), radial-gradient(circle at 71% 83%, rgba(255,255,255,0.45) 0 1px, transparent 1.5px)
+  opacity: 0.8
+  pointer-events: none
+
+.sysuniverse-map-canvas
+  display: grid
+  gap: 0
+  transform-origin: top left
+  width: max-content
+  padding: 16px
+  user-select: none
+
+.sysuniverse-card--debug
+  border-color: rgba(255, 120, 120, 0.24)
+  background: linear-gradient(180deg, rgba(32,10,14,0.92), rgba(16,8,10,0.92))
+
+.sysuniverse-grid-row
+  display: grid
+  gap: 0
+
+.sysuniverse-sector-cell
+  min-width: 78px
+
+.sysuniverse-sector-system-name
+  font-size: 0.9rem
+
+.sysuniverse-system-cell
+  display: grid
+  gap: 6px
+  align-content: start
+  text-align: left
+  pointer-events: auto
+  border-radius: 0
+
+.sysuniverse-system-cell__header
+  display: flex
+  justify-content: space-between
+  gap: 8px
+  align-items: center
+
+.sysuniverse-planet-preview
+  display: grid
+  gap: 4px
+  justify-items: start
+
+.sysuniverse-planet-preview__thumb
+  width: 36px
+  height: 36px
+  border-radius: 50%
+  object-fit: cover
+  border: 1px solid rgba(255,255,255,0.15)
+
+.sysuniverse-planet-preview__thumb--small
+  width: 26px
+  height: 26px
+
+.sysuniverse-planet-preview__thumb--medium
+  width: 32px
+  height: 32px
+
+.sysuniverse-planet-preview__name
+  opacity: 0.9
+  line-height: 1.15
+
+.sysuniverse-entity-button
+  display: grid
+  gap: 8px
+  align-items: center
+
+.sysuniverse-hyperlane-row
+  display: flex
+  justify-content: space-between
+  gap: 8px
+  flex-wrap: wrap
+  padding-bottom: 8px
+  border-bottom: 1px solid rgba(255,255,255,0.08)
+
+.sysuniverse-planet-image
+  width: 100%
+  max-width: 420px
+  border-radius: 12px
+  object-fit: cover
+  border: 1px solid rgba(255,255,255,0.12)
+
+.sysuniverse-planet-cell
+  position: relative
+  min-width: 42px
+  min-height: 42px
+  padding: 0
+  border-radius: 0
+  border: 1px solid rgba(255,255,255,0.18)
+
+.sysuniverse-planet-cell__city-dot
+  position: absolute
+  top: 50%
+  left: 50%
+  width: 8px
+  height: 8px
+  border-radius: 50%
+  background: rgba(255,255,255,0.95)
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.28)
+  transform: translate(-50%, -50%)
+
+.sysuniverse-sector-annotation-badge
+  display: inline-flex
+  align-items: center
+  justify-content: center
+  width: fit-content
+  padding: 2px 6px
+  border: 1px solid rgba(255,255,255,0.18)
+  background: rgba(18, 24, 42, 0.82)
+  color: rgba(255,255,255,0.92)
+  font-size: 11px
+  line-height: 1
+  text-transform: uppercase
+  letter-spacing: 0.04em
+
+.sysuniverse-sector-annotation-badge--empty
+  margin: 6px
+
+.sysuniverse-json
+  white-space: pre-wrap
+  margin-top: 12px

@@ -24,6 +24,7 @@ import PaymentsStatusPanel from "../components/payments/PaymentsStatusPanel";
 import PendingPaymentsPanel from "../components/payments/PendingPaymentsPanel";
 import OwedPaymentsPanel from "../components/payments/OwedPaymentsPanel";
 import PaymentHistoryPanel from "../components/payments/PaymentHistoryPanel";
+import PaymentsTemplatesPanel from "../components/payments/PaymentsTemplatesPanel";
 import type { PaymentGroup, PaymentsActionState, PaymentsView } from "../components/payments/types";
 
 import "../styles/main.sass";
@@ -329,7 +330,7 @@ const PaymentsPage: React.FC = () => {
             </div>
           )}
 
-          <PaymentsStatusPanel swcAuth={swcAuth} />
+          <PaymentsStatusPanel user={user} swcAuth={swcAuth} />
 
           <PaymentsNav activeView={activeView} onChange={setActiveView} />
 
@@ -357,6 +358,8 @@ const PaymentsPage: React.FC = () => {
               onVerifyTransfer={onVerifyTransfer}
             />
           )}
+
+          {activeView === "templates" && <PaymentsTemplatesPanel />}
         </main>
       </div>
     </div>

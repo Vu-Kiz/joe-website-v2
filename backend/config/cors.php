@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'paths' => ['api/*', 'sanctum/csrf-cookie', 'oauth/*'],
+    'paths' => ['api/*', 'sanctum/csrf-cookie', 'oauth/*', 'auth/discord', 'auth/discord/*'],
 
     'allowed_methods' => ['*'],
 
@@ -17,4 +17,3 @@ return [
 
     'supports_credentials' => (bool) env('CORS_SUPPORTS_CREDENTIALS', true),
 ];
-

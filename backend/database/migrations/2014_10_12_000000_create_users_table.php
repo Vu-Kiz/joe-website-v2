@@ -10,8 +10,16 @@ return new class extends Migration {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
 
-            // SWC identity
-            $table->unsignedBigInteger('swc_character_id')->unique();
+            // Primary app identity will be Discord-first.
+            $table->string('discord_user_id', 40)->nullable()->unique();
+            $table->string('discord_username', 100)->nullable();
+            $table->string('discord_global_name', 100)->nullable();
+            $table->string('discord_avatar_url', 255)->nullable();
+            $table->timestamp('discord_linked_at')->nullable();
+
+            // Current SWC snapshot for compatibility/read performance.
+            // Historical links live in user_swc_accounts.
+            $table->unsignedBigInteger('swc_character_id')->nullable()->unique();
             $table->string('swc_handle', 100)->nullable();
             $table->string('swc_avatar_url', 255)->nullable();
 

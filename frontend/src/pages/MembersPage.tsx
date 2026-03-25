@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { fetchAuthMe, type SwcUser } from "../api/auth";
 import {
   completeAssignment,
@@ -16,18 +17,28 @@ import OpenJobsPanel from "../components/members/jobs/OpenJobsPanel";
 import MyPostedJobsPanel from "../components/members/jobs/MyPostedJobsPanel";
 import MyTakenJobsPanel from "../components/members/jobs/MyTakenJobsPanel";
 import CreateJobPanel from "../components/members/jobs/CreateJobPanel";
+import MembersUniversePanel from "../components/members/MembersUniversePanel";
 
 import "../styles/main.sass";
 import "../styles/_admin.sass";
 
 const MembersPage: React.FC = () => {
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<SwcUser | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const [membersView, setMembersView] = useState<MembersView>("overview");
+  const [membersView, setMembersView] = useState<MembersView>(
+    location.state?.membersView === "universe" ? "universe" : "overview"
+  );
   const [jobsView, setJobsView] = useState<JobsView>("open");
+
+  useEffect(() => {
+    if (location.state?.membersView === "universe") {
+      setMembersView("universe");
+    }
+  }, [location.state]);
 
   useEffect(() => {
     let cancelled = false;
@@ -202,6 +213,8 @@ const MembersPage: React.FC = () => {
               {jobsView === "create" && <CreateJobPanel onCreate={onCreate} />}
             </>
           )}
+
+          {membersView === "universe" && <MembersUniversePanel />}
         </main>
       </div>
     </div>

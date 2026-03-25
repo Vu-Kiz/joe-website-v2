@@ -1,12 +1,19 @@
 import React from "react";
-import { getBackendOrigin } from "../../api/auth";
+import { getBackendOrigin, type SwcUser } from "../../api/auth";
 import type { SwcAuthorizationStatus } from "../../api/swcAuthorization";
 
 type Props = {
+  user?: SwcUser | null;
   swcAuth: SwcAuthorizationStatus | null;
 };
 
-const PaymentsStatusPanel: React.FC<Props> = ({ swcAuth }) => {
+const PaymentsStatusPanel: React.FC<Props> = ({ user, swcAuth }) => {
+  function onLinkSwc() {
+    const backendOrigin = getBackendOrigin();
+    if (!backendOrigin) return;
+    window.location.href = `${backendOrigin}/oauth`;
+  }
+
   function onConnectCreditLog() {
     const backendOrigin = getBackendOrigin();
     if (!backendOrigin) return;
@@ -17,11 +24,22 @@ const PaymentsStatusPanel: React.FC<Props> = ({ swcAuth }) => {
     <div className="panel">
       <h2>SWC Credit Log Verification</h2>
 
-      {!swcAuth?.connected && (
+      {!user?.swc_character_id && (
+        <>
+          <p className="small">
+            Link your SWC account before connecting credit log access.
+          </p>
+          <button className="btn" type="button" onClick={onLinkSwc}>
+            Link SWC Account
+          </button>
+        </>
+      )}
+
+      {!!user?.swc_character_id && !swcAuth?.connected && (
         <p className="small">SWC credit log access is not connected yet.</p>
       )}
 
-      {swcAuth?.connected && (
+      {!!user?.swc_character_id && swcAuth?.connected && (
         <>
           <p className="small">
             Personal credit log access:{" "}
@@ -51,9 +69,11 @@ const PaymentsStatusPanel: React.FC<Props> = ({ swcAuth }) => {
         </>
       )}
 
-      <button className="btn" type="button" onClick={onConnectCreditLog}>
-        Connect Credit Log Access
-      </button>
+      {!!user?.swc_character_id && (
+        <button className="btn" type="button" onClick={onConnectCreditLog}>
+          Connect Credit Log Access
+        </button>
+      )}
     </div>
   );
 };

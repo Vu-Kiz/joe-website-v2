@@ -15,6 +15,7 @@ import AdminActionLogPanel from "../components/admin/AdminActionLogPanel";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import AdminSiteLockPanel from "../components/admin/AdminSiteLockPanel";
+import AdminEntityStatsPanel from "../components/admin/AdminEntityStatsPanel";
 
 import "../styles/main.sass";
 import "../styles/_admin.sass";
@@ -60,7 +61,7 @@ const AdminPage: React.FC = () => {
   const canSeeLogs = useMemo(() => canAccessSysadmin(user), [user]);
 
   useEffect(() => {
-    if (!showSystemTools && (activeView === "system" || activeView === "logs")) {
+    if (!showSystemTools && (activeView === "system" || activeView === "logs" || activeView === "entityStats")) {
       setActiveView("home");
     }
   }, [showSystemTools, canSeeLogs, activeView]);
@@ -143,6 +144,7 @@ const AdminPage: React.FC = () => {
           {activeView === "logs" && canSeeLogs && <AdminActionLogPanel />}
           {activeView === "weather" && <AdminWeatherPanel />}
           {activeView === "system" && showSystemTools && <AdminSystemPanel />}
+          {activeView === "entityStats" && showSystemTools && <AdminEntityStatsPanel />}
           {activeView === "siteLock" && showSystemTools && <AdminSiteLockPanel />}
         </main>
       </div>

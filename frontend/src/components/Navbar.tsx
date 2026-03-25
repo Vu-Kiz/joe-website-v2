@@ -82,7 +82,7 @@ const Navbar: React.FC = () => {
     const returnTo = `${location.pathname}${location.search}${location.hash}`;
     const qs = `return_to=${encodeURIComponent(returnTo)}`;
 
-    window.location.href = origin ? `${origin}/oauth?${qs}` : `/oauth?${qs}`;
+    window.location.href = origin ? `${origin}/auth/discord?${qs}` : `/auth/discord?${qs}`;
   };
 
   const handleLogout = async () => {
@@ -199,7 +199,7 @@ const Navbar: React.FC = () => {
 
               {!loading && !user && (
                 <button type="button" className="btn seg-btn" onClick={handleLogin}>
-                  Login via SWC
+                  Login via Discord
                 </button>
               )}
 

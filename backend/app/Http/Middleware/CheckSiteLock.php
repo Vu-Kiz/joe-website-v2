@@ -40,6 +40,8 @@ class CheckSiteLock
     protected function isAllowedDuringLock(Request $request): bool
     {
         return $request->is([
+            'auth/discord',
+            'auth/discord/callback',
             'oauth',
             'oauth/callback',
 
