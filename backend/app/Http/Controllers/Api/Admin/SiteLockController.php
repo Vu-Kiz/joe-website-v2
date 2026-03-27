@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Support\Admin\SiteLock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class AdminSiteLockController extends Controller
+class SiteLockController extends Controller
 {
     public function show(): JsonResponse
     {

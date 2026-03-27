@@ -12,6 +12,7 @@ export type DebugSwcAuthResponse = {
     authorization: {
       exists: boolean;
       granted_scopes: string | null;
+      has_personal_events_access: boolean;
       has_personal_credit_log_access: boolean;
       has_faction_credit_log_access: boolean;
       has_character_privileges_access: boolean;
@@ -20,6 +21,15 @@ export type DebugSwcAuthResponse = {
       revoked_at: string | null;
       has_access_token: boolean;
       has_refresh_token: boolean;
+      events_authorization?: {
+        exists: boolean;
+        granted_scopes: string | null;
+        token_expires_at: string | null;
+        last_verified_at: string | null;
+        revoked_at: string | null;
+        has_access_token: boolean;
+        has_refresh_token: boolean;
+      };
     };
     factions: Array<{
       id: number;
@@ -84,6 +94,59 @@ export type DebugRawSwcResponse = {
   query: Record<string, string>;
   body: string | null;
   json: any;
+};
+
+export type DebugEventsHistoryResponse = {
+  ok: boolean;
+  status: number;
+  target_user?: {
+    id: number;
+    swc_handle: string | null;
+    swc_character_id: number | null;
+  };
+  url: string;
+  query: Record<string, string>;
+  pages: Array<{
+    page: number;
+    start_index: number;
+    count: number;
+    status: number;
+    ok: boolean;
+  }>;
+  history?: {
+    events_seen: number;
+    events_matched: number;
+    earliest_timestamp: number | null;
+    latest_timestamp: number | null;
+    matches: Array<{
+      index: number;
+      uid: string | null;
+      type: string | null;
+      timestamp: string | null;
+      square_name: string | null;
+      system_id: string | null;
+      galx: number | null;
+      galy: number | null;
+      has_asteroids: boolean;
+      text: string;
+    }>;
+  };
+  import?: {
+    created: number;
+    updated: number;
+    unchanged: number;
+    skipped: number;
+    skipped_no_coordinates: number;
+    imported: Array<{
+      record_id: number;
+      uid: string | null;
+      galx: number;
+      galy: number;
+      square_name: string | null;
+      has_asteroids: boolean;
+      legacy_recorded_at: string | null;
+    }>;
+  };
 };
 
 export type DebugFactionPrivilegeResponse = {
@@ -187,6 +250,29 @@ export function getDebugFactions() {
 export function getDebugRawSwc(
   path: string,
   queryParams?: Record<string, string>,
+  userId?: number,
+  authContext?: "payments" | "events" | "debug"
+) {
+  const params = withOptionalUserId(new URLSearchParams(), userId);
+  params.set("path", path);
+  if (authContext) {
+    params.set("auth_context", authContext);
+  }
+
+  if (queryParams) {
+    for (const [key, value] of Object.entries(queryParams)) {
+      if (key.trim() && value != null) {
+        params.set(key, String(value));
+      }
+    }
+  }
+
+  return apiFetch<DebugRawSwcResponse>(`/sys/debug/raw-swc?${params.toString()}`);
+}
+
+export function getDebugEventsHistory(
+  path: string,
+  queryParams?: Record<string, string>,
   userId?: number
 ) {
   const params = withOptionalUserId(new URLSearchParams(), userId);
@@ -200,7 +286,27 @@ export function getDebugRawSwc(
     }
   }
 
-  return apiFetch<DebugRawSwcResponse>(`/sys/debug/raw-swc?${params.toString()}`);
+  return apiFetch<DebugEventsHistoryResponse>(`/sys/debug/events-history?${params.toString()}`);
+}
+
+export function importDebugEventsHistory(
+  path: string,
+  queryParams?: Record<string, string>,
+  userId?: number
+) {
+  const params = withOptionalUserId(new URLSearchParams(), userId);
+  const qs = params.toString();
+
+  return apiFetch<DebugEventsHistoryResponse>(
+    `/sys/debug/events-history/import${qs ? `?${qs}` : ""}`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        path,
+        query: queryParams ?? {},
+      }),
+    }
+  );
 }
 
 export function testFactionPrivilege(

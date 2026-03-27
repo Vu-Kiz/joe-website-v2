@@ -18,6 +18,7 @@ type UniverseTrailItem = {
   resource: UniverseResource;
   identifier: string;
 };
+type ExplorerSection = "visualizer" | "navigation" | "payload";
 
 const pretty = (value: any) => JSON.stringify(value, null, 2);
 
@@ -57,6 +58,7 @@ const SysUniversePage: React.FC = () => {
   const [persistPull, setPersistPull] = useState(false);
   const [deepPersistPull, setDeepPersistPull] = useState(false);
   const [trail, setTrail] = useState<UniverseTrailItem[]>([]);
+  const [activeSection, setActiveSection] = useState<ExplorerSection>("visualizer");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any | null>(null);
@@ -114,7 +116,7 @@ const SysUniversePage: React.FC = () => {
       } catch (e: any) {
         if (!cancelled) {
           setViewer(null);
-          setPageError(e?.message ?? "Failed to load universe explorer.");
+          setPageError(e?.message ?? "Failed to load galaxy explorer.");
         }
       } finally {
         if (!cancelled) {
@@ -246,6 +248,7 @@ const SysUniversePage: React.FC = () => {
       setResult(res.data);
       setPersistenceSummary(res.persistence ?? null);
       setTrail((prev) => [...prev, { resource, identifier: nextIdentifier }]);
+      setActiveSection("visualizer");
       setSelectedSystemCell(null);
       setSelectedPlanetCell(null);
       if (resource === "system") {
@@ -256,7 +259,7 @@ const SysUniversePage: React.FC = () => {
         setPlanetOffset({ x: 0, y: 0 });
       }
     } catch (e: any) {
-      setError(e?.message ?? "Universe pull failed.");
+      setError(e?.message ?? "Galaxy pull failed.");
     } finally {
       setLoading(false);
     }
@@ -350,8 +353,8 @@ const SysUniversePage: React.FC = () => {
           }}
         />
 
-        <div className="sysuniverse-card">
-          <strong>System List</strong>
+        <details className="sysuniverse-card sysuniverse-card--foldout">
+          <summary>System List</summary>
           <p className="small sysuniverse-copy-reset">
             Keep the flat list too, in case you want to jump by name instead of coordinates.
           </p>
@@ -375,7 +378,7 @@ const SysUniversePage: React.FC = () => {
               </button>
             ))}
           </div>
-        </div>
+        </details>
       </div>
     );
   }
@@ -685,8 +688,8 @@ const SysUniversePage: React.FC = () => {
         </div>
 
         {planets.length > 0 && (
-          <div className="sysuniverse-card">
-            <strong>Planet Layer</strong>
+          <details className="sysuniverse-card sysuniverse-card--foldout">
+            <summary>Planet Layer</summary>
             <div className="sysuniverse-chip-row">
               {planets.slice(0, 80).map((planet: any, index: number) => (
                 <button
@@ -716,12 +719,12 @@ const SysUniversePage: React.FC = () => {
                 </button>
               ))}
             </div>
-          </div>
+          </details>
         )}
 
         {stations.length > 0 && (
-          <div className="sysuniverse-card">
-            <strong>Station Layer</strong>
+          <details className="sysuniverse-card sysuniverse-card--foldout">
+            <summary>Station Layer</summary>
             <div className="sysuniverse-chip-row">
               {stations.slice(0, 80).map((station: any, index: number) => (
                 <button
@@ -739,12 +742,12 @@ const SysUniversePage: React.FC = () => {
                 </button>
               ))}
             </div>
-          </div>
+          </details>
         )}
 
         {hyperlanes.length > 0 && (
-          <div className="sysuniverse-card">
-            <strong>Hyperlane Layer</strong>
+          <details className="sysuniverse-card sysuniverse-card--foldout">
+            <summary>Hyperlane Layer</summary>
             <div className="sysuniverse-stack--tight">
               {hyperlanes.slice(0, 40).map((hyperlane: any, index: number) => (
                 <div
@@ -763,7 +766,7 @@ const SysUniversePage: React.FC = () => {
                 </div>
               ))}
             </div>
-          </div>
+          </details>
         )}
       </div>
     );
@@ -1020,17 +1023,7 @@ const SysUniversePage: React.FC = () => {
 
     return (
       <div className="sysuniverse-explorer">
-        <div className="sysuniverse-toolbar">
-          <strong>Path</strong>
-          {trail.length > 0 ? (
-            <span className="small">
-              {trail.map((item) => `${item.resource}:${item.identifier}`).join(" -> ")}
-            </span>
-          ) : null}
-          <button className="btn" type="button" onClick={resetTrail}>
-            Clear path
-          </button>
-        </div>
+        <strong>Quick Links</strong>
 
         {resource === "sector" && Array.isArray(result.systems) && (
           <div className="sysuniverse-stack--tight">
@@ -1139,8 +1132,8 @@ const SysUniversePage: React.FC = () => {
       <div className="site-scale">
         <div className="app app--one">
           <main className="board admin-board">
-            <h1>Universe Explorer</h1>
-            <p className="small">Loading universe tools…</p>
+            <h1>Galaxy Explorer</h1>
+            <p className="small">Loading galaxy tools…</p>
           </main>
         </div>
       </div>
@@ -1152,7 +1145,7 @@ const SysUniversePage: React.FC = () => {
       <div className="site-scale">
         <div className="app app--one">
           <main className="board admin-board">
-            <h1>Universe Explorer</h1>
+            <h1>Galaxy Explorer</h1>
             <p className="small sysuniverse-error">
               {pageError}
             </p>
@@ -1169,7 +1162,7 @@ const SysUniversePage: React.FC = () => {
           <main className="board admin-board">
             <NotLoggedInState
               title="Not logged in"
-              message="You need to sign in to access the universe explorer."
+              message="You need to sign in to access the galaxy explorer."
             />
           </main>
         </div>
@@ -1182,7 +1175,7 @@ const SysUniversePage: React.FC = () => {
       <div className="site-scale">
         <div className="app app--one">
           <main className="board admin-board">
-            <h1>Universe Explorer</h1>
+            <h1>Galaxy Explorer</h1>
             <p className="small">Sysadmin access required.</p>
           </main>
         </div>
@@ -1194,91 +1187,143 @@ const SysUniversePage: React.FC = () => {
     <div className="site-scale">
       <div className="app app--one">
         <main className="board admin-board sysuniverse-board">
-          <h1>Universe Explorer</h1>
-          <p className="small">
-            Start from a sector, then drill down into systems, planets, and stations.
-          </p>
-
-          <div className="panel">
-            <div className="sysuniverse-chip-row sysuniverse-block-end">
-              <Link to="/sys/debug" className="btn">
-                Back to Sys Debug
-              </Link>
+          <div className="sysuniverse-pagehead">
+            <div className="sysuniverse-pagehead__copy">
+              <h1>Galaxy Explorer</h1>
+              <p className="small">
+                Start from a sector, then drill down into systems, planets, and stations.
+              </p>
             </div>
+            <Link to="/sys/debug" className="btn">
+              Back to Sys Debug
+            </Link>
+          </div>
 
-            <div className="sysuniverse-form">
-              <select
-                className="input"
-                value={pullResource}
-                onChange={(e) => setPullResource(e.target.value as UniverseResource)}
-              >
-                <option value="sector">Sector</option>
-                <option value="system">System</option>
-                <option value="planet">Planet</option>
-                <option value="station">Station</option>
-              </select>
+          <div className="sysuniverse-shell">
+            <aside className="panel sysuniverse-sidebar">
+              <div className="sysuniverse-stack">
+                <div className="sysuniverse-form">
+                  <select
+                    className="input"
+                    value={pullResource}
+                    onChange={(e) => setPullResource(e.target.value as UniverseResource)}
+                  >
+                    <option value="sector">Sector</option>
+                    <option value="system">System</option>
+                    <option value="planet">Planet</option>
+                    <option value="station">Station</option>
+                  </select>
 
-              <input
-                className="input"
-                value={pullIdentifier}
-                onChange={(e) => setPullIdentifier(e.target.value)}
-                placeholder="UID or name, e.g. Arkanis, Tatoo, or 9:178"
-              />
-
-              <label className="small" style={{ display: "grid", gap: 6, alignContent: "center" }}>
-                <span>
                   <input
-                    type="checkbox"
-                    checked={persistPull}
-                    onChange={(e) => {
-                      const checked = e.target.checked;
-                      setPersistPull(checked);
-                      if (!checked) {
-                        setDeepPersistPull(false);
-                      }
-                    }}
-                  />{" "}
-                  Persist to DB
-                </span>
-                <span>
-                  <input
-                    type="checkbox"
-                    checked={deepPersistPull}
-                    disabled={!persistPull || pullResource !== "sector"}
-                    onChange={(e) => setDeepPersistPull(e.target.checked)}
-                  />{" "}
-                  Deep sector sync
-                </span>
-              </label>
+                    className="input"
+                    value={pullIdentifier}
+                    onChange={(e) => setPullIdentifier(e.target.value)}
+                    placeholder="UID or name, e.g. Arkanis, Tatoo, or 9:178"
+                  />
 
-              <div>
-                <button className="btn" type="button" onClick={onSubmit} disabled={loading}>
-                  Run universe pull
+                  <label className="small" style={{ display: "grid", gap: 6, alignContent: "center" }}>
+                    <span>
+                      <input
+                        type="checkbox"
+                        checked={persistPull}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setPersistPull(checked);
+                          if (!checked) {
+                            setDeepPersistPull(false);
+                          }
+                        }}
+                      />{" "}
+                      Persist to DB
+                    </span>
+                    <span>
+                      <input
+                        type="checkbox"
+                        checked={deepPersistPull}
+                        disabled={!persistPull || pullResource !== "sector"}
+                        onChange={(e) => setDeepPersistPull(e.target.checked)}
+                      />{" "}
+                      Deep sector sync
+                    </span>
+                  </label>
+
+                  <div>
+                    <button className="btn" type="button" onClick={onSubmit} disabled={loading}>
+                      Run galaxy pull
+                    </button>
+                  </div>
+                </div>
+
+                {loading ? <p className="small">Running…</p> : null}
+                {error ? (
+                  <p className="small sysuniverse-error">
+                    {error}
+                  </p>
+                ) : null}
+
+                {trail.length > 0 ? (
+                  <div className="sysuniverse-card">
+                    <strong>Path</strong>
+                    <span className="small sysuniverse-muted">
+                      {trail.map((item) => `${item.resource}:${item.identifier}`).join(" -> ")}
+                    </span>
+                    <div>
+                      <button className="btn" type="button" onClick={resetTrail}>
+                        Clear path
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </aside>
+
+            <section className="sysuniverse-main">
+              <div className="sysuniverse-subnav">
+                <button
+                  type="button"
+                  className={`btn sysuniverse-subnav__btn${activeSection === "visualizer" ? " is-active" : ""}`}
+                  onClick={() => setActiveSection("visualizer")}
+                >
+                  Visualizer
+                </button>
+                <button
+                  type="button"
+                  className={`btn sysuniverse-subnav__btn${activeSection === "navigation" ? " is-active" : ""}`}
+                  onClick={() => setActiveSection("navigation")}
+                >
+                  Navigation
+                </button>
+                <button
+                  type="button"
+                  className={`btn sysuniverse-subnav__btn${activeSection === "payload" ? " is-active" : ""}`}
+                  onClick={() => setActiveSection("payload")}
+                >
+                  Payload
                 </button>
               </div>
-            </div>
 
-            {loading ? <p className="small">Running…</p> : null}
-            {error ? (
-              <p className="small sysuniverse-error">
-                {error}
-              </p>
-            ) : null}
-            {persistenceSummary ? (
-              <div className="sysuniverse-card">
-                <strong>Persistence</strong>
-                <pre className="small sysuniverse-json">
-                  {pretty(persistenceSummary)}
-                </pre>
-              </div>
-            ) : null}
+              {activeSection === "visualizer" ? renderLayerVisualizer() : null}
+              {activeSection === "navigation" ? renderExplorer() : null}
+              {activeSection === "payload" ? (
+                <div className="sysuniverse-stack">
+                  {persistenceSummary ? (
+                    <div className="sysuniverse-card">
+                      <strong>Persistence</strong>
+                      <pre className="small sysuniverse-json">
+                        {pretty(persistenceSummary)}
+                      </pre>
+                    </div>
+                  ) : null}
 
-            {renderLayerVisualizer()}
-            {renderExplorer()}
-
-            <pre className="small sysuniverse-json">
-              {result ? pretty(result) : "No data yet."}
-            </pre>
+                  <div className="sysuniverse-card">
+                    <strong>Raw Response</strong>
+                    <pre className="small sysuniverse-json">
+                      {result ? pretty(result) : "No data yet."}
+                    </pre>
+                  </div>
+                </div>
+              ) : null}
+            </section>
           </div>
         </main>
       </div>

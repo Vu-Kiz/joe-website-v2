@@ -1,10 +1,12 @@
 <?php
 
-namespace App\Http\Controllers\Api\Sys;
+namespace App\Http\Controllers\Api\Admin\Universe;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\RunStoredSystemRefreshJob;
 use App\Jobs\RunUniverseFullSyncJob;
 use App\Models\SwcPlanet;
+use App\Models\SwcSystem;
 use App\Models\SwcUniverseSyncRun;
 use App\Support\Admin\AdminActionLogger;
 use App\Support\Swc\UniversePersistenceService;
@@ -15,7 +17,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-class UniversePullController extends Controller
+class PullController extends Controller
 {
     protected const SECTOR_PULLS_PER_HOUR = 250;
 
@@ -32,7 +34,7 @@ class UniversePullController extends Controller
     public function run(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'resource' => ['required', 'in:system,sector,planet,station,station_type,ship_type,facility_type,item_type,terrain_type,material_type'],
+            'resource' => ['required', 'in:system,sector,planet,planet_type,station,station_type,ship_type,facility_type,item_type,terrain_type,material_type'],
             'identifier' => ['required', 'string', 'max:255'],
             'persist' => ['sometimes', 'boolean'],
             'deep' => ['sometimes', 'boolean'],
@@ -413,6 +415,65 @@ class UniversePullController extends Controller
                 'hydrated_station_types' => $hydrated,
             ],
         ]);
+    }
+
+    public function runAllPlanetTypes(Request $request): JsonResponse
+    {
+        $result = $this->universePullService->pullAllPlanetTypesIndex();
+        $indexPersistence = $this->universePersistenceService->persist($result);
+        $hydrated = 0;
+
+        foreach ((array) ($result['planet_types'] ?? []) as $type) {
+            if (!is_array($type)) {
+                continue;
+            }
+
+            $detailPayload = $this->pullTypeDetailWithFallbacks('planet_type', $type);
+            $this->universePersistenceService->persist($detailPayload);
+            $hydrated += 1;
+        }
+
+        AdminActionLogger::log(
+            $request,
+            'universe',
+            'pull_all_planet_types',
+            'Pulled and hydrated all planet types',
+            'swc_planet_type',
+            null,
+            null,
+            [
+                'planet_type_count' => $indexPersistence['planet_type_count'] ?? 0,
+                'pages' => $indexPersistence['pages'] ?? null,
+                'total' => $indexPersistence['total'] ?? 0,
+                'hydrated_planet_types' => $hydrated,
+            ]
+        );
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'All planet types pulled and persisted.',
+            'data' => $result,
+            'persistence' => [
+                'planet_type_count' => $indexPersistence['planet_type_count'] ?? 0,
+                'pages' => $indexPersistence['pages'] ?? null,
+                'total' => $indexPersistence['total'] ?? 0,
+                'hydrated_planet_types' => $hydrated,
+            ],
+        ]);
+    }
+
+    public function runAllPlanetTypesStream(Request $request): StreamedResponse
+    {
+        return $this->streamTypeCatalogPull(
+            $request,
+            entityType: 'planet_type',
+            resultKey: 'planet_types',
+            resultMethod: 'pullAllPlanetTypesIndex',
+            countKey: 'planet_type_count',
+            hydratedKey: 'hydrated_planet_types',
+            summary: 'Pulled and hydrated all planet types',
+            targetType: 'swc_planet_type'
+        );
     }
 
     public function runAllStationTypesStream(Request $request): StreamedResponse
@@ -942,6 +1003,401 @@ class UniversePullController extends Controller
     }
 
     /**
+     * POST /api/sys/universe/refresh-systems
+     * Sysadmin-only.
+     */
+    public function refreshStoredSystems(): JsonResponse
+    {
+        $this->disableExecutionTimeout();
+
+        $refreshed = 0;
+        $skippedMissingIdentifier = 0;
+        $skippedNotFound = 0;
+        $total = SwcSystem::query()->count();
+
+        SwcSystem::query()
+            ->orderBy('id')
+            ->chunkById(100, function ($systems) use (&$refreshed, &$skippedMissingIdentifier, &$skippedNotFound) {
+                foreach ($systems as $system) {
+                    $identifiers = $this->systemRefreshIdentifiers($system);
+
+                    if ($identifiers === []) {
+                        $skippedMissingIdentifier += 1;
+                        continue;
+                    }
+
+                    try {
+                        $payload = $this->refreshSystemPayload($identifiers);
+                        $this->universePersistenceService->persist($payload, true);
+                        $refreshed += 1;
+                    } catch (\Throwable $exception) {
+                        if ($this->isSkippableSwcNotFoundException($exception)) {
+                            $skippedNotFound += 1;
+                            continue;
+                        }
+
+                        throw $exception;
+                    }
+                }
+            });
+
+        AdminActionLogger::log(
+            request(),
+            'universe',
+            'refresh_stored_systems',
+            'Refreshed stored systems from SWC detail payloads',
+            'swc_system',
+            null,
+            null,
+            [
+                'system_count' => $total,
+                'refreshed_systems' => $refreshed,
+                'skipped_missing_identifier' => $skippedMissingIdentifier,
+                'skipped_not_found' => $skippedNotFound,
+            ]
+        );
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Stored systems refreshed.',
+            'persistence' => [
+                'system_count' => $total,
+                'refreshed_systems' => $refreshed,
+                'skipped_missing_identifier' => $skippedMissingIdentifier,
+                'skipped_not_found' => $skippedNotFound,
+            ],
+        ]);
+    }
+
+    public function startStoredSystemsRefresh(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'resume' => ['sometimes', 'boolean'],
+        ]);
+
+        $existing = SwcUniverseSyncRun::query()
+            ->where('mode', 'refresh_systems')
+            ->whereIn('status', ['queued', 'running', 'waiting_db_lock', 'cancel_requested'])
+            ->latest('id')
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'ok' => true,
+                'message' => 'A background stored-systems refresh is already running.',
+                'data' => $this->serializeSyncRun($existing),
+            ]);
+        }
+
+        $shouldResume = (bool) ($data['resume'] ?? true);
+
+        if ($shouldResume) {
+            $resumable = SwcUniverseSyncRun::query()
+                ->where('mode', 'refresh_systems')
+                ->where('status', 'failed')
+                ->latest('id')
+                ->first();
+
+            if ($resumable) {
+                $progress = $resumable->progress ?? [];
+                $processed = (int) ($progress['processed'] ?? 0);
+                $total = (int) ($progress['total'] ?? 0);
+                $hasRemainingWork = $total === 0 || $processed < $total;
+
+                if ($hasRemainingWork) {
+                    $resumable->forceFill([
+                        'status' => 'queued',
+                        'error_message' => null,
+                        'finished_at' => null,
+                        'next_retry_at' => null,
+                        'queued_at' => now(),
+                        'last_message' => sprintf(
+                            'Resuming stored-systems refresh from item %d.',
+                            max(1, $processed + 1)
+                        ),
+                    ])->save();
+
+                    Cache::forget(sprintf('swc:universe-sync-run:%d:heartbeat', $resumable->id));
+
+                    RunStoredSystemRefreshJob::dispatch($resumable->id)
+                        ->onConnection('database')
+                        ->onQueue('swc-sync');
+
+                    AdminActionLogger::log(
+                        $request,
+                        'universe',
+                        'resume_stored_systems_refresh',
+                        'Resumed background stored-systems refresh',
+                        'swc_universe_sync_run',
+                        $resumable->id,
+                        null,
+                        [
+                            'processed' => $processed,
+                            'total' => $total,
+                        ]
+                    );
+
+                    return response()->json([
+                        'ok' => true,
+                        'message' => 'Background stored-systems refresh resumed.',
+                        'data' => $this->serializeSyncRun($resumable->fresh()),
+                    ]);
+                }
+            }
+        }
+
+        $run = SwcUniverseSyncRun::query()->create([
+            'mode' => 'refresh_systems',
+            'status' => 'queued',
+            'requested_by_user_id' => $request->user()?->id,
+            'options' => [],
+            'progress' => [
+                'processed' => 0,
+                'last_system_id' => 0,
+                'total' => SwcSystem::query()->count(),
+            ],
+            'stats' => [
+                'system_count' => SwcSystem::query()->count(),
+                'refreshed_systems' => 0,
+                'skipped_missing_identifier' => 0,
+                'skipped_not_found' => 0,
+            ],
+            'last_message' => 'Stored-systems refresh queued.',
+            'queued_at' => now(),
+        ]);
+
+        RunStoredSystemRefreshJob::dispatch($run->id)
+            ->onConnection('database')
+            ->onQueue('swc-sync');
+
+        AdminActionLogger::log(
+            $request,
+            'universe',
+            'start_stored_systems_refresh',
+            'Queued background stored-systems refresh',
+            'swc_universe_sync_run',
+            $run->id,
+            null,
+            [
+                'resume' => $shouldResume,
+            ]
+        );
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Background stored-systems refresh queued.',
+            'data' => $this->serializeSyncRun($run->fresh()),
+        ]);
+    }
+
+    public function latestStoredSystemsRefresh(): JsonResponse
+    {
+        $run = SwcUniverseSyncRun::query()
+            ->where('mode', 'refresh_systems')
+            ->latest('id')
+            ->first();
+
+        return response()->json([
+            'ok' => true,
+            'data' => $run ? $this->serializeSyncRun($run) : null,
+        ]);
+    }
+
+    public function showStoredSystemsRefresh(SwcUniverseSyncRun $run): JsonResponse
+    {
+        if ($run->mode !== 'refresh_systems') {
+            abort(404);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'data' => $this->serializeSyncRun($run),
+        ]);
+    }
+
+    public function cancelStoredSystemsRefresh(SwcUniverseSyncRun $run): JsonResponse
+    {
+        if ($run->mode !== 'refresh_systems') {
+            abort(404);
+        }
+
+        if (!in_array($run->status, ['queued', 'running', 'waiting_db_lock', 'cancel_requested'], true)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'This stored-systems refresh can no longer be cancelled.',
+                'data' => $this->serializeSyncRun($run),
+            ], 422);
+        }
+
+        $run->forceFill([
+            'status' => 'cancel_requested',
+            'last_message' => 'Cancellation requested.',
+            'next_retry_at' => null,
+        ])->save();
+
+        AdminActionLogger::log(
+            request(),
+            'universe',
+            'cancel_stored_systems_refresh',
+            'Requested cancellation of background stored-systems refresh',
+            'swc_universe_sync_run',
+            $run->id,
+            [
+                'status' => $run->getOriginal('status'),
+            ],
+            [
+                'status' => 'cancel_requested',
+            ]
+        );
+
+        Cache::put(
+            sprintf('swc:universe-sync-run:%d:heartbeat', $run->id),
+            [
+                'status' => 'cancel_requested',
+                'message' => 'Cancellation requested. Waiting for the worker to stop safely.',
+                'updated_at' => now()->toIso8601String(),
+            ],
+            now()->addHours(12)
+        );
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Cancellation requested.',
+            'data' => $this->serializeSyncRun($run->fresh()),
+        ]);
+    }
+
+    /**
+     * POST /api/sys/universe/refresh-systems-stream
+     * Sysadmin-only.
+     */
+    public function refreshStoredSystemsStream(): StreamedResponse
+    {
+        $this->disableExecutionTimeout();
+
+        AdminActionLogger::log(
+            request(),
+            'universe',
+            'refresh_stored_systems_stream',
+            'Started streamed stored-system refresh',
+            'swc_system',
+            null,
+            null,
+            null
+        );
+
+        return response()->stream(function () {
+            $send = function (string $event, array $payload = []) {
+                echo json_encode([
+                    'event' => $event,
+                    'payload' => $payload,
+                ], JSON_UNESCAPED_SLASHES) . "\n";
+
+                if (function_exists('ob_flush')) {
+                    @ob_flush();
+                }
+                flush();
+            };
+
+            try {
+                $total = SwcSystem::query()->count();
+                $refreshed = 0;
+                $skippedMissingIdentifier = 0;
+                $skippedNotFound = 0;
+                $processed = 0;
+
+                $send('started', [
+                    'total' => $total,
+                ]);
+
+                SwcSystem::query()
+                    ->orderBy('id')
+                    ->chunkById(100, function ($systems) use (
+                        &$refreshed,
+                        &$skippedMissingIdentifier,
+                        &$skippedNotFound,
+                        &$processed,
+                        $total,
+                        $send
+                    ) {
+                        foreach ($systems as $system) {
+                            $processed += 1;
+                            $identifiers = $this->systemRefreshIdentifiers($system);
+
+                            if ($identifiers === []) {
+                                $skippedMissingIdentifier += 1;
+                                $send('system_skipped', [
+                                    'current' => $processed,
+                                    'total' => $total,
+                                    'uid' => $system->uid,
+                                    'name' => $system->name,
+                                    'reason' => 'missing_identifier',
+                                ]);
+                                continue;
+                            }
+
+                            $send('system_refresh_started', [
+                                'current' => $processed,
+                                'total' => $total,
+                                'uid' => $system->uid,
+                                'name' => $system->name,
+                                'identifier' => $identifiers[0] ?? null,
+                            ]);
+
+                            try {
+                                $payload = $this->refreshSystemPayload($identifiers);
+                                $this->universePersistenceService->persist($payload, true);
+                                $refreshed += 1;
+
+                                $send('system_refresh_completed', [
+                                    'current' => $processed,
+                                    'total' => $total,
+                                    'uid' => $system->uid,
+                                    'name' => $system->name,
+                                    'identifier' => $identifiers[0] ?? null,
+                                    'refreshed' => $refreshed,
+                                ]);
+                            } catch (\Throwable $exception) {
+                                if ($this->isSkippableSwcNotFoundException($exception)) {
+                                    $skippedNotFound += 1;
+                                    $send('system_skipped', [
+                                        'current' => $processed,
+                                        'total' => $total,
+                                        'uid' => $system->uid,
+                                        'name' => $system->name,
+                                        'identifier' => $identifiers[0] ?? null,
+                                        'reason' => 'not_found',
+                                    ]);
+                                    continue;
+                                }
+
+                                throw $exception;
+                            }
+                        }
+                    });
+
+                $send('completed', [
+                    'message' => 'Stored systems refreshed.',
+                    'persistence' => [
+                        'system_count' => $total,
+                        'refreshed_systems' => $refreshed,
+                        'skipped_missing_identifier' => $skippedMissingIdentifier,
+                        'skipped_not_found' => $skippedNotFound,
+                    ],
+                ]);
+            } catch (\Throwable $exception) {
+                $send('error', [
+                    'message' => $exception->getMessage(),
+                ]);
+            }
+        }, 200, [
+            'Content-Type' => 'application/x-ndjson',
+            'Cache-Control' => 'no-cache',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    /**
      * POST /api/sys/universe/pull-all-sectors-stream
      * Sysadmin-only.
      */
@@ -1282,6 +1738,20 @@ class UniversePullController extends Controller
     }
 
     /**
+     * @return list<string>
+     */
+    protected function systemRefreshIdentifiers(SwcSystem $system): array
+    {
+        $candidates = [
+            trim((string) ($system->identifier ?? '')),
+            trim((string) ($system->uid ?? '')),
+            trim((string) ($system->name ?? '')),
+        ];
+
+        return array_values(array_unique(array_filter($candidates, fn ($value) => $value !== '')));
+    }
+
+    /**
      * @param array<string, mixed> $type
      */
     protected function pullTypeDetailWithFallbacks(string $resource, array $type): array
@@ -1446,5 +1916,31 @@ class UniversePullController extends Controller
         }
 
         throw new \RuntimeException('Planet refresh did not have any valid identifiers to try.');
+    }
+
+    /**
+     * @param list<string> $identifiers
+     */
+    protected function refreshSystemPayload(array $identifiers): array
+    {
+        $lastException = null;
+
+        foreach ($identifiers as $identifier) {
+            try {
+                return $this->universePullService->pull('system', $identifier);
+            } catch (\Throwable $exception) {
+                $lastException = $exception;
+
+                if (!$this->isSkippableSwcNotFoundException($exception)) {
+                    throw $exception;
+                }
+            }
+        }
+
+        if ($lastException instanceof \Throwable) {
+            throw $lastException;
+        }
+
+        throw new \RuntimeException('System refresh did not have any valid identifiers to try.');
     }
 }

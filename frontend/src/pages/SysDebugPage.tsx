@@ -4,10 +4,12 @@ import { fetchAuthMe, getBackendOrigin, type SwcUser } from "../api/auth";
 import { getStoredSector, type StoredSectorDetail } from "../api/universe";
 import SectorGridMap from "../components/maps/SectorGridMap";
 import {
+  getDebugEventsHistory,
   getDebugFactions,
   getDebugPayments,
   getDebugRawSwc,
   getDebugSwcAuth,
+  importDebugEventsHistory,
   runUniversePull,
   testFactionPrivilege,
   testManualPayment,
@@ -26,6 +28,7 @@ type DebugPanelState = {
 
 type PanelKey =
   | "swcAuth"
+  | "eventsTest"
   | "payments"
   | "factions"
   | "rawSwc"
@@ -49,6 +52,7 @@ const emptyPanel = (): DebugPanelState => ({
 
 const initialPanels: Record<PanelKey, DebugPanelState> = {
   swcAuth: emptyPanel(),
+  eventsTest: emptyPanel(),
   payments: emptyPanel(),
   factions: emptyPanel(),
   rawSwc: emptyPanel(),
@@ -85,6 +89,12 @@ const parseQueryStringToObject = (input: string): Record<string, string> => {
 };
 
 const SysDebugPage: React.FC = () => {
+  const swcOauthParams = useMemo(
+    () => new URLSearchParams(window.location.search),
+    []
+  );
+  const swcOauthError = swcOauthParams.get("swc_oauth_error");
+  const swcOauthSuccess = swcOauthParams.get("swc_oauth_success") === "1";
   const [pageLoading, setPageLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
   const [viewer, setViewer] = useState<SwcUser | null>(null);
@@ -97,6 +107,8 @@ const SysDebugPage: React.FC = () => {
 
   const [rawSwcPath, setRawSwcPath] = useState("character/");
   const [rawSwcQuery, setRawSwcQuery] = useState("");
+  const [eventsPath, setEventsPath] = useState("events/personal/");
+  const [eventsQuery, setEventsQuery] = useState("start_index=0&item_count=1000&max_pages=50");
 
   const [privGroup, setPrivGroup] = useState("finance");
   const [privName, setPrivName] = useState("can_transfer");
@@ -241,6 +253,26 @@ const SysDebugPage: React.FC = () => {
     await runPanel(
       "rawSwc",
       () => getDebugRawSwc(rawSwcPath, queryObj, activeTargetUserId),
+      (res) => res
+    );
+  }
+
+  async function onRunEventsTest() {
+    const queryObj = parseQueryStringToObject(eventsQuery);
+
+    await runPanel(
+      "eventsTest",
+      () => getDebugEventsHistory(eventsPath, queryObj, activeTargetUserId),
+      (res) => res
+    );
+  }
+
+  async function onImportEventsTest() {
+    const queryObj = parseQueryStringToObject(eventsQuery);
+
+    await runPanel(
+      "eventsTest",
+      () => importDebugEventsHistory(eventsPath, queryObj, activeTargetUserId),
       (res) => res
     );
   }
@@ -642,8 +674,18 @@ const SysDebugPage: React.FC = () => {
               <div className="panel">
                 <h2>SWC Debug Auth</h2>
                 <p className="small">
-                  Re-authorize your SWC account with broader debug scopes for sys/debug testing.
+                  Re-authorize your SWC account with broader scopes for sys/debug and events testing.
                 </p>
+                {swcOauthSuccess ? (
+                  <p className="small" style={{ color: "var(--color-success, #8fd694)" }}>
+                    SWC OAuth completed. Refresh SWC auth below to inspect the new scopes.
+                  </p>
+                ) : null}
+                {swcOauthError ? (
+                  <p className="small" style={{ color: "var(--color-danger, #ff8f8f)" }}>
+                    OAuth error: {swcOauthError}
+                  </p>
+                ) : null}
                 <div
                   style={{
                     display: "flex",
@@ -652,6 +694,9 @@ const SysDebugPage: React.FC = () => {
                     flexWrap: "wrap",
                   }}
                 >
+                  <a className="btn" href={`${getBackendOrigin()}/oauth/events`}>
+                    Re-auth with character_events
+                  </a>
                   <a className="btn" href={`${getBackendOrigin()}/oauth/debug`}>
                     Re-auth with debug scopes
                   </a>
@@ -706,6 +751,124 @@ const SysDebugPage: React.FC = () => {
                   >
                     Refresh SWC auth
                   </button>
+                </div>
+              )}
+
+              {renderPanel(
+                "eventsTest",
+                "Events Test",
+                <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
+                  <p className="small" style={{ margin: 0 }}>
+                    Use this to page through the real SWC events feed and walk back as far as SWC will let us, while surfacing the travel arrivals that look useful for map intel.
+                  </p>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {[
+                      { label: "Personal History", path: "events/personal/", query: "start_index=0&item_count=1000&max_pages=50" },
+                      { label: "Faction History", path: "events/faction/", query: "start_index=0&item_count=1000&max_pages=50" },
+                      { label: "Inventory History", path: "events/inventory/", query: "start_index=0&item_count=1000&max_pages=50" },
+                      { label: "Combat History", path: "events/combat/", query: "start_index=0&item_count=1000&max_pages=50" },
+                    ].map((preset) => (
+                      <button
+                        key={preset.label}
+                        className="btn"
+                        type="button"
+                        onClick={() => {
+                          setEventsPath(preset.path);
+                          setEventsQuery(preset.query);
+                        }}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    className="input"
+                    value={eventsPath}
+                    onChange={(e) => setEventsPath(e.target.value)}
+                    placeholder="SWC events path, e.g. events/personal/ or events/faction/"
+                  />
+                  <textarea
+                    className="input"
+                    value={eventsQuery}
+                    onChange={(e) => setEventsQuery(e.target.value)}
+                    placeholder='Query string or JSON, e.g. start_index=0&item_count=1000&max_pages=50'
+                    rows={3}
+                  />
+                  <div>
+                    <button
+                      className="btn"
+                      type="button"
+                      onClick={onRunEventsTest}
+                      disabled={panels.eventsTest.loading}
+                    >
+                      Run events test
+                    </button>
+                    <button
+                      className="btn"
+                      type="button"
+                      style={{ marginLeft: 8 }}
+                      onClick={onImportEventsTest}
+                      disabled={panels.eventsTest.loading}
+                    >
+                      Import matched arrivals
+                    </button>
+                    <button
+                      className="btn"
+                      type="button"
+                      style={{ marginLeft: 8 }}
+                      onClick={() => {
+                        setEventsPath("events/personal/");
+                        setEventsQuery("start_index=0&item_count=1000&max_pages=50");
+                        void (async () => {
+                          await runPanel(
+                            "eventsTest",
+                            () =>
+                              getDebugEventsHistory(
+                                "events/personal/",
+                                {
+                                  start_index: "0",
+                                  item_count: "1000",
+                                  max_pages: "50",
+                                },
+                                activeTargetUserId
+                              ),
+                            (res) => res
+                          );
+                        })();
+                      }}
+                      disabled={panels.eventsTest.loading}
+                    >
+                      Walk personal history
+                    </button>
+                    <button
+                      className="btn"
+                      type="button"
+                      style={{ marginLeft: 8 }}
+                      onClick={() => {
+                        setEventsPath("events/personal/");
+                        setEventsQuery("start_index=0&item_count=1000&max_pages=50");
+                        void (async () => {
+                          await runPanel(
+                            "eventsTest",
+                            () =>
+                              importDebugEventsHistory(
+                                "events/personal/",
+                                {
+                                  start_index: "0",
+                                  item_count: "1000",
+                                  max_pages: "50",
+                                },
+                                activeTargetUserId
+                              ),
+                            (res) => res
+                          );
+                        })();
+                      }}
+                      disabled={panels.eventsTest.loading}
+                    >
+                      Import personal history
+                    </button>
+                  </div>
                 </div>
               )}
 

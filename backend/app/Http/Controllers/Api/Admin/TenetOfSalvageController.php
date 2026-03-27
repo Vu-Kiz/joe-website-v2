@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\TenetOfSalvage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class AdminTenetOfSalvageController extends Controller
+class TenetOfSalvageController extends Controller
 {
     public function index(): JsonResponse
     {

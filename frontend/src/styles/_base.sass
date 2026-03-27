@@ -6,6 +6,10 @@
 html, body
   height: 100%
 
+html
+  scrollbar-width: thin
+  scrollbar-color: rgba(246,163,0,0.88) rgba(10,12,14,0.92)
+
 body
   font-family: 'Tektur', sans-serif
   background: #1e1e1e
@@ -17,6 +21,25 @@ body
   // v1 feel: breathing space, but NOT forced-centering like Vite CSS
   margin: 0
   padding: 30px
+
+*::-webkit-scrollbar
+  width: 12px
+  height: 12px
+
+*::-webkit-scrollbar-track
+  background: rgba(10,12,14,0.92)
+  border-radius: 999px
+
+*::-webkit-scrollbar-thumb
+  background: linear-gradient(180deg, rgba(246,163,0,0.95), rgba(245,213,70,0.8))
+  border: 2px solid rgba(10,12,14,0.92)
+  border-radius: 999px
+
+*::-webkit-scrollbar-thumb:hover
+  background: linear-gradient(180deg, rgba(255,186,48,0.98), rgba(245,213,70,0.92))
+
+*::-webkit-scrollbar-corner
+  background: rgba(10,12,14,0.92)
 
 a
   color: inherit

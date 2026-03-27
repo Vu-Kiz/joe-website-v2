@@ -21,4 +21,5 @@ frontend/.env.*   # env.local, env.production, etc.
 db/data/
 db/
 
+
 V1.zip

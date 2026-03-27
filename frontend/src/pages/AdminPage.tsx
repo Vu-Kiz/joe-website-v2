@@ -12,6 +12,7 @@ import AdminSystemPanel from "../components/admin/AdminSystemPanel";
 import AdminUsersPanel from "../components/admin/AdminUsersPanel";
 import AdminWeatherPanel from "../components/admin/AdminWeatherPanel";
 import AdminActionLogPanel from "../components/admin/AdminActionLogPanel";
+import AdminMemberAccessLogPanel from "../components/admin/AdminMemberAccessLogPanel";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import AdminSiteLockPanel from "../components/admin/AdminSiteLockPanel";
@@ -61,7 +62,7 @@ const AdminPage: React.FC = () => {
   const canSeeLogs = useMemo(() => canAccessSysadmin(user), [user]);
 
   useEffect(() => {
-    if (!showSystemTools && (activeView === "system" || activeView === "logs" || activeView === "entityStats")) {
+    if (!showSystemTools && (activeView === "system" || activeView === "logs" || activeView === "entityStats" || activeView === "memberAccessLogs")) {
       setActiveView("home");
     }
   }, [showSystemTools, canSeeLogs, activeView]);
@@ -142,6 +143,7 @@ const AdminPage: React.FC = () => {
           {activeView === "eotm" && <AdminEotmPanel />}
           {activeView === "users" && <AdminUsersPanel />}
           {activeView === "logs" && canSeeLogs && <AdminActionLogPanel />}
+          {activeView === "memberAccessLogs" && canSeeLogs && <AdminMemberAccessLogPanel />}
           {activeView === "weather" && <AdminWeatherPanel />}
           {activeView === "system" && showSystemTools && <AdminSystemPanel />}
           {activeView === "entityStats" && showSystemTools && <AdminEntityStatsPanel />}

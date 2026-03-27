@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { ensureCsrfCookie, getApiBaseUrl, getXsrfToken } from "../../api/auth";
 import { getStoredSystem, type StoredSystemDetail } from "../../api/universe";
+import AdminSystemPullsSection from "./system/AdminSystemPullsSection";
+import AdminSystemCatalogsSection from "./system/AdminSystemCatalogsSection";
+import AdminSystemRefreshSection from "./system/AdminSystemRefreshSection";
+
+type AdminSystemSection = "pulls" | "catalogs" | "refresh";
 
 type BackgroundSyncRun = {
   id: number;
@@ -28,6 +32,7 @@ type BackgroundSyncRun = {
 };
 
 const AdminSystemPanel: React.FC = () => {
+  const [activeSection, setActiveSection] = useState<AdminSystemSection>("pulls");
   const [sectorIdentifier, setSectorIdentifier] = useState("Arkanis");
   const [systemIdentifier, setSystemIdentifier] = useState("geonosis");
   const [persist, setPersist] = useState(true);
@@ -60,6 +65,11 @@ const AdminSystemPanel: React.FC = () => {
   const [itemTypeError, setItemTypeError] = useState<string | null>(null);
   const [itemTypePersistence, setItemTypePersistence] = useState<any | null>(null);
   const [itemTypeProgressLines, setItemTypeProgressLines] = useState<string[]>([]);
+  const [planetTypeLoading, setPlanetTypeLoading] = useState(false);
+  const [planetTypeMessage, setPlanetTypeMessage] = useState<string | null>(null);
+  const [planetTypeError, setPlanetTypeError] = useState<string | null>(null);
+  const [planetTypePersistence, setPlanetTypePersistence] = useState<any | null>(null);
+  const [planetTypeProgressLines, setPlanetTypeProgressLines] = useState<string[]>([]);
   const [shipTypeLoading, setShipTypeLoading] = useState(false);
   const [shipTypeMessage, setShipTypeMessage] = useState<string | null>(null);
   const [shipTypeError, setShipTypeError] = useState<string | null>(null);
@@ -80,6 +90,12 @@ const AdminSystemPanel: React.FC = () => {
   const [planetRefreshError, setPlanetRefreshError] = useState<string | null>(null);
   const [planetRefreshPersistence, setPlanetRefreshPersistence] = useState<any | null>(null);
   const [planetRefreshProgressLines, setPlanetRefreshProgressLines] = useState<string[]>([]);
+  const [systemRefreshMessage, setSystemRefreshMessage] = useState<string | null>(null);
+  const [systemRefreshError, setSystemRefreshError] = useState<string | null>(null);
+  const [systemRefreshPersistence, setSystemRefreshPersistence] = useState<any | null>(null);
+  const [systemRefreshRunLoading, setSystemRefreshRunLoading] = useState(false);
+  const [systemRefreshRunCancelLoading, setSystemRefreshRunCancelLoading] = useState(false);
+  const [systemRefreshRun, setSystemRefreshRun] = useState<BackgroundSyncRun | null>(null);
   const [backgroundSyncLoading, setBackgroundSyncLoading] = useState(false);
   const [backgroundSyncCancelLoading, setBackgroundSyncCancelLoading] = useState(false);
   const [backgroundSyncError, setBackgroundSyncError] = useState<string | null>(null);
@@ -94,6 +110,14 @@ const AdminSystemPanel: React.FC = () => {
   const [storedSystemDetail, setStoredSystemDetail] = useState<StoredSystemDetail | null>(null);
   const [storedSystemLoading, setStoredSystemLoading] = useState(false);
   const [storedSystemError, setStoredSystemError] = useState<string | null>(null);
+  const systemRefreshHeartbeat = systemRefreshRun?.heartbeat ?? null;
+  const systemRefreshLiveStats = systemRefreshHeartbeat?.stats ?? systemRefreshRun?.stats ?? {};
+  const systemRefreshCurrentSystem = systemRefreshRun?.progress?.current_system ?? null;
+  const systemRefreshLastDetail = systemRefreshRun?.progress?.last_detail ?? null;
+  const systemRefreshHeartbeatUpdatedAt = systemRefreshHeartbeat?.updated_at ?? null;
+  const systemRefreshHeartbeatAgeSeconds = systemRefreshHeartbeatUpdatedAt
+    ? Math.max(0, Math.floor((Date.now() - new Date(systemRefreshHeartbeatUpdatedAt).getTime()) / 1000))
+    : null;
 
   const sectorName =
     result?.sector?.name ?? result?.sector?.uid ?? sectorIdentifier.trim() ?? "Unknown";
@@ -121,6 +145,10 @@ const AdminSystemPanel: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    void loadLatestSystemRefreshRun();
+  }, []);
+
+  useEffect(() => {
     if (!backgroundSyncRun || !["queued", "running", "waiting_rate_limit"].includes(backgroundSyncRun.status)) {
       return;
     }
@@ -131,6 +159,18 @@ const AdminSystemPanel: React.FC = () => {
 
     return () => window.clearInterval(interval);
   }, [backgroundSyncRun?.id, backgroundSyncRun?.status]);
+
+  useEffect(() => {
+    if (!systemRefreshRun || !["queued", "running", "waiting_db_lock", "cancel_requested"].includes(systemRefreshRun.status)) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      void loadLatestSystemRefreshRun(systemRefreshRun.id);
+    }, 5000);
+
+    return () => window.clearInterval(interval);
+  }, [systemRefreshRun?.id, systemRefreshRun?.status]);
 
   async function loadLatestBackgroundSync(runId?: number) {
     try {
@@ -154,6 +194,33 @@ const AdminSystemPanel: React.FC = () => {
       setBackgroundSyncRun(payload.data ?? null);
     } catch (e: any) {
       setBackgroundSyncError(e?.message ?? "Failed to load background sync status.");
+    }
+  }
+
+  async function loadLatestSystemRefreshRun(runId?: number) {
+    try {
+      const response = await fetch(
+        runId
+          ? `${getApiBaseUrl()}/sys/universe/system-refresh-runs/${runId}`
+          : `${getApiBaseUrl()}/sys/universe/system-refresh-runs/latest`,
+        {
+          credentials: "include",
+          headers: {
+            Accept: "application/json",
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to load stored-systems refresh status.");
+      }
+
+      const payload = await response.json();
+      const run = payload.data ?? null;
+      setSystemRefreshRun(run);
+      setSystemRefreshPersistence(run?.stats ?? null);
+    } catch (e: any) {
+      setSystemRefreshError(e?.message ?? "Failed to load stored-systems refresh status.");
     }
   }
 
@@ -185,7 +252,7 @@ const AdminSystemPanel: React.FC = () => {
       }
 
       const payload = await response.json();
-      setBackgroundSyncMessage(payload.message ?? "Background universe sync queued.");
+      setBackgroundSyncMessage(payload.message ?? "Background galaxy sync queued.");
       setBackgroundSyncRun(payload.data ?? null);
     } catch (e: any) {
       setBackgroundSyncError(e?.message ?? "Failed to queue background sync.");
@@ -407,6 +474,76 @@ const AdminSystemPanel: React.FC = () => {
     }
   }
 
+  async function onRefreshStoredSystems() {
+    try {
+      setSystemRefreshRunLoading(true);
+      setSystemRefreshError(null);
+      setSystemRefreshMessage(null);
+      await ensureCsrfCookie();
+      const xsrf = getXsrfToken();
+
+      const response = await fetch(`${getApiBaseUrl()}/sys/universe/system-refresh-runs`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+          ...(xsrf ? { "X-XSRF-TOKEN": xsrf } : {}),
+        },
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.message ?? "Failed to queue stored-systems refresh.");
+      }
+
+      setSystemRefreshMessage(payload.message ?? "Background stored-systems refresh queued.");
+      setSystemRefreshRun(payload.data ?? null);
+      setSystemRefreshPersistence(payload.data?.stats ?? null);
+    } catch (e: any) {
+      setSystemRefreshError(e?.message ?? "Failed to queue stored-systems refresh.");
+    } finally {
+      setSystemRefreshRunLoading(false);
+    }
+  }
+
+  async function onCancelSystemRefresh() {
+    if (!systemRefreshRun) {
+      return;
+    }
+
+    try {
+      setSystemRefreshRunCancelLoading(true);
+      setSystemRefreshError(null);
+      setSystemRefreshMessage(null);
+
+      await ensureCsrfCookie();
+      const xsrf = getXsrfToken();
+
+      const response = await fetch(`${getApiBaseUrl()}/sys/universe/system-refresh-runs/${systemRefreshRun.id}/cancel`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+          ...(xsrf ? { "X-XSRF-TOKEN": xsrf } : {}),
+        },
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.message ?? "Failed to cancel stored-systems refresh.");
+      }
+
+      setSystemRefreshMessage(payload.message ?? "Cancellation requested.");
+      setSystemRefreshRun(payload.data ?? null);
+    } catch (e: any) {
+      setSystemRefreshError(e?.message ?? "Failed to cancel stored-systems refresh.");
+    } finally {
+      setSystemRefreshRunCancelLoading(false);
+    }
+  }
+
   async function onPullAllTerrainTypes() {
     try {
       setTerrainTypeLoading(true);
@@ -521,6 +658,45 @@ const AdminSystemPanel: React.FC = () => {
       setItemTypeError(e?.message ?? "Item type pull failed.");
     } finally {
       setItemTypeLoading(false);
+    }
+  }
+
+  async function onPullAllPlanetTypes() {
+    try {
+      setPlanetTypeLoading(true);
+      setPlanetTypeError(null);
+      setPlanetTypeMessage(null);
+      setPlanetTypePersistence(null);
+      setPlanetTypeProgressLines(["Starting planet type catalog pull..."]);
+
+      await ensureCsrfCookie();
+      const xsrf = getXsrfToken();
+
+      const response = await fetch(`${getApiBaseUrl()}/sys/universe/pull-all-planet-types-stream`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Accept: "application/x-ndjson, application/json",
+          ...(xsrf ? { "X-XSRF-TOKEN": xsrf } : {}),
+        },
+      });
+
+      if (!response.ok || !response.body) {
+        const text = await response.text();
+        throw new Error(text || "Planet type pull failed.");
+      }
+
+      await consumeTypeStream(
+        response,
+        setPlanetTypeProgressLines,
+        setPlanetTypeMessage,
+        setPlanetTypePersistence,
+        "Planet type pull failed."
+      );
+    } catch (e: any) {
+      setPlanetTypeError(e?.message ?? "Planet type pull failed.");
+    } finally {
+      setPlanetTypeLoading(false);
     }
   }
 
@@ -966,817 +1142,168 @@ const AdminSystemPanel: React.FC = () => {
       <div className="admin-panel__header">
         <h2 style={{ margin: 0 }}>System</h2>
         <p className="small" style={{ margin: 0 }}>
-          Sysadmin-only universe sync tools.
+          Sysadmin-only galaxy sync tools.
         </p>
       </div>
 
       <div className="admin-panel__body">
-        <section className="admin-card">
-          <div className="admin-card__header">
-            <h3 className="admin-card__title">Sector Pull</h3>
-            <p className="admin-card__desc">
-              Pull sector data from SWC and optionally save it into the local database.
-              This panel is for syncing data, not for displaying the map.
-            </p>
-          </div>
+        <div className="admin-entity-stats__subnav">
+          <button
+            type="button"
+            className={`btn admin-entity-stats__subnav-btn${activeSection === "pulls" ? " is-active" : ""}`}
+            onClick={() => setActiveSection("pulls")}
+          >
+            Pulls
+          </button>
+          <button
+            type="button"
+            className={`btn admin-entity-stats__subnav-btn${activeSection === "catalogs" ? " is-active" : ""}`}
+            onClick={() => setActiveSection("catalogs")}
+          >
+            Catalogs
+          </button>
+          <button
+            type="button"
+            className={`btn admin-entity-stats__subnav-btn${activeSection === "refresh" ? " is-active" : ""}`}
+            onClick={() => setActiveSection("refresh")}
+          >
+            Refresh
+          </button>
+        </div>
 
-          <div className="admin-card__actions">
-            <Link to="/sys/debug/universe" className="btn">
-              Open Universe Explorer
-            </Link>
-          </div>
-
-          <div className="admin-grid">
-            <div className="admin-card">
-              <label className="small" htmlFor="admin-sector-identifier">
-                Sector
-              </label>
-              <input
-                id="admin-sector-identifier"
-                className="input"
-                value={sectorIdentifier}
-                onChange={(event) => setSectorIdentifier(event.target.value)}
-                placeholder="Sector UID or name, e.g. Arkanis"
-              />
-            </div>
-
-            <div className="admin-card">
-              <label className="small">
-                <input
-                  type="checkbox"
-                  checked={persist}
-                  onChange={(event) => {
-                    const checked = event.target.checked;
-                    setPersist(checked);
-                    if (!checked) {
-                      setDeep(false);
-                    }
-                  }}
-                />{" "}
-                Save pulled data to DB
-              </label>
-
-              <label className="small">
-                <input
-                  type="checkbox"
-                  checked={deep}
-                  disabled={!persist}
-                  onChange={(event) => setDeep(event.target.checked)}
-                />{" "}
-                Also pull linked systems
-              </label>
-            </div>
-          </div>
-
-          <div className="admin-card__actions">
-            <button className="btn" type="button" onClick={onPullSector} disabled={loading}>
-              {loading ? "Running..." : "Pull Sector"}
-            </button>
-          </div>
-        </section>
-
-        <section className="admin-card">
-          <div className="admin-card__header">
-            <h3 className="admin-card__title">Background Pull All Info</h3>
-            <p className="admin-card__desc">
-              Queue a full universe sync that runs in the background. It will pull the sector index,
-              hydrate each sector, deep-sync linked systems, and continue automatically after the
-              sector-detail rate limit resets.
-            </p>
-          </div>
-
-          <div className="admin-card__actions">
-            <button className="btn" type="button" onClick={onStartBackgroundSync} disabled={backgroundSyncLoading}>
-              {backgroundSyncLoading ? "Queueing..." : "Queue Background Sync"}
-            </button>
-            <button className="btn" type="button" onClick={() => void loadLatestBackgroundSync(backgroundSyncRun?.id)}>
-              Refresh Status
-            </button>
-            <button
-              className="btn"
-              type="button"
-              onClick={onCancelBackgroundSync}
-              disabled={
-                backgroundSyncCancelLoading ||
-                !backgroundSyncRun ||
-                !["queued", "running", "waiting_rate_limit", "cancel_requested"].includes(backgroundSyncRun.status)
-              }
-            >
-              {backgroundSyncCancelLoading ? "Stopping..." : "Stop Sync"}
-            </button>
-          </div>
-
-          {backgroundSyncMessage ? <p className="small">{backgroundSyncMessage}</p> : null}
-          {backgroundSyncError ? <p className="small" style={{ color: "salmon" }}>{backgroundSyncError}</p> : null}
-
-          {backgroundSyncRun ? (
-            <div className="admin-grid">
-              <div className="admin-card">
-                <h3 className="admin-card__title">Run ID</h3>
-                <p className="small">{backgroundSyncRun.id}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Status</h3>
-                <p className="small">{backgroundSyncRun.status}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Sector Progress</h3>
-                <p className="small">
-                  {(backgroundSyncRun.progress?.sector_cursor ?? 0)} / {(backgroundSyncRun.progress?.sector_total ?? 0)}
-                </p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Sector Details</h3>
-                <p className="small">{backgroundLiveStats?.sector_details_synced ?? 0}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Deep Systems</h3>
-                <p className="small">{backgroundLiveStats?.systems_deep_synced ?? 0}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Planets Synced</h3>
-                <p className="small">
-                  {backgroundLiveStats?.planets_deep_synced ?? backgroundLiveStats?.planets_upserted ?? 0}
-                </p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Stations Synced</h3>
-                <p className="small">
-                  {backgroundLiveStats?.stations_deep_synced ?? backgroundLiveStats?.stations_upserted ?? 0}
-                </p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Hyperlanes</h3>
-                <p className="small">{backgroundLiveStats?.hyperlanes_upserted ?? 0}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Destination Systems</h3>
-                <p className="small">{backgroundLiveStats?.destination_systems_synced ?? 0}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Next Retry</h3>
-                <p className="small">{backgroundSyncRun.next_retry_at ?? "N/A"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Updated</h3>
-                <p className="small">{backgroundSyncRun.updated_at ?? "N/A"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Heartbeat</h3>
-                <p className="small">
-                  {heartbeatAgeSeconds === null ? "N/A" : `${heartbeatAgeSeconds}s ago`}
-                </p>
-              </div>
-            </div>
-          ) : null}
-
-          {backgroundSyncRun?.last_message ? (
-            <p className="small" style={{ marginTop: "0.75rem" }}>
-              {backgroundSyncRun.last_message}
-            </p>
-          ) : null}
-
-          {backgroundCurrentSector ? (
-            <div className="admin-grid" style={{ marginTop: "0.75rem" }}>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Current Sector</h3>
-                <p className="small">
-                  {backgroundCurrentSector.name ?? backgroundCurrentSector.uid ?? backgroundCurrentSector.identifier ?? "Unknown"}
-                </p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Current Position</h3>
-                <p className="small">
-                  {backgroundCurrentSector.index ?? 0} / {backgroundCurrentSector.total ?? 0}
-                </p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Current Identifier</h3>
-                <p className="small">{backgroundCurrentSector.identifier ?? "Unknown"}</p>
-              </div>
-            </div>
-          ) : null}
-
-          {backgroundLastDetail ? (
-            <div className="admin-grid" style={{ marginTop: "0.75rem" }}>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Last Detail Event</h3>
-                <p className="small">{backgroundLastDetail.event ?? "Unknown"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Last Detail Message</h3>
-                <p className="small">{backgroundLastDetail.message ?? "Unknown"}</p>
-              </div>
-            </div>
-          ) : null}
-
-          {backgroundHeartbeat ? (
-            <div className="admin-grid" style={{ marginTop: "0.75rem" }}>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Live Activity</h3>
-                <p className="small">{backgroundHeartbeat.message ?? "Unknown"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Live Status</h3>
-                <p className="small">{backgroundHeartbeat.status ?? "Unknown"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Live Update Time</h3>
-                <p className="small">{backgroundHeartbeat.updated_at ?? "N/A"}</p>
-              </div>
-            </div>
-          ) : null}
-
-          {backgroundSyncRun?.error_message ? (
-            <p className="small" style={{ color: "salmon" }}>
-              {backgroundSyncRun.error_message}
-            </p>
-          ) : null}
-        </section>
-
-        <section className="admin-card">
-          <div className="admin-card__header">
-            <h3 className="admin-card__title">Pull All Sectors</h3>
-            <p className="admin-card__desc">
-              Page through the public SWC sector index and seed all sector records into
-              the local database, then hydrate each sector with its detail payload.
-            </p>
-          </div>
-
-          <div className="admin-card__actions">
-            <button className="btn" type="button" onClick={onPullAllSectors} disabled={bulkLoading}>
-              {bulkLoading ? "Running..." : "Pull All Sectors"}
-            </button>
-          </div>
-
-          {bulkMessage ? <p className="small">{bulkMessage}</p> : null}
-          {bulkError ? <p className="small" style={{ color: "salmon" }}>{bulkError}</p> : null}
-
-          {bulkProgressLines.length > 0 ? (
-            <div className="sysuniverse-stack">
-              {bulkProgressLines.slice(-12).map((line, index) => (
-                <p key={`${index}-${line}`} className="small" style={{ margin: 0 }}>
-                  {line}
-                </p>
-              ))}
-            </div>
-          ) : null}
-
-          {bulkPersistence ? (
-            <div className="admin-grid">
-              <div className="admin-card">
-                <h3 className="admin-card__title">Sector Records</h3>
-                <p className="small">{bulkPersistence.sector_count ?? bulkPersistence.total ?? 0}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Pages Pulled</h3>
-                <p className="small">{bulkPersistence.pages ?? "Unknown"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Total Listed</h3>
-                <p className="small">{bulkPersistence.total ?? "Unknown"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Details Hydrated</h3>
-                <p className="small">{bulkPersistence.hydrated_sector_details ?? 0}</p>
-              </div>
-            </div>
-          ) : null}
-        </section>
-
-        <section className="admin-card">
-          <div className="admin-card__header">
-            <h3 className="admin-card__title">Pull All Station Types</h3>
-            <p className="admin-card__desc">
-              Pull the non-rate-limited SWC station type catalog, then hydrate each station type
-              with its full detail payload so we can inspect richer metadata separately from live station instances.
-            </p>
-          </div>
-
-          <div className="admin-card__actions">
-            <button className="btn" type="button" onClick={onPullAllStationTypes} disabled={stationTypeLoading}>
-              {stationTypeLoading ? "Running..." : "Pull All Station Types"}
-            </button>
-          </div>
-
-          {stationTypeMessage ? <p className="small">{stationTypeMessage}</p> : null}
-          {stationTypeError ? <p className="small" style={{ color: "salmon" }}>{stationTypeError}</p> : null}
-          {stationTypeProgressLines.length > 0 ? (
-            <div className="sysuniverse-stack">
-              {stationTypeProgressLines.slice(-8).map((line, index) => (
-                <p key={`station-type-progress-${index}`} className="small">
-                  {line}
-                </p>
-              ))}
-            </div>
-          ) : null}
-
-          {stationTypePersistence ? (
-            <div className="admin-grid">
-              <div className="admin-card">
-                <h3 className="admin-card__title">Type Records</h3>
-                <p className="small">{stationTypePersistence.station_type_count ?? stationTypePersistence.total ?? 0}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Pages Pulled</h3>
-                <p className="small">{stationTypePersistence.pages ?? "Unknown"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Total Listed</h3>
-                <p className="small">{stationTypePersistence.total ?? "Unknown"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Details Hydrated</h3>
-                <p className="small">{stationTypePersistence.hydrated_station_types ?? 0}</p>
-              </div>
-            </div>
-          ) : null}
-        </section>
-
-        <section className="admin-card">
-          <div className="admin-card__header">
-            <h3 className="admin-card__title">Pull All Ship Types</h3>
-            <p className="admin-card__desc">
-              Pull the SWC ship type catalog and hydrate each ship type so we have stored ship references alongside other universe entity catalogs.
-            </p>
-          </div>
-
-          <div className="admin-card__actions">
-            <button className="btn" type="button" onClick={onPullAllShipTypes} disabled={shipTypeLoading}>
-              {shipTypeLoading ? "Running..." : "Pull All Ship Types"}
-            </button>
-          </div>
-
-          {shipTypeMessage ? <p className="small">{shipTypeMessage}</p> : null}
-          {shipTypeError ? <p className="small" style={{ color: "salmon" }}>{shipTypeError}</p> : null}
-          {shipTypeProgressLines.length > 0 ? (
-            <div className="sysuniverse-stack">
-              {shipTypeProgressLines.slice(-8).map((line, index) => (
-                <p key={`ship-type-progress-${index}`} className="small">
-                  {line}
-                </p>
-              ))}
-            </div>
-          ) : null}
-
-          {shipTypePersistence ? (
-            <div className="admin-grid">
-              <div className="admin-card">
-                <h3 className="admin-card__title">Type Records</h3>
-                <p className="small">{shipTypePersistence.ship_type_count ?? shipTypePersistence.total ?? 0}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Pages Pulled</h3>
-                <p className="small">{shipTypePersistence.pages ?? "Unknown"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Total Listed</h3>
-                <p className="small">{shipTypePersistence.total ?? "Unknown"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Details Hydrated</h3>
-                <p className="small">{shipTypePersistence.hydrated_ship_types ?? 0}</p>
-              </div>
-            </div>
-          ) : null}
-        </section>
-
-        <section className="admin-card">
-          <div className="admin-card__header">
-            <h3 className="admin-card__title">Pull All Facility Types</h3>
-            <p className="admin-card__desc">
-              Pull the SWC facility type catalog and hydrate each facility type so we have stored facility references alongside the other universe entity catalogs.
-            </p>
-          </div>
-
-          <div className="admin-card__actions">
-            <button className="btn" type="button" onClick={onPullAllFacilityTypes} disabled={facilityTypeLoading}>
-              {facilityTypeLoading ? "Running..." : "Pull All Facility Types"}
-            </button>
-          </div>
-
-          {facilityTypeMessage ? <p className="small">{facilityTypeMessage}</p> : null}
-          {facilityTypeError ? <p className="small" style={{ color: "salmon" }}>{facilityTypeError}</p> : null}
-          {facilityTypeProgressLines.length > 0 ? (
-            <div className="sysuniverse-stack">
-              {facilityTypeProgressLines.slice(-8).map((line, index) => (
-                <p key={`facility-type-progress-${index}`} className="small">
-                  {line}
-                </p>
-              ))}
-            </div>
-          ) : null}
-
-          {facilityTypePersistence ? (
-            <div className="admin-grid">
-              <div className="admin-card">
-                <h3 className="admin-card__title">Type Records</h3>
-                <p className="small">{facilityTypePersistence.facility_type_count ?? facilityTypePersistence.total ?? 0}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Pages Pulled</h3>
-                <p className="small">{facilityTypePersistence.pages ?? "Unknown"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Total Listed</h3>
-                <p className="small">{facilityTypePersistence.total ?? "Unknown"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Details Hydrated</h3>
-                <p className="small">{facilityTypePersistence.hydrated_facility_types ?? 0}</p>
-              </div>
-            </div>
-          ) : null}
-        </section>
-
-        <section className="admin-card">
-          <div className="admin-card__header">
-            <h3 className="admin-card__title">Pull All Item Types</h3>
-            <p className="admin-card__desc">
-              Pull the SWC item type catalog and hydrate each item type so we have stored item references alongside the other universe entity catalogs.
-            </p>
-          </div>
-
-          <div className="admin-card__actions">
-            <button className="btn" type="button" onClick={onPullAllItemTypes} disabled={itemTypeLoading}>
-              {itemTypeLoading ? "Running..." : "Pull All Item Types"}
-            </button>
-          </div>
-
-          {itemTypeMessage ? <p className="small">{itemTypeMessage}</p> : null}
-          {itemTypeError ? <p className="small" style={{ color: "salmon" }}>{itemTypeError}</p> : null}
-          {itemTypeProgressLines.length > 0 ? (
-            <div className="sysuniverse-stack">
-              {itemTypeProgressLines.slice(-8).map((line, index) => (
-                <p key={`item-type-progress-${index}`} className="small">
-                  {line}
-                </p>
-              ))}
-            </div>
-          ) : null}
-
-          {itemTypePersistence ? (
-            <div className="admin-grid">
-              <div className="admin-card">
-                <h3 className="admin-card__title">Type Records</h3>
-                <p className="small">{itemTypePersistence.item_type_count ?? itemTypePersistence.total ?? 0}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Pages Pulled</h3>
-                <p className="small">{itemTypePersistence.pages ?? "Unknown"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Total Listed</h3>
-                <p className="small">{itemTypePersistence.total ?? "Unknown"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Details Hydrated</h3>
-                <p className="small">{itemTypePersistence.hydrated_item_types ?? 0}</p>
-              </div>
-            </div>
-          ) : null}
-        </section>
-
-        <section className="admin-card">
-          <div className="admin-card__header">
-            <h3 className="admin-card__title">Pull All Terrain Types</h3>
-            <p className="admin-card__desc">
-              Pull the SWC terrain type catalog and hydrate each terrain type so the planet terrain data
-              has a real reference layer instead of only raw grid points and terrain map strings.
-            </p>
-          </div>
-
-          <div className="admin-card__actions">
-            <button className="btn" type="button" onClick={onPullAllTerrainTypes} disabled={terrainTypeLoading}>
-              {terrainTypeLoading ? "Running..." : "Pull All Terrain Types"}
-            </button>
-          </div>
-
-          {terrainTypeMessage ? <p className="small">{terrainTypeMessage}</p> : null}
-          {terrainTypeError ? <p className="small" style={{ color: "salmon" }}>{terrainTypeError}</p> : null}
-          {terrainTypeProgressLines.length > 0 ? (
-            <div className="sysuniverse-stack">
-              {terrainTypeProgressLines.slice(-8).map((line, index) => (
-                <p key={`terrain-type-progress-${index}`} className="small">
-                  {line}
-                </p>
-              ))}
-            </div>
-          ) : null}
-
-          {terrainTypePersistence ? (
-            <div className="admin-grid">
-              <div className="admin-card">
-                <h3 className="admin-card__title">Type Records</h3>
-                <p className="small">{terrainTypePersistence.terrain_type_count ?? terrainTypePersistence.total ?? 0}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Pages Pulled</h3>
-                <p className="small">{terrainTypePersistence.pages ?? "Unknown"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Total Listed</h3>
-                <p className="small">{terrainTypePersistence.total ?? "Unknown"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Details Hydrated</h3>
-                <p className="small">{terrainTypePersistence.hydrated_terrain_types ?? 0}</p>
-              </div>
-            </div>
-          ) : null}
-        </section>
-
-        <section className="admin-card">
-          <div className="admin-card__header">
-            <h3 className="admin-card__title">Pull All Material Types</h3>
-            <p className="admin-card__desc">
-              Pull the SWC material catalog and hydrate each material type so terrain references can
-              resolve into stored material metadata instead of only raw names and UIDs.
-            </p>
-          </div>
-
-          <div className="admin-card__actions">
-            <button className="btn" type="button" onClick={onPullAllMaterialTypes} disabled={materialTypeLoading}>
-              {materialTypeLoading ? "Running..." : "Pull All Material Types"}
-            </button>
-          </div>
-
-          {materialTypeMessage ? <p className="small">{materialTypeMessage}</p> : null}
-          {materialTypeError ? <p className="small" style={{ color: "salmon" }}>{materialTypeError}</p> : null}
-          {materialTypeProgressLines.length > 0 ? (
-            <div className="sysuniverse-stack">
-              {materialTypeProgressLines.slice(-8).map((line, index) => (
-                <p key={`material-type-progress-${index}`} className="small">
-                  {line}
-                </p>
-              ))}
-            </div>
-          ) : null}
-
-          {materialTypePersistence ? (
-            <div className="admin-grid">
-              <div className="admin-card">
-                <h3 className="admin-card__title">Type Records</h3>
-                <p className="small">{materialTypePersistence.material_type_count ?? materialTypePersistence.total ?? 0}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Pages Pulled</h3>
-                <p className="small">{materialTypePersistence.pages ?? "Unknown"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Total Listed</h3>
-                <p className="small">{materialTypePersistence.total ?? "Unknown"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Details Hydrated</h3>
-                <p className="small">{materialTypePersistence.hydrated_material_types ?? 0}</p>
-              </div>
-            </div>
-          ) : null}
-        </section>
-
-        <section className="admin-card">
-          <div className="admin-card__header">
-            <h3 className="admin-card__title">Refresh Stored Planets</h3>
-            <p className="admin-card__desc">
-              Re-pull planet detail only for planets already stored in the database. Use this to backfill
-              new planet fields like population without running a full sector or universe sync.
-            </p>
-          </div>
-
-          <div className="admin-card__actions">
-            <button className="btn" type="button" onClick={onRefreshStoredPlanets} disabled={planetRefreshLoading}>
-              {planetRefreshLoading ? "Running..." : "Refresh Stored Planets"}
-            </button>
-          </div>
-
-          {planetRefreshMessage ? <p className="small">{planetRefreshMessage}</p> : null}
-          {planetRefreshError ? <p className="small" style={{ color: "salmon" }}>{planetRefreshError}</p> : null}
-
-          {planetRefreshProgressLines.length > 0 ? (
-            <div className="sysuniverse-stack">
-              {planetRefreshProgressLines.slice(-16).map((line, index) => (
-                <p key={`${index}-${line}`} className="small" style={{ margin: 0 }}>
-                  {line}
-                </p>
-              ))}
-            </div>
-          ) : null}
-
-          {planetRefreshPersistence ? (
-            <div className="admin-grid">
-              <div className="admin-card">
-                <h3 className="admin-card__title">Planet Records</h3>
-                <p className="small">{planetRefreshPersistence.planet_count ?? 0}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Refreshed</h3>
-                <p className="small">{planetRefreshPersistence.refreshed_planets ?? 0}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Missing Identifier</h3>
-                <p className="small">{planetRefreshPersistence.skipped_missing_identifier ?? 0}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Skipped 404</h3>
-                <p className="small">{planetRefreshPersistence.skipped_not_found ?? 0}</p>
-              </div>
-            </div>
-          ) : null}
-        </section>
-
-        <section className="admin-card">
-          <div className="admin-card__header">
-            <h3 className="admin-card__title">System Pull</h3>
-            <p className="admin-card__desc">
-              Pull a single system from SWC and persist the stored system layer. Current local system data includes
-              identity, sector link, galaxy/system coordinates, planets, stations, and hyperlanes.
-            </p>
-          </div>
-
-          <div className="admin-grid">
-            <div className="admin-card">
-              <label className="small" htmlFor="admin-system-identifier">
-                System
-              </label>
-              <input
-                id="admin-system-identifier"
-                className="input"
-                value={systemIdentifier}
-                onChange={(event) => setSystemIdentifier(event.target.value)}
-                placeholder="System UID, identifier, or name, e.g. geonosis"
-              />
-            </div>
-
-            <div className="admin-card">
-              <label className="small">
-                <input
-                  type="checkbox"
-                  checked={systemPersist}
-                  onChange={(event) => {
-                    const checked = event.target.checked;
-                    setSystemPersist(checked);
-                    if (!checked) {
-                      setSystemDeep(false);
-                    }
-                  }}
-                />{" "}
-                Save pulled data to DB
-              </label>
-
-              <label className="small">
-                <input
-                  type="checkbox"
-                  checked={systemDeep}
-                  disabled={!systemPersist}
-                  onChange={(event) => setSystemDeep(event.target.checked)}
-                />{" "}
-                Also pull linked planet, station, and destination system details
-              </label>
-            </div>
-          </div>
-
-          <div className="admin-card__actions">
-            <button className="btn" type="button" onClick={onPullSystem} disabled={systemLoading}>
-              {systemLoading ? "Running..." : "Pull System"}
-            </button>
-            <button className="btn" type="button" onClick={() => void onLoadStoredSystem()} disabled={storedSystemLoading}>
-              {storedSystemLoading ? "Loading..." : "Load Stored System"}
-            </button>
-          </div>
-
-          {systemMessage ? <p className="small">{systemMessage}</p> : null}
-          {systemError ? <p className="small" style={{ color: "salmon" }}>{systemError}</p> : null}
-          {storedSystemError ? <p className="small" style={{ color: "salmon" }}>{storedSystemError}</p> : null}
-
-          {systemProgressLines.length > 0 ? (
-            <div className="sysuniverse-stack">
-              {systemProgressLines.slice(-16).map((line, index) => (
-                <p key={`${index}-${line}`} className="small" style={{ margin: 0 }}>
-                  {line}
-                </p>
-              ))}
-            </div>
-          ) : null}
-
-          {systemResult?.system ? (
-            <div className="admin-grid">
-              <div className="admin-card">
-                <h3 className="admin-card__title">System</h3>
-                <p className="small">{systemName}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Planets Found</h3>
-                <p className="small">{planetsPulled}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Stations Found</h3>
-                <p className="small">{stationsPulled}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Hyperlanes Found</h3>
-                <p className="small">{hyperlanesPulled}</p>
-              </div>
-              {systemPersist ? (
-                <div className="admin-card">
-                  <h3 className="admin-card__title">Records Synced</h3>
-                  <p className="small">
-                    {(systemPersistence?.planets_upserted ?? 0) +
-                      (systemPersistence?.stations_upserted ?? 0) +
-                      (systemPersistence?.hyperlanes_upserted ?? 0)}
-                  </p>
-                </div>
-              ) : null}
-              {systemPersist && systemDeep ? (
-                <div className="admin-card">
-                  <h3 className="admin-card__title">Deep Synced</h3>
-                  <p className="small">
-                    {(systemPersistence?.planets_deep_synced ?? 0) +
-                      (systemPersistence?.stations_deep_synced ?? 0) +
-                      (systemPersistence?.destination_systems_synced ?? 0)}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          {storedSystemDetail ? (
-            <div className="admin-grid">
-              <div className="admin-card">
-                <h3 className="admin-card__title">Stored UID</h3>
-                <p className="small">{storedSystemDetail.system.uid ?? "Unknown"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Sector</h3>
-                <p className="small">{storedSystemDetail.system.sector_name ?? storedSystemDetail.system.sector_uid ?? "Unknown"}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Stored Planets</h3>
-                <p className="small">{storedSystemDetail.planets.length}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Stored Stations</h3>
-                <p className="small">{storedSystemDetail.stations.length}</p>
-              </div>
-              <div className="admin-card">
-                <h3 className="admin-card__title">Stored Hyperlanes</h3>
-                <p className="small">{storedSystemDetail.hyperlanes.length}</p>
-              </div>
-            </div>
-          ) : null}
-        </section>
-
-        {message ? (
-          <section className="admin-card">
-            <h3 className="admin-card__title">Status</h3>
-            <p className="small">{message}</p>
-          </section>
+        {activeSection === "pulls" ? (
+          <AdminSystemPullsSection
+            sectorIdentifier={sectorIdentifier}
+            setSectorIdentifier={setSectorIdentifier}
+            persist={persist}
+            setPersist={setPersist}
+            deep={deep}
+            setDeep={setDeep}
+            loading={loading}
+            onPullSector={onPullSector}
+            onStartBackgroundSync={onStartBackgroundSync}
+            onCancelBackgroundSync={onCancelBackgroundSync}
+            onLoadLatestBackgroundSync={() => void loadLatestBackgroundSync(backgroundSyncRun?.id)}
+            backgroundSyncLoading={backgroundSyncLoading}
+            backgroundSyncCancelLoading={backgroundSyncCancelLoading}
+            backgroundSyncError={backgroundSyncError}
+            backgroundSyncMessage={backgroundSyncMessage}
+            backgroundSyncRun={backgroundSyncRun}
+            backgroundLiveStats={backgroundLiveStats}
+            heartbeatAgeSeconds={heartbeatAgeSeconds}
+            backgroundCurrentSector={backgroundCurrentSector}
+            backgroundLastDetail={backgroundLastDetail}
+            backgroundHeartbeat={backgroundHeartbeat}
+            bulkLoading={bulkLoading}
+            bulkMessage={bulkMessage}
+            bulkError={bulkError}
+            bulkPersistence={bulkPersistence}
+            bulkProgressLines={bulkProgressLines}
+            onPullAllSectors={onPullAllSectors}
+            message={message}
+            error={error}
+            progressLines={progressLines}
+            result={result}
+            sectorName={sectorName}
+            systemsPulled={systemsPulled}
+            coordinatesPulled={coordinatesPulled}
+            systemsSynced={systemsSynced}
+          />
         ) : null}
 
-        {error ? (
-          <section className="admin-card">
-            <h3 className="admin-card__title">Error</h3>
-            <p className="small" style={{ color: "salmon" }}>{error}</p>
-          </section>
+        {activeSection === "catalogs" ? (
+          <AdminSystemCatalogsSection
+            stationTypeLoading={stationTypeLoading}
+            stationTypeMessage={stationTypeMessage}
+            stationTypeError={stationTypeError}
+            stationTypePersistence={stationTypePersistence}
+            stationTypeProgressLines={stationTypeProgressLines}
+            onPullAllStationTypes={onPullAllStationTypes}
+            shipTypeLoading={shipTypeLoading}
+            shipTypeMessage={shipTypeMessage}
+            shipTypeError={shipTypeError}
+            shipTypePersistence={shipTypePersistence}
+            shipTypeProgressLines={shipTypeProgressLines}
+            onPullAllShipTypes={onPullAllShipTypes}
+            facilityTypeLoading={facilityTypeLoading}
+            facilityTypeMessage={facilityTypeMessage}
+            facilityTypeError={facilityTypeError}
+            facilityTypePersistence={facilityTypePersistence}
+            facilityTypeProgressLines={facilityTypeProgressLines}
+            onPullAllFacilityTypes={onPullAllFacilityTypes}
+            itemTypeLoading={itemTypeLoading}
+            itemTypeMessage={itemTypeMessage}
+            itemTypeError={itemTypeError}
+            itemTypePersistence={itemTypePersistence}
+            itemTypeProgressLines={itemTypeProgressLines}
+            onPullAllItemTypes={onPullAllItemTypes}
+            planetTypeLoading={planetTypeLoading}
+            planetTypeMessage={planetTypeMessage}
+            planetTypeError={planetTypeError}
+            planetTypePersistence={planetTypePersistence}
+            planetTypeProgressLines={planetTypeProgressLines}
+            onPullAllPlanetTypes={onPullAllPlanetTypes}
+            terrainTypeLoading={terrainTypeLoading}
+            terrainTypeMessage={terrainTypeMessage}
+            terrainTypeError={terrainTypeError}
+            terrainTypePersistence={terrainTypePersistence}
+            terrainTypeProgressLines={terrainTypeProgressLines}
+            onPullAllTerrainTypes={onPullAllTerrainTypes}
+            materialTypeLoading={materialTypeLoading}
+            materialTypeMessage={materialTypeMessage}
+            materialTypeError={materialTypeError}
+            materialTypePersistence={materialTypePersistence}
+            materialTypeProgressLines={materialTypeProgressLines}
+            onPullAllMaterialTypes={onPullAllMaterialTypes}
+          />
         ) : null}
 
-        {progressLines.length > 0 ? (
-          <section className="admin-card">
-            <h3 className="admin-card__title">Live Progress</h3>
-            <div className="sysuniverse-stack">
-              {progressLines.slice(-12).map((line, index) => (
-                <p key={`${index}-${line}`} className="small" style={{ margin: 0 }}>
-                  {line}
-                </p>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {result?.sector ? (
-          <section className="admin-grid">
-            <div className="admin-card">
-              <h3 className="admin-card__title">Sector</h3>
-              <p className="small">{sectorName}</p>
-            </div>
-
-            <div className="admin-card">
-              <h3 className="admin-card__title">Systems Found</h3>
-              <p className="small">{systemsPulled}</p>
-            </div>
-
-            <div className="admin-card">
-              <h3 className="admin-card__title">Coordinates Found</h3>
-              <p className="small">{coordinatesPulled}</p>
-            </div>
-
-            {persist ? (
-              <div className="admin-card">
-                <h3 className="admin-card__title">Records Synced</h3>
-                <p className="small">{systemsSynced}</p>
-              </div>
-            ) : null}
-          </section>
+        {activeSection === "refresh" ? (
+          <AdminSystemRefreshSection
+            planetRefreshLoading={planetRefreshLoading}
+            planetRefreshMessage={planetRefreshMessage}
+            planetRefreshError={planetRefreshError}
+            planetRefreshPersistence={planetRefreshPersistence}
+            planetRefreshProgressLines={planetRefreshProgressLines}
+            onRefreshStoredPlanets={onRefreshStoredPlanets}
+            systemRefreshMessage={systemRefreshMessage}
+            systemRefreshError={systemRefreshError}
+            systemRefreshPersistence={systemRefreshPersistence}
+            onRefreshStoredSystems={onRefreshStoredSystems}
+            onLoadLatestSystemRefreshRun={() => void loadLatestSystemRefreshRun(systemRefreshRun?.id)}
+            onCancelSystemRefresh={onCancelSystemRefresh}
+            systemRefreshRunLoading={systemRefreshRunLoading}
+            systemRefreshRunCancelLoading={systemRefreshRunCancelLoading}
+            systemRefreshRun={systemRefreshRun}
+            systemRefreshLiveStats={systemRefreshLiveStats}
+            systemRefreshHeartbeatAgeSeconds={systemRefreshHeartbeatAgeSeconds}
+            systemRefreshCurrentSystem={systemRefreshCurrentSystem}
+            systemRefreshLastDetail={systemRefreshLastDetail}
+            systemRefreshHeartbeat={systemRefreshHeartbeat}
+            systemIdentifier={systemIdentifier}
+            setSystemIdentifier={setSystemIdentifier}
+            systemPersist={systemPersist}
+            setSystemPersist={setSystemPersist}
+            systemDeep={systemDeep}
+            setSystemDeep={setSystemDeep}
+            onPullSystem={onPullSystem}
+            systemLoading={systemLoading}
+            onLoadStoredSystem={() => void onLoadStoredSystem()}
+            storedSystemLoading={storedSystemLoading}
+            systemMessage={systemMessage}
+            systemError={systemError}
+            storedSystemError={storedSystemError}
+            systemProgressLines={systemProgressLines}
+            systemResult={systemResult}
+            systemName={systemName}
+            planetsPulled={planetsPulled}
+            stationsPulled={stationsPulled}
+            hyperlanesPulled={hyperlanesPulled}
+            systemPersisted={systemPersist}
+            systemDeepEnabled={systemDeep}
+            systemPersistence={systemPersistence}
+            storedSystemDetail={storedSystemDetail}
+          />
         ) : null}
       </div>
     </section>

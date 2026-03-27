@@ -1,7 +1,106 @@
+.members-page-shell
+  margin-bottom: 16px
+
+.members-tool-grid
+  display: grid
+  grid-template-columns: repeat(4, minmax(0, 1fr))
+  gap: 12px
+  margin-bottom: 16px
+
+.members-tool-card
+  display: grid
+  grid-template-rows: auto 1fr auto
+  gap: 12px
+  padding: 14px
+  border: 1px solid rgba(255,255,255,0.12)
+  border-radius: 12px
+  background: rgba(255,255,255,0.04)
+
+.members-tool-card__logo
+  width: 84px
+  height: 84px
+  object-fit: contain
+
+.members-tool-card__body
+  display: grid
+  gap: 8px
+
+.members-tool-card__title
+  margin: 0
+  font-size: 1rem
+
+.members-tool-card__copy
+  margin: 0
+
+.members-tool-card__count
+  color: rgba(246,163,0,0.95)
+  font-weight: 800
+
+.members-tool-back
+  display: flex
+  justify-content: flex-start
+  margin-bottom: 16px
+
 .members-universe
   display: flex
   flex-direction: column
   gap: 1rem
+
+.members-universe__layout
+  display: grid
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px)
+  gap: 1rem
+  align-items: start
+
+.members-universe__map-column
+  min-width: 0
+
+.members-universe__controllers
+  display: grid
+  gap: 0.9rem
+  align-self: start
+  position: sticky
+  top: 1rem
+
+.members-universe__controllers-body
+  display: grid
+  gap: 1rem
+
+.members-universe__controller-section
+  display: grid
+  gap: 0.7rem
+  padding-top: 0.1rem
+
+  & + &
+    padding-top: 1rem
+    border-top: 1px solid rgba(255,255,255,0.08)
+
+.members-universe__controllers-overlay
+  display: grid
+  gap: 1rem
+
+  .members-universe__controls
+    grid-template-columns: 1fr
+    gap: 0.85rem
+
+  .members-universe__inline
+    gap: 0.55rem
+
+  .members-universe__inline .input
+    flex: 1 1 120px
+
+  .members-universe__typeahead
+    flex: 1 1 0
+    min-width: 0
+
+  .members-universe__sector-picker
+    flex-direction: column
+
+    .btn
+      width: 100%
+
+  .members-universe__field .btn
+    justify-content: center
 
 .members-universe__controls
   display: grid
@@ -21,6 +120,54 @@
 
 .members-universe__inline .input
   flex: 1 1 160px
+
+.members-universe__sector-picker
+  align-items: flex-start
+
+.members-universe__typeahead
+  position: relative
+  flex: 1 1 240px
+  min-width: 240px
+
+.members-universe__typeahead-list
+  position: absolute
+  top: calc(100% + 0.35rem)
+  left: 0
+  right: 0
+  z-index: 8
+  display: grid
+  gap: 0.35rem
+  max-height: 260px
+  overflow-y: auto
+  padding: 0.45rem
+  border-radius: 12px
+  border: 1px solid rgba(246,163,0,0.18)
+  background: rgba(18,21,24,0.98)
+  box-shadow: 0 16px 40px rgba(0,0,0,0.34)
+
+.members-universe__typeahead-option
+  display: grid
+  gap: 0.15rem
+  padding: 0.7rem 0.8rem
+  border: 1px solid rgba(255,255,255,0.06)
+  border-radius: 10px
+  background: rgba(255,255,255,0.03)
+  color: inherit
+  text-align: left
+  cursor: pointer
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease
+
+  strong
+    line-height: 1.2
+
+  &:hover
+    border-color: rgba(246,163,0,0.26)
+    background: rgba(246,163,0,0.08)
+    transform: translateY(-1px)
+
+  &.is-active
+    border-color: rgba(246,163,0,0.4)
+    background: rgba(246,163,0,0.12)
 
 .members-universe__meta
   display: flex
@@ -323,6 +470,21 @@
   &.is-dragging
     cursor: grabbing
 
+.members-universe__top-actions
+  display: grid
+  gap: 0.6rem
+
+.members-universe__top-actions-copy
+  display: grid
+  gap: 0.2rem
+
+.members-universe__top-actions-controls
+  display: flex
+  justify-content: flex-start
+  align-items: center
+  gap: 0.65rem
+  flex-wrap: wrap
+
 .members-universe-map__meta
   display: flex
   align-items: center
@@ -337,6 +499,131 @@
   background-image: radial-gradient(circle at 12% 18%, rgba(255,255,255,0.22) 0 1px, transparent 1px), radial-gradient(circle at 74% 24%, rgba(255,255,255,0.18) 0 1px, transparent 1px), radial-gradient(circle at 28% 72%, rgba(255,255,255,0.18) 0 1px, transparent 1px), radial-gradient(circle at 88% 68%, rgba(255,255,255,0.16) 0 1px, transparent 1px)
   background-size: 240px 240px, 290px 290px, 210px 210px, 320px 320px
   opacity: 0.55
+
+.members-universe-map__legend
+  position: absolute
+  top: 0.85rem
+  left: 0.85rem
+  z-index: 4
+  display: grid
+  gap: 0.45rem
+  max-width: min(240px, calc(100% - 1.7rem))
+
+.members-universe-map__legend-toggle
+  justify-self: start
+  border: 1px solid rgba(246,163,0,0.24)
+  background: rgba(12,16,20,0.94)
+  box-shadow: 0 12px 28px rgba(0,0,0,0.3)
+  backdrop-filter: blur(2px)
+
+  &:hover,
+  &:focus-visible
+    background: rgba(18,24,30,0.96)
+
+.members-universe-map__legend-body
+  display: grid
+  gap: 0.45rem
+  padding: 0.7rem 0.8rem
+  border-radius: 12px
+  border: 1px solid rgba(246,163,0,0.24)
+  background: rgba(12,16,20,0.94)
+  box-shadow: 0 12px 28px rgba(0,0,0,0.3)
+  backdrop-filter: blur(2px)
+
+.members-universe-map__legend-item
+  display: grid
+  grid-template-columns: 22px minmax(0, 1fr)
+  align-items: center
+  gap: 0.55rem
+
+.members-universe-map__legend-icon
+  display: block
+  width: 22px
+  height: 22px
+  object-fit: contain
+
+.members-universe-map__controls-panel
+  position: absolute
+  top: 0.85rem
+  right: 0.85rem
+  z-index: 4
+  display: grid
+  gap: 0.45rem
+  width: min(300px, calc(100% - 1.7rem))
+  justify-items: end
+
+.members-universe-map__controls-toggle
+  justify-self: end
+  border: 1px solid rgba(246,163,0,0.24)
+  background: rgba(12,16,20,0.94)
+  box-shadow: 0 12px 28px rgba(0,0,0,0.3)
+  backdrop-filter: blur(2px)
+
+  &:hover,
+  &:focus-visible
+    background: rgba(18,24,30,0.96)
+
+.members-universe-map__controls-body
+  display: grid
+  gap: 0.45rem
+  width: 100%
+  max-height: min(72vh, calc(100% - 2.4rem))
+  padding: 0.7rem
+  border-radius: 12px
+  border: 1px solid rgba(246,163,0,0.24)
+  background: rgba(12,16,20,0.94)
+  box-shadow: 0 12px 28px rgba(0,0,0,0.3)
+  backdrop-filter: blur(2px)
+  overflow-y: auto
+
+.members-universe-map__overlays
+  position: absolute
+  inset: 0
+  z-index: 2
+  pointer-events: none
+
+.members-universe-map__scan-badge
+  position: absolute
+  display: block
+  object-fit: contain
+  object-position: top center
+  transform: translateZ(0)
+  image-rendering: auto
+
+.members-universe-map__scan-badge--scanned
+  object-position: top center
+
+.members-universe-map__scan-badge--rescan
+  object-position: top center
+
+.members-universe-map__asteroid-marker
+  position: absolute
+  pointer-events: none
+
+.members-universe-map__intel-flag-marker
+  position: absolute
+  pointer-events: none
+
+.members-universe-map__asteroid-marker-icon
+  display: block
+  width: 100%
+  height: 100%
+  object-fit: contain
+
+.members-universe-map__asteroid-flag
+  position: absolute
+  display: block
+  width: 40%
+  height: 40%
+  object-fit: contain
+
+.members-universe-map__asteroid-flag--ships
+  right: -17%
+  bottom: -15%
+
+.members-universe-map__asteroid-flag--stations
+  right: -17%
+  top: -15%
 
 .members-universe-map__loading
   position: absolute
@@ -397,23 +684,166 @@
 
 .members-universe-map__selection
   position: absolute
-  left: 0.85rem
-  bottom: 0.85rem
   z-index: 3
-  display: grid
-  gap: 0.35rem
-  max-width: min(320px, calc(100% - 7.5rem))
-  padding: 0.7rem 0.8rem
+  display: flex
+  flex-direction: column
+  min-width: 220px
+  max-width: min(320px, calc(100% - 24px))
+  max-height: min(calc(100% - 24px), 72vh)
   border-radius: 12px
   border: 1px solid rgba(246,163,0,0.24)
   background: rgba(12,16,20,0.94)
   box-shadow: 0 12px 28px rgba(0,0,0,0.3)
+  overflow: hidden
+
+  &.is-scrollable::after
+    content: ""
+    position: absolute
+    left: 0
+    right: 0
+    bottom: 0
+    height: 26px
+    background: linear-gradient(180deg, rgba(12,16,20,0), rgba(12,16,20,0.96) 72%)
+    pointer-events: none
+    z-index: 2
 
 .members-universe-map__selection-head
+  position: relative
   display: flex
   align-items: center
   justify-content: space-between
   gap: 0.75rem
+  padding: 0.7rem 2.4rem 0.55rem 0.8rem
+  background: rgba(12,16,20,0.98)
+  cursor: move
+  user-select: none
+
+.members-universe-map__selection-body
+  display: grid
+  gap: 0.35rem
+  flex: 1 1 auto
+  min-height: 0
+  padding: 0 2.4rem 0.7rem 0.8rem
+  overflow-y: auto
+  overflow-x: hidden
+  overscroll-behavior: contain
+  scrollbar-gutter: stable
+  scrollbar-width: thin
+  scrollbar-color: rgba(246,163,0,0.88) rgba(10,12,14,0.92)
+
+.members-universe-map__selection-copy
+  display: grid
+  gap: 0.18rem
+
+.members-universe-map__selection-label
+  font-weight: 700
+  color: rgba(246,163,0,0.94)
+
+.members-universe-map__selection-head-actions
+  position: absolute
+  top: 0.55rem
+  right: 0.55rem
+
+.members-universe-map__selection-close
+  display: flex
+  align-items: center
+  justify-content: center
+  width: 26px
+  height: 26px
+  padding: 0
+  border: 1px solid rgba(246,163,0,0.28)
+  border-radius: 999px
+  background: rgba(246,163,0,0.08)
+  color: rgba(255,255,255,0.92)
+  font: inherit
+  font-size: 0.95rem
+  line-height: 1
+  cursor: pointer
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease
+
+  &:hover
+    border-color: rgba(246,163,0,0.48)
+    background: rgba(246,163,0,0.16)
+    transform: translateY(-1px)
+
+.members-universe-map__selection-close-glyph
+  display: block
+  line-height: 1
+  transform: translateY(-1px)
+
+.members-universe-map__selection-stats
+  display: grid
+  gap: 0.15rem
+
+  + .members-universe__meta
+    margin-top: 0.45rem
+
+.members-universe-map__selection-stat-value
+  color: rgba(246,163,0,0.94)
+  font-weight: 700
+
+.members-universe-map__intel-editor
+  display: grid
+  gap: 0.55rem
+
+.members-universe-map__intel-grid
+  display: grid
+  gap: 0.55rem
+  grid-template-columns: repeat(2, minmax(0, 1fr))
+
+.members-universe-map__intel-field
+  display: grid
+  gap: 0.25rem
+
+.members-universe-map__intel-check
+  display: flex
+  align-items: center
+  gap: 0.45rem
+  min-height: 38px
+  padding: 0.55rem 0.7rem
+  border-radius: 10px
+  border: 1px solid rgba(255,255,255,0.08)
+  background: rgba(255,255,255,0.03)
+
+.members-universe-map__note-toolbar
+  display: flex
+  align-items: center
+  gap: 0.45rem
+  flex-wrap: wrap
+
+.members-universe-map__note-preview
+  display: grid
+  gap: 0.35rem
+  padding: 0.6rem 0.7rem
+  border-radius: 10px
+  border: 1px solid rgba(255,255,255,0.08)
+  background: rgba(255,255,255,0.03)
+
+.members-universe-map__note-body
+  display: block
+  line-height: 1.55
+  color: rgba(255,255,255,0.82)
+  white-space: normal
+
+  p
+    margin: 0
+
+    & + p
+      margin-top: 0.45rem
+
+  br
+    content: ""
+
+  a
+    color: rgba(246,163,0,0.95)
+
+  strong,
+  em,
+  u
+    color: rgba(255,255,255,0.96)
+
+  blockquote
+    margin: 0
 
 .members-universe-map__canvas
   position: absolute
@@ -461,6 +891,15 @@
   vector-effect: non-scaling-stroke
 
 @media (max-width: 768px)
+  .members-tool-grid
+    grid-template-columns: repeat(2, minmax(0, 1fr))
+
+  .members-universe__layout
+    grid-template-columns: 1fr
+
+  .members-universe__controllers
+    position: static
+
   .members-universe-system__hero
     grid-template-columns: 1fr
 
@@ -472,3 +911,7 @@
 
   .members-universe-map
     min-height: 68vh
+
+@media (max-width: 640px)
+  .members-tool-grid
+    grid-template-columns: 1fr

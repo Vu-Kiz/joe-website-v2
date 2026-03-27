@@ -35,4 +35,9 @@ class SwcSector extends Model
     {
         return $this->hasMany(SwcSystem::class, 'sector_id');
     }
+
+    public function asteroidScans(): HasMany
+    {
+        return $this->hasMany(SwcAsteroidScan::class, 'sector_id');
+    }
 }

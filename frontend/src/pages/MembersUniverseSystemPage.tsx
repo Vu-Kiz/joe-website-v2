@@ -16,6 +16,19 @@ type UniverseSystemLocationState = {
   galy?: number | null;
 };
 
+function formatSwcDisplayId(value: string | null | undefined, fallback = "Unknown") {
+  if (!value) {
+    return fallback;
+  }
+
+  const [prefix, rest] = value.split(":", 2);
+  if (rest && /^\d+$/.test(prefix)) {
+    return rest;
+  }
+
+  return value;
+}
+
 function formatValue(value: string | number | null | undefined, fallback = "Unknown") {
   if (value === null || value === undefined || value === "") {
     return fallback;
@@ -88,6 +101,26 @@ function formatPopulationChange(
   const prefix = delta > 0 ? "+" : "";
 
   return `${prefix}${delta.toLocaleString()}`;
+}
+
+type SystemBodyKind = "sun" | "moon" | "asteroid" | "planet";
+
+function classifySystemBody(planet: StoredSystemDetail["planets"][number]): SystemBodyKind {
+  const planetType = String(planet.planet_type_name ?? "").trim().toLowerCase();
+
+  if (planetType === "sun") {
+    return "sun";
+  }
+
+  if (planetType === "asteroid field") {
+    return "asteroid";
+  }
+
+  if (planetType === "moon") {
+    return "moon";
+  }
+
+  return "planet";
 }
 
 const MembersUniverseSystemPage: React.FC = () => {
@@ -264,6 +297,50 @@ const MembersUniverseSystemPage: React.FC = () => {
         .find((cell) => cell.x === selectedSystemCell.x && cell.y === selectedSystemCell.y) ?? null
     : null;
 
+  const systemSummary = useMemo(() => {
+    const planets = detail?.planets ?? [];
+    const stations = detail?.stations ?? [];
+    const hyperlanes = detail?.hyperlanes ?? [];
+
+    const population = planets.reduce((sum, planet) => sum + (planet.population ?? 0), 0);
+    const bodyCounts = planets.reduce(
+      (acc, planet) => {
+        const kind = classifySystemBody(planet);
+        acc[kind] += 1;
+        return acc;
+      },
+      { sun: 0, moon: 0, asteroid: 0, planet: 0 }
+    );
+
+    const systemOwner = (detail?.system.owner_name ?? "").trim();
+    const owners = new Set(
+      [...planets.map((planet) => planet.owner_name), ...stations.map((station) => station.owner_name)]
+        .map((value) => (value ?? "").trim())
+        .filter(Boolean)
+    );
+
+    let ownerSummary = systemOwner || "Unknown";
+    if (!systemOwner) {
+      if (owners.size === 1) {
+        ownerSummary = Array.from(owners)[0] ?? "Unknown";
+      } else if (owners.size > 1) {
+        ownerSummary = "Mixed";
+      }
+    }
+
+    return {
+      ownerSummary,
+      population,
+      totalBodies: planets.length,
+      planets: bodyCounts.planet,
+      moons: bodyCounts.moon,
+      suns: bodyCounts.sun,
+      asteroids: bodyCounts.asteroid,
+      stations: stations.length,
+      hyperlanes: hyperlanes.length,
+    };
+  }, [detail]);
+
   function resetSystemViewport() {
     setSystemZoom(1);
     setSystemOffset({ x: 0, y: 0 });
@@ -307,16 +384,25 @@ const MembersUniverseSystemPage: React.FC = () => {
         <main className="board admin-board members-universe-system-page">
           <section className="members-universe-system__hero panel admin-card">
             <div className="members-universe-system__hero-copy">
-              <span className="members-universe-system__eyebrow">Universe System</span>
+              <span className="members-universe-system__eyebrow">Astrogation System</span>
               <h1 className="members-universe-system__title">
-                {detail?.system.name ?? detail?.system.identifier ?? detail?.system.uid ?? "Unknown system"}
+                {detail?.system.name ??
+                  detail?.system.identifier ??
+                  formatSwcDisplayId(detail?.system.uid) ??
+                  "Unknown system"}
               </h1>
               <p className="members-universe-system__subtitle">
-                Stored member-facing system data opened directly from the galaxy map.
+                Stored member-facing system data opened directly from the astrogation chart.
               </p>
               <div className="members-universe-system__hero-meta">
-                <span>Galaxy {formatCoords(detail?.system.galx ?? routeState.galx, detail?.system.galy ?? routeState.galy)}</span>
-                <span>Sector {formatValue(detail?.system.sector_name ?? detail?.system.sector_uid ?? routeState.sectorUid)}</span>
+                <span>Chart {formatCoords(detail?.system.galx ?? routeState.galx, detail?.system.galy ?? routeState.galy)}</span>
+                <span>
+                  Sector{" "}
+                  {formatValue(
+                    detail?.system.sector_name ??
+                      formatSwcDisplayId(detail?.system.sector_uid ?? routeState?.sectorUid)
+                  )}
+                </span>
               </div>
             </div>
 
@@ -326,7 +412,7 @@ const MembersUniverseSystemPage: React.FC = () => {
                 to="/members"
                 state={{ membersView: "universe" }}
               >
-                Back to Universe
+                Back to Astrogation
               </Link>
             </div>
           </section>
@@ -340,27 +426,51 @@ const MembersUniverseSystemPage: React.FC = () => {
           <section className="members-universe-system__summary">
             <article className="members-universe-system__stat">
               <span className="small">UID</span>
-              <strong>{formatValue(detail?.system.uid)}</strong>
+              <strong>{formatSwcDisplayId(detail?.system.uid)}</strong>
             </article>
             <article className="members-universe-system__stat">
               <span className="small">Identifier</span>
               <strong>{formatValue(detail?.system.identifier)}</strong>
             </article>
             <article className="members-universe-system__stat">
+              <span className="small">Owner</span>
+              <strong>{systemSummary.ownerSummary}</strong>
+            </article>
+            <article className="members-universe-system__stat">
+              <span className="small">Population</span>
+              <strong>{formatNumber(systemSummary.population, "0")}</strong>
+            </article>
+            <article className="members-universe-system__stat">
+              <span className="small">Bodies</span>
+              <strong>{systemSummary.totalBodies}</strong>
+            </article>
+            <article className="members-universe-system__stat">
+              <span className="small">Planets</span>
+              <strong>{systemSummary.planets}</strong>
+            </article>
+            <article className="members-universe-system__stat">
+              <span className="small">Moons</span>
+              <strong>{systemSummary.moons}</strong>
+            </article>
+            <article className="members-universe-system__stat">
+              <span className="small">Suns</span>
+              <strong>{systemSummary.suns}</strong>
+            </article>
+            <article className="members-universe-system__stat">
+              <span className="small">Asteroids</span>
+              <strong>{systemSummary.asteroids}</strong>
+            </article>
+            <article className="members-universe-system__stat">
               <span className="small">Last Pulled</span>
               <strong>{formatTimestampAsCgt(detail?.system.last_pulled_at, cgtState)}</strong>
             </article>
             <article className="members-universe-system__stat">
-              <span className="small">Planets</span>
-              <strong>{detail?.planets.length ?? 0}</strong>
-            </article>
-            <article className="members-universe-system__stat">
               <span className="small">Stations</span>
-              <strong>{detail?.stations.length ?? 0}</strong>
+              <strong>{systemSummary.stations}</strong>
             </article>
             <article className="members-universe-system__stat">
               <span className="small">Hyperlanes</span>
-              <strong>{detail?.hyperlanes.length ?? 0}</strong>
+              <strong>{systemSummary.hyperlanes}</strong>
             </article>
           </section>
 
@@ -374,7 +484,11 @@ const MembersUniverseSystemPage: React.FC = () => {
 
             <div className="sysuniverse-toolbar">
               <strong>
-                Grid {detail?.system.name ?? detail?.system.identifier ?? detail?.system.uid ?? "Unknown system"}
+                Grid{" "}
+                {detail?.system.name ??
+                  detail?.system.identifier ??
+                  formatSwcDisplayId(detail?.system.uid) ??
+                  "Unknown system"}
               </strong>
               <div className="sysuniverse-toolbar__actions">
                 <span className="small">Zoom: {systemZoom.toFixed(2)}x</span>
@@ -510,7 +624,7 @@ const MembersUniverseSystemPage: React.FC = () => {
                       <span className="small members-universe-system__grid-hover-label">Planet</span>
                       {hoveredSystemCell.planets.slice(0, 3).map((planet, index) => (
                         <span key={`${planet.uid ?? planet.name ?? index}`} className="small">
-                          {planet.name ?? planet.uid ?? `Planet ${index + 1}`}
+                          {planet.name ?? formatSwcDisplayId(planet.uid) ?? `Planet ${index + 1}`}
                         </span>
                       ))}
                     </div>
@@ -520,7 +634,7 @@ const MembersUniverseSystemPage: React.FC = () => {
                       <span className="small members-universe-system__grid-hover-label">Station</span>
                       {hoveredSystemCell.stations.slice(0, 3).map((station, index) => (
                         <span key={`${station.uid ?? station.name ?? index}`} className="small">
-                          {station.name ?? station.uid ?? `Station ${index + 1}`}
+                          {station.name ?? formatSwcDisplayId(station.uid) ?? `Station ${index + 1}`}
                           {" · "}
                           {station.station_type?.name ?? station.type_name ?? "Unknown type"}
                         </span>
@@ -556,7 +670,7 @@ const MembersUniverseSystemPage: React.FC = () => {
                             />
                           ) : null}
                           <div>
-                            <strong>{planet.name ?? planet.uid ?? `Planet ${index + 1}`}</strong>
+                            <strong>{planet.name ?? formatSwcDisplayId(planet.uid) ?? `Planet ${index + 1}`}</strong>
                             <span className="small">{formatValue(planet.owner_name, "No owner")}</span>
                           </div>
                         </div>
@@ -575,7 +689,7 @@ const MembersUniverseSystemPage: React.FC = () => {
                           className="members-universe-system__cell-chip"
                         >
                           <div>
-                            <strong>{station.name ?? station.uid ?? `Station ${index + 1}`}</strong>
+                            <strong>{station.name ?? formatSwcDisplayId(station.uid) ?? `Station ${index + 1}`}</strong>
                             <span className="small">
                               {station.station_type?.name ?? station.type_name ?? "Unknown type"}
                             </span>
@@ -596,8 +710,16 @@ const MembersUniverseSystemPage: React.FC = () => {
           <section className="members-universe-system__layout">
             <article className="panel admin-card members-universe-system__panel members-universe-system__panel--planets">
               <div className="admin-card__header">
-                <h3 className="admin-card__title">Planets</h3>
-                <p className="admin-card__desc">Stored planets linked to this system.</p>
+                <h3 className="admin-card__title">Celestial Bodies</h3>
+                <p className="admin-card__desc">
+                  Stored suns, planets, moons, and asteroids linked to this system.
+                </p>
+              </div>
+              <div className="members-universe__meta">
+                <span className="admin-badge admin-badge--soft">Planets {systemSummary.planets}</span>
+                <span className="admin-badge admin-badge--soft">Moons {systemSummary.moons}</span>
+                <span className="admin-badge admin-badge--soft">Suns {systemSummary.suns}</span>
+                <span className="admin-badge admin-badge--soft">Asteroids {systemSummary.asteroids}</span>
               </div>
               <div className="members-universe-system__entity-grid">
                 {detail?.planets.length ? (
@@ -617,12 +739,18 @@ const MembersUniverseSystemPage: React.FC = () => {
                           Planet
                         </div>
                       )}
-                      <strong>{planet.name ?? planet.uid ?? "Unknown planet"}</strong>
+                      <strong>{planet.name ?? formatSwcDisplayId(planet.uid) ?? "Unknown planet"}</strong>
                       <span className="small">{formatValue(planet.owner_name, "No owner")}</span>
+                      <span className="small">
+                        {(() => {
+                          const kind = classifySystemBody(planet);
+                          return kind.charAt(0).toUpperCase() + kind.slice(1);
+                        })()}
+                      </span>
                       <div className="members-universe-system__stat-mini-grid">
-                        <span className="small">UID: {formatValue(planet.uid)}</span>
+                        <span className="small">UID: {formatSwcDisplayId(planet.uid)}</span>
                         <span className="small">Identifier: {formatValue(planet.identifier)}</span>
-                        <span className="small">Galaxy: {formatCoords(planet.galx, planet.galy)}</span>
+                        <span className="small">Chart: {formatCoords(planet.galx, planet.galy)}</span>
                         <span className="small">System: {formatCoords(planet.sysx, planet.sysy)}</span>
                         <span className="small">Size: {formatValue(planet.size, "?")}</span>
                         <span className="small">Population: {formatNumber(planet.population)}</span>
@@ -680,7 +808,7 @@ const MembersUniverseSystemPage: React.FC = () => {
                           Station
                         </div>
                       )}
-                      <strong>{station.name ?? station.uid ?? "Unknown station"}</strong>
+                      <strong>{station.name ?? formatSwcDisplayId(station.uid) ?? "Unknown station"}</strong>
                       <span className="small">
                         {station.station_type?.name ?? station.type_name ?? "Unknown type"}
                       </span>
@@ -712,7 +840,9 @@ const MembersUniverseSystemPage: React.FC = () => {
                     >
                       <strong>{hyperlane.name ?? "Unnamed hyperlane"}</strong>
                       <span className="small">
-                        {hyperlane.destination_name ?? hyperlane.destination_uid ?? "Unknown destination"}
+                        {hyperlane.destination_name ??
+                          formatSwcDisplayId(hyperlane.destination_uid) ??
+                          "Unknown destination"}
                       </span>
                       <span className="small">Destination {formatCoords(hyperlane.destination_galx, hyperlane.destination_galy)}</span>
                       <span className="small">Owner {formatValue(hyperlane.owner_name, "Unknown")}</span>

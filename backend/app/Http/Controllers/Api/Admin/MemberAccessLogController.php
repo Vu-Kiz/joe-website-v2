@@ -1,19 +1,19 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\AdminActionLog;
+use App\Models\MemberAccessLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class AdminActionLogController extends Controller
+class MemberAccessLogController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $limit = max(1, min((int) $request->query('limit', 100), 500));
+        $limit = max(1, min((int) $request->query('limit', 250), 500));
 
-        $query = AdminActionLog::query()
+        $query = MemberAccessLog::query()
             ->orderByDesc('created_at')
             ->orderByDesc('id');
 
@@ -25,8 +25,8 @@ class AdminActionLogController extends Controller
             $query->where('action', $action);
         }
 
-        if ($targetType = trim((string) $request->query('target_type', ''))) {
-            $query->where('target_type', $targetType);
+        if ($method = trim((string) $request->query('request_method', ''))) {
+            $query->where('request_method', strtoupper($method));
         }
 
         if ($actorUserId = $request->query('actor_user_id')) {
@@ -38,7 +38,7 @@ class AdminActionLogController extends Controller
                 $sub->where('actor_handle', 'like', "%{$q}%")
                     ->orWhere('area', 'like', "%{$q}%")
                     ->orWhere('action', 'like', "%{$q}%")
-                    ->orWhere('target_type', 'like', "%{$q}%")
+                    ->orWhere('request_path', 'like', "%{$q}%")
                     ->orWhere('summary', 'like', "%{$q}%")
                     ->orWhere('ip_address', 'like', "%{$q}%");
             });
@@ -47,17 +47,16 @@ class AdminActionLogController extends Controller
         $logs = $query
             ->limit($limit)
             ->get()
-            ->map(fn (AdminActionLog $log) => [
+            ->map(fn (MemberAccessLog $log) => [
                 'id' => $log->id,
                 'actor_user_id' => $log->actor_user_id,
                 'actor_handle' => $log->actor_handle,
                 'area' => $log->area,
                 'action' => $log->action,
-                'target_type' => $log->target_type,
-                'target_id' => $log->target_id,
+                'request_method' => $log->request_method,
+                'request_path' => $log->request_path,
                 'summary' => $log->summary,
-                'before' => $this->decodeJsonField($log->before_json),
-                'after' => $this->decodeJsonField($log->after_json),
+                'response_status' => $log->response_status,
                 'ip_address' => $log->ip_address,
                 'user_agent' => $log->user_agent,
                 'created_at' => optional($log->created_at)?->toIso8601String(),
@@ -68,16 +67,5 @@ class AdminActionLogController extends Controller
             'ok' => true,
             'logs' => $logs,
         ]);
-    }
-
-    private function decodeJsonField(?string $value): ?array
-    {
-        if ($value === null || trim($value) === '') {
-            return null;
-        }
-
-        $decoded = json_decode($value, true);
-
-        return is_array($decoded) ? $decoded : null;
     }
 }

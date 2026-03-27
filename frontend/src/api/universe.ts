@@ -86,6 +86,7 @@ export type StoredSectorDetail = {
     notes: string | null;
     updated_at: string | null;
   }>;
+  search_records: SectorSearchRecord[];
 };
 
 export type SectorCellAnnotation = {
@@ -100,6 +101,33 @@ export type SectorCellAnnotation = {
   created_at?: string | null;
 };
 
+export type SectorSearchRecord = {
+  id: number;
+  sector_uid: string | null;
+  galx: number;
+  galy: number;
+  square_name: string | null;
+  is_system_searched: boolean;
+  has_asteroids: boolean;
+  planetoids_checked: boolean | null;
+  planetoid_1_type: string | null;
+  planetoid_1_size: "1x1" | "2x2" | null;
+  planetoid_2_type: string | null;
+  planetoid_2_size: "1x1" | "2x2" | null;
+  has_ships: boolean | null;
+  has_stations: boolean | null;
+  legacy_note: string | null;
+  legacy_recorded_at: string | null;
+  rescan_due_at: string | null;
+  is_rescan_due: boolean;
+  legacy_player: string | null;
+  legacy_icon: string | null;
+  handle: string | null;
+  legacy_tag: string | null;
+  legacy_read: boolean;
+  updated_at?: string | null;
+};
+
 export type StoredSystemDetail = {
   resource: "system";
   identifier: string;
@@ -109,6 +137,8 @@ export type StoredSystemDetail = {
     name: string | null;
     sector_uid: string | null;
     sector_name: string | null;
+    owner_uid: string | null;
+    owner_name: string | null;
     galx: number | null;
     galy: number | null;
     sysx: number | null;
@@ -121,6 +151,9 @@ export type StoredSystemDetail = {
     name: string | null;
     owner_uid: string | null;
     owner_name: string | null;
+    planet_type_uid: string | null;
+    planet_type_name: string | null;
+    planet_type_href: string | null;
     size: number | null;
     population: number | null;
     previous_population: number | null;
@@ -342,7 +375,20 @@ export type StoredMaterialTypeDetail = StoredMaterialTypeSummary & {
   payload: Record<string, unknown> | null;
 };
 
-export type EntityStatsKind = "station" | "facility" | "item" | "ship" | "terrain" | "material";
+export type StoredPlanetTypeSummary = {
+  uid: string;
+  name: string | null;
+  description: string | null;
+  images: Record<string, string | null> | null;
+  image_url: string | null;
+  last_pulled_at: string | null;
+};
+
+export type StoredPlanetTypeDetail = StoredPlanetTypeSummary & {
+  payload: Record<string, unknown> | null;
+};
+
+export type EntityStatsKind = "station" | "facility" | "item" | "planet" | "ship" | "terrain" | "material";
 
 export function getStoredSectors() {
   return apiFetch<{ ok: boolean; data: StoredSectorSummary[] }>("/universe/sectors");
@@ -356,6 +402,32 @@ export function getStoredSector(sector: string) {
 
 export function getStoredMapSystems() {
   return apiFetch<{ ok: boolean; data: StoredMapSystem[] }>("/universe/map-systems");
+}
+
+export function getStoredSearchRecords() {
+  return apiFetch<{ ok: boolean; data: SectorSearchRecord[] }>("/universe/search-records");
+}
+
+export function saveStoredSearchRecord(payload: {
+  sector_uid?: string | null;
+  galx: number;
+  galy: number;
+  square_name?: string | null;
+  planetoids_checked?: boolean | null;
+  planetoid_1_type?: string | null;
+  planetoid_1_size?: "1x1" | "2x2" | null;
+  planetoid_2_type?: string | null;
+  planetoid_2_size?: "1x1" | "2x2" | null;
+  has_ships?: boolean | null;
+  has_stations?: boolean | null;
+}) {
+  return apiFetch<{ ok: boolean; message: string; data: SectorSearchRecord }>(
+    "/universe/search-records",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
 }
 
 export function getStoredSystem(system: string) {
@@ -414,6 +486,16 @@ export function getStoredFacilityType(facilityType: string) {
 
 export function getStoredItemTypes() {
   return apiFetch<{ ok: boolean; data: StoredItemTypeSummary[] }>("/universe/item-types");
+}
+
+export function getStoredPlanetTypes() {
+  return apiFetch<{ ok: boolean; data: StoredPlanetTypeSummary[] }>("/universe/planet-types");
+}
+
+export function getStoredPlanetType(planetType: string) {
+  return apiFetch<{ ok: boolean; data: StoredPlanetTypeDetail }>(
+    `/universe/planet-types/${encodeURIComponent(planetType)}`
+  );
 }
 
 export function getStoredItemType(itemType: string) {

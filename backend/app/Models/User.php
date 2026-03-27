@@ -24,6 +24,7 @@ class User extends Authenticatable
         'swc_character_id',
         'swc_handle',
         'swc_avatar_url',
+        'member_tool_preferences',
         'is_joe_member',
         'is_admin',
         'is_sysadmin',
@@ -35,6 +36,7 @@ class User extends Authenticatable
     protected $casts = [
         'discord_linked_at' => 'datetime',
         'swc_character_id' => 'integer',
+        'member_tool_preferences' => 'array',
         'is_joe_member' => 'boolean',
         'is_admin' => 'boolean',
         'is_sysadmin' => 'boolean',
@@ -63,7 +65,13 @@ class User extends Authenticatable
 
     public function swcAuthorization()
     {
-        return $this->hasOne(\App\Models\SwcAuthorization::class);
+        return $this->hasOne(\App\Models\SwcAuthorization::class)
+            ->where('auth_context', \App\Models\SwcAuthorization::CONTEXT_PAYMENTS);
+    }
+
+    public function swcAuthorizations()
+    {
+        return $this->hasMany(\App\Models\SwcAuthorization::class);
     }
 
     public function swcAccounts()

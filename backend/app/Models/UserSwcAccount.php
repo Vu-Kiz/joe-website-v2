@@ -38,6 +38,7 @@ class UserSwcAccount extends Model
 
     public function swcAuthorization(): HasOne
     {
-        return $this->hasOne(SwcAuthorization::class);
+        return $this->hasOne(SwcAuthorization::class)
+            ->where('auth_context', SwcAuthorization::CONTEXT_PAYMENTS);
     }
 }

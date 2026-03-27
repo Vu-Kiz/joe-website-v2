@@ -33,9 +33,39 @@ services:
       DB_DATABASE: joe_v2_prod
       DB_USERNAME: joe
       DB_PASSWORD: ${DB_PASSWORD}
+      QUEUE_CONNECTION: database
     networks:
       - joe_prod_net
       - nginx_proxy
+
+  worker:
+    image: joe-backend-v2:prod
+    container_name: joe_worker_v2_prod
+    restart: unless-stopped
+    depends_on:
+      - db
+      - backend
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: https://api.v2.swc-joe.com
+
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: joe_v2_prod
+      DB_USERNAME: joe
+      DB_PASSWORD: ${DB_PASSWORD}
+      QUEUE_CONNECTION: database
+    command: >
+      php artisan queue:work database
+      --queue=swc-sync,default
+      --sleep=3
+      --tries=1
+      --timeout=3600
+      --max-time=3600
+    networks:
+      - joe_prod_net
 
   frontend:
     build:

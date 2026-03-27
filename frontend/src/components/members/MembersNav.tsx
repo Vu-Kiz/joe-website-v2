@@ -11,7 +11,7 @@ const MembersNav: React.FC<Props> = ({ activeView, onChange }) => {
   const items: Array<{ key: MembersView; label: string }> = [
     { key: "overview", label: "Overview" },
     { key: "jobs", label: "Jobs" },
-    { key: "universe", label: "Universe" },
+    { key: "universe", label: "Astrogation" },
   ];
 
   return (

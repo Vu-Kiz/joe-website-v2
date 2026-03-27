@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\SwcAuthorization;
 use App\Models\User;
 use App\Models\UserSwcAccount;
 use App\Support\Swc\SwcAuthorizationService;
@@ -35,6 +36,8 @@ class SwcAuthController extends Controller
         return $this->redirectForFlow(
             request: $request,
             stateSessionKey: 'swc_oauth_state',
+            returnToSessionKey: null,
+            returnTo: null,
             redirectUri: (string) Config::get('swc.redirect_uri', ''),
             scope: (string) Config::get('swc.default_scope', 'character_read'),
             accessType: (string) Config::get('swc.access_type', 'online')
@@ -51,6 +54,8 @@ class SwcAuthController extends Controller
         return $this->redirectForFlow(
             request: $request,
             stateSessionKey: 'swc_creditlog_oauth_state',
+            returnToSessionKey: null,
+            returnTo: null,
             redirectUri: (string) Config::get('swc.redirect_uri', ''),
             scope: (string) Config::get(
                 'swc.creditlog_scope',
@@ -60,16 +65,136 @@ class SwcAuthController extends Controller
         );
     }
 
+    public function memberToolsRedirect(Request $request): RedirectResponse
+    {
+        $frontend = (string) Config::get('swc.frontend_url', 'https://dev-v2.swc-joe.com');
+        $returnTo = $this->sanitizeFrontendReturnPath(
+            (string) $request->query('return_to', '/aboutme'),
+            '/aboutme'
+        );
+        $selectedTools = $this->resolveRequestedMemberTools($request);
+        $scope = $this->resolveMemberToolsScope($selectedTools);
+
+        if (!Auth::check()) {
+            return redirect()->away($frontend . $returnTo);
+        }
+
+        return $this->redirectForFlow(
+            request: $request,
+            stateSessionKey: 'swc_member_tools_oauth_state',
+            returnToSessionKey: 'swc_member_tools_oauth_return_to',
+            returnTo: $returnTo,
+            redirectUri: (string) Config::get('swc.redirect_uri', ''),
+            scope: $scope,
+            accessType: (string) Config::get('swc.member_tools_access_type', 'offline')
+        );
+    }
+
+    public function eventsRedirect(Request $request): RedirectResponse
+    {
+        $frontend = (string) Config::get('swc.frontend_url', 'https://dev-v2.swc-joe.com');
+        $returnTo = $this->sanitizeFrontendReturnPath(
+            (string) $request->query('return_to', '/sys/debug'),
+            '/sys/debug'
+        );
+
+        if (!Auth::check()) {
+            return redirect()->away($frontend . $returnTo);
+        }
+
+        $scope = trim((string) Config::get('swc.events_scope', ''));
+
+        if ($scope === '') {
+            return redirect()->away($frontend . $this->appendQueryParam($returnTo, 'swc_oauth_error', 'SWC events scope is not configured.'));
+        }
+
+        return $this->redirectForFlow(
+            request: $request,
+            stateSessionKey: 'swc_events_oauth_state',
+            returnToSessionKey: 'swc_events_oauth_return_to',
+            returnTo: $returnTo,
+            redirectUri: (string) Config::get('swc.redirect_uri', ''),
+            scope: $scope,
+            accessType: (string) Config::get('swc.events_access_type', 'offline')
+        );
+    }
+
+    public function debugRedirect(Request $request): RedirectResponse
+    {
+        if (!Auth::check()) {
+            $frontend = (string) Config::get('swc.frontend_url', 'https://dev-v2.swc-joe.com');
+            return redirect()->away($frontend . '/sys/debug');
+        }
+
+        return $this->redirectForFlow(
+            request: $request,
+            stateSessionKey: 'swc_debug_oauth_state',
+            returnToSessionKey: null,
+            returnTo: null,
+            redirectUri: (string) Config::get('swc.redirect_uri', ''),
+            scope: (string) Config::get('swc.debug_scope', 'character_all faction_all messages_all'),
+            accessType: (string) Config::get('swc.debug_access_type', 'offline')
+        );
+    }
+
     public function callback(Request $request): RedirectResponse
     {
         $state = (string) $request->query('state', '');
 
         $normalState = (string) $request->session()->get('swc_oauth_state', '');
+        $memberToolsState = (string) $request->session()->get('swc_member_tools_oauth_state', '');
         $creditLogState = (string) $request->session()->get('swc_creditlog_oauth_state', '');
+        $eventsState = (string) $request->session()->get('swc_events_oauth_state', '');
+        $debugState = (string) $request->session()->get('swc_debug_oauth_state', '');
+        $memberToolsReturnTo = $this->sanitizeFrontendReturnPath(
+            (string) $request->session()->get('swc_member_tools_oauth_return_to', '/aboutme'),
+            '/aboutme'
+        );
+        $eventsReturnTo = $this->sanitizeFrontendReturnPath(
+            (string) $request->session()->get('swc_events_oauth_return_to', '/sys/debug'),
+            '/sys/debug'
+        );
 
         $frontend = (string) Config::get('swc.frontend_url', 'https://dev-v2.swc-joe.com');
 
         try {
+            if ($memberToolsState !== '' && hash_equals($memberToolsState, $state)) {
+                [$tokenData, $profile] = $this->handleCallbackForFlow(
+                    request: $request,
+                    stateSessionKey: 'swc_member_tools_oauth_state',
+                    redirectUri: (string) Config::get('swc.redirect_uri', '')
+                );
+
+                $oauthUser = $this->upsertUserFromProfile($profile);
+                $currentUser = Auth::user();
+
+                if ($currentUser && (int) $currentUser->id !== (int) $oauthUser->id) {
+                    return redirect()->away($frontend . $this->appendQueryParam(
+                        $memberToolsReturnTo,
+                        'swc_oauth_error',
+                        'OAuth character does not match the current signed-in user.'
+                    ));
+                }
+
+                Auth::login($oauthUser);
+                $request->session()->regenerate();
+
+                $grantedScopes = $this->swcAuthorizationService->normalizeScopeValue($tokenData['scope'] ?? null);
+
+                $this->swcAuthorizationService->upsertAuthorization(
+                    $oauthUser,
+                    $tokenData,
+                    $grantedScopes,
+                    SwcAuthorization::CONTEXT_MEMBER_TOOLS
+                );
+
+                return redirect()->away($frontend . $this->appendQueryParam(
+                    $memberToolsReturnTo,
+                    'swc_oauth_success',
+                    '1'
+                ));
+            }
+
             if ($creditLogState !== '' && hash_equals($creditLogState, $state)) {
                 [$tokenData, $profile] = $this->handleCallbackForFlow(
                     request: $request,
@@ -87,15 +212,60 @@ class SwcAuthController extends Controller
                 Auth::login($oauthUser);
                 $request->session()->regenerate();
 
-                $grantedScopes = $this->normalizeScopes($tokenData['scope'] ?? null);
+                $grantedScopes = $this->swcAuthorizationService->normalizeScopeValue($tokenData['scope'] ?? null);
 
                 $this->swcAuthorizationService->upsertAuthorization(
                     $oauthUser,
                     $tokenData,
-                    $grantedScopes
+                    $grantedScopes,
+                    SwcAuthorization::CONTEXT_PAYMENTS
                 );
 
                 return redirect()->away($frontend . '/payments');
+            }
+
+            if (
+                ($eventsState !== '' && hash_equals($eventsState, $state))
+                || ($debugState !== '' && hash_equals($debugState, $state))
+            ) {
+                [$tokenData, $profile] = $this->handleCallbackForFlow(
+                    request: $request,
+                    stateSessionKey: $eventsState !== '' && hash_equals($eventsState, $state)
+                        ? 'swc_events_oauth_state'
+                        : 'swc_debug_oauth_state',
+                    redirectUri: (string) Config::get('swc.redirect_uri', '')
+                );
+
+                $oauthUser = $this->upsertUserFromProfile($profile);
+                $currentUser = Auth::user();
+
+                if ($currentUser && (int) $currentUser->id !== (int) $oauthUser->id) {
+                    return redirect()->away($frontend . $this->appendQueryParam(
+                        $eventsState !== '' && hash_equals($eventsState, $state) ? $eventsReturnTo : '/sys/debug',
+                        'swc_oauth_error',
+                        'OAuth character does not match the current signed-in user.'
+                    ));
+                }
+
+                Auth::login($oauthUser);
+                $request->session()->regenerate();
+
+                $grantedScopes = $this->swcAuthorizationService->normalizeScopeValue($tokenData['scope'] ?? null);
+
+                $this->swcAuthorizationService->upsertAuthorization(
+                    $oauthUser,
+                    $tokenData,
+                    $grantedScopes,
+                    $eventsState !== '' && hash_equals($eventsState, $state)
+                        ? SwcAuthorization::CONTEXT_EVENTS
+                        : SwcAuthorization::CONTEXT_DEBUG
+                );
+
+                return redirect()->away($frontend . $this->appendQueryParam(
+                    $eventsState !== '' && hash_equals($eventsState, $state) ? $eventsReturnTo : '/sys/debug',
+                    'swc_oauth_success',
+                    '1'
+                ));
             }
 
             [, $profile] = $this->handleCallbackForFlow(
@@ -126,6 +296,25 @@ class SwcAuthController extends Controller
                 return redirect()->away($frontend . '/payments?creditlog_oauth_error=' . urlencode($e->getMessage()));
             }
 
+            if ($memberToolsState !== '' && hash_equals($memberToolsState, $state)) {
+                return redirect()->away($frontend . $this->appendQueryParam(
+                    $memberToolsReturnTo,
+                    'swc_oauth_error',
+                    $e->getMessage()
+                ));
+            }
+
+            if (
+                ($eventsState !== '' && hash_equals($eventsState, $state))
+                || ($debugState !== '' && hash_equals($debugState, $state))
+            ) {
+                return redirect()->away($frontend . $this->appendQueryParam(
+                    ($eventsState !== '' && hash_equals($eventsState, $state)) ? $eventsReturnTo : '/sys/debug',
+                    'swc_oauth_error',
+                    $e->getMessage()
+                ));
+            }
+
             return redirect()->away($frontend . '/?oauth_error=' . urlencode($e->getMessage()));
         }
     }
@@ -133,6 +322,8 @@ class SwcAuthController extends Controller
     protected function redirectForFlow(
         Request $request,
         string $stateSessionKey,
+        ?string $returnToSessionKey,
+        ?string $returnTo,
         string $redirectUri,
         string $scope,
         string $accessType
@@ -151,6 +342,9 @@ class SwcAuthController extends Controller
 
         $state = Str::random(32);
         $request->session()->put($stateSessionKey, $state);
+        if ($returnToSessionKey !== null) {
+            $request->session()->put($returnToSessionKey, (string) $returnTo);
+        }
 
         $query = http_build_query([
             'response_type' => 'code',
@@ -162,6 +356,93 @@ class SwcAuthController extends Controller
         ]);
 
         return redirect()->away("{$authorizeUrl}/?{$query}");
+    }
+
+    protected function sanitizeFrontendReturnPath(string $path, string $fallback): string
+    {
+        $trimmed = trim($path);
+
+        if ($trimmed === '' || !str_starts_with($trimmed, '/') || str_starts_with($trimmed, '//')) {
+            return $fallback;
+        }
+
+        return $trimmed;
+    }
+
+    protected function appendQueryParam(string $path, string $key, string $value): string
+    {
+        $separator = str_contains($path, '?') ? '&' : '?';
+
+        return $path . $separator . urlencode($key) . '=' . urlencode($value);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function resolveRequestedMemberTools(Request $request): array
+    {
+        $raw = (string) $request->query('tools', '');
+        $requestedTools = array_filter(array_map(
+            static fn (string $tool): string => trim(Str::lower($tool)),
+            explode(',', $raw)
+        ));
+
+        $allowedTools = array_keys((array) Config::get('swc.member_tool_scopes', []));
+        $selectedTools = array_values(array_intersect($requestedTools, $allowedTools));
+
+        if ($selectedTools !== []) {
+            return $selectedTools;
+        }
+
+        $savedPreferences = $request->user()?->member_tool_preferences;
+        if (is_array($savedPreferences)) {
+            $savedTools = [];
+            foreach ($allowedTools as $tool) {
+                if (!empty($savedPreferences[$tool])) {
+                    $savedTools[] = $tool;
+                }
+            }
+
+            if ($savedTools !== []) {
+                return $savedTools;
+            }
+        }
+
+        return $allowedTools;
+    }
+
+    /**
+     * @param  array<int, string>  $selectedTools
+     */
+    protected function resolveMemberToolsScope(array $selectedTools): string
+    {
+        $toolScopes = (array) Config::get('swc.member_tool_scopes', []);
+        $scopes = [];
+
+        foreach ($selectedTools as $tool) {
+            $scopeValue = trim((string) ($toolScopes[$tool] ?? ''));
+            if ($scopeValue === '') {
+                continue;
+            }
+
+            foreach (preg_split('/\s+/', $scopeValue) ?: [] as $scope) {
+                $scope = trim($scope);
+                if ($scope !== '') {
+                    $scopes[] = $scope;
+                }
+            }
+        }
+
+        $scopes = array_values(array_unique($scopes));
+
+        if ($scopes !== []) {
+            return implode(' ', $scopes);
+        }
+
+        return (string) Config::get(
+            'swc.member_tools_scope',
+            'character_read character_events character_credits faction_credits_read character_privileges'
+        );
     }
 
     protected function handleCallbackForFlow(
@@ -319,16 +600,4 @@ class SwcAuthController extends Controller
         return $user->fresh();
     }
 
-    protected function normalizeScopes(mixed $scopeValue): array
-    {
-        if (is_array($scopeValue)) {
-            return array_values(array_unique(array_filter(array_map('trim', $scopeValue))));
-        }
-
-        if (is_string($scopeValue) && trim($scopeValue) !== '') {
-            return array_values(array_unique(array_filter(preg_split('/\s+/', trim($scopeValue)))));
-        }
-
-        return [];
-    }
 }

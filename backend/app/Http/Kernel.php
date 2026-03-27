@@ -69,5 +69,6 @@ class Kernel extends HttpKernel
         'require_any'    => \App\Http\Middleware\RequireAnyFlag::class,
         'require_all'    => \App\Http\Middleware\RequireAllFlags::class,
         'sysadmin_only'  => \App\Http\Middleware\SysadminOnly::class,
+        'member_tool_access' => \App\Http\Middleware\LogMemberToolAccess::class,
     ];
 }

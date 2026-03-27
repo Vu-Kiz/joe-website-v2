@@ -3,6 +3,7 @@
 namespace App\Support\Swc;
 
 use App\Models\Faction;
+use App\Models\SwcAuthorization;
 use App\Models\SwcFactionPrivilegeCache;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
@@ -33,7 +34,13 @@ class SwcPrivilegeService
             ];
         }
 
-        $auth = $user->swcAuthorization;
+        $auth = $user->swcAuthorizations()
+            ->whereIn('auth_context', [
+                SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+                SwcAuthorization::CONTEXT_PAYMENTS,
+            ])
+            ->orderByRaw("case when auth_context = ? then 0 else 1 end", [SwcAuthorization::CONTEXT_MEMBER_TOOLS])
+            ->first();
 
         if (!$auth || empty($auth->access_token_encrypted)) {
             return [

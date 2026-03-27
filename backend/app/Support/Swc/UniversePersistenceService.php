@@ -7,6 +7,7 @@ use App\Models\SwcFacilityType;
 use App\Models\SwcItemType;
 use App\Models\SwcMaterialType;
 use App\Models\SwcPlanet;
+use App\Models\SwcPlanetType;
 use App\Models\SwcSector;
 use App\Models\SwcShipType;
 use App\Models\SwcStation;
@@ -29,6 +30,8 @@ class UniversePersistenceService
             'sector' => $this->persistSectorPayload($payload, $deep, $progress),
             'system' => $this->persistSystemPayload($payload, $deep, $progress),
             'planet' => $this->persistPlanetPayload($payload),
+            'planet_type_index' => $this->persistPlanetTypeIndexPayload($payload),
+            'planet_type' => $this->persistPlanetTypePayload($payload),
             'station' => $this->persistStationPayload($payload),
             'item_type_index' => $this->persistItemTypeIndexPayload($payload),
             'item_type' => $this->persistItemTypePayload($payload),
@@ -144,19 +147,21 @@ class UniversePersistenceService
                 ]);
             }
 
-            if ($deep && !empty($systemData['identifier'])) {
+            $refreshIdentifiers = $this->systemRefreshIdentifiers($systemData);
+
+            if ($deep && $refreshIdentifiers !== []) {
                 if ($progress) {
                     $progress('system_pull_started', [
                         'current' => $index + 1,
                         'total' => $totalSystems,
                         'uid' => $systemData['uid'] ?? null,
                         'name' => $systemData['name'] ?? null,
-                        'identifier' => $systemData['identifier'] ?? null,
+                        'identifier' => $refreshIdentifiers[0] ?? null,
                     ]);
                 }
 
                 try {
-                    $fullPayload = $this->universePullService->pull('system', (string) $systemData['identifier']);
+                    $fullPayload = $this->refreshSystemPayload($refreshIdentifiers);
                     $systemPersistence = $this->persistSystemPayload($fullPayload, true, $progress);
                     $deepSyncedSystems += 1;
                     $planetsUpserted += (int) ($systemPersistence['planets_upserted'] ?? 0);
@@ -172,7 +177,7 @@ class UniversePersistenceService
                             'total' => $totalSystems,
                             'uid' => $systemData['uid'] ?? null,
                             'name' => $systemData['name'] ?? null,
-                            'identifier' => $systemData['identifier'] ?? null,
+                            'identifier' => $refreshIdentifiers[0] ?? null,
                             'deep_synced' => $deepSyncedSystems,
                         ]);
                     }
@@ -187,7 +192,7 @@ class UniversePersistenceService
                             'total' => $totalSystems,
                             'uid' => $systemData['uid'] ?? null,
                             'name' => $systemData['name'] ?? null,
-                            'identifier' => $systemData['identifier'] ?? null,
+                            'identifier' => $refreshIdentifiers[0] ?? null,
                             'reason' => $exception->getMessage(),
                         ]);
                     }
@@ -404,6 +409,47 @@ class UniversePersistenceService
         ];
     }
 
+    /**
+     * @param  array<string, mixed>  $systemData
+     * @return list<string>
+     */
+    protected function systemRefreshIdentifiers(array $systemData): array
+    {
+        $candidates = [
+            trim((string) ($systemData['identifier'] ?? '')),
+            trim((string) ($systemData['uid'] ?? '')),
+            trim((string) ($systemData['name'] ?? '')),
+        ];
+
+        return array_values(array_unique(array_filter($candidates, fn ($value) => $value !== '')));
+    }
+
+    /**
+     * @param  list<string>  $identifiers
+     */
+    protected function refreshSystemPayload(array $identifiers): array
+    {
+        $lastException = null;
+
+        foreach ($identifiers as $identifier) {
+            try {
+                return $this->universePullService->pull('system', $identifier);
+            } catch (\Throwable $exception) {
+                $lastException = $exception;
+
+                if (!$this->isSkippableSwcNotFoundException($exception)) {
+                    throw $exception;
+                }
+            }
+        }
+
+        if ($lastException instanceof \Throwable) {
+            throw $lastException;
+        }
+
+        throw new \RuntimeException('System refresh did not have any valid identifiers to try.');
+    }
+
     protected function persistPlanetPayload(array $payload): array
     {
         $planetData = (array) ($payload['planet'] ?? []);
@@ -470,6 +516,65 @@ class UniversePersistenceService
             'station_type_count' => $persisted,
             'pages' => $payload['meta']['pages'] ?? null,
             'total' => $payload['meta']['total'] ?? $persisted,
+        ];
+    }
+
+    protected function persistPlanetTypeIndexPayload(array $payload): array
+    {
+        $items = collect($payload['planet_types'] ?? []);
+        $persisted = 0;
+
+        foreach ($items as $item) {
+            if (!is_array($item) || empty($item['uid'])) {
+                continue;
+            }
+
+            SwcPlanetType::updateOrCreate(
+                ['uid' => (string) $item['uid']],
+                [
+                    'name' => $item['name'] ?? null,
+                    'last_pulled_at' => now(),
+                ]
+            );
+
+            $persisted += 1;
+        }
+
+        return [
+            'resource' => 'planet_type_index',
+            'persisted' => true,
+            'planet_type_count' => $persisted,
+            'pages' => $payload['meta']['pages'] ?? null,
+            'total' => $payload['meta']['total'] ?? $persisted,
+        ];
+    }
+
+    protected function persistPlanetTypePayload(array $payload): array
+    {
+        $typeData = (array) ($payload['planet_type'] ?? []);
+        $uid = (string) ($typeData['uid'] ?? $payload['identifier'] ?? '');
+
+        if ($uid === '') {
+            throw new \RuntimeException('Planet type payload could not be persisted without a UID.');
+        }
+
+        $type = SwcPlanetType::updateOrCreate(
+            ['uid' => $uid],
+            [
+                'name' => $typeData['name'] ?? null,
+                'description' => $typeData['description'] ?? null,
+                'images' => $typeData['images'] ?? null,
+                'image_url' => $typeData['image_url'] ?? null,
+                'payload' => $typeData['payload'] ?? null,
+                'last_pulled_at' => now(),
+            ]
+        );
+
+        return [
+            'resource' => 'planet_type',
+            'persisted' => true,
+            'planet_type_uid' => $type->uid,
+            'planet_type_id' => $type->id,
         ];
     }
 
@@ -1091,6 +1196,8 @@ class UniversePersistenceService
                 'sector_id' => $sector?->id,
                 'sector_uid' => $data['sector_uid'] ?? $sector?->uid,
                 'sector_name' => $data['sector_name'] ?? $sector?->name,
+                'owner_uid' => $data['owner_uid'] ?? null,
+                'owner_name' => $data['owner_name'] ?? null,
                 'galx' => $data['galx'] ?? null,
                 'galy' => $data['galy'] ?? null,
                 'sysx' => null,
@@ -1113,6 +1220,8 @@ class UniversePersistenceService
         $system->sector_id = $sector?->id ?? $system->sector_id;
         $system->sector_uid = $data['sector_uid'] ?? $sector?->uid ?? $system->sector_uid;
         $system->sector_name = $data['sector_name'] ?? $sector?->name ?? $system->sector_name;
+        $system->owner_uid = $data['owner_uid'] ?? $system->owner_uid;
+        $system->owner_name = $data['owner_name'] ?? $system->owner_name;
         $system->galx = $data['galx'] ?? $system->galx;
         $system->galy = $data['galy'] ?? $system->galy;
         $system->sysx = $data['sysx'] ?? $system->sysx;
@@ -1149,6 +1258,9 @@ class UniversePersistenceService
         $planet->sysy = $data['sysy'] ?? $planet->sysy;
         $planet->owner_uid = $data['owner_uid'] ?? $planet->owner_uid;
         $planet->owner_name = $data['owner_name'] ?? $planet->owner_name;
+        $planet->planet_type_uid = $data['planet_type_uid'] ?? $planet->planet_type_uid;
+        $planet->planet_type_name = $data['planet_type_name'] ?? $planet->planet_type_name;
+        $planet->planet_type_href = $data['planet_type_href'] ?? $planet->planet_type_href;
         $planet->size = $data['size'] ?? $planet->size;
         $this->applyPlanetPopulationUpdate($planet, $data);
         $planet->terrain_map = $data['terrain_map'] ?? $planet->terrain_map;

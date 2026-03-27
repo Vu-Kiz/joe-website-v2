@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\Universe;
 
 use App\Http\Controllers\Controller;
 use App\Models\SwcFacilityType;
@@ -8,8 +8,10 @@ use App\Models\SwcHyperlane;
 use App\Models\SwcItemType;
 use App\Models\SwcMaterialType;
 use App\Models\SwcPlanet;
+use App\Models\SwcPlanetType;
 use App\Models\SwcSector;
 use App\Models\SwcSectorCellAnnotation;
+use App\Models\SwcSectorSearchRecord;
 use App\Models\SwcShipType;
 use App\Models\SwcStation;
 use App\Models\SwcStationType;
@@ -18,9 +20,43 @@ use App\Models\SwcSystem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Support\Swc\Auth\Permissions;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class UniverseController extends Controller
 {
+    private function mapSearchRecord(SwcSectorSearchRecord $record): array
+    {
+        return [
+            'id' => $record->id,
+            'sector_uid' => $record->sector_uid,
+            'galx' => $record->galx,
+            'galy' => $record->galy,
+            'square_name' => $record->square_name,
+            'is_system_searched' => $record->is_system_searched,
+            'has_asteroids' => $record->has_asteroids,
+            'planetoids_checked' => $record->planetoids_checked,
+            'planetoid_1_type' => $record->planetoid_1_type,
+            'planetoid_1_size' => $record->planetoid_1_size,
+            'planetoid_2_type' => $record->planetoid_2_type,
+            'planetoid_2_size' => $record->planetoid_2_size,
+            'has_ships' => $record->has_ships,
+            'has_stations' => $record->has_stations,
+            'legacy_note' => $record->legacy_note,
+            'legacy_recorded_at' => $record->legacy_recorded_at?->toISOString(),
+            'rescan_due_at' => $record->rescan_due_at?->toISOString(),
+            'is_rescan_due' => $record->rescan_due_at
+                ? $record->rescan_due_at->lte(Carbon::now())
+                : false,
+            'legacy_player' => $record->legacy_player,
+            'legacy_icon' => $record->legacy_icon,
+            'handle' => $record->legacy_handle,
+            'legacy_tag' => $record->legacy_tag,
+            'legacy_read' => $record->legacy_read,
+            'updated_at' => $record->updated_at?->toISOString(),
+        ];
+    }
+
     public function sectors(): JsonResponse
     {
         $sectors = SwcSector::query()
@@ -73,6 +109,87 @@ class UniverseController extends Controller
         ]);
     }
 
+    public function searchRecords(): JsonResponse
+    {
+        $now = Carbon::now();
+        $records = [];
+
+        foreach (
+            DB::table('swc_sector_search_records')
+                ->orderBy('galy')
+                ->orderBy('galx')
+                ->select([
+                    'id',
+                    'sector_uid',
+                    'galx',
+                    'galy',
+                    'square_name',
+                    'is_system_searched',
+                    'has_asteroids',
+                    'planetoids_checked',
+                    'planetoid_1_type',
+                    'planetoid_1_size',
+                    'planetoid_2_type',
+                    'planetoid_2_size',
+                    'has_ships',
+                    'has_stations',
+                    'legacy_note',
+                    'legacy_recorded_at',
+                    'rescan_due_at',
+                    'legacy_player',
+                    'legacy_icon',
+                    'legacy_handle',
+                    'legacy_tag',
+                    'legacy_read',
+                    'updated_at',
+                ])
+                ->cursor() as $record
+        ) {
+            $legacyRecordedAt = $record->legacy_recorded_at
+                ? Carbon::parse($record->legacy_recorded_at)->toISOString()
+                : null;
+            $rescanDueAt = $record->rescan_due_at
+                ? Carbon::parse($record->rescan_due_at)->toISOString()
+                : null;
+
+            $records[] = [
+                'id' => (int) $record->id,
+                'sector_uid' => $record->sector_uid,
+                'galx' => (int) $record->galx,
+                'galy' => (int) $record->galy,
+                'square_name' => $record->square_name,
+                'is_system_searched' => (bool) $record->is_system_searched,
+                'has_asteroids' => (bool) $record->has_asteroids,
+                'planetoids_checked' => $record->planetoids_checked === null ? null : (bool) $record->planetoids_checked,
+                'planetoid_1_type' => $record->planetoid_1_type,
+                'planetoid_1_size' => $record->planetoid_1_size,
+                'planetoid_2_type' => $record->planetoid_2_type,
+                'planetoid_2_size' => $record->planetoid_2_size,
+                'has_ships' => $record->has_ships === null ? null : (bool) $record->has_ships,
+                'has_stations' => $record->has_stations === null ? null : (bool) $record->has_stations,
+                'legacy_note' => $record->legacy_note,
+                'legacy_recorded_at' => $legacyRecordedAt,
+                'rescan_due_at' => $rescanDueAt,
+                'is_rescan_due' => $record->rescan_due_at
+                    ? Carbon::parse($record->rescan_due_at)->lte($now)
+                    : false,
+                'legacy_player' => $record->legacy_player,
+                'legacy_icon' => $record->legacy_icon,
+                'handle' => $record->legacy_handle,
+                'legacy_tag' => $record->legacy_tag,
+                'legacy_read' => (bool) $record->legacy_read,
+                'updated_at' => $record->updated_at
+                    ? Carbon::parse($record->updated_at)->toISOString()
+                    : null,
+            ];
+        }
+
+        return response()->json([
+            'ok' => true,
+            'data' => $records,
+        ]);
+    }
+
     public function sector(string $sector): JsonResponse
     {
         $sectorRecord = SwcSector::query()
@@ -89,6 +206,8 @@ class UniverseController extends Controller
                 'name',
                 'sector_uid',
                 'sector_name',
+                'owner_uid',
+                'owner_name',
                 'galx',
                 'galy',
                 'sysx',
@@ -110,6 +229,83 @@ class UniverseController extends Controller
                 'notes',
                 'updated_at',
             ]);
+
+        $outlineCoordinates = collect($sectorRecord->outline_coordinates ?? [])
+            ->filter(fn ($coordinate) => is_array($coordinate))
+            ->values();
+
+        $outlineKeys = $outlineCoordinates
+            ->mapWithKeys(function (array $coordinate) {
+                $galx = isset($coordinate['galx']) && is_numeric($coordinate['galx'])
+                    ? (int) $coordinate['galx']
+                    : null;
+                $galy = isset($coordinate['galy']) && is_numeric($coordinate['galy'])
+                    ? (int) $coordinate['galy']
+                    : null;
+
+                if ($galx === null || $galy === null) {
+                    return [];
+                }
+
+                return [sprintf('%d:%d', $galx, $galy) => true];
+            })
+            ->all();
+
+        $searchRecordsQuery = SwcSectorSearchRecord::query();
+        if (is_array($sectorRecord->bounds)) {
+            $bounds = $sectorRecord->bounds;
+            if (
+                isset($bounds['min_galx'], $bounds['max_galx'], $bounds['min_galy'], $bounds['max_galy']) &&
+                is_numeric($bounds['min_galx']) &&
+                is_numeric($bounds['max_galx']) &&
+                is_numeric($bounds['min_galy']) &&
+                is_numeric($bounds['max_galy'])
+            ) {
+                $searchRecordsQuery->whereBetween('galx', [(int) $bounds['min_galx'], (int) $bounds['max_galx']])
+                    ->whereBetween('galy', [(int) $bounds['min_galy'], (int) $bounds['max_galy']]);
+            } else {
+                $searchRecordsQuery->where('sector_uid', $sectorRecord->uid);
+            }
+        } else {
+            $searchRecordsQuery->where('sector_uid', $sectorRecord->uid);
+        }
+
+        $searchRecords = $searchRecordsQuery
+            ->orderBy('galy')
+            ->orderBy('galx')
+            ->get([
+                'id',
+                'sector_uid',
+                'galx',
+                'galy',
+                'is_system_searched',
+                'has_asteroids',
+                'planetoids_checked',
+                'planetoid_1_type',
+                'planetoid_1_size',
+                'planetoid_2_type',
+                'planetoid_2_size',
+                'has_ships',
+                'has_stations',
+                'legacy_note',
+                'legacy_recorded_at',
+                'rescan_due_at',
+                'legacy_player',
+                'legacy_icon',
+                'legacy_handle',
+                'legacy_tag',
+                'legacy_read',
+                'updated_at',
+            ])
+            ->map(fn (SwcSectorSearchRecord $record) => $this->mapSearchRecord($record))
+            ->filter(function (array $record) use ($outlineKeys, $sectorRecord) {
+                if ($record['sector_uid'] === $sectorRecord->uid) {
+                    return true;
+                }
+
+                return isset($outlineKeys[sprintf('%d:%d', $record['galx'], $record['galy'])]);
+            })
+            ->values();
 
         return response()->json([
             'ok' => true,
@@ -135,6 +331,7 @@ class UniverseController extends Controller
                 'bounds' => $sectorRecord->bounds,
                 'systems' => $systems,
                 'annotations' => $annotations,
+                'search_records' => $searchRecords,
             ],
         ]);
     }
@@ -161,6 +358,9 @@ class UniverseController extends Controller
                 'name',
                 'owner_uid',
                 'owner_name',
+                'planet_type_uid',
+                'planet_type_name',
+                'planet_type_href',
                 'size',
                 'population',
                 'previous_population',
@@ -254,6 +454,8 @@ class UniverseController extends Controller
                     'name' => $systemRecord->name,
                     'sector_uid' => $systemRecord->sector_uid,
                     'sector_name' => $systemRecord->sector_name,
+                    'owner_uid' => $systemRecord->owner_uid,
+                    'owner_name' => $systemRecord->owner_name,
                     'galx' => $systemRecord->galx,
                     'galy' => $systemRecord->galy,
                     'sysx' => $systemRecord->sysx,
@@ -267,6 +469,9 @@ class UniverseController extends Controller
                         'name' => $planet->name,
                         'owner_uid' => $planet->owner_uid,
                         'owner_name' => $planet->owner_name,
+                        'planet_type_uid' => $planet->planet_type_uid,
+                        'planet_type_name' => $planet->planet_type_name,
+                        'planet_type_href' => $planet->planet_type_href,
                         'size' => $planet->size,
                         'population' => $planet->population,
                         'previous_population' => $canViewPreviousPopulation ? $planet->previous_population : null,
@@ -631,6 +836,46 @@ class UniverseController extends Controller
         return response()->json([
             'ok' => true,
             'data' => $types,
+        ]);
+    }
+
+    public function planetTypes(): JsonResponse
+    {
+        $types = SwcPlanetType::query()
+            ->orderBy('name')
+            ->get([
+                'uid',
+                'name',
+                'description',
+                'images',
+                'image_url',
+                'last_pulled_at',
+            ]);
+
+        return response()->json([
+            'ok' => true,
+            'data' => $types,
+        ]);
+    }
+
+    public function planetType(string $planetType): JsonResponse
+    {
+        $type = SwcPlanetType::query()
+            ->where('uid', $planetType)
+            ->orWhere('name', $planetType)
+            ->firstOrFail([
+                'uid',
+                'name',
+                'description',
+                'images',
+                'image_url',
+                'payload',
+                'last_pulled_at',
+            ]);
+
+        return response()->json([
+            'ok' => true,
+            'data' => $type,
         ]);
     }
 

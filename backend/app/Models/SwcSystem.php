@@ -15,6 +15,8 @@ class SwcSystem extends Model
         'sector_id',
         'sector_uid',
         'sector_name',
+        'owner_uid',
+        'owner_name',
         'galx',
         'galy',
         'sysx',
@@ -44,5 +46,10 @@ class SwcSystem extends Model
     public function hyperlanes(): HasMany
     {
         return $this->hasMany(SwcHyperlane::class, 'source_system_id');
+    }
+
+    public function asteroidScans(): HasMany
+    {
+        return $this->hasMany(SwcAsteroidScan::class, 'system_id');
     }
 }

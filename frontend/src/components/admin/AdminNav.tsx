@@ -10,7 +10,8 @@ export type AdminView =
   | "siteLock"
   | "system"
   | "entityStats"
-  | "logs";
+  | "logs"
+  | "memberAccessLogs";
 
 type NavItem = {
   key: AdminView;
@@ -42,6 +43,7 @@ const AdminNav: React.FC<Props> = ({
     { key: "system", label: "System", hidden: !showSystemTools },
     { key: "entityStats", label: "Entity Stats", hidden: !showSystemTools },
     { key: "logs", label: "Action Logs", hidden: !canSeeLogs },
+    { key: "memberAccessLogs", label: "Member Access", hidden: !canSeeLogs },
   ];
 
   return (

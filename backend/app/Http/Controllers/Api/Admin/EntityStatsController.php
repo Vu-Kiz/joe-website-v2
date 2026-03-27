@@ -1,11 +1,12 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SwcFacilityType;
 use App\Models\SwcItemType;
 use App\Models\SwcMaterialType;
+use App\Models\SwcPlanetType;
 use App\Models\SwcShipType;
 use App\Models\SwcStationType;
 use App\Models\SwcTerrainType;
@@ -14,7 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Model;
 
-class AdminEntityStatsController extends Controller
+class EntityStatsController extends Controller
 {
     public function populateStationIcons(Request $request): JsonResponse
     {
@@ -344,6 +345,27 @@ class AdminEntityStatsController extends Controller
                     'images',
                     'image_url',
                     'icon_url',
+                    'payload',
+                    'last_pulled_at',
+                ],
+            ],
+            'planet' => [
+                'label' => 'planet type',
+                'target_type' => 'swc_planet_type',
+                'model' => SwcPlanetType::class,
+                'editable' => [
+                    'name',
+                    'description',
+                    'images',
+                    'image_url',
+                    'payload',
+                ],
+                'select' => [
+                    'uid',
+                    'name',
+                    'description',
+                    'images',
+                    'image_url',
                     'payload',
                     'last_pulled_at',
                 ],

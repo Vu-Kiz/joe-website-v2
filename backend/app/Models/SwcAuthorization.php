@@ -7,13 +7,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SwcAuthorization extends Model
 {
+    public const CONTEXT_MEMBER_TOOLS = 'member_tools';
+    public const CONTEXT_PAYMENTS = 'payments';
+    public const CONTEXT_EVENTS = 'events';
+    public const CONTEXT_DEBUG = 'debug';
+
     protected $table = 'swc_authorizations';
 
     protected $fillable = [
         'user_id',
         'user_swc_account_id',
         'swc_character_id',
+        'auth_context',
         'granted_scopes',
+        'has_personal_events_access',
+        'has_faction_events_access',
         'has_personal_credit_log_access',
         'has_faction_credit_log_access',
         'has_character_privileges_access',
@@ -25,6 +33,8 @@ class SwcAuthorization extends Model
     ];
 
     protected $casts = [
+        'has_personal_events_access' => 'boolean',
+        'has_faction_events_access' => 'boolean',
         'has_personal_credit_log_access' => 'boolean',
         'has_faction_credit_log_access' => 'boolean',
         'has_character_privileges_access' => 'boolean',

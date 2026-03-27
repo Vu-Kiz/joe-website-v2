@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
@@ -8,7 +8,7 @@ use App\Support\Admin\AdminActionLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class AdminUserController extends Controller
+class UserController extends Controller
 {
     public function index(Request $request): JsonResponse
     {

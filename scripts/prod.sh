@@ -33,6 +33,7 @@ Usage:
   ./scripts/prod.sh restart       Restart prod stack
   ./scripts/prod.sh logs [svc]    Tail logs (default: backend)
   ./scripts/prod.sh ps            Show container status
+  ./scripts/prod.sh queue-restart Restart Laravel queue workers
 
   ./scripts/prod.sh migrate       Run DB migrations (php artisan migrate --force)
   ./scripts/prod.sh shell         Shell into backend container (bash)
@@ -83,6 +84,11 @@ case "${cmd}" in
   ps)
     echo "▶ Showing container status..."
     ${DC} ps
+    ;;
+
+  queue-restart)
+    echo "▶ Restarting Laravel queue workers..."
+    ${DC} exec backend php artisan queue:restart
     ;;
 
   migrate)

@@ -15,7 +15,7 @@ class SwcCreditLogService
 
     public function getCharacterCreditLog(User $user, int $characterId, int $itemCount = 100): array
     {
-        $token = $this->swcAuthorizationService->getAccessToken($user);
+        $token = $this->swcAuthorizationService->getAccessToken($user, \App\Models\SwcAuthorization::CONTEXT_PAYMENTS);
 
         if (!$token) {
             throw new RuntimeException('Missing SWC OAuth access token.');
@@ -37,7 +37,7 @@ class SwcCreditLogService
 
     public function getFactionCreditLog(User $user, Faction $faction, int $itemCount = 100): array
     {
-        $token = $this->swcAuthorizationService->getAccessToken($user);
+        $token = $this->swcAuthorizationService->getAccessToken($user, \App\Models\SwcAuthorization::CONTEXT_PAYMENTS);
 
         if (!$token) {
             throw new RuntimeException('Missing SWC OAuth access token.');

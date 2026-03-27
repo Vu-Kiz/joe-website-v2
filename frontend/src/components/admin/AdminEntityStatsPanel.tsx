@@ -6,6 +6,8 @@ import {
   getStoredItemTypes,
   getStoredMaterialType,
   getStoredMaterialTypes,
+  getStoredPlanetType,
+  getStoredPlanetTypes,
   getStoredShipType,
   getStoredShipTypes,
   getStoredStationType,
@@ -32,6 +34,7 @@ const kindOptions: Array<{ key: EntityStatsKind; label: string }> = [
   { key: "station", label: "Station Types" },
   { key: "facility", label: "Facility Types" },
   { key: "item", label: "Item Types" },
+  { key: "planet", label: "Planet Types" },
   { key: "ship", label: "Ship Types" },
   { key: "terrain", label: "Terrain Types" },
   { key: "material", label: "Material Types" },
@@ -82,9 +85,11 @@ const AdminEntityStatsPanel: React.FC = () => {
           kind === "station"
             ? await getStoredStationTypes()
             : kind === "facility"
-              ? await getStoredFacilityTypes()
+            ? await getStoredFacilityTypes()
             : kind === "item"
               ? await getStoredItemTypes()
+            : kind === "planet"
+              ? await getStoredPlanetTypes()
             : kind === "ship"
               ? await getStoredShipTypes()
             : kind === "terrain"
@@ -133,9 +138,11 @@ const AdminEntityStatsPanel: React.FC = () => {
           kind === "station"
             ? await getStoredStationType(selectedId)
             : kind === "facility"
-              ? await getStoredFacilityType(selectedId)
+            ? await getStoredFacilityType(selectedId)
             : kind === "item"
               ? await getStoredItemType(selectedId)
+            : kind === "planet"
+              ? await getStoredPlanetType(selectedId)
             : kind === "ship"
               ? await getStoredShipType(selectedId)
             : kind === "terrain"

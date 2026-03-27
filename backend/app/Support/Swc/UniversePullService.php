@@ -16,6 +16,7 @@ class UniversePullService
             'system' => $this->pullSystem($identifier, true),
             'sector' => $this->pullSector($identifier),
             'planet' => $this->pullPlanet($identifier),
+            'planet_type' => $this->pullPlanetType($identifier),
             'station' => $this->pullStation($identifier),
             'item_type' => $this->pullItemType($identifier),
             'facility_type' => $this->pullFacilityType($identifier),
@@ -53,6 +54,35 @@ class UniversePullService
                 'page_size' => $itemCount,
             ],
             'facility_types' => $items,
+        ];
+    }
+
+    public function pullAllPlanetTypesIndex(): array
+    {
+        $startIndex = 1;
+        $itemCount = 50;
+        $total = null;
+        $items = [];
+        $pages = 0;
+
+        do {
+            $page = $this->pullTypeIndexPage('planets', $startIndex, $itemCount);
+            $pages += 1;
+            $items = [...$items, ...($page['items'] ?? [])];
+            $meta = $page['meta'] ?? [];
+            $total = $meta['total'] ?? $total;
+            $startIndex += $itemCount;
+        } while ($total !== null && count($items) < $total);
+
+        return [
+            'resource' => 'planet_type_index',
+            'meta' => [
+                'total' => $total ?? count($items),
+                'item_count' => count($items),
+                'pages' => $pages,
+                'page_size' => $itemCount,
+            ],
+            'planet_types' => $items,
         ];
     }
 
@@ -441,6 +471,9 @@ class UniversePullService
 
         $ownerUid = isset($planetNode->controlledby) ? trim((string) ($planetNode->controlledby['uid'] ?? '')) ?: null : null;
         $ownerName = isset($planetNode->controlledby) ? trim((string) $planetNode->controlledby) ?: null : null;
+        $planetTypeUid = isset($planetNode->type) ? trim((string) ($planetNode->type['uid'] ?? '')) ?: null : null;
+        $planetTypeHref = isset($planetNode->type) ? trim((string) ($planetNode->type['href'] ?? '')) ?: null : null;
+        $planetTypeName = isset($planetNode->type) ? trim((string) $planetNode->type) ?: null : null;
 
         $imageSmall = null;
         $imageLarge = null;
@@ -534,6 +567,9 @@ class UniversePullService
                 'sysy' => $location['sysy'] ?? null,
                 'owner_uid' => $ownerUid,
                 'owner_name' => $ownerName,
+                'planet_type_uid' => $planetTypeUid,
+                'planet_type_name' => $planetTypeName,
+                'planet_type_href' => $planetTypeHref,
                 'size' => $planetSize,
                 'population' => $population,
                 'terrain_map' => $terrainMap,
@@ -585,6 +621,22 @@ class UniversePullService
                 'sysx' => $location['sysx'] ?? null,
                 'sysy' => $location['sysy'] ?? null,
             ],
+        ];
+    }
+
+    protected function pullPlanetType(string $identifier): array
+    {
+        $xml = $this->fetchXml('/types/planets/' . $this->encodeIdentifierPath($identifier) . '/');
+        $typeNode = $this->extractTypeDetailNode($xml, ['planettype', 'planet', 'type']);
+
+        if (!$typeNode) {
+            throw new \RuntimeException('Planet type payload did not include a planet type node.');
+        }
+
+        return [
+            'resource' => 'planet_type',
+            'identifier' => $identifier,
+            'planet_type' => $this->parsePlanetTypeNode($typeNode, $identifier),
         ];
     }
 
@@ -938,6 +990,12 @@ class UniversePullService
     {
         $systemUid = trim((string) ($systemNode->uid ?? ''));
         $systemName = trim((string) ($systemNode->name ?? ''));
+        $ownerUid = isset($systemNode->controlledby)
+            ? trim((string) ($systemNode->controlledby['uid'] ?? '')) ?: null
+            : null;
+        $ownerName = isset($systemNode->controlledby)
+            ? trim((string) $systemNode->controlledby) ?: null
+            : null;
 
         $sectorUid = null;
         $sectorName = null;
@@ -974,6 +1032,8 @@ class UniversePullService
             'name' => $systemName !== '' ? $systemName : null,
             'sector_uid' => $sectorUid,
             'sector_name' => $sectorName,
+            'owner_uid' => $ownerUid,
+            'owner_name' => $ownerName,
             'galx' => $galx,
             'galy' => $galy,
             'sysx' => $sysx,
@@ -1223,6 +1283,27 @@ class UniversePullService
             'materials' => $materials,
             'images' => $images !== [] ? $images : null,
             'image_url' => $images['large'] ?? $images['small'] ?? $this->firstStringValue($typeNode, ['image', 'image_url', 'imageurl']),
+            'payload' => $payload,
+        ];
+    }
+
+    protected function parsePlanetTypeNode(\SimpleXMLElement $typeNode, ?string $fallbackIdentifier = null): array
+    {
+        $payload = $this->simpleXmlToArray($typeNode);
+        $uid = trim((string) ($typeNode->uid ?? $typeNode['uid'] ?? $fallbackIdentifier ?? '')) ?: null;
+        $name = trim((string) ($typeNode->name ?? $typeNode['name'] ?? $typeNode)) ?: null;
+        $images = isset($typeNode->images) ? [
+            'small' => $this->firstStringValue($typeNode->images, ['small']),
+            'large' => $this->firstStringValue($typeNode->images, ['large']),
+            'icon' => $this->firstStringValue($typeNode->images, ['icon']),
+        ] : [];
+
+        return [
+            'uid' => $uid,
+            'name' => $name,
+            'description' => $this->firstStringValue($typeNode, ['description', 'desc']),
+            'images' => $images !== [] ? $images : null,
+            'image_url' => $images['large'] ?? $images['small'] ?? $images['icon'] ?? $this->firstStringValue($typeNode, ['image', 'image_url', 'imageurl']),
             'payload' => $payload,
         ];
     }

@@ -8,29 +8,78 @@ use Carbon\Carbon;
 
 class SwcAuthorizationService
 {
-    public function forUser(User $user): ?SwcAuthorization
+    public function forUser(User $user, string $context = SwcAuthorization::CONTEXT_MEMBER_TOOLS): ?SwcAuthorization
     {
-        return $user->swcAuthorization;
+        return $user->swcAuthorizations()
+            ->where('auth_context', $context)
+            ->first();
+    }
+
+    protected function firstForContexts(User $user, array $contexts): ?SwcAuthorization
+    {
+        foreach ($contexts as $context) {
+            $auth = $this->forUser($user, $context);
+            if ($auth) {
+                return $auth;
+            }
+        }
+
+        return null;
     }
 
     public function hasPersonalCreditLogAccess(User $user): bool
     {
-        return (bool) $user->swcAuthorization?->has_personal_credit_log_access;
+        return (bool) $this->firstForContexts($user, [
+            SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+            SwcAuthorization::CONTEXT_PAYMENTS,
+        ])?->has_personal_credit_log_access;
+    }
+
+    public function hasPersonalEventsAccess(User $user): bool
+    {
+        return (bool) $this->firstForContexts($user, [
+            SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+            SwcAuthorization::CONTEXT_EVENTS,
+        ])?->has_personal_events_access;
+    }
+
+    public function hasFactionEventsAccess(User $user): bool
+    {
+        return false;
     }
 
     public function hasFactionCreditLogAccess(User $user): bool
     {
-        return (bool) $user->swcAuthorization?->has_faction_credit_log_access;
+        return (bool) $this->firstForContexts($user, [
+            SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+            SwcAuthorization::CONTEXT_PAYMENTS,
+        ])?->has_faction_credit_log_access;
     }
 
     public function hasCharacterPrivilegesAccess(User $user): bool
     {
-        return (bool) $user->swcAuthorization?->has_character_privileges_access;
+        return (bool) $this->firstForContexts($user, [
+            SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+            SwcAuthorization::CONTEXT_PAYMENTS,
+        ])?->has_character_privileges_access;
     }
 
-    public function getAccessToken(User $user): ?string
+    public function getAccessToken(User $user, string $context = SwcAuthorization::CONTEXT_MEMBER_TOOLS): ?string
     {
-        $encrypted = $user->swcAuthorization?->access_token_encrypted;
+        $auth = match ($context) {
+            SwcAuthorization::CONTEXT_EVENTS => $this->firstForContexts($user, [
+                SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+                SwcAuthorization::CONTEXT_EVENTS,
+            ]),
+            SwcAuthorization::CONTEXT_PAYMENTS => $this->firstForContexts($user, [
+                SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+                SwcAuthorization::CONTEXT_PAYMENTS,
+            ]),
+            SwcAuthorization::CONTEXT_MEMBER_TOOLS => $this->forUser($user, SwcAuthorization::CONTEXT_MEMBER_TOOLS),
+            default => $this->forUser($user, $context),
+        };
+
+        $encrypted = $auth?->access_token_encrypted;
 
         if (!$encrypted) {
             return null;
@@ -46,7 +95,8 @@ class SwcAuthorizationService
     public function upsertAuthorization(
         User $user,
         array $tokenData,
-        array $grantedScopes
+        array $grantedScopes,
+        string $context = SwcAuthorization::CONTEXT_PAYMENTS
     ): SwcAuthorization {
         $scopeString = implode(' ', $grantedScopes);
 
@@ -54,6 +104,10 @@ class SwcAuthorizationService
         if (!empty($tokenData['expires_in']) && is_numeric($tokenData['expires_in'])) {
             $expiresAt = Carbon::now()->addSeconds((int) $tokenData['expires_in']);
         }
+
+        $hasPersonalEventsAccess =
+            in_array('character_events', $grantedScopes, true)
+            || in_array('character_all', $grantedScopes, true);
 
         $hasPersonalCreditLogAccess =
             in_array('character_credits', $grantedScopes, true)
@@ -64,13 +118,21 @@ class SwcAuthorizationService
             || in_array('faction_all', $grantedScopes, true);
 
         return SwcAuthorization::updateOrCreate(
-            ['user_id' => $user->id],
+            [
+                'user_id' => $user->id,
+                'auth_context' => $context,
+            ],
             [
                 'swc_character_id' => $user->swc_character_id,
+                'auth_context' => $context,
                 'granted_scopes' => $scopeString,
+                'has_personal_events_access' => $hasPersonalEventsAccess,
+                'has_faction_events_access' => false,
                 'has_personal_credit_log_access' => $hasPersonalCreditLogAccess,
                 'has_faction_credit_log_access' => $hasFactionCreditLogAccess,
-                'has_character_privileges_access' => in_array('character_privileges', $grantedScopes, true),
+                'has_character_privileges_access' =>
+                    in_array('character_privileges', $grantedScopes, true)
+                    || in_array('character_all', $grantedScopes, true),
                 'access_token_encrypted' => !empty($tokenData['access_token'])
                     ? encrypt((string) $tokenData['access_token'])
                     : null,
@@ -83,4 +145,18 @@ class SwcAuthorizationService
             ]
         );
     }
+
+    public function normalizeScopeValue(mixed $scopeValue): array
+    {
+        if (is_array($scopeValue)) {
+            return array_values(array_unique(array_filter(array_map('trim', $scopeValue))));
+        }
+
+        if (is_string($scopeValue) && trim($scopeValue) !== '') {
+            return array_values(array_unique(array_filter(preg_split('/\s+/', trim($scopeValue)))));
+        }
+
+        return [];
+    }
+
 }
