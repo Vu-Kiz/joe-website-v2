@@ -112,7 +112,34 @@ class DiscordAuthController extends Controller
         ]);
 
         if (!$response->ok()) {
-            throw new \RuntimeException('Discord token exchange failed.');
+            $body = (string) $response->body();
+            $payload = $response->json();
+            $error = is_array($payload) ? (string) ($payload['error'] ?? '') : '';
+            $errorDescription = is_array($payload) ? (string) ($payload['error_description'] ?? '') : '';
+
+            Log::warning('Discord token exchange failed', [
+                'status' => $response->status(),
+                'body' => mb_substr($body, 0, 1000),
+                'error' => $error,
+                'error_description' => $errorDescription,
+                'redirect_uri' => $redirectUri,
+                'client_id_present' => $clientId !== '',
+                'client_secret_present' => $clientSecret !== '',
+            ]);
+
+            $message = 'Discord token exchange failed (HTTP ' . $response->status() . ')';
+
+            if ($error !== '') {
+                $message .= ': ' . $error;
+            }
+
+            if ($errorDescription !== '') {
+                $message .= ' - ' . $errorDescription;
+            }
+
+            throw new \RuntimeException(
+                $message . '.'
+            );
         }
 
         return $response->json() ?? [];
