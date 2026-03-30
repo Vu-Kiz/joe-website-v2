@@ -30,7 +30,7 @@ class SwcAuthController extends Controller
     {
         if (!Auth::check()) {
             $frontend = (string) Config::get('swc.frontend_url', 'https://dev-v2.swc-joe.com');
-            return redirect()->away($frontend . '/home?oauth_error=' . urlencode('Sign in with Discord before linking SWC.'));
+            return redirect()->away($frontend . '/aboutme?oauth_error=' . urlencode('Sign in with Discord before linking SWC.'));
         }
 
         return $this->redirectForFlow(
@@ -315,7 +315,7 @@ class SwcAuthController extends Controller
                 ));
             }
 
-            return redirect()->away($frontend . '/?oauth_error=' . urlencode($e->getMessage()));
+            return redirect()->away($frontend . '/aboutme?oauth_error=' . urlencode($e->getMessage()));
         }
     }
 
