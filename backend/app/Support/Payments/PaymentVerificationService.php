@@ -94,12 +94,17 @@ class PaymentVerificationService
                     $unmatched += 1;
 
                     if (count($failures) < 10) {
+                        $transactionsForContext = $transactionsByContext[$contextKey] ?? [];
+
                         $failures[] = [
                             'transfer_id' => $transfer->id,
                             'reference' => $transfer->reference,
                             'payee' => $transfer->payee_handle ?: $transfer->payee_label,
                             'amount' => (int) $transfer->total_amount,
                             'context' => $contextKey,
+                            'error' => count($transactionsForContext) === 0
+                                ? 'No SWC credit log transactions were returned for this payer context.'
+                                : 'No matching SWC credit log transaction was found for this transfer.',
                         ];
                     }
 
