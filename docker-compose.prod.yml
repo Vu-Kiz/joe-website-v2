@@ -82,6 +82,20 @@ services:
       - joe_prod_net
       - nginx_proxy
 
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: joe_phpmyadmin_v2_prod
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      PMA_HOST: db
+      PMA_USER: joe
+      PMA_PASSWORD: ${DB_PASSWORD}
+    networks:
+      - joe_prod_net
+      - nginx_proxy
+
 volumes:
   db_data:
 

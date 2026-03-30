@@ -57,6 +57,7 @@ Usage:
   ./scripts/prod.sh refresh       Rebuild + recreate backend/worker/frontend
   ./scripts/prod.sh logs [svc]    Tail logs (default: backend)
   ./scripts/prod.sh ps            Show container status
+  ./scripts/prod.sh pma           Show phpMyAdmin prod service info
   ./scripts/prod.sh queue-restart Restart Laravel queue workers
 
   ./scripts/prod.sh migrate       Run DB migrations (php artisan migrate --force)
@@ -73,6 +74,7 @@ Examples:
   ./scripts/prod.sh refresh
   ./scripts/prod.sh pull
   ./scripts/prod.sh deploy
+  ./scripts/prod.sh pma
 
 EOF
 }
@@ -114,6 +116,12 @@ case "${cmd}" in
   ps)
     echo "▶ Showing container status..."
     ${DC} ps
+    ;;
+
+  pma)
+    echo "▶ phpMyAdmin prod service: joe_phpmyadmin_v2_prod"
+    echo "  Expose it through Nginx Proxy Manager or inspect with:"
+    echo "  ${DC} ps"
     ;;
 
   queue-restart)
