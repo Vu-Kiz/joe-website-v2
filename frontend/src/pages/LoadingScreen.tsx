@@ -5,8 +5,11 @@ import ProgressLoadingCard from "../components/common/ProgressLoadingCard";
 const LoadingScreen: React.FC = () => {
   const [tip, setTip] = useState<string>("Consulting Jawa archives for a loading tip…");
   const [skipped, setSkipped] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
+    let progressValue = 0;
+    let progressTimer: number | null = null;
     let tipTimer: number | null = null;
     let cancelled = false;
 
@@ -23,16 +26,47 @@ const LoadingScreen: React.FC = () => {
       }
     };
 
+    progressTimer = window.setInterval(() => {
+      const remaining = 100 - progressValue;
+
+      if (remaining <= 0) {
+        if (progressTimer) {
+          window.clearInterval(progressTimer);
+        }
+
+        window.setTimeout(() => {
+          if (!cancelled) {
+            window.location.href = "/home";
+          }
+        }, 750);
+
+        return;
+      }
+
+      let step = Math.random() * Math.max(1, Math.min(8, remaining / 10));
+      if (remaining < 12) {
+        step = Math.random() * 2;
+      }
+
+      progressValue = Math.min(100, +(progressValue + step).toFixed(2));
+      setProgress(progressValue);
+    }, 220);
+
     // First tip right away
     fetchTip();
 
     tipTimer = window.setInterval(() => {
-      fetchTip();
+      if (progressValue < 85) {
+        fetchTip();
+      } else if (tipTimer) {
+        window.clearInterval(tipTimer);
+      }
     }, 4500);
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         cancelled = true;
+        if (progressTimer) window.clearInterval(progressTimer);
         window.clearInterval(tipTimer!);
         setSkipped(true);
         setTimeout(() => (window.location.href = "/home"), 800);
@@ -44,6 +78,7 @@ const LoadingScreen: React.FC = () => {
     return () => {
       cancelled = true;
       window.removeEventListener("keydown", onKey);
+      if (progressTimer) window.clearInterval(progressTimer);
       if (tipTimer) window.clearInterval(tipTimer);
     };
   }, []);
@@ -57,7 +92,9 @@ const LoadingScreen: React.FC = () => {
         "Negotiating with Jawas…",
         "Sweeping sand out of circuits…",
         "Final checks…",
+        "Done — redirecting…",
       ]}
+      progress={progress}
       tip={
         skipped
           ? `${tip} You pressed Esc to skip; GNK will finish repairs in the background.`
