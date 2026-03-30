@@ -14,23 +14,23 @@ return new class extends Migration
 
         Schema::table('users', function (Blueprint $table): void {
             if (!Schema::hasColumn('users', 'discord_user_id')) {
-                $table->string('discord_user_id', 40)->nullable()->unique()->after('password');
+                $table->string('discord_user_id', 40)->nullable()->unique();
             }
 
             if (!Schema::hasColumn('users', 'discord_username')) {
-                $table->string('discord_username', 100)->nullable()->after('discord_user_id');
+                $table->string('discord_username', 100)->nullable();
             }
 
             if (!Schema::hasColumn('users', 'discord_global_name')) {
-                $table->string('discord_global_name', 100)->nullable()->after('discord_username');
+                $table->string('discord_global_name', 100)->nullable();
             }
 
             if (!Schema::hasColumn('users', 'discord_avatar_url')) {
-                $table->string('discord_avatar_url', 255)->nullable()->after('discord_global_name');
+                $table->string('discord_avatar_url', 255)->nullable();
             }
 
             if (!Schema::hasColumn('users', 'discord_linked_at')) {
-                $table->timestamp('discord_linked_at')->nullable()->after('discord_avatar_url');
+                $table->timestamp('discord_linked_at')->nullable();
             }
         });
     }
