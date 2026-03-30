@@ -54,11 +54,13 @@ Usage:
   ./scripts/prod.sh up            Start prod stack (db + backend + frontend)
   ./scripts/prod.sh down          Stop prod stack
   ./scripts/prod.sh restart       Restart prod stack
+  ./scripts/prod.sh refresh       Rebuild + recreate backend/worker/frontend
   ./scripts/prod.sh logs [svc]    Tail logs (default: backend)
   ./scripts/prod.sh ps            Show container status
   ./scripts/prod.sh queue-restart Restart Laravel queue workers
 
   ./scripts/prod.sh migrate       Run DB migrations (php artisan migrate --force)
+  ./scripts/prod.sh optimize-clear Clear Laravel runtime caches
   ./scripts/prod.sh shell         Shell into backend container (bash)
 
   ./scripts/prod.sh pull          git fetch + git pull (branch: ${GIT_BRANCH})
@@ -68,6 +70,7 @@ Examples:
   ./scripts/prod.sh up
   ./scripts/prod.sh logs
   ./scripts/prod.sh migrate
+  ./scripts/prod.sh refresh
   ./scripts/prod.sh pull
   ./scripts/prod.sh deploy
 
@@ -84,7 +87,7 @@ fi
 case "${cmd}" in
   up)
     echo "▶ Starting prod stack (db + backend + worker + frontend)..."
-    ${DC} up -d
+    ${DC} up -d --build --remove-orphans
     ;;
 
   down)
@@ -94,8 +97,12 @@ case "${cmd}" in
 
   restart)
     echo "▶ Restarting prod stack..."
-    ${DC} down
-    ${DC} up -d
+    ${DC} up -d --build --force-recreate --remove-orphans
+    ;;
+
+  refresh)
+    echo "▶ Rebuilding and recreating backend + worker + frontend..."
+    ${DC} up -d --build --force-recreate --remove-orphans backend worker frontend
     ;;
 
   logs)
@@ -117,6 +124,11 @@ case "${cmd}" in
   migrate)
     echo "▶ Running Laravel migrations in production (--force)..."
     run_migrations_with_retry
+    ;;
+
+  optimize-clear)
+    echo "▶ Clearing Laravel runtime caches..."
+    ${DC} exec backend php artisan optimize:clear
     ;;
 
   shell)
@@ -146,13 +158,13 @@ case "${cmd}" in
       ${DC} build
 
       echo "▶ Step 3/5: restart stack..."
-      ${DC} down --remove-orphans
-      ${DC} up -d
+      ${DC} up -d --force-recreate --remove-orphans
 
       echo "▶ Step 4/5: run database migrations..."
       run_migrations_with_retry
 
       echo "▶ Step 5/5: restart queue workers..."
+      ${DC} exec backend php artisan optimize:clear
       ${DC} exec backend php artisan queue:restart
     )
     echo "✔ Deploy complete."
