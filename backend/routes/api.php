@@ -247,7 +247,7 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
     Route::put('/swc/authorization/preferences', [SwcAuthorizationController::class, 'updatePreferences']);
 });
 
-Route::middleware(['auth:sanctum', 'require_any:is_intel,is_admin'])->group(function () {
+Route::middleware(['auth:sanctum', 'require_any:is_intel,is_sysadmin'])->group(function () {
     Route::get('/droidbrain', [DroidBrainController::class, 'index']);
     Route::get('/droidbrain/history', [DroidBrainController::class, 'history']);
     Route::post('/droidbrain/upload', [DroidBrainController::class, 'upload']);

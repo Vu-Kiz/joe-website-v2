@@ -23,7 +23,7 @@ export function canAccessMembers(user: SwcUser | null | undefined): boolean {
 
 export function canAccessIntel(user: SwcUser | null | undefined): boolean {
   if (!user) return false;
-  return !!(user.is_intel || user.is_admin || user.is_sysadmin);
+  return !!(user.is_intel || user.is_sysadmin);
 }
 
 export function canViewAsteroidIntel(user: SwcUser | null | undefined): boolean {
