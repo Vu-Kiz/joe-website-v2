@@ -143,6 +143,8 @@ const MembersPage: React.FC = () => {
         setLoading(true);
         const authRes = await fetchAuthMe();
         const currentUser = authRes?.user ?? null;
+        const canSeeMemberTools = canAccessMembers(currentUser);
+        const canSeeDroidBrain = canAccessIntel(currentUser);
 
         if (cancelled) return;
 
@@ -157,7 +159,7 @@ const MembersPage: React.FC = () => {
           return;
         }
 
-        if (!canAccessMembers(currentUser)) {
+        if (!canSeeMemberTools && !canSeeDroidBrain) {
           setJobs([]);
           setSwcAuth(null);
           setPayableFactions([]);
@@ -167,9 +169,9 @@ const MembersPage: React.FC = () => {
         }
 
         const [jobsRes, swcAuthRes, payableFactionsRes, paymentsRes] = await Promise.all([
-          getJobs(),
-          getSwcAuthorizationStatus(),
-          getMyPayableFactions(),
+          canSeeMemberTools ? getJobs() : Promise.resolve({ data: [] }),
+          canSeeMemberTools ? getSwcAuthorizationStatus() : Promise.resolve({ data: null }),
+          canSeeMemberTools ? getMyPayableFactions() : Promise.resolve({ data: [] }),
           canAccessPayments(currentUser) ? getPayments() : Promise.resolve({ data: [] }),
         ]);
 
@@ -207,7 +209,8 @@ const MembersPage: React.FC = () => {
   }
 
   const isLoggedIn = !!user;
-  const canSeeMembers = canAccessMembers(user);
+  const canSeeMembers = canAccessMembers(user) || canAccessIntel(user);
+  const canSeeMemberOnlyTools = canAccessMembers(user);
 
   const openJobs = useMemo(() => jobs.filter((j) => j.status === "open"), [jobs]);
 
@@ -283,33 +286,41 @@ const MembersPage: React.FC = () => {
 
   const memberTools = useMemo<MembersToolCard[]>(
     () => [
-      {
-        key: "swc-access",
-        title: "Chain Code Verification",
-        description: (
-          <>
-            Reconnect Chain Code Verification if Astrogation or Payments times out. Status:{" "}
-            <span className="members-tool-card__count">
-              {swcAuth?.member_tools_connected ? "Connected" : "Not connected"}
-            </span>
-            .
-          </>
-        ),
-        actionLabel: swcAuth?.member_tools_connected ? "Resync Verification" : "Connect Verification",
-        onClick: handleResyncSwcAccess,
-      },
-      {
-        key: "payments",
-        title: "Payments",
-        description: (
-          <>
-            Open pending payments, payment history, and manual templates. Status:{" "}
-            <span className="members-tool-card__count">{hasPendingPayments ? "Pending items" : "Clear"}</span>.
-          </>
-        ),
-        actionLabel: "Open Payments",
-        onClick: () => navigate("/payments"),
-      },
+      ...(canSeeMemberOnlyTools
+        ? [
+            {
+              key: "swc-access",
+              title: "Chain Code Verification",
+              description: (
+                <>
+                  Reconnect Chain Code Verification if Astrogation or Payments times out. Status:{" "}
+                  <span className="members-tool-card__count">
+                    {swcAuth?.member_tools_connected ? "Connected" : "Not connected"}
+                  </span>
+                  .
+                </>
+              ),
+              actionLabel: swcAuth?.member_tools_connected ? "Resync Verification" : "Connect Verification",
+              onClick: handleResyncSwcAccess,
+            } satisfies MembersToolCard,
+          ]
+        : []),
+      ...(canAccessPayments(user)
+        ? [
+            {
+              key: "payments",
+              title: "Payments",
+              description: (
+                <>
+                  Open pending payments, payment history, and manual templates. Status:{" "}
+                  <span className="members-tool-card__count">{hasPendingPayments ? "Pending items" : "Clear"}</span>.
+                </>
+              ),
+              actionLabel: "Open Payments",
+              onClick: () => navigate("/payments"),
+            } satisfies MembersToolCard,
+          ]
+        : []),
       ...(canAccessIntel(user)
         ? [
             {
@@ -322,44 +333,49 @@ const MembersPage: React.FC = () => {
             } satisfies MembersToolCard,
           ]
         : []),
-      {
-        key: "jobs",
-        title: "Jobs",
-        description: (
-          <>
-            Browse jobs, track your work, and create new requests. Open jobs:{" "}
-            <span className="members-tool-card__count">{openJobs.length}</span>. Taken jobs:{" "}
-            <span className="members-tool-card__count">{myTakenJobs.length}</span>.
-          </>
-        ),
-        actionLabel: "Open Jobs",
-        onClick: () => setMembersView("jobs"),
-      },
-      {
-        key: "stats",
-        title: "Entity Stats",
-        description:
-          "Browse stored ships, stations, planets, materials, and other SWC catalog stats in a cleaner viewer.",
-        actionLabel: "Open Entity Stats",
-        onClick: () => setMembersView("stats"),
-      },
-      {
-        key: "hyperplanner",
-        title: "Hyper Planner",
-        description:
-          "Plot stored hyperlane routes between systems and jump straight into the linked system pages.",
-        actionLabel: "Open Hyper Planner",
-        onClick: () => setMembersView("hyperplanner"),
-      },
-      {
-        key: "universe",
-        title: "Astrogation",
-        description: "Open the astrogation map, browse intel, and pull your SWC travel events.",
-        actionLabel: "Open Astrogation",
-        onClick: () => setMembersView("universe"),
-      },
+      ...(canSeeMemberOnlyTools
+        ? [
+            {
+              key: "jobs",
+              title: "Jobs",
+              description: (
+                <>
+                  Browse jobs, track your work, and create new requests. Open jobs:{" "}
+                  <span className="members-tool-card__count">{openJobs.length}</span>. Taken jobs:{" "}
+                  <span className="members-tool-card__count">{myTakenJobs.length}</span>.
+                </>
+              ),
+              actionLabel: "Open Jobs",
+              onClick: () => setMembersView("jobs"),
+            } satisfies MembersToolCard,
+            {
+              key: "stats",
+              title: "Entity Stats",
+              description:
+                "Browse stored ships, stations, planets, materials, and other SWC catalog stats in a cleaner viewer.",
+              actionLabel: "Open Entity Stats",
+              onClick: () => setMembersView("stats"),
+            } satisfies MembersToolCard,
+            {
+              key: "hyperplanner",
+              title: "Hyper Planner",
+              description:
+                "Plot stored hyperlane routes between systems and jump straight into the linked system pages.",
+              actionLabel: "Open Hyper Planner",
+              onClick: () => setMembersView("hyperplanner"),
+            } satisfies MembersToolCard,
+            {
+              key: "universe",
+              title: "Astrogation",
+              description: "Open the astrogation map, browse intel, and pull your SWC travel events.",
+              actionLabel: "Open Astrogation",
+              onClick: () => setMembersView("universe"),
+            } satisfies MembersToolCard,
+          ]
+        : []),
     ],
     [
+      canSeeMemberOnlyTools,
       hasPendingPayments,
       myTakenJobs.length,
       navigate,
