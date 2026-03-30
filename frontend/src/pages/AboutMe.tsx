@@ -38,18 +38,40 @@ const AboutMe: React.FC = () => {
     (async () => {
       try {
         setLoading(true);
-        const [res, swcAuthRes] = await Promise.all([
-          fetchAuthMe(),
-          getSwcAuthorizationStatus(),
-        ]);
+        const res = await fetchAuthMe();
+
         if (!cancelled) {
           setUser(res.user ?? null);
-          setSwcAuth(swcAuthRes.data ?? null);
+          setSwcAuth(null);
           setSelectedTools({
-            galaxy: swcAuthRes.data?.member_tool_preferences?.galaxy ?? true,
-            payments: swcAuthRes.data?.member_tool_preferences?.payments ?? true,
+            galaxy: true,
+            payments: true,
           });
           setError(null);
+        }
+
+        if (!res.user) {
+          return;
+        }
+
+        try {
+          const swcAuthRes = await getSwcAuthorizationStatus();
+
+          if (!cancelled) {
+            setSwcAuth(swcAuthRes.data ?? null);
+            setSelectedTools({
+              galaxy: swcAuthRes.data?.member_tool_preferences?.galaxy ?? true,
+              payments: swcAuthRes.data?.member_tool_preferences?.payments ?? true,
+            });
+          }
+        } catch {
+          if (!cancelled) {
+            setSwcAuth(null);
+            setSelectedTools({
+              galaxy: true,
+              payments: true,
+            });
+          }
         }
       } catch (e: any) {
         if (!cancelled) {
