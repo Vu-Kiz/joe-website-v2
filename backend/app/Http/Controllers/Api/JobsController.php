@@ -158,9 +158,15 @@ class JobsController extends Controller
 
         $data = $request->validate([
             'days_taken' => ['nullable', 'integer', 'min:0'],
+            'include_bonus' => ['nullable', 'boolean'],
         ]);
 
-        $job = $this->jobService->completeSingleJob($job, $user, $data['days_taken'] ?? null);
+        $job = $this->jobService->completeSingleJob(
+            $job,
+            $user,
+            $data['days_taken'] ?? null,
+            (bool) ($data['include_bonus'] ?? true)
+        );
 
         return response()->json([
             'ok' => true,
@@ -178,6 +184,31 @@ class JobsController extends Controller
         }
 
         $job = $this->jobService->closeOpenEndedJob($job, $user);
+
+        return response()->json([
+            'ok' => true,
+            'data' => $job,
+        ]);
+    }
+
+    public function setBonus(Request $request, int $id): JsonResponse
+    {
+        $job = Job::findOrFail($id);
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $data = $request->validate([
+            'include_bonus' => ['required', 'boolean'],
+        ]);
+
+        $job = $this->jobService->setCompletedJobBonus(
+            $job,
+            $user,
+            (bool) $data['include_bonus']
+        );
 
         return response()->json([
             'ok' => true,
@@ -213,9 +244,40 @@ class JobsController extends Controller
 
         $data = $request->validate([
             'days_taken' => ['nullable', 'integer', 'min:0'],
+            'include_bonus' => ['nullable', 'boolean'],
         ]);
 
-        $assignment = $this->jobService->completeAssignment($assignment, $user, $data['days_taken'] ?? null);
+        $assignment = $this->jobService->completeAssignment(
+            $assignment,
+            $user,
+            $data['days_taken'] ?? null,
+            (bool) ($data['include_bonus'] ?? true)
+        );
+
+        return response()->json([
+            'ok' => true,
+            'data' => $assignment,
+        ]);
+    }
+
+    public function setAssignmentBonus(Request $request, int $id): JsonResponse
+    {
+        $assignment = JobAssignment::with('job')->findOrFail($id);
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $data = $request->validate([
+            'include_bonus' => ['required', 'boolean'],
+        ]);
+
+        $assignment = $this->jobService->setCompletedAssignmentBonus(
+            $assignment,
+            $user,
+            (bool) $data['include_bonus']
+        );
 
         return response()->json([
             'ok' => true,

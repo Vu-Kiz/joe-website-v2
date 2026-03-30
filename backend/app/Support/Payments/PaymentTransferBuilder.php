@@ -29,7 +29,7 @@ class PaymentTransferBuilder
                 /** @var PaymentItem $first */
                 $first = $groupItems->first();
 
-                $reference = $this->generateReference();
+                $reference = $this->generateReference($groupItems);
 
                 $communicationPrefix = $this->resolveCommunicationPrefix($groupItems, $reference);
 
@@ -70,14 +70,27 @@ class PaymentTransferBuilder
         $prefix = trim((string) ($meta['communication_prefix'] ?? ''));
 
         if ($prefix !== '') {
-            return $prefix . ' ' . $reference;
+            return $this->formatCommunication($prefix, $reference);
         }
 
-        return 'JOE payout ' . $reference;
+        return $this->formatCommunication('JOE payout', $reference);
     }
 
-    protected function generateReference(): string
+    protected function formatCommunication(string $prefix, string $reference): string
     {
+        return trim($prefix) . ' [' . trim($reference) . ']';
+    }
+
+    protected function generateReference(Collection $groupItems): string
+    {
+        $isManualTemplateTransfer = $groupItems->every(
+            fn (PaymentItem $item) => (string) $item->source_type === 'manual_template'
+        );
+
+        if ($isManualTemplateTransfer) {
+            return 'JOE-XFER-' . random_int(10000000, 99999999);
+        }
+
         return 'JOE-XFER-' . now()->format('YmdHis') . '-' . random_int(1000, 9999);
     }
 }

@@ -6,10 +6,13 @@ use App\Models\Faction;
 use App\Models\SwcAuthorization;
 use App\Models\SwcFactionPrivilegeCache;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
 class SwcPrivilegeService
 {
+    protected const CACHE_TTL_MINUTES = 5;
+
     public function checkFactionPrivilege(
         User $user,
         Faction $faction,
@@ -24,7 +27,7 @@ class SwcPrivilegeService
             ->where('privilege_name', $privilegeName)
             ->first();
 
-        if (!$refresh && $cache) {
+        if ($cache && (!$refresh || $this->isCacheFresh($cache))) {
             return [
                 'ok' => true,
                 'allowed' => (bool) $cache->is_allowed,
@@ -167,6 +170,7 @@ class SwcPrivilegeService
     {
         $candidates = [
             data_get($json, 'swcapi.privilege.haspriv'),
+            data_get($json, 'swcapi.privilege.value'),
             data_get($json, 'swcapi.haspriv'),
             data_get($json, 'haspriv'),
             data_get($json, 'allowed'),
@@ -194,5 +198,14 @@ class SwcPrivilegeService
         }
 
         return false;
+    }
+
+    protected function isCacheFresh(SwcFactionPrivilegeCache $cache): bool
+    {
+        if (!$cache->checked_at instanceof Carbon) {
+            return false;
+        }
+
+        return $cache->checked_at->gte(now()->subMinutes(self::CACHE_TTL_MINUTES));
     }
 }

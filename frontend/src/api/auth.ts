@@ -14,6 +14,11 @@ export type SwcUser = {
   is_admin: boolean;
   is_sysadmin: boolean;
   is_intel: boolean;
+  can_view_asteroid_intel: boolean;
+  scan_window_top_left_galx?: number | null;
+  scan_window_top_left_galy?: number | null;
+  scan_window_bottom_right_galx?: number | null;
+  scan_window_bottom_right_galy?: number | null;
   is_garry: boolean;
   is_raid: boolean;
 
@@ -33,6 +38,29 @@ export type AuthMeResponse = {
   ok: true;
   user: SwcUser | null;
 };
+
+export const AUTH_STATE_CHANGED_EVENT = "joe:auth-state-changed";
+
+export function emitAuthStateChanged(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(new CustomEvent(AUTH_STATE_CHANGED_EVENT));
+}
+
+export function subscribeToAuthStateChange(listener: () => void): () => void {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  const handler = () => listener();
+  window.addEventListener(AUTH_STATE_CHANGED_EVENT, handler);
+
+  return () => {
+    window.removeEventListener(AUTH_STATE_CHANGED_EVENT, handler);
+  };
+}
 
 function requireEnv(name: string): string {
   const v = (import.meta as any).env?.[name] as string | undefined;
@@ -141,11 +169,26 @@ export async function apiFetch<T>(
   if (!res.ok) {
     const msg =
       json?.message ||
+      json?.data?.message ||
       json?.error ||
+      (json?.errors
+        ? Object.values(json.errors)
+            .flat()
+            .filter(Boolean)
+            .join(" ")
+        : null) ||
       (text?.startsWith("<!DOCTYPE")
         ? `Request failed (${res.status}) - CSRF/session issue`
         : `Request failed (${res.status}) at ${url}`);
-    throw new Error(msg);
+    const error = new Error(msg) as Error & {
+      status?: number;
+      payload?: unknown;
+      url?: string;
+    };
+    error.status = res.status;
+    error.payload = json;
+    error.url = url;
+    throw error;
   }
 
   return json as T;
@@ -158,5 +201,8 @@ export function fetchAuthMe(): Promise<AuthMeResponse> {
 export function apiLogout(): Promise<{ ok: true }> {
   return apiFetch<{ ok: true }>("/auth/logout", {
     method: "POST",
+  }).then((result) => {
+    emitAuthStateChanged();
+    return result;
   });
 }

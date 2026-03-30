@@ -5,9 +5,10 @@ type Props = {
   jobs: Job[];
   onTake: (jobId: number) => Promise<void>;
   onJoin: (jobId: number) => Promise<void>;
+  onViewDetails: (jobId: number) => void;
 };
 
-const OpenJobsPanel: React.FC<Props> = ({ jobs, onTake, onJoin }) => {
+const OpenJobsPanel: React.FC<Props> = ({ jobs, onTake, onJoin, onViewDetails }) => {
   return (
     <div className="panel">
       <h2>Open Jobs</h2>
@@ -24,14 +25,18 @@ const OpenJobsPanel: React.FC<Props> = ({ jobs, onTake, onJoin }) => {
           <p className="small">Payer: {job.payer_label ?? "-"}</p>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button className="btn btn-secondary" type="button" onClick={() => onViewDetails(job.id)}>
+              View Details
+            </button>
+
             {job.job_mode === "single" && (
-              <button className="btn" onClick={() => onTake(job.id)}>
+              <button className="btn" type="button" onClick={() => onTake(job.id)}>
                 Take Job
               </button>
             )}
 
             {job.job_mode === "multi" && (
-              <button className="btn" onClick={() => onJoin(job.id)}>
+              <button className="btn" type="button" onClick={() => onJoin(job.id)}>
                 Join Job
               </button>
             )}

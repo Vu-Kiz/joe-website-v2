@@ -75,13 +75,32 @@
 
 .nav-user-link
   color: var(--accent)
-  font-family: 'EngliBesh', sans-serif
+  font-family: 'Tektar', sans-serif
   font-weight: 800
   text-decoration: underline
   text-underline-offset: 2px
 
   &:hover
     opacity: 0.9
+
+.btn--payments-alert
+  border-color: #ff9b32 !important
+  color: #ffd2a1 !important
+  box-shadow: 0 0 0 rgba(255, 155, 50, 0)
+  animation: payments-alert-pulse 1.6s ease-in-out infinite
+
+@keyframes payments-alert-pulse
+  0%
+    box-shadow: 0 0 0 rgba(255, 155, 50, 0), 0 0 0 rgba(255, 155, 50, 0)
+    background: rgba(255, 155, 50, 0.04)
+
+  50%
+    box-shadow: 0 0 12px rgba(255, 155, 50, 0.75), 0 0 24px rgba(255, 120, 20, 0.35)
+    background: rgba(255, 155, 50, 0.14)
+
+  100%
+    box-shadow: 0 0 0 rgba(255, 155, 50, 0), 0 0 0 rgba(255, 155, 50, 0)
+    background: rgba(255, 155, 50, 0.04)
 
 @media (max-width: 900px)
   .main-nav

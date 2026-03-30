@@ -12,6 +12,7 @@ use App\Models\SwcSystem;
 use App\Models\User;
 use App\Support\Admin\AdminActionLogger;
 use App\Support\Payments\PaymentVerificationService;
+use App\Support\Payments\SwcPaymentUrlBuilder;
 use App\Support\Swc\SwcHttp;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Client\Response;
@@ -23,7 +24,8 @@ use Illuminate\Validation\Rule;
 class DebugController extends Controller
 {
     public function __construct(
-        protected PaymentVerificationService $paymentVerificationService
+        protected PaymentVerificationService $paymentVerificationService,
+        protected SwcPaymentUrlBuilder $swcPaymentUrlBuilder
     ) {
     }
 
@@ -104,6 +106,37 @@ class DebugController extends Controller
             'galy' => isset($coordMatches[2]) ? (int) $coordMatches[2] : null,
             'has_asteroids' => $hasAsteroids,
             'text' => html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5),
+        ];
+    }
+
+    protected function summarizeCreditLogPayload(mixed $json): ?array
+    {
+        if (!is_array($json)) {
+            return null;
+        }
+
+        $resource = trim((string) data_get($json, 'resource', ''));
+
+        if (!in_array($resource, ['character_creditlog', 'faction_creditlog'], true)) {
+            return null;
+        }
+
+        $transactions = data_get($json, 'swcapi.transactions.transaction', []);
+
+        if (is_array($transactions) && isset($transactions['attributes'])) {
+            $transactions = [$transactions];
+        }
+
+        $transactionList = is_array($transactions) ? array_values($transactions) : [];
+
+        return [
+            'resource' => $resource,
+            'request' => data_get($json, 'request'),
+            'page_transaction_count' => count($transactionList),
+            'transactions_attributes' => data_get($json, 'swcapi.transactions.attributes'),
+            'swcapi_attributes' => data_get($json, 'swcapi.attributes'),
+            'first_transaction_id' => data_get($transactionList, '0.attributes.transaction_id'),
+            'last_transaction_id' => data_get($transactionList, (string) (count($transactionList) - 1) . '.attributes.transaction_id'),
         ];
     }
 
@@ -617,7 +650,7 @@ class DebugController extends Controller
         }
 
         $query = $request->query();
-        unset($query['path'], $query['user_id']);
+        unset($query['path'], $query['user_id'], $query['auth_context'], $query['prefer_auth']);
 
         $normalizedPath = ltrim($path, '/');
 
@@ -635,6 +668,7 @@ class DebugController extends Controller
 
         $attempt = SwcHttp::getWithOrderedAuthFallback($url, $query, $accessToken, $modes);
         $response = $attempt['response'];
+        $json = $response->json();
 
         return response()->json([
             'ok' => $response->ok(),
@@ -659,7 +693,8 @@ class DebugController extends Controller
             'url' => $url,
             'query' => $query,
             'body' => $response->body(),
-            'json' => $response->json(),
+            'json' => $json,
+            'creditlog_summary' => $this->summarizeCreditLogPayload($json),
         ], 200);
     }
 
@@ -763,7 +798,22 @@ class DebugController extends Controller
             ], 404);
         }
 
-        $auth = $this->resolveAuthorizationForContext($user, SwcAuthorization::CONTEXT_PAYMENTS);
+        $context = trim((string) $request->query('auth_context', SwcAuthorization::CONTEXT_MEMBER_TOOLS));
+        $allowedContexts = [
+            SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+            SwcAuthorization::CONTEXT_PAYMENTS,
+            SwcAuthorization::CONTEXT_EVENTS,
+            SwcAuthorization::CONTEXT_DEBUG,
+        ];
+
+        if (!in_array($context, $allowedContexts, true)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Unsupported auth_context.',
+            ], 422);
+        }
+
+        $auth = $this->resolveAuthorizationForContext($user, $context);
 
         if (!$auth || empty($auth->access_token_encrypted)) {
             return response()->json([
@@ -773,7 +823,7 @@ class DebugController extends Controller
         }
 
         $group = trim((string) $request->query('group', 'finance'));
-        $privilege = trim((string) $request->query('privilege', 'can_transfer'));
+        $privilege = trim((string) $request->query('privilege', 'send_credits'));
         $factionId = trim((string) $request->query('faction_id', ''));
 
         if ($factionId === '') {
@@ -784,31 +834,38 @@ class DebugController extends Controller
         }
 
         $accessToken = decrypt($auth->access_token_encrypted);
+        $characterUid = '1:' . $user->swc_character_id;
+
         $url = rtrim((string) config('swc.api_base'), '/')
             . '/character/'
-            . urlencode((string) $user->swc_character_id)
-            . '/privilege/'
+            . urlencode($characterUid)
+            . '/privileges/'
             . urlencode($group)
             . '/'
             . urlencode($privilege)
             . '/';
 
-        $attempt = SwcHttp::getWithAuthFallback($url, [
+        $modes = ['oauth', 'bearer'];
+
+        $attempt = SwcHttp::getWithOrderedAuthFallback($url, [
             'faction_id' => $factionId,
-        ], $accessToken);
+        ], $accessToken, $modes);
 
         $response = $attempt['response'];
 
         return response()->json([
             'ok' => $response->ok(),
             'status' => $response->status(),
+            'auth_context_requested' => $context,
             'auth_mode_used' => $attempt['mode'],
+            'auth_modes_tried' => $attempt['modes_tried'] ?? $modes,
             'target_user' => [
                 'id' => $user->id,
                 'swc_handle' => $user->swc_handle,
                 'swc_character_id' => $user->swc_character_id,
             ],
             'authorization_summary' => [
+                'auth_context' => $auth?->auth_context,
                 'has_auth_row' => (bool) $auth,
                 'has_access_token' => !empty($auth->access_token_encrypted),
                 'token_expires_at' => $auth?->token_expires_at?->toIso8601String(),
@@ -841,12 +898,15 @@ class DebugController extends Controller
             'payer_subject_type' => ['nullable', Rule::in(['user', 'faction'])],
             'payer_subject_id' => ['nullable', 'integer'],
             'amount' => ['nullable', 'integer', 'min:1'],
+            'receiver_handle' => ['nullable', 'string', 'max:120'],
             'receiver_uid' => ['nullable', 'string', 'max:50'],
+            'reference' => ['nullable', 'string', 'max:120'],
+            'communication_prefix' => ['nullable', 'string', 'max:180'],
             'communication' => ['nullable', 'string', 'max:255'],
             'item_count' => ['nullable', 'integer', 'min:1', 'max:250'],
         ]);
 
-        $itemCount = (int) ($data['item_count'] ?? 100);
+        $itemCount = max(50, min(250, (int) ($data['item_count'] ?? 100)));
 
         if (!empty($data['payment_transfer_id'])) {
             $transfer = PaymentTransfer::with('items')->find($data['payment_transfer_id']);
@@ -895,16 +955,57 @@ class DebugController extends Controller
             ], 422);
         }
 
+        $resolvedReceiverHandle = trim((string) ($data['receiver_handle'] ?? ''));
+        $resolvedReceiverUid = trim((string) ($data['receiver_uid'] ?? ''));
+        $reference = trim((string) ($data['reference'] ?? ''));
+        $communicationPrefix = trim((string) ($data['communication_prefix'] ?? ''));
+
+        if ($resolvedReceiverHandle !== '' && $resolvedReceiverUid === '') {
+            $receiverUser = User::query()
+                ->where('swc_handle', $resolvedReceiverHandle)
+                ->first();
+
+            if ($receiverUser?->swc_character_id) {
+                $resolvedReceiverUid = '1:' . $receiverUser->swc_character_id;
+            }
+        }
+
+        $expectedCommunication = trim((string) ($data['communication'] ?? ''));
+
+        if ($reference !== '') {
+            $expectedCommunication = $communicationPrefix !== ''
+                ? trim($communicationPrefix) . ' [' . $reference . ']'
+                : 'JOE payout [' . $reference . ']';
+        }
+
         $inspection = $this->paymentVerificationService->inspectExpectedPaymentForUserContext(
             $user,
             payerSubjectType: (string) $data['payer_subject_type'],
             payerSubjectId: (int) $data['payer_subject_id'],
             expectedAmount: (int) $data['amount'],
-            expectedReceiverUid: (string) ($data['receiver_uid'] ?? ''),
-            expectedCommunication: (string) ($data['communication'] ?? ''),
+            expectedReceiverUid: $resolvedReceiverUid,
+            expectedCommunication: $expectedCommunication,
             itemCount: $itemCount,
-            transferReference: null,
+            transferReference: $reference !== '' ? $reference : null,
         );
+
+        $paymentUrl = null;
+        if ($resolvedReceiverHandle !== '') {
+            $previewTransfer = new PaymentTransfer([
+                'payer_subject_type' => (string) $data['payer_subject_type'],
+                'payer_subject_id' => (int) $data['payer_subject_id'],
+                'payee_handle' => $resolvedReceiverHandle,
+                'payee_swc_uid' => $resolvedReceiverUid !== '' ? $resolvedReceiverUid : null,
+                'total_amount' => (int) $data['amount'],
+                'communication' => $expectedCommunication,
+            ]);
+
+            try {
+                $paymentUrl = $this->swcPaymentUrlBuilder->buildSingleTransferUrl($previewTransfer);
+            } catch (\Throwable) {
+                $paymentUrl = null;
+            }
+        }
 
         return response()->json([
             'ok' => true,
@@ -914,7 +1015,62 @@ class DebugController extends Controller
                 'swc_handle' => $user->swc_handle,
                 'swc_character_id' => $user->swc_character_id,
             ],
+            'manual_preview' => [
+                'receiver_handle' => $resolvedReceiverHandle !== '' ? $resolvedReceiverHandle : null,
+                'receiver_uid' => $resolvedReceiverUid !== '' ? $resolvedReceiverUid : null,
+                'reference' => $reference !== '' ? $reference : null,
+                'communication_prefix' => $communicationPrefix !== '' ? $communicationPrefix : null,
+                'generated_communication' => $expectedCommunication !== '' ? $expectedCommunication : null,
+                'payment_url' => $paymentUrl,
+            ],
             'inspection' => $inspection,
+        ]);
+    }
+
+    public function pullCreditLog(Request $request): JsonResponse
+    {
+        $user = $this->resolveTargetUser($request, ['factions']);
+
+        if (!$user) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'User not found.',
+            ], 404);
+        }
+
+        $payableFactionIds = $user->factions()
+            ->wherePivot('can_pay_from_faction', true)
+            ->pluck('factions.id');
+
+        $transfers = PaymentTransfer::query()
+            ->whereNotIn('status', ['verified', 'paid'])
+            ->where(function ($query) use ($user, $payableFactionIds) {
+                $query->where(function ($q) use ($user) {
+                    $q->where('payer_subject_type', 'user')
+                        ->where('payer_subject_id', $user->id);
+                });
+
+                if ($payableFactionIds->isNotEmpty()) {
+                    $query->orWhere(function ($q) use ($payableFactionIds) {
+                        $q->where('payer_subject_type', 'faction')
+                            ->whereIn('payer_subject_id', $payableFactionIds);
+                    });
+                }
+            })
+            ->with('items')
+            ->latest()
+            ->get();
+
+        $result = $this->paymentVerificationService->verifyTransfersForUserContext($user, $transfers, 250);
+
+        return response()->json([
+            'ok' => true,
+            'target_user' => [
+                'id' => $user->id,
+                'swc_handle' => $user->swc_handle,
+                'swc_character_id' => $user->swc_character_id,
+            ],
+            'data' => $result,
         ]);
     }
 }

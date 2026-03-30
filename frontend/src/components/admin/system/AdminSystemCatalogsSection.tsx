@@ -49,10 +49,10 @@ function CatalogCard({
       ) : null}
       {persistence ? (
         <div className="admin-grid">
-          <div className="admin-card"><h3 className="admin-card__title">Type Records</h3><p className="small">{persistence.station_type_count ?? persistence.planet_type_count ?? persistence.ship_type_count ?? persistence.facility_type_count ?? persistence.item_type_count ?? persistence.terrain_type_count ?? persistence.material_type_count ?? persistence.total ?? 0}</p></div>
+          <div className="admin-card"><h3 className="admin-card__title">Type Records</h3><p className="small">{persistence.station_type_count ?? persistence.planet_type_count ?? persistence.ship_type_count ?? persistence.vehicle_type_count ?? persistence.droid_type_count ?? persistence.creature_type_count ?? persistence.npc_type_count ?? persistence.race_count ?? persistence.weapon_type_count ?? persistence.facility_type_count ?? persistence.item_type_count ?? persistence.terrain_type_count ?? persistence.material_type_count ?? persistence.total ?? 0}</p></div>
           <div className="admin-card"><h3 className="admin-card__title">Pages Pulled</h3><p className="small">{persistence.pages ?? "Unknown"}</p></div>
           <div className="admin-card"><h3 className="admin-card__title">Total Listed</h3><p className="small">{persistence.total ?? "Unknown"}</p></div>
-          <div className="admin-card"><h3 className="admin-card__title">Details Hydrated</h3><p className="small">{persistence.hydrated_station_types ?? persistence.hydrated_planet_types ?? persistence.hydrated_ship_types ?? persistence.hydrated_facility_types ?? persistence.hydrated_item_types ?? persistence.hydrated_terrain_types ?? persistence.hydrated_material_types ?? 0}</p></div>
+          <div className="admin-card"><h3 className="admin-card__title">Details Hydrated</h3><p className="small">{persistence.hydrated_station_types ?? persistence.hydrated_planet_types ?? persistence.hydrated_ship_types ?? persistence.hydrated_vehicle_types ?? persistence.hydrated_droid_types ?? persistence.hydrated_creature_types ?? persistence.hydrated_npc_types ?? persistence.hydrated_races ?? persistence.hydrated_weapon_types ?? persistence.hydrated_facility_types ?? persistence.hydrated_item_types ?? persistence.hydrated_terrain_types ?? persistence.hydrated_material_types ?? 0}</p></div>
         </div>
       ) : null}
     </section>
@@ -72,6 +72,42 @@ type Props = {
   shipTypePersistence: any;
   shipTypeProgressLines: string[];
   onPullAllShipTypes: () => void;
+  vehicleTypeLoading: boolean;
+  vehicleTypeMessage: string | null;
+  vehicleTypeError: string | null;
+  vehicleTypePersistence: any;
+  vehicleTypeProgressLines: string[];
+  onPullAllVehicleTypes: () => void;
+  droidTypeLoading: boolean;
+  droidTypeMessage: string | null;
+  droidTypeError: string | null;
+  droidTypePersistence: any;
+  droidTypeProgressLines: string[];
+  onPullAllDroidTypes: () => void;
+  creatureTypeLoading: boolean;
+  creatureTypeMessage: string | null;
+  creatureTypeError: string | null;
+  creatureTypePersistence: any;
+  creatureTypeProgressLines: string[];
+  onPullAllCreatureTypes: () => void;
+  npcTypeLoading: boolean;
+  npcTypeMessage: string | null;
+  npcTypeError: string | null;
+  npcTypePersistence: any;
+  npcTypeProgressLines: string[];
+  onPullAllNpcTypes: () => void;
+  raceLoading: boolean;
+  raceMessage: string | null;
+  raceError: string | null;
+  racePersistence: any;
+  raceProgressLines: string[];
+  onPullAllRaces: () => void;
+  weaponTypeLoading: boolean;
+  weaponTypeMessage: string | null;
+  weaponTypeError: string | null;
+  weaponTypePersistence: any;
+  weaponTypeProgressLines: string[];
+  onPullAllWeaponTypes: () => void;
   facilityTypeLoading: boolean;
   facilityTypeMessage: string | null;
   facilityTypeError: string | null;
@@ -128,6 +164,72 @@ const AdminSystemCatalogsSection: React.FC<Props> = (props) => {
         error={props.shipTypeError}
         progressLines={props.shipTypeProgressLines}
         persistence={props.shipTypePersistence}
+      />
+      <CatalogCard
+        title="Pull All Vehicle Types"
+        description="Pull the SWC vehicle type catalog and hydrate each vehicle type so we have stored ground-vehicle references alongside the other galaxy entity catalogs."
+        loading={props.vehicleTypeLoading}
+        buttonLabel="Pull All Vehicle Types"
+        onClick={props.onPullAllVehicleTypes}
+        message={props.vehicleTypeMessage}
+        error={props.vehicleTypeError}
+        progressLines={props.vehicleTypeProgressLines}
+        persistence={props.vehicleTypePersistence}
+      />
+      <CatalogCard
+        title="Pull All Droid Types"
+        description="Pull the SWC droid type catalog and hydrate each droid type so we have stored droid references in their own catalog instead of mixing them with NPCs or vehicles."
+        loading={props.droidTypeLoading}
+        buttonLabel="Pull All Droid Types"
+        onClick={props.onPullAllDroidTypes}
+        message={props.droidTypeMessage}
+        error={props.droidTypeError}
+        progressLines={props.droidTypeProgressLines}
+        persistence={props.droidTypePersistence}
+      />
+      <CatalogCard
+        title="Pull All Creature Types"
+        description="Pull the SWC creature type catalog and hydrate each creature type so stored wildlife and creature references live in their own catalog."
+        loading={props.creatureTypeLoading}
+        buttonLabel="Pull All Creature Types"
+        onClick={props.onPullAllCreatureTypes}
+        message={props.creatureTypeMessage}
+        error={props.creatureTypeError}
+        progressLines={props.creatureTypeProgressLines}
+        persistence={props.creatureTypePersistence}
+      />
+      <CatalogCard
+        title="Pull All NPC Types"
+        description="Pull the SWC NPC type catalog and hydrate each NPC type so DroidBrain can reference real NPC type metadata separately from race names."
+        loading={props.npcTypeLoading}
+        buttonLabel="Pull All NPC Types"
+        onClick={props.onPullAllNpcTypes}
+        message={props.npcTypeMessage}
+        error={props.npcTypeError}
+        progressLines={props.npcTypeProgressLines}
+        persistence={props.npcTypePersistence}
+      />
+      <CatalogCard
+        title="Pull All Races"
+        description="Pull the SWC race catalog into its own table so race metadata stays separate from NPC types."
+        loading={props.raceLoading}
+        buttonLabel="Pull All Races"
+        onClick={props.onPullAllRaces}
+        message={props.raceMessage}
+        error={props.raceError}
+        progressLines={props.raceProgressLines}
+        persistence={props.racePersistence}
+      />
+      <CatalogCard
+        title="Pull All Weapon Types"
+        description="Pull the SWC weapon type catalog and hydrate each weapon type so stored combat references live in their own catalog."
+        loading={props.weaponTypeLoading}
+        buttonLabel="Pull All Weapon Types"
+        onClick={props.onPullAllWeaponTypes}
+        message={props.weaponTypeMessage}
+        error={props.weaponTypeError}
+        progressLines={props.weaponTypeProgressLines}
+        persistence={props.weaponTypePersistence}
       />
       <CatalogCard
         title="Pull All Facility Types"

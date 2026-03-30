@@ -8,11 +8,12 @@ use App\Models\PaymentItem;
 
 class PaymentItemService
 {
-    public function syncForCompletedJob(Job $job): PaymentItem
+    public function syncForCompletedJob(Job $job, bool $includeBonus = true): PaymentItem
     {
+        $appliedBonusAmount = $includeBonus ? (int) $job->bonus_amount : 0;
         $total = $this->calculateTotal(
             (int) $job->reward_amount,
-            (int) $job->bonus_amount,
+            $appliedBonusAmount,
             (string) $job->pay_type,
             $job->days_taken
         );
@@ -33,7 +34,7 @@ class PaymentItemService
                 'payee_handle' => $job->assigned_to_handle,
                 'payee_label' => $job->assigned_to_handle,
                 'amount' => (int) $job->reward_amount,
-                'bonus_amount' => (int) $job->bonus_amount,
+                'bonus_amount' => $appliedBonusAmount,
                 'total_amount' => $total,
                 'status' => 'pending',
                 'meta' => [
@@ -42,18 +43,20 @@ class PaymentItemService
                     'job_mode' => $job->job_mode,
                     'pay_type' => $job->pay_type,
                     'days_taken' => $job->days_taken,
+                    'bonus_awarded' => $includeBonus,
                 ],
             ]
         );
     }
 
-    public function syncForCompletedAssignment(JobAssignment $assignment): PaymentItem
+    public function syncForCompletedAssignment(JobAssignment $assignment, bool $includeBonus = true): PaymentItem
     {
         $job = $assignment->job;
+        $appliedBonusAmount = $includeBonus ? (int) $job->bonus_amount : 0;
 
         $total = $this->calculateTotal(
             (int) $job->reward_amount,
-            (int) $job->bonus_amount,
+            $appliedBonusAmount,
             (string) $job->pay_type,
             $assignment->days_taken
         );
@@ -74,7 +77,7 @@ class PaymentItemService
                 'payee_handle' => $assignment->worker_handle,
                 'payee_label' => $assignment->worker_handle,
                 'amount' => (int) $job->reward_amount,
-                'bonus_amount' => (int) $job->bonus_amount,
+                'bonus_amount' => $appliedBonusAmount,
                 'total_amount' => $total,
                 'status' => 'pending',
                 'meta' => [
@@ -84,6 +87,7 @@ class PaymentItemService
                     'job_mode' => $job->job_mode,
                     'pay_type' => $job->pay_type,
                     'days_taken' => $assignment->days_taken,
+                    'bonus_awarded' => $includeBonus,
                 ],
             ]
         );

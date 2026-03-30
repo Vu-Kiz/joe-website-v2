@@ -34,7 +34,7 @@ class PullController extends Controller
     public function run(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'resource' => ['required', 'in:system,sector,planet,planet_type,station,station_type,ship_type,facility_type,item_type,terrain_type,material_type'],
+            'resource' => ['required', 'in:system,sector,planet,planet_type,station,station_type,ship_type,vehicle_type,droid_type,creature_type,npc_type,race,weapon_type,facility_type,item_type,terrain_type,material_type'],
             'identifier' => ['required', 'string', 'max:255'],
             'persist' => ['sometimes', 'boolean'],
             'deep' => ['sometimes', 'boolean'],
@@ -676,6 +676,364 @@ class PullController extends Controller
             hydratedKey: 'hydrated_ship_types',
             summary: 'Pulled and hydrated all ship types',
             targetType: 'swc_ship_type'
+        );
+    }
+
+    /**
+     * POST /api/sys/universe/pull-all-vehicle-types
+     * Sysadmin-only.
+     */
+    public function runAllVehicleTypes(Request $request): JsonResponse
+    {
+        $result = $this->universePullService->pullAllVehicleTypesIndex();
+        $indexPersistence = $this->universePersistenceService->persist($result);
+        $hydrated = 0;
+
+        foreach ((array) ($result['vehicle_types'] ?? []) as $type) {
+            if (!is_array($type)) {
+                continue;
+            }
+
+            $detailPayload = $this->pullTypeDetailWithFallbacks('vehicle_type', $type);
+            $this->universePersistenceService->persist($detailPayload);
+            $hydrated += 1;
+        }
+
+        AdminActionLogger::log(
+            $request,
+            'universe',
+            'pull_all_vehicle_types',
+            'Pulled and hydrated all vehicle types',
+            'swc_vehicle_type',
+            null,
+            null,
+            [
+                'vehicle_type_count' => $indexPersistence['vehicle_type_count'] ?? 0,
+                'pages' => $indexPersistence['pages'] ?? null,
+                'total' => $indexPersistence['total'] ?? 0,
+                'hydrated_vehicle_types' => $hydrated,
+            ]
+        );
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'All vehicle types pulled and persisted.',
+            'data' => $result,
+            'persistence' => [
+                'vehicle_type_count' => $indexPersistence['vehicle_type_count'] ?? 0,
+                'pages' => $indexPersistence['pages'] ?? null,
+                'total' => $indexPersistence['total'] ?? 0,
+                'hydrated_vehicle_types' => $hydrated,
+            ],
+        ]);
+    }
+
+    public function runAllVehicleTypesStream(Request $request): StreamedResponse
+    {
+        return $this->streamTypeCatalogPull(
+            $request,
+            entityType: 'vehicle_type',
+            resultKey: 'vehicle_types',
+            resultMethod: 'pullAllVehicleTypesIndex',
+            countKey: 'vehicle_type_count',
+            hydratedKey: 'hydrated_vehicle_types',
+            summary: 'Pulled and hydrated all vehicle types',
+            targetType: 'swc_vehicle_type'
+        );
+    }
+
+    public function runAllDroidTypes(Request $request): JsonResponse
+    {
+        $result = $this->universePullService->pullAllDroidTypesIndex();
+        $indexPersistence = $this->universePersistenceService->persist($result);
+        $hydrated = 0;
+
+        foreach ((array) ($result['droid_types'] ?? []) as $type) {
+            if (!is_array($type)) {
+                continue;
+            }
+
+            $detailPayload = $this->pullTypeDetailWithFallbacks('droid_type', $type);
+            $this->universePersistenceService->persist($detailPayload);
+            $hydrated += 1;
+        }
+
+        AdminActionLogger::log(
+            $request,
+            'universe',
+            'pull_all_droid_types',
+            'Pulled and hydrated all droid types',
+            'swc_droid_type',
+            null,
+            null,
+            [
+                'droid_type_count' => $indexPersistence['droid_type_count'] ?? 0,
+                'pages' => $indexPersistence['pages'] ?? null,
+                'total' => $indexPersistence['total'] ?? 0,
+                'hydrated_droid_types' => $hydrated,
+            ]
+        );
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'All droid types pulled and persisted.',
+            'data' => $result,
+            'persistence' => [
+                'droid_type_count' => $indexPersistence['droid_type_count'] ?? 0,
+                'pages' => $indexPersistence['pages'] ?? null,
+                'total' => $indexPersistence['total'] ?? 0,
+                'hydrated_droid_types' => $hydrated,
+            ],
+        ]);
+    }
+
+    public function runAllDroidTypesStream(Request $request): StreamedResponse
+    {
+        return $this->streamTypeCatalogPull(
+            $request,
+            entityType: 'droid_type',
+            resultKey: 'droid_types',
+            resultMethod: 'pullAllDroidTypesIndex',
+            countKey: 'droid_type_count',
+            hydratedKey: 'hydrated_droid_types',
+            summary: 'Pulled and hydrated all droid types',
+            targetType: 'swc_droid_type'
+        );
+    }
+
+    public function runAllNpcTypes(Request $request): JsonResponse
+    {
+        $result = $this->universePullService->pullAllNpcTypesIndex();
+        $indexPersistence = $this->universePersistenceService->persist($result);
+        $hydrated = 0;
+
+        foreach ((array) ($result['npc_types'] ?? []) as $type) {
+            if (!is_array($type)) {
+                continue;
+            }
+
+            $detailPayload = $this->pullTypeDetailWithFallbacks('npc_type', $type);
+            $this->universePersistenceService->persist($detailPayload);
+            $hydrated += 1;
+        }
+
+        AdminActionLogger::log(
+            $request,
+            'universe',
+            'pull_all_npc_types',
+            'Pulled and hydrated all NPC types',
+            'swc_npc_type',
+            null,
+            null,
+            [
+                'npc_type_count' => $indexPersistence['npc_type_count'] ?? 0,
+                'pages' => $indexPersistence['pages'] ?? null,
+                'total' => $indexPersistence['total'] ?? 0,
+                'hydrated_npc_types' => $hydrated,
+            ]
+        );
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'All NPC types pulled and persisted.',
+            'data' => $result,
+            'persistence' => [
+                'npc_type_count' => $indexPersistence['npc_type_count'] ?? 0,
+                'pages' => $indexPersistence['pages'] ?? null,
+                'total' => $indexPersistence['total'] ?? 0,
+                'hydrated_npc_types' => $hydrated,
+            ],
+        ]);
+    }
+
+    public function runAllNpcTypesStream(Request $request): StreamedResponse
+    {
+        return $this->streamTypeCatalogPull(
+            $request,
+            entityType: 'npc_type',
+            resultKey: 'npc_types',
+            resultMethod: 'pullAllNpcTypesIndex',
+            countKey: 'npc_type_count',
+            hydratedKey: 'hydrated_npc_types',
+            summary: 'Pulled and hydrated all NPC types',
+            targetType: 'swc_npc_type'
+        );
+    }
+
+    public function runAllRaces(Request $request): JsonResponse
+    {
+        $result = $this->universePullService->pullAllRacesIndex();
+        $indexPersistence = $this->universePersistenceService->persist($result);
+        $hydrated = 0;
+
+        foreach ((array) ($result['races'] ?? []) as $type) {
+            if (!is_array($type)) {
+                continue;
+            }
+
+            $detailPayload = $this->pullTypeDetailWithFallbacks('race', $type);
+            $this->universePersistenceService->persist($detailPayload);
+            $hydrated += 1;
+        }
+
+        AdminActionLogger::log(
+            $request,
+            'universe',
+            'pull_all_races',
+            'Pulled and hydrated all races',
+            'swc_race',
+            null,
+            null,
+            [
+                'race_count' => $indexPersistence['race_count'] ?? 0,
+                'pages' => $indexPersistence['pages'] ?? null,
+                'total' => $indexPersistence['total'] ?? 0,
+                'hydrated_races' => $hydrated,
+            ]
+        );
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'All races pulled and persisted.',
+            'data' => $result,
+            'persistence' => [
+                'race_count' => $indexPersistence['race_count'] ?? 0,
+                'pages' => $indexPersistence['pages'] ?? null,
+                'total' => $indexPersistence['total'] ?? 0,
+                'hydrated_races' => $hydrated,
+            ],
+        ]);
+    }
+
+    public function runAllRacesStream(Request $request): StreamedResponse
+    {
+        return $this->streamTypeCatalogPull(
+            $request,
+            entityType: 'race',
+            resultKey: 'races',
+            resultMethod: 'pullAllRacesIndex',
+            countKey: 'race_count',
+            hydratedKey: 'hydrated_races',
+            summary: 'Pulled and hydrated all races',
+            targetType: 'swc_race'
+        );
+    }
+
+    public function runAllWeaponTypes(Request $request): JsonResponse
+    {
+        $result = $this->universePullService->pullAllWeaponTypesIndex();
+        $indexPersistence = $this->universePersistenceService->persist($result);
+        $hydrated = 0;
+
+        foreach ((array) ($result['weapon_types'] ?? []) as $type) {
+            if (!is_array($type)) {
+                continue;
+            }
+
+            $detailPayload = $this->pullTypeDetailWithFallbacks('weapon_type', $type);
+            $this->universePersistenceService->persist($detailPayload);
+            $hydrated += 1;
+        }
+
+        AdminActionLogger::log(
+            $request,
+            'universe',
+            'pull_all_weapon_types',
+            'Pulled and hydrated all weapon types',
+            'swc_weapon_type',
+            null,
+            null,
+            [
+                'weapon_type_count' => $indexPersistence['weapon_type_count'] ?? 0,
+                'pages' => $indexPersistence['pages'] ?? null,
+                'total' => $indexPersistence['total'] ?? 0,
+                'hydrated_weapon_types' => $hydrated,
+            ]
+        );
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'All weapon types pulled and persisted.',
+            'data' => $result,
+            'persistence' => [
+                'weapon_type_count' => $indexPersistence['weapon_type_count'] ?? 0,
+                'pages' => $indexPersistence['pages'] ?? null,
+                'total' => $indexPersistence['total'] ?? 0,
+                'hydrated_weapon_types' => $hydrated,
+            ],
+        ]);
+    }
+
+    public function runAllWeaponTypesStream(Request $request): StreamedResponse
+    {
+        return $this->streamTypeCatalogPull(
+            $request,
+            entityType: 'weapon_type',
+            resultKey: 'weapon_types',
+            resultMethod: 'pullAllWeaponTypesIndex',
+            countKey: 'weapon_type_count',
+            hydratedKey: 'hydrated_weapon_types',
+            summary: 'Pulled and hydrated all weapon types',
+            targetType: 'swc_weapon_type'
+        );
+    }
+
+    public function runAllCreatureTypes(Request $request): JsonResponse
+    {
+        $result = $this->universePullService->pullAllCreatureTypesIndex();
+        $indexPersistence = $this->universePersistenceService->persist($result);
+        $hydrated = 0;
+
+        foreach ((array) ($result['creature_types'] ?? []) as $type) {
+            if (!is_array($type)) {
+                continue;
+            }
+
+            $detailPayload = $this->pullTypeDetailWithFallbacks('creature_type', $type);
+            $this->universePersistenceService->persist($detailPayload);
+            $hydrated += 1;
+        }
+
+        AdminActionLogger::log(
+            $request,
+            'universe',
+            'pull_all_creature_types',
+            'Pulled and hydrated all creature types',
+            'swc_creature_type',
+            null,
+            null,
+            [
+                'creature_type_count' => $indexPersistence['creature_type_count'] ?? 0,
+                'pages' => $indexPersistence['pages'] ?? null,
+                'total' => $indexPersistence['total'] ?? 0,
+                'hydrated_creature_types' => $hydrated,
+            ]
+        );
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'All creature types pulled and persisted.',
+            'data' => $result,
+            'persistence' => [
+                'creature_type_count' => $indexPersistence['creature_type_count'] ?? 0,
+                'pages' => $indexPersistence['pages'] ?? null,
+                'total' => $indexPersistence['total'] ?? 0,
+                'hydrated_creature_types' => $hydrated,
+            ],
+        ]);
+    }
+
+    public function runAllCreatureTypesStream(Request $request): StreamedResponse
+    {
+        return $this->streamTypeCatalogPull(
+            $request,
+            entityType: 'creature_type',
+            resultKey: 'creature_types',
+            resultMethod: 'pullAllCreatureTypesIndex',
+            countKey: 'creature_type_count',
+            hydratedKey: 'hydrated_creature_types',
+            summary: 'Pulled and hydrated all creature types',
+            targetType: 'swc_creature_type'
         );
     }
 
@@ -1757,8 +2115,8 @@ class PullController extends Controller
     protected function pullTypeDetailWithFallbacks(string $resource, array $type): array
     {
         $identifiers = array_values(array_unique(array_filter([
-            trim((string) ($type['identifier'] ?? '')),
             trim((string) ($type['uid'] ?? '')),
+            trim((string) ($type['identifier'] ?? '')),
             trim((string) ($type['name'] ?? '')),
         ], fn ($value) => $value !== '')));
 
@@ -1772,7 +2130,10 @@ class PullController extends Controller
             try {
                 return $this->universePullService->pull($resource, $identifier);
             } catch (\Throwable $exception) {
-                if (!$this->isSkippableSwcNotFoundException($exception)) {
+                if (
+                    !$this->isSkippableSwcNotFoundException($exception)
+                    && !$this->isSkippableTypeDetailFailure($exception)
+                ) {
                     throw $exception;
                 }
 
@@ -1781,6 +2142,18 @@ class PullController extends Controller
         }
 
         throw $lastException ?? new \RuntimeException('Type detail pull failed.');
+    }
+
+    protected function isSkippableTypeDetailFailure(\Throwable $exception): bool
+    {
+        $message = strtolower(trim((string) $exception->getMessage()));
+
+        if ($message === '') {
+            return false;
+        }
+
+        return str_contains($message, 'status 403')
+            || str_contains($message, 'status 404');
     }
 
     protected function streamTypeCatalogPull(

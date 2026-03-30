@@ -100,51 +100,23 @@ const HomePage: React.FC = () => {
                 </div>
                 <h3>Tatoo</h3>
                 <p className={styles.small}>
-                  Tatoo is the central hub of activity for the greater Jawa Territories and the
-                  Arkanis sector. Virtually all trade, both legal and illicit, either passes
-                  through the Tatoo system or ends its run there. Jawas, Tusken Raiders and a
-                  multitude of other sentients call the system home, specifically the central
-                  planet of Tatooine. The sprawling city of Mos Espa on Tatooine is the seat of
-                  JOE&apos;s power throughout the Outer Rim and beyond, and also the pinnacle of
-                  galactic trade hosting a large, well-attended annual Swap Meet.
+                  Tatoo is the central hub of activity for the greater Jawa Territories and the Arkanis sector. Virtually all trade, both legal and illicit, either passes through the Tatoo system or ends its run there. Jawas, Tusken Raiders and a multitude of other sentients call the system home, specifically the central planet of Tatooine. The sprawling city of Mos Espa on Tatooine is the seat of all JOE business dealings throughout the Outer Rim and beyond, and also the pinnacle of galactic trade hosting the largest attended annual Swap Meet in the known systems. All forms of trade are recognized on Tatooine and Jawa businesses pride themselves on their dealings with any and all organizations, governments and sectors of the galaxy. The moon of Chenini is the center of research, development and production for the galaxy-renowned Sarlacc Integrated Design corporation which provides arms, armament and armor throughout the settled systems.
                 </p>
                 <h3>Geonosis</h3>
                 <p className={styles.small}>
-                  The Geonosis system, home to the laborious Geonosian builders, is where the
-                  majority of manufacturing happens within the JOE borders. Under Jawa-led labor
-                  unions, the Geonosians keep the Jawa machinery turning at a prodigious rate –
-                  and workplace safety for humans isn&apos;t a concern as humans aren&apos;t allowed
-                  work permits in the system.
+                  The Geonosis system, home to the laborious Geonosian bugpeople and Jawa industry, is where the majority of manufacturing happens within the JOE borders. Under Jawa-led labor unions, the Geonosians keep the Jawa war machine chugging at an unchallenged cadence. Human resources issues are not a concern as humans aren’t allowed work permits in the system.
                 </p>
                 <h3>Pii</h3>
                 <p className={styles.small}>
-                  The large coaxial asteroid rings and five volcanic planets of the Pii system
-                  serve as ripe mineral resource troves for Jawa industry, supporting a myriad of
-                  production and manufacturing endeavors for both JOE and Twin Suns Trading. Many
-                  independent governing bodies hold control of asteroid-based city structures but
-                  commerce flows invariably back, directly or indirectly, to Jawa Offworld
-                  Enterprises and its limited regulations.
+                  The large coaxial asteroid rings and five volcanic planets of the Pii system serve as ripe mineral resource troves for Jawa industry, supporting a myriad of production and manufacturing endeavors in the area for both JOE and Twin Suns Trading. Many independent governing bodies hold control of asteroid-based city structures throughout the system, reporting directly to Jawa Offworld Enterprises and its limited regulations.
                 </p>
                 <h3>Arvala</h3>
                 <p className={styles.small}>
-                  Located in the Hunnovers sector, the Arvala system was initially contested by
-                  multiple powers. Through thorough militaristic and infrastructure operations
-                  conducted by Jawa surveyors, operators and garrison forces, followed by
-                  diplomatic arrangements, JOE took stewardship of the system and multiple worlds
-                  within. Now the site of joint military operations keeping the heavily trafficked
-                  Arvala-7 safe zone free from pirate activities, peace is maintained by a mix of
-                  commerce and Jawa “encouragement”.
+                  Located in the Hunnovers sector, the Arvala system when discovered was initially contested by Jawa Offworld Enterpises, Corliss & Co. and various subgroups of the Alliance to Restore the Republic. Through thorough militaristic and infrastructure operations conducted by JOE surveyors, operators and ground troops who were among the first to arrive in the newly found system, and later diplomatic treatises between all groups present, JOE took and retained control of the system and multiple planets within. Now the site of joint military operations keeping the heavily trafficked Arvala-7 safe zone free from pirate activities, peace is kept between all prominent resident governments and business interests in the outlying system.
                 </p>
                 <h3>Outer Habitation Belt</h3>
                 <p className={styles.small}>
-                  The vast flowing asteroid fields of the greater Arkanis, Hunnovers, Savareen,
-                  Dalchon, Grohl and Trans-nebular sectors. These fields and the habitable
-                  planetoids within them are claimed sovereign territories of Jawa Offworld
-                  Enterprises and affiliated organizations. Heavily patrolled, highly militarized,
-                  and notoriously deadly; many pockets of the belt are home to pirate and
-                  spacefaring cartel groups. Through various means both diplomatic and aggressive
-                  many of the operators within these areas have pledged loyalty to JOE. Those that
-                  don’t are obliterated or have their technology repossessed by Jawa operatives.
+                  The vast flowing asteroid fields of the greater Arkanis, Hunnovers, Savareen, Dalchon, Grohl and Trans-nebular sectors. These fields and the habitable planetoids within them are claimed sovereign territories of Jawa Offworld Enterprises and affiliated organizations. Heavily patrolled, highly militarized, and notoriously deadly; many pockets of the belt are home to pirate and spacefaring cartel groups. Through various means both diplomatic and aggressive many of the operators within these areas have pledged loyalty to JOE. Those that don’t are obliterated or have their technology repossessed by Jawa operatives.
                 </p>
               </>
             )}

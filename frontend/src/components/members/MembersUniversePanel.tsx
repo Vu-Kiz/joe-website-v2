@@ -16,7 +16,7 @@ import {
   type StoredSystemDetail,
 } from "../../api/universe";
 import { fetchAuthMe, type SwcUser } from "../../api/auth";
-import { canAccessAdmin } from "../../auth/permissions";
+import { canAccessAdmin, canViewAsteroidIntel, canViewScanWindow } from "../../auth/permissions";
 import {
   getSwcAuthorizationStatus,
   importSwcPersonalEvents,
@@ -83,7 +83,6 @@ const MembersUniversePanel: React.FC = () => {
   const annotationLoadPromisesRef = useRef<Record<string, Promise<SectorCellAnnotation[]>>>({});
   const oauthParams = useMemo(() => new URLSearchParams(window.location.search), []);
   const swcOauthError = oauthParams.get("swc_oauth_error");
-  const swcOauthSuccess = oauthParams.get("swc_oauth_success") === "1";
   const mapAnnotations = useMemo(
     () => Object.values(annotationCacheBySector).flat(),
     [annotationCacheBySector]
@@ -92,6 +91,8 @@ const MembersUniversePanel: React.FC = () => {
     () => Object.keys(annotationCacheBySector),
     [annotationCacheBySector]
   );
+  const canSeeAsteroidIntel = canViewAsteroidIntel(viewer);
+  const canSeeScanWindow = canViewScanWindow(viewer);
 
   useEffect(() => {
     let cancelled = false;
@@ -507,6 +508,8 @@ const MembersUniversePanel: React.FC = () => {
       annotations={mapAnnotations}
       loadedAnnotationSectorUids={loadedAnnotationSectorUids}
       searchRecords={mapSearchRecords}
+      canViewCellIntel={canSeeAsteroidIntel}
+      canViewScanWindow={canSeeScanWindow}
       onSelectSector={setSelectedSectorUid}
       onSystemSelect={handleMapSystemSelect}
       onSaveAnnotation={handleSaveMapAnnotation}

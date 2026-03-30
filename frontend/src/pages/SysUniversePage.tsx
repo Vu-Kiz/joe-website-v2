@@ -1,12 +1,14 @@
 import React, { useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchAuthMe, type SwcUser } from "../api/auth";
+import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../api/auth";
+import { canAccessSysadmin } from "../auth/permissions";
 import {
   getSectorCellAnnotations,
   runUniversePull,
   saveSectorCellAnnotation,
   type SectorCellAnnotation,
 } from "../api/sysDebug";
+import ForbiddenState from "../components/common/ForbiddenState";
 import SectorGridMap from "../components/maps/SectorGridMap";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import "../styles/main.sass";
@@ -52,6 +54,7 @@ const SysUniversePage: React.FC = () => {
   const [viewer, setViewer] = useState<SwcUser | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [authRefreshNonce, setAuthRefreshNonce] = useState(0);
 
   const [pullResource, setPullResource] = useState<UniverseResource>("sector");
   const [pullIdentifier, setPullIdentifier] = useState("Arkanis");
@@ -102,6 +105,12 @@ const SysUniversePage: React.FC = () => {
     | undefined;
 
   React.useEffect(() => {
+    return subscribeToAuthStateChange(() => {
+      setAuthRefreshNonce((value) => value + 1);
+    });
+  }, []);
+
+  React.useEffect(() => {
     let cancelled = false;
 
     (async () => {
@@ -128,7 +137,7 @@ const SysUniversePage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [authRefreshNonce]);
 
   React.useEffect(() => {
     if (resource !== "sector" || !result?.sector?.uid) {
@@ -1170,13 +1179,15 @@ const SysUniversePage: React.FC = () => {
     );
   }
 
-  if (!viewer.is_sysadmin) {
+  if (!canAccessSysadmin(viewer)) {
     return (
       <div className="site-scale">
         <div className="app app--one">
           <main className="board admin-board">
-            <h1>Galaxy Explorer</h1>
-            <p className="small">Sysadmin access required.</p>
+            <ForbiddenState
+              title="403 Forbidden"
+              message="You do not have permission to access the galaxy explorer."
+            />
           </main>
         </div>
       </div>

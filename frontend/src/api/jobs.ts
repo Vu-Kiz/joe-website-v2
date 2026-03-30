@@ -21,6 +21,7 @@ export type Job = {
   days_taken: number | null;
   completed_at: string | null;
   closed_at: string | null;
+  meta?: Record<string, unknown> | null;
   assignments?: JobAssignment[];
 };
 
@@ -33,6 +34,7 @@ export type JobAssignment = {
   status: string;
   days_taken: number | null;
   completed_at: string | null;
+  meta?: Record<string, unknown> | null;
 };
 
 export async function getJobs(params?: Record<string, string>) {
@@ -57,10 +59,17 @@ export async function takeJob(id: number) {
   });
 }
 
-export async function completeJob(id: number, days_taken?: number) {
+export async function completeJob(id: number, days_taken?: number, include_bonus?: boolean) {
   return apiFetch<{ ok: true; data: Job }>(`/jobs/${id}/complete`, {
     method: "POST",
-    body: JSON.stringify({ days_taken }),
+    body: JSON.stringify({ days_taken, include_bonus }),
+  });
+}
+
+export async function setJobBonus(id: number, include_bonus: boolean) {
+  return apiFetch<{ ok: true; data: Job }>(`/jobs/${id}/bonus`, {
+    method: "POST",
+    body: JSON.stringify({ include_bonus }),
   });
 }
 
@@ -76,9 +85,16 @@ export async function joinJob(id: number) {
   });
 }
 
-export async function completeAssignment(id: number, days_taken?: number) {
+export async function completeAssignment(id: number, days_taken?: number, include_bonus?: boolean) {
   return apiFetch<{ ok: true; data: JobAssignment }>(`/job-assignments/${id}/complete`, {
     method: "POST",
-    body: JSON.stringify({ days_taken }),
+    body: JSON.stringify({ days_taken, include_bonus }),
+  });
+}
+
+export async function setAssignmentBonus(id: number, include_bonus: boolean) {
+  return apiFetch<{ ok: true; data: JobAssignment }>(`/job-assignments/${id}/bonus`, {
+    method: "POST",
+    body: JSON.stringify({ include_bonus }),
   });
 }

@@ -21,6 +21,10 @@
   height: 84px
   object-fit: contain
 
+.members-tool-card__logo--alert
+  filter: drop-shadow(0 0 8px rgba(255,140,0,0.55)) drop-shadow(0 0 18px rgba(255,179,71,0.38))
+  animation: membersPaymentsAlertPulse 1.6s ease-in-out infinite
+
 .members-tool-card__body
   display: grid
   gap: 8px
@@ -40,6 +44,206 @@
   display: flex
   justify-content: flex-start
   margin-bottom: 16px
+
+.members-hyperplanner
+  display: grid
+  gap: 1rem
+
+.members-hyperplanner__controls
+  display: grid
+  grid-template-columns: repeat(2, minmax(0, 1fr))
+  gap: 1rem
+
+.members-hyperplanner__config
+  display: grid
+  gap: 1rem
+
+.members-hyperplanner__config-head
+  display: flex
+  justify-content: space-between
+  align-items: flex-start
+  gap: 1rem
+
+.members-hyperplanner__picker
+  display: grid
+  gap: 0.85rem
+
+.members-hyperplanner__suggestions
+  display: grid
+  gap: 0.45rem
+  max-height: 22rem
+  overflow: auto
+
+.members-hyperplanner__suggestion
+  display: grid
+  gap: 0.2rem
+  padding: 0.8rem 0.9rem
+  text-align: left
+  border: 1px solid rgba(255,255,255,0.12)
+  border-radius: 12px
+  background: rgba(255,255,255,0.03)
+  color: inherit
+  cursor: pointer
+  transition: border-color 0.15s ease, transform 0.15s ease, background 0.15s ease
+
+  &:hover,
+  &:focus-visible
+    border-color: rgba(246,163,0,0.55)
+    background: rgba(246,163,0,0.08)
+    transform: translateY(-1px)
+
+.members-hyperplanner__suggestion--active
+  border-color: rgba(246,163,0,0.75)
+  background: rgba(246,163,0,0.12)
+
+.members-hyperplanner__saved-plan
+  display: flex
+  justify-content: space-between
+  align-items: flex-start
+  gap: 0.85rem
+  cursor: default
+  transition: none
+
+  &:hover,
+  &:focus-visible
+    border-color: rgba(255,255,255,0.12)
+    background: rgba(255,255,255,0.03)
+    transform: none
+
+.members-hyperplanner__saved-plan-copy
+  display: grid
+  gap: 0.45rem
+  min-width: 0
+
+.members-hyperplanner__saved-plan-route
+  display: flex
+  flex-wrap: wrap
+  align-items: center
+  gap: 0.45rem
+
+.members-hyperplanner__saved-plan-meta
+  display: flex
+  flex-wrap: wrap
+  gap: 0.45rem 0.9rem
+
+.members-hyperplanner__saved-plan-actions
+  display: flex
+  gap: 0.5rem
+  flex-wrap: wrap
+  justify-content: flex-end
+
+@media (max-width: 640px)
+  .members-hyperplanner__saved-plan
+    flex-direction: column
+
+  .members-hyperplanner__saved-plan-actions
+    justify-content: flex-start
+
+.members-hyperplanner__actions
+  display: flex
+  justify-content: flex-start
+
+.members-hyperplanner__results
+  display: grid
+  gap: 1rem
+
+.members-hyperplanner__summary-grid
+  display: grid
+  grid-template-columns: repeat(4, minmax(0, 1fr))
+  gap: 1rem
+
+.members-hyperplanner__system-chain
+  display: flex
+  flex-wrap: wrap
+  gap: 0.6rem
+  align-items: center
+
+.members-hyperplanner__system-pill
+  display: grid
+  gap: 0.15rem
+  padding: 0.7rem 0.85rem
+  min-width: 11rem
+  border: 1px solid rgba(255,255,255,0.12)
+  border-radius: 12px
+  background: rgba(255,255,255,0.04)
+  color: inherit
+  text-decoration: none
+
+  &:hover,
+  &:focus-visible
+    border-color: rgba(246,163,0,0.55)
+
+.members-hyperplanner__chain-arrow
+  color: rgba(246,163,0,0.9)
+  font-size: 1.1rem
+  font-weight: 700
+
+.members-hyperplanner__hop-list
+  display: grid
+  gap: 0.9rem
+
+.members-hyperplanner__hop-row
+  display: grid
+  gap: 0.6rem
+  padding-bottom: 0.9rem
+  border-bottom: 1px solid rgba(255,255,255,0.08)
+
+  &:last-child
+    padding-bottom: 0
+    border-bottom: 0
+
+.members-hyperplanner__hop-head
+  display: flex
+  justify-content: space-between
+  gap: 1rem
+  align-items: flex-start
+
+.members-hyperplanner__hop-meta
+  display: grid
+  gap: 0.25rem
+  justify-items: end
+
+.members-hyperplanner__hop-body
+  display: grid
+  grid-template-columns: repeat(2, minmax(0, 1fr))
+  gap: 0.85rem
+  margin-bottom: 0.75rem
+
+.members-hyperplanner__hop-facts
+  display: flex
+  flex-wrap: wrap
+  gap: 0.6rem 1rem
+
+.members-hyperplanner__hop-system
+  display: grid
+  gap: 0.35rem
+  padding: 0.85rem
+  border: 1px solid rgba(255,255,255,0.08)
+  border-radius: 12px
+  background: rgba(255,255,255,0.03)
+
+.members-hyperplanner__hop-system--link
+  color: inherit
+  text-decoration: none
+
+  &:hover,
+  &:focus-visible
+    border-color: rgba(246,163,0,0.55)
+
+@media (max-width: 960px)
+  .members-hyperplanner__config-head
+    flex-direction: column
+    align-items: stretch
+
+  .members-hyperplanner__controls
+    grid-template-columns: 1fr
+
+  .members-hyperplanner__summary-grid
+    grid-template-columns: repeat(2, minmax(0, 1fr))
+
+@media (max-width: 640px)
+  .members-hyperplanner__summary-grid
+    grid-template-columns: 1fr
 
 .members-universe
   display: flex
@@ -214,6 +418,232 @@
   gap: 0.75rem
   margin-top: 0.75rem
 
+.members-entity-stats
+  display: grid
+  gap: 1rem
+
+.members-entity-stats__tabs
+  display: flex
+  flex-wrap: wrap
+  gap: 0.65rem
+
+.members-entity-stats__toolbar
+  display: grid
+  grid-template-columns: minmax(0, 320px)
+  gap: 1rem
+
+.members-entity-stats__layout
+  display: grid
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr)
+  gap: 1rem
+  align-items: start
+
+.members-entity-stats__sidebar
+  display: grid
+  gap: 0.85rem
+  padding: 1rem
+  border: 1px solid rgba(255,255,255,0.08)
+  border-radius: 14px
+  background: rgba(255,255,255,0.03)
+
+.members-entity-stats__sidebar-header
+  display: flex
+  align-items: baseline
+  gap: 0.5rem
+
+.members-entity-stats__list
+  display: grid
+  gap: 0.55rem
+  max-height: 70vh
+  overflow-y: auto
+  padding-right: 0.2rem
+
+.members-entity-stats__item
+  display: grid
+  gap: 0.18rem
+  padding: 0.8rem
+  border: 1px solid rgba(255,255,255,0.08)
+  border-radius: 10px
+  background: rgba(255,255,255,0.03)
+  color: inherit
+  text-align: left
+  cursor: pointer
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease
+
+  &:hover
+    border-color: rgba(246,163,0,0.26)
+    background: rgba(246,163,0,0.08)
+    transform: translateY(-1px)
+
+  &.is-active
+    border-color: rgba(246,163,0,0.44)
+    background: rgba(246,163,0,0.12)
+
+.members-entity-stats__detail
+  display: grid
+  gap: 1rem
+  min-width: 0
+  padding: 1rem
+  border: 1px solid rgba(255,255,255,0.08)
+  border-radius: 14px
+  background: rgba(255,255,255,0.03)
+
+.members-entity-stats__hero
+  display: grid
+  grid-template-columns: auto minmax(0, 1fr)
+  gap: 1rem
+  align-items: start
+
+.members-entity-stats__image
+  width: 140px
+  max-width: 100%
+  border-radius: 12px
+  background: rgba(255,255,255,0.04)
+  object-fit: contain
+
+.members-entity-stats__hero-copy
+  display: grid
+  gap: 0.35rem
+
+  h3, p
+    margin: 0
+
+.members-entity-stats__stats-grid
+  display: grid
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))
+  gap: 0.75rem
+
+.members-entity-stats__stat
+  display: grid
+  gap: 0.35rem
+  padding: 0.85rem
+  border: 1px solid rgba(255,255,255,0.08)
+  border-radius: 10px
+  background: rgba(255,255,255,0.025)
+
+.members-entity-stats__section
+  display: grid
+  gap: 0.75rem
+
+  h4
+    margin: 0
+
+.members-entity-stats__chip-list
+  display: flex
+  flex-wrap: wrap
+  gap: 0.6rem
+
+.members-entity-stats__chip
+  display: inline-flex
+  padding: 0.45rem 0.65rem
+  border-radius: 999px
+  border: 1px solid rgba(255,255,255,0.08)
+  background: rgba(255,255,255,0.04)
+
+.members-entity-stats__collection-card
+  display: grid
+  gap: 0.2rem
+  min-width: 180px
+  padding: 0.75rem 0.85rem
+  border: 1px solid rgba(255,255,255,0.08)
+  border-radius: 10px
+  background: rgba(255,255,255,0.025)
+
+  p
+    margin: 0
+
+.members-entity-stats__collection-image
+  width: 100%
+  max-width: 96px
+  max-height: 96px
+  object-fit: contain
+  border-radius: 8px
+  background: rgba(255,255,255,0.04)
+
+.members-entity-stats__image-strip
+  display: grid
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))
+  gap: 0.75rem
+
+.members-entity-stats__image-card
+  display: grid
+  gap: 0.55rem
+  padding: 0.8rem
+  border: 1px solid rgba(255,255,255,0.08)
+  border-radius: 10px
+  background: rgba(255,255,255,0.025)
+
+  img
+    width: 100%
+    max-height: 180px
+    object-fit: contain
+    border-radius: 8px
+    background: rgba(255,255,255,0.04)
+
+  p
+    margin: 0
+    word-break: break-word
+
+.members-entity-stats__skill-groups
+  display: grid
+  gap: 0.85rem
+
+.members-entity-stats__skill-group
+  display: grid
+  gap: 0.5rem
+
+  h4
+    margin: 0
+
+.members-entity-stats__raw
+  display: grid
+  gap: 0.75rem
+  padding: 0.9rem 0
+  border-top: 1px solid rgba(255,255,255,0.08)
+
+  summary
+    cursor: pointer
+    font-weight: 700
+
+.members-entity-stats__long-text
+  white-space: pre-wrap
+  word-break: break-word
+  padding: 0.9rem
+  border-radius: 10px
+  background: rgba(0,0,0,0.22)
+  border: 1px solid rgba(255,255,255,0.06)
+
+.members-entity-stats__long-text--html
+  white-space: normal
+
+  p
+    margin: 0 0 0.9rem 0
+
+  p:last-child
+    margin-bottom: 0
+
+  a
+    color: rgba(246,163,0,0.95)
+
+.members-entity-stats__json
+  margin: 0
+  white-space: pre-wrap
+  word-break: break-word
+  padding: 0.9rem
+  border-radius: 10px
+  background: rgba(0,0,0,0.22)
+  border: 1px solid rgba(255,255,255,0.06)
+
+@media (max-width: 960px)
+  .members-entity-stats__layout
+    grid-template-columns: 1fr
+
+  .members-entity-stats__hero
+    grid-template-columns: 1fr
+
+  .members-entity-stats__toolbar
+    grid-template-columns: 1fr
+
 .members-universe__entity-row
   display: grid
   gap: 0.2rem
@@ -221,6 +651,14 @@
   border-radius: 10px
   border: 1px solid rgba(255,255,255,0.08)
   background: rgba(255,255,255,0.03)
+
+@keyframes membersPaymentsAlertPulse
+  0%, 100%
+    transform: scale(1)
+    filter: drop-shadow(0 0 8px rgba(255,140,0,0.35)) drop-shadow(0 0 16px rgba(255,179,71,0.2))
+  50%
+    transform: scale(1.04)
+    filter: drop-shadow(0 0 12px rgba(255,140,0,0.75)) drop-shadow(0 0 24px rgba(255,179,71,0.45))
 
 .members-universe-system__summary
   display: grid

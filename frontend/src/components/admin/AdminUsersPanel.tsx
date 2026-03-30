@@ -8,37 +8,54 @@ import {
 type EditableUserState = {
   id: number;
   handle: string;
+  swcHandle: string;
+  discordIdentity: string;
   swcCharacterId: string;
   avatarUrl: string;
+  scanWindowTopLeftGalx: string;
+  scanWindowTopLeftGaly: string;
+  scanWindowBottomRightGalx: string;
+  scanWindowBottomRightGaly: string;
 
   isJoeMember: boolean;
   isAdmin: boolean;
   isSysadmin: boolean;
   isIntel: boolean;
+  canViewAsteroidIntel: boolean;
   isGarry: boolean;
   isRaid: boolean;
 
   canManageBlog: boolean;
-  canManageTips: boolean;
-  canManageEotm: boolean;
 };
 
 function mapUser(user: AdminManageableUser): EditableUserState {
   return {
     id: user.id,
-    handle: user.handle ?? "Unknown",
+    handle: user.handle ?? "User",
+    swcHandle: user.swc_handle ?? "",
+    discordIdentity:
+      user.discord_global_name ??
+      user.discord_username ??
+      "",
     swcCharacterId:
       user.swc_character_id != null ? String(user.swc_character_id) : "",
     avatarUrl: user.swc_avatar_url ?? "",
+    scanWindowTopLeftGalx:
+      user.scan_window_top_left_galx != null ? String(user.scan_window_top_left_galx) : "",
+    scanWindowTopLeftGaly:
+      user.scan_window_top_left_galy != null ? String(user.scan_window_top_left_galy) : "",
+    scanWindowBottomRightGalx:
+      user.scan_window_bottom_right_galx != null ? String(user.scan_window_bottom_right_galx) : "",
+    scanWindowBottomRightGaly:
+      user.scan_window_bottom_right_galy != null ? String(user.scan_window_bottom_right_galy) : "",
     isJoeMember: !!user.is_joe_member,
     isAdmin: !!user.is_admin,
     isSysadmin: !!user.is_sysadmin,
     isIntel: !!user.is_intel,
+    canViewAsteroidIntel: !!user.can_view_asteroid_intel,
     isGarry: !!user.is_garry,
     isRaid: !!user.is_raid,
     canManageBlog: !!user.can_manage_blog,
-    canManageTips: !!user.can_manage_tips,
-    canManageEotm: !!user.can_manage_eotm,
   };
 }
 
@@ -46,6 +63,7 @@ const AdminUsersPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<number | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
+  const [openScanWindowId, setOpenScanWindowId] = useState<number | null>(null);
   const [users, setUsers] = useState<EditableUserState[]>([]);
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +106,8 @@ const AdminUsersPanel: React.FC = () => {
     return users.filter((user) => {
       return (
         user.handle.toLowerCase().includes(q) ||
+        user.swcHandle.toLowerCase().includes(q) ||
+        user.discordIdentity.toLowerCase().includes(q) ||
         user.swcCharacterId.toLowerCase().includes(q)
       );
     });
@@ -104,7 +124,7 @@ const AdminUsersPanel: React.FC = () => {
 
   const handleToggle = (
     userId: number,
-    key: "isAdmin" | "canManageBlog" | "canManageTips" | "canManageEotm"
+    key: "isAdmin" | "canViewAsteroidIntel" | "canManageBlog"
   ) => {
     setNotice(null);
 
@@ -122,9 +142,12 @@ const AdminUsersPanel: React.FC = () => {
 
       const res = await updateAdminUserPermissions(user.id, {
         is_admin: user.isAdmin,
+        can_view_asteroid_intel: user.canViewAsteroidIntel,
+        scan_window_top_left_galx: user.scanWindowTopLeftGalx.trim() === "" ? null : Number(user.scanWindowTopLeftGalx),
+        scan_window_top_left_galy: user.scanWindowTopLeftGaly.trim() === "" ? null : Number(user.scanWindowTopLeftGaly),
+        scan_window_bottom_right_galx: user.scanWindowBottomRightGalx.trim() === "" ? null : Number(user.scanWindowBottomRightGalx),
+        scan_window_bottom_right_galy: user.scanWindowBottomRightGaly.trim() === "" ? null : Number(user.scanWindowBottomRightGaly),
         can_manage_blog: user.canManageBlog,
-        can_manage_tips: user.canManageTips,
-        can_manage_eotm: user.canManageEotm,
       });
 
       const updated = mapUser(res.user);
@@ -167,7 +190,7 @@ const AdminUsersPanel: React.FC = () => {
         <input
           type="text"
           className="input"
-          placeholder="Search by handle or SWC ID"
+          placeholder="Search by handle, Discord, or SWC ID"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -193,6 +216,13 @@ const AdminUsersPanel: React.FC = () => {
         <div className="admin-users-list">
           {filteredUsers.map((user) => {
             const isOpen = openId === user.id;
+            const hasScanWindowValues = Boolean(
+              user.scanWindowTopLeftGalx ||
+              user.scanWindowTopLeftGaly ||
+              user.scanWindowBottomRightGalx ||
+              user.scanWindowBottomRightGaly
+            );
+            const isScanWindowOpen = openScanWindowId === user.id || hasScanWindowValues;
 
             return (
               <article key={user.id} className="panel admin-users-card">
@@ -209,7 +239,11 @@ const AdminUsersPanel: React.FC = () => {
                     <div>
                       <h3 className="admin-users-card__title">{user.handle}</h3>
                       <div className="small admin-users-card__meta">
-                        {user.swcCharacterId ? `SWC ID ${user.swcCharacterId}` : "No SWC ID"}
+                        {user.swcCharacterId
+                          ? `SWC ID ${user.swcCharacterId}`
+                          : user.discordIdentity
+                            ? `Discord ${user.discordIdentity}`
+                            : "No linked identity"}
                       </div>
                     </div>
                   </div>
@@ -226,6 +260,9 @@ const AdminUsersPanel: React.FC = () => {
                       {user.isIntel && (
                         <span className="admin-badge admin-badge--intel">Intel</span>
                       )}
+                      {user.canViewAsteroidIntel && (
+                        <span className="admin-badge admin-badge--soft">Asteroid Intel</span>
+                      )}
                       {user.isGarry && (
                         <span className="admin-badge admin-badge--garry">Garry</span>
                       )}
@@ -234,12 +271,6 @@ const AdminUsersPanel: React.FC = () => {
                       )}
                       {user.canManageBlog && (
                         <span className="admin-badge admin-badge--content">Blog</span>
-                      )}
-                      {user.canManageTips && (
-                        <span className="admin-badge admin-badge--content">Tips</span>
-                      )}
-                      {user.canManageEotm && (
-                        <span className="admin-badge admin-badge--content">EoTM</span>
                       )}
                     </div>
 
@@ -294,39 +325,103 @@ const AdminUsersPanel: React.FC = () => {
                         </span>
                       </label>
 
-                      <label className={"admin-perm-tile" + (user.canManageTips ? " is-active" : "")}>
+                      <label className={"admin-perm-tile" + (user.canViewAsteroidIntel ? " is-active" : "")}>
                         <input
                           type="checkbox"
-                          checked={user.canManageTips}
-                          onChange={() => handleToggle(user.id, "canManageTips")}
+                          checked={user.canViewAsteroidIntel}
+                          onChange={() => handleToggle(user.id, "canViewAsteroidIntel")}
                         />
                         <span className="admin-perm-tile__head">
-                          <span className="admin-perm-tile__title">Manage Tips</span>
+                          <span className="admin-perm-tile__title">Asteroid Intel</span>
                           <span className="admin-perm-tile__switch" aria-hidden="true">
                             <span className="admin-perm-tile__knob" />
                           </span>
                         </span>
                         <span className="admin-perm-tile__desc">
-                          Can create and maintain tips content.
+                          Can view asteroid types, intel flags, and grid note data on the galaxy map.
                         </span>
                       </label>
 
-                      <label className={"admin-perm-tile" + (user.canManageEotm ? " is-active" : "")}>
-                        <input
-                          type="checkbox"
-                          checked={user.canManageEotm}
-                          onChange={() => handleToggle(user.id, "canManageEotm")}
-                        />
-                        <span className="admin-perm-tile__head">
-                          <span className="admin-perm-tile__title">Manage EoTM</span>
-                          <span className="admin-perm-tile__switch" aria-hidden="true">
-                            <span className="admin-perm-tile__knob" />
-                          </span>
-                        </span>
+                      <div className="admin-perm-tile">
+                        <div
+                          className="admin-perm-tile__head"
+                          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}
+                        >
+                          <span className="admin-perm-tile__title">Scan Window</span>
+                          <button
+                            type="button"
+                            className="btn btn--small btn--ghost"
+                            onClick={() =>
+                              setOpenScanWindowId((current) => (current === user.id ? null : user.id))
+                            }
+                          >
+                            {isScanWindowOpen ? "Hide" : "Set Window"}
+                          </button>
+                        </div>
                         <span className="admin-perm-tile__desc">
-                          Can manage Employee of the Month entries.
+                          Lets this user see scanned and rescan-due markers only inside a rectangular coordinate area.
                         </span>
-                      </label>
+                        {isScanWindowOpen ? (
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                              gap: 8,
+                              marginTop: 10,
+                            }}
+                          >
+                            <input
+                              className="input"
+                              type="number"
+                              placeholder="Top Left X"
+                              value={user.scanWindowTopLeftGalx}
+                              onChange={(event) =>
+                                updateLocalUser(user.id, (current) => ({
+                                  ...current,
+                                  scanWindowTopLeftGalx: event.target.value,
+                                }))
+                              }
+                            />
+                            <input
+                              className="input"
+                              type="number"
+                              placeholder="Top Left Y"
+                              value={user.scanWindowTopLeftGaly}
+                              onChange={(event) =>
+                                updateLocalUser(user.id, (current) => ({
+                                  ...current,
+                                  scanWindowTopLeftGaly: event.target.value,
+                                }))
+                              }
+                            />
+                            <input
+                              className="input"
+                              type="number"
+                              placeholder="Bottom Right X"
+                              value={user.scanWindowBottomRightGalx}
+                              onChange={(event) =>
+                                updateLocalUser(user.id, (current) => ({
+                                  ...current,
+                                  scanWindowBottomRightGalx: event.target.value,
+                                }))
+                              }
+                            />
+                            <input
+                              className="input"
+                              type="number"
+                              placeholder="Bottom Right Y"
+                              value={user.scanWindowBottomRightGaly}
+                              onChange={(event) =>
+                                updateLocalUser(user.id, (current) => ({
+                                  ...current,
+                                  scanWindowBottomRightGaly: event.target.value,
+                                }))
+                              }
+                            />
+                          </div>
+                        ) : null}
+                      </div>
+
                     </div>
 
                     <div className="admin-users-card__actions">

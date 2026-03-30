@@ -7,7 +7,8 @@ set -euo pipefail
 # This script assumes:
 #   - You are in a git clone of the repo (e.g. /home/joe-website-v2-prod)
 #   - .env exists in the repo root (prod secrets, DB passwords, APP_URL, etc.)
-#   - docker-compose.prod.yml defines services: db, backend, frontend
+#   - docker-compose.prod.yml defines services: db, backend, worker, frontend
+#   - production is deployed from committed code only; no local editing on prod
 ##
 
 # Root of the repo (one level up from scripts/)
@@ -39,7 +40,7 @@ Usage:
   ./scripts/prod.sh shell         Shell into backend container (bash)
 
   ./scripts/prod.sh pull          git fetch + git pull (branch: ${GIT_BRANCH})
-  ./scripts/prod.sh deploy        Pull + build images + restart stack
+  ./scripts/prod.sh deploy        Pull + build images + restart stack + migrate + queue restart
 
 Examples:
   ./scripts/prod.sh up
@@ -60,7 +61,7 @@ fi
 
 case "${cmd}" in
   up)
-    echo "▶ Starting prod stack (db + backend + frontend)..."
+    echo "▶ Starting prod stack (db + backend + worker + frontend)..."
     ${DC} up -d
     ;;
 
@@ -115,16 +116,22 @@ case "${cmd}" in
     echo "▶ Deploying latest version from GitHub (branch: ${GIT_BRANCH})..."
     (
       cd "${ROOT_DIR}"
-      echo "▶ Step 1/3: git fetch + pull..."
+      echo "▶ Step 1/5: git fetch + pull..."
       git fetch origin
       git pull origin "${GIT_BRANCH}"
 
-      echo "▶ Step 2/3: docker compose build (backend + frontend)..."
+      echo "▶ Step 2/5: docker compose build (backend + frontend)..."
       ${DC} build
 
-      echo "▶ Step 3/3: restart stack..."
+      echo "▶ Step 3/5: restart stack..."
       ${DC} down --remove-orphans
       ${DC} up -d
+
+      echo "▶ Step 4/5: run database migrations..."
+      ${DC} exec backend php artisan migrate --force
+
+      echo "▶ Step 5/5: restart queue workers..."
+      ${DC} exec backend php artisan queue:restart
     )
     echo "✔ Deploy complete."
     ;;

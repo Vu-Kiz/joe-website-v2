@@ -4,16 +4,22 @@ namespace App\Support\Swc;
 
 use App\Models\SwcHyperlane;
 use App\Models\SwcFacilityType;
+use App\Models\SwcCreatureType;
+use App\Models\SwcDroidType;
 use App\Models\SwcItemType;
 use App\Models\SwcMaterialType;
+use App\Models\SwcNpcType;
 use App\Models\SwcPlanet;
 use App\Models\SwcPlanetType;
+use App\Models\SwcRace;
 use App\Models\SwcSector;
 use App\Models\SwcShipType;
 use App\Models\SwcStation;
 use App\Models\SwcStationType;
 use App\Models\SwcTerrainType;
 use App\Models\SwcSystem;
+use App\Models\SwcVehicleType;
+use App\Models\SwcWeaponType;
 use Illuminate\Database\QueryException;
 
 class UniversePersistenceService
@@ -33,6 +39,18 @@ class UniversePersistenceService
             'planet_type_index' => $this->persistPlanetTypeIndexPayload($payload),
             'planet_type' => $this->persistPlanetTypePayload($payload),
             'station' => $this->persistStationPayload($payload),
+            'creature_type_index' => $this->persistCreatureTypeIndexPayload($payload),
+            'creature_type' => $this->persistCreatureTypePayload($payload),
+            'droid_type_index' => $this->persistDroidTypeIndexPayload($payload),
+            'droid_type' => $this->persistDroidTypePayload($payload),
+            'npc_type_index' => $this->persistNpcTypeIndexPayload($payload),
+            'npc_type' => $this->persistNpcTypePayload($payload),
+            'race_index' => $this->persistRaceIndexPayload($payload),
+            'race' => $this->persistRacePayload($payload),
+            'weapon_type_index' => $this->persistWeaponTypeIndexPayload($payload),
+            'weapon_type' => $this->persistWeaponTypePayload($payload),
+            'vehicle_type_index' => $this->persistVehicleTypeIndexPayload($payload),
+            'vehicle_type' => $this->persistVehicleTypePayload($payload),
             'item_type_index' => $this->persistItemTypeIndexPayload($payload),
             'item_type' => $this->persistItemTypePayload($payload),
             'facility_type_index' => $this->persistFacilityTypeIndexPayload($payload),
@@ -608,6 +626,186 @@ class UniversePersistenceService
         ];
     }
 
+    protected function persistVehicleTypeIndexPayload(array $payload): array
+    {
+        $items = collect($payload['vehicle_types'] ?? []);
+        $persisted = 0;
+
+        foreach ($items as $item) {
+            if (!is_array($item) || empty($item['uid'])) {
+                continue;
+            }
+
+            SwcVehicleType::updateOrCreate(
+                ['uid' => (string) $item['uid']],
+                [
+                    'name' => $item['name'] ?? null,
+                    'last_pulled_at' => now(),
+                ]
+            );
+
+            $persisted += 1;
+        }
+
+        return [
+            'resource' => 'vehicle_type_index',
+            'persisted' => true,
+            'vehicle_type_count' => $persisted,
+            'pages' => $payload['meta']['pages'] ?? null,
+            'total' => $payload['meta']['total'] ?? $persisted,
+        ];
+    }
+
+    protected function persistNpcTypeIndexPayload(array $payload): array
+    {
+        $items = collect($payload['npc_types'] ?? []);
+        $persisted = 0;
+
+        foreach ($items as $item) {
+            if (!is_array($item) || empty($item['uid'])) {
+                continue;
+            }
+
+            SwcNpcType::updateOrCreate(
+                ['uid' => (string) $item['uid']],
+                [
+                    'name' => $item['name'] ?? null,
+                    'last_pulled_at' => now(),
+                ]
+            );
+
+            $persisted += 1;
+        }
+
+        return [
+            'resource' => 'npc_type_index',
+            'persisted' => true,
+            'npc_type_count' => $persisted,
+            'pages' => $payload['meta']['pages'] ?? null,
+            'total' => $payload['meta']['total'] ?? $persisted,
+        ];
+    }
+
+    protected function persistDroidTypeIndexPayload(array $payload): array
+    {
+        $items = collect($payload['droid_types'] ?? []);
+        $persisted = 0;
+
+        foreach ($items as $item) {
+            if (!is_array($item) || empty($item['uid'])) {
+                continue;
+            }
+
+            SwcDroidType::updateOrCreate(
+                ['uid' => (string) $item['uid']],
+                [
+                    'name' => $item['name'] ?? null,
+                    'last_pulled_at' => now(),
+                ]
+            );
+
+            $persisted += 1;
+        }
+
+        return [
+            'resource' => 'droid_type_index',
+            'persisted' => true,
+            'droid_type_count' => $persisted,
+            'pages' => $payload['meta']['pages'] ?? null,
+            'total' => $payload['meta']['total'] ?? $persisted,
+        ];
+    }
+
+    protected function persistRaceIndexPayload(array $payload): array
+    {
+        $items = collect($payload['races'] ?? []);
+        $persisted = 0;
+
+        foreach ($items as $item) {
+            if (!is_array($item) || empty($item['uid'])) {
+                continue;
+            }
+
+            SwcRace::updateOrCreate(
+                ['uid' => (string) $item['uid']],
+                [
+                    'name' => $item['name'] ?? null,
+                    'last_pulled_at' => now(),
+                ]
+            );
+
+            $persisted += 1;
+        }
+
+        return [
+            'resource' => 'race_index',
+            'persisted' => true,
+            'race_count' => $persisted,
+            'pages' => $payload['meta']['pages'] ?? null,
+            'total' => $payload['meta']['total'] ?? $persisted,
+        ];
+    }
+
+    protected function persistWeaponTypeIndexPayload(array $payload): array
+    {
+        $items = collect($payload['weapon_types'] ?? []);
+        $persisted = 0;
+
+        foreach ($items as $item) {
+            if (!is_array($item) || empty($item['uid'])) {
+                continue;
+            }
+
+            SwcWeaponType::updateOrCreate(
+                ['uid' => (string) $item['uid']],
+                [
+                    'name' => $item['name'] ?? null,
+                    'last_pulled_at' => now(),
+                ]
+            );
+
+            $persisted += 1;
+        }
+
+        return [
+            'resource' => 'weapon_type_index',
+            'persisted' => true,
+            'weapon_type_count' => $persisted,
+            'pages' => $payload['meta']['pages'] ?? null,
+            'total' => $payload['meta']['total'] ?? $persisted,
+        ];
+    }
+
+    protected function persistCreatureTypeIndexPayload(array $payload): array
+    {
+        $items = collect($payload['creature_types'] ?? []);
+        $persisted = 0;
+
+        foreach ($items as $item) {
+            if (!is_array($item) || empty($item['uid'])) {
+                continue;
+            }
+
+            SwcCreatureType::updateOrCreate(
+                ['uid' => (string) $item['uid']],
+                [
+                    'name' => $item['name'] ?? null,
+                    'last_pulled_at' => now(),
+                ]
+            );
+
+            $persisted += 1;
+        }
+
+        return [
+            'resource' => 'creature_type_index',
+            'persisted' => true,
+            'creature_type_count' => $persisted,
+            'pages' => $payload['meta']['pages'] ?? null,
+            'total' => $payload['meta']['total'] ?? $persisted,
+        ];
+    }
+
     protected function persistFacilityTypeIndexPayload(array $payload): array
     {
         $items = collect($payload['facility_types'] ?? []);
@@ -753,14 +951,38 @@ class UniversePersistenceService
                 'class_name' => $typeData['class_name'] ?? null,
                 'description' => $typeData['description'] ?? null,
                 'length' => $typeData['length'] ?? null,
+                'manoeuvrability' => $typeData['manoeuvrability'] ?? null,
+                'sensors' => $typeData['sensors'] ?? null,
+                'ecm' => $typeData['ecm'] ?? null,
+                'weight_tonnes' => $typeData['weight_tonnes'] ?? null,
+                'volume_m3' => $typeData['volume_m3'] ?? null,
+                'weight_capacity_tonnes' => $typeData['weight_capacity_tonnes'] ?? null,
+                'volume_capacity_m3' => $typeData['volume_capacity_m3'] ?? null,
                 'max_speed' => $typeData['max_speed'] ?? null,
                 'hyperdrive' => $typeData['hyperdrive'] ?? null,
                 'max_passengers' => $typeData['max_passengers'] ?? null,
+                'escape_pods' => $typeData['escape_pods'] ?? null,
                 'hull' => $typeData['hull'] ?? null,
                 'shield' => $typeData['shield'] ?? null,
+                'armour' => $typeData['armour'] ?? null,
+                'ionic_capacity' => $typeData['ionic_capacity'] ?? null,
+                'has_repulsors' => $typeData['has_repulsors'] ?? null,
+                'slot_size' => $typeData['slot_size'] ?? null,
+                'medical_rooms' => $typeData['medical_rooms'] ?? null,
+                'has_hangar_bay' => $typeData['has_hangar_bay'] ?? null,
+                'has_docking_bay' => $typeData['has_docking_bay'] ?? null,
+                'can_recycle' => $typeData['can_recycle'] ?? null,
+                'can_interdict' => $typeData['can_interdict'] ?? null,
                 'price_credits' => $typeData['price_credits'] ?? null,
+                'production_modifier' => $typeData['production_modifier'] ?? null,
+                'recommended_workers' => $typeData['recommended_workers'] ?? null,
+                'recycling_xp' => $typeData['recycling_xp'] ?? null,
+                'generic_slots' => $typeData['generic_slots'] ?? null,
+                'weapons' => $typeData['weapons'] ?? null,
+                'materials' => $typeData['materials'] ?? null,
                 'images' => $typeData['images'] ?? null,
                 'image_url' => $typeData['image_url'] ?? null,
+                'icon_url' => $typeData['icon_url'] ?? null,
                 'payload' => $typeData['payload'] ?? null,
                 'last_pulled_at' => now(),
             ]
@@ -771,6 +993,271 @@ class UniversePersistenceService
             'persisted' => true,
             'ship_type_uid' => $type->uid,
             'ship_type_id' => $type->id,
+        ];
+    }
+
+    protected function persistVehicleTypePayload(array $payload): array
+    {
+        $typeData = (array) ($payload['vehicle_type'] ?? []);
+        $uid = (string) ($typeData['uid'] ?? $payload['identifier'] ?? '');
+
+        if ($uid === '') {
+            throw new \RuntimeException('Vehicle type payload could not be persisted without a UID.');
+        }
+
+        $type = SwcVehicleType::updateOrCreate(
+            ['uid' => $uid],
+            [
+                'name' => $typeData['name'] ?? null,
+                'class_name' => $typeData['class_name'] ?? null,
+                'description' => $typeData['description'] ?? null,
+                'length' => $typeData['length'] ?? null,
+                'manoeuvrability' => $typeData['manoeuvrability'] ?? null,
+                'sensors' => $typeData['sensors'] ?? null,
+                'ecm' => $typeData['ecm'] ?? null,
+                'weight_tonnes' => $typeData['weight_tonnes'] ?? null,
+                'volume_m3' => $typeData['volume_m3'] ?? null,
+                'weight_capacity_tonnes' => $typeData['weight_capacity_tonnes'] ?? null,
+                'volume_capacity_m3' => $typeData['volume_capacity_m3'] ?? null,
+                'max_speed' => $typeData['max_speed'] ?? null,
+                'max_passengers' => $typeData['max_passengers'] ?? null,
+                'hull' => $typeData['hull'] ?? null,
+                'shield' => $typeData['shield'] ?? null,
+                'ionic_capacity' => $typeData['ionic_capacity'] ?? null,
+                'has_repulsors' => $typeData['has_repulsors'] ?? null,
+                'slot_size' => $typeData['slot_size'] ?? null,
+                'medical_rooms' => $typeData['medical_rooms'] ?? null,
+                'has_hangar_bay' => $typeData['has_hangar_bay'] ?? null,
+                'has_docking_bay' => $typeData['has_docking_bay'] ?? null,
+                'can_recycle' => $typeData['can_recycle'] ?? null,
+                'price_credits' => $typeData['price_credits'] ?? null,
+                'production_modifier' => $typeData['production_modifier'] ?? null,
+                'recommended_workers' => $typeData['recommended_workers'] ?? null,
+                'recycling_xp' => $typeData['recycling_xp'] ?? null,
+                'generic_slots' => $typeData['generic_slots'] ?? null,
+                'terrain_restrictions' => $typeData['terrain_restrictions'] ?? null,
+                'weapons' => $typeData['weapons'] ?? null,
+                'materials' => $typeData['materials'] ?? null,
+                'images' => $typeData['images'] ?? null,
+                'image_url' => $typeData['image_url'] ?? null,
+                'icon_url' => $typeData['icon_url'] ?? null,
+                'payload' => $typeData['payload'] ?? null,
+                'last_pulled_at' => now(),
+            ]
+        );
+
+        return [
+            'resource' => 'vehicle_type',
+            'persisted' => true,
+            'vehicle_type_uid' => $type->uid,
+            'vehicle_type_id' => $type->id,
+        ];
+    }
+
+    protected function persistNpcTypePayload(array $payload): array
+    {
+        $typeData = (array) ($payload['npc_type'] ?? []);
+        $uid = (string) ($typeData['uid'] ?? $payload['identifier'] ?? '');
+
+        if ($uid === '') {
+            throw new \RuntimeException('NPC type payload could not be persisted without a UID.');
+        }
+
+        $type = SwcNpcType::updateOrCreate(
+            ['uid' => $uid],
+            [
+                'name' => $typeData['name'] ?? null,
+                'class_name' => $typeData['class_name'] ?? null,
+                'description' => $typeData['description'] ?? null,
+                'price_credits' => $typeData['price_credits'] ?? null,
+                'hiring_locations' => $typeData['hiring_locations'] ?? null,
+                'skills' => $typeData['skills'] ?? null,
+                'images' => $typeData['images'] ?? null,
+                'image_url' => $typeData['image_url'] ?? null,
+                'payload' => $typeData['payload'] ?? null,
+                'last_pulled_at' => now(),
+            ]
+        );
+
+        return [
+            'resource' => 'npc_type',
+            'persisted' => true,
+            'npc_type_uid' => $type->uid,
+            'npc_type_id' => $type->id,
+        ];
+    }
+
+    protected function persistDroidTypePayload(array $payload): array
+    {
+        $typeData = (array) ($payload['droid_type'] ?? []);
+        $uid = (string) ($typeData['uid'] ?? $payload['identifier'] ?? '');
+
+        if ($uid === '') {
+            throw new \RuntimeException('Droid type payload could not be persisted without a UID.');
+        }
+
+        $type = SwcDroidType::updateOrCreate(
+            ['uid' => $uid],
+            [
+                'name' => $typeData['name'] ?? null,
+                'class_name' => $typeData['class_name'] ?? null,
+                'description' => $typeData['description'] ?? null,
+                'sensors' => $typeData['sensors'] ?? null,
+                'ecm' => $typeData['ecm'] ?? null,
+                'batch_quantity' => $typeData['batch_quantity'] ?? null,
+                'weight_tonnes' => $typeData['weight_tonnes'] ?? null,
+                'volume_m3' => $typeData['volume_m3'] ?? null,
+                'weight_capacity_tonnes' => $typeData['weight_capacity_tonnes'] ?? null,
+                'volume_capacity_m3' => $typeData['volume_capacity_m3'] ?? null,
+                'hull' => $typeData['hull'] ?? null,
+                'shield' => $typeData['shield'] ?? null,
+                'ionic_capacity' => $typeData['ionic_capacity'] ?? null,
+                'armour' => $typeData['armour'] ?? null,
+                'slot_size' => $typeData['slot_size'] ?? null,
+                'terrain_restrictions' => $typeData['terrain_restrictions'] ?? null,
+                'price_credits' => $typeData['price_credits'] ?? null,
+                'production_modifier' => $typeData['production_modifier'] ?? null,
+                'recommended_workers' => $typeData['recommended_workers'] ?? null,
+                'recycling_xp' => $typeData['recycling_xp'] ?? null,
+                'generic_slots' => $typeData['generic_slots'] ?? null,
+                'skills' => $typeData['skills'] ?? null,
+                'weapons' => $typeData['weapons'] ?? null,
+                'materials' => $typeData['materials'] ?? null,
+                'images' => $typeData['images'] ?? null,
+                'image_url' => $typeData['image_url'] ?? null,
+                'icon_url' => $typeData['icon_url'] ?? null,
+                'payload' => $typeData['payload'] ?? null,
+                'last_pulled_at' => now(),
+            ]
+        );
+
+        return [
+            'resource' => 'droid_type',
+            'persisted' => true,
+            'droid_type_uid' => $type->uid,
+            'droid_type_id' => $type->id,
+        ];
+    }
+
+    protected function persistRacePayload(array $payload): array
+    {
+        $typeData = (array) ($payload['race'] ?? []);
+        $uid = (string) ($typeData['uid'] ?? $payload['identifier'] ?? '');
+
+        if ($uid === '') {
+            throw new \RuntimeException('Race payload could not be persisted without a UID.');
+        }
+
+        $type = SwcRace::updateOrCreate(
+            ['uid' => $uid],
+            [
+                'name' => $typeData['name'] ?? null,
+                'description' => $typeData['description'] ?? null,
+                'force_probability' => $typeData['force_probability'] ?? null,
+                'hp_bonus' => $typeData['hp_bonus'] ?? null,
+                'hp_multiplier' => $typeData['hp_multiplier'] ?? null,
+                'homeworld_uid' => $typeData['homeworld_uid'] ?? null,
+                'homeworld_name' => $typeData['homeworld_name'] ?? null,
+                'homeworld_href' => $typeData['homeworld_href'] ?? null,
+                'skills' => $typeData['skills'] ?? null,
+                'terrain_restrictions' => $typeData['terrain_restrictions'] ?? null,
+                'images' => $typeData['images'] ?? null,
+                'image_url' => $typeData['image_url'] ?? null,
+                'payload' => $typeData['payload'] ?? null,
+                'last_pulled_at' => now(),
+            ]
+        );
+
+        return [
+            'resource' => 'race',
+            'persisted' => true,
+            'race_uid' => $type->uid,
+            'race_id' => $type->id,
+        ];
+    }
+
+    protected function persistWeaponTypePayload(array $payload): array
+    {
+        $typeData = (array) ($payload['weapon_type'] ?? []);
+        $uid = (string) ($typeData['uid'] ?? $payload['identifier'] ?? '');
+
+        if ($uid === '') {
+            throw new \RuntimeException('Weapon type payload could not be persisted without a UID.');
+        }
+
+        $type = SwcWeaponType::updateOrCreate(
+            ['uid' => $uid],
+            [
+                'name' => $typeData['name'] ?? null,
+                'class_name' => $typeData['class_name'] ?? null,
+                'description' => $typeData['description'] ?? null,
+                'damage_type' => $typeData['damage_type'] ?? null,
+                'min_damage' => $typeData['min_damage'] ?? null,
+                'max_damage' => $typeData['max_damage'] ?? null,
+                'optimum_range' => $typeData['optimum_range'] ?? null,
+                'max_hits' => $typeData['max_hits'] ?? null,
+                'drop_off' => $typeData['drop_off'] ?? null,
+                'firepower' => $typeData['firepower'] ?? null,
+                'tracking' => $typeData['tracking'] ?? null,
+                'is_poison' => $typeData['is_poison'] ?? null,
+                'is_dual' => $typeData['is_dual'] ?? null,
+                'price_credits' => $typeData['price_credits'] ?? null,
+                'images' => $typeData['images'] ?? null,
+                'image_url' => $typeData['image_url'] ?? null,
+                'icon_url' => $typeData['icon_url'] ?? null,
+                'payload' => $typeData['payload'] ?? null,
+                'last_pulled_at' => now(),
+            ]
+        );
+
+        return [
+            'resource' => 'weapon_type',
+            'persisted' => true,
+            'weapon_type_uid' => $type->uid,
+            'weapon_type_id' => $type->id,
+        ];
+    }
+
+    protected function persistCreatureTypePayload(array $payload): array
+    {
+        $typeData = (array) ($payload['creature_type'] ?? []);
+        $uid = (string) ($typeData['uid'] ?? $payload['identifier'] ?? '');
+
+        if ($uid === '') {
+            throw new \RuntimeException('Creature type payload could not be persisted without a UID.');
+        }
+
+        $type = SwcCreatureType::updateOrCreate(
+            ['uid' => $uid],
+            [
+                'name' => $typeData['name'] ?? null,
+                'class_name' => $typeData['class_name'] ?? null,
+                'description' => $typeData['description'] ?? null,
+                'slot_size' => $typeData['slot_size'] ?? null,
+                'species' => $typeData['species'] ?? null,
+                'base_hp' => $typeData['base_hp'] ?? null,
+                'weight_tonnes' => $typeData['weight_tonnes'] ?? null,
+                'volume_m3' => $typeData['volume_m3'] ?? null,
+                'homeworld_uid' => $typeData['homeworld_uid'] ?? null,
+                'homeworld_name' => $typeData['homeworld_name'] ?? null,
+                'homeworld_href' => $typeData['homeworld_href'] ?? null,
+                'spawn_terrain_types' => $typeData['spawn_terrain_types'] ?? null,
+                'terrain_restrictions' => $typeData['terrain_restrictions'] ?? null,
+                'skills' => $typeData['skills'] ?? null,
+                'price_credits' => $typeData['price_credits'] ?? null,
+                'images' => $typeData['images'] ?? null,
+                'image_url' => $typeData['image_url'] ?? null,
+                'icon_url' => $typeData['icon_url'] ?? null,
+                'payload' => $typeData['payload'] ?? null,
+                'last_pulled_at' => now(),
+            ]
+        );
+
+        return [
+            'resource' => 'creature_type',
+            'persisted' => true,
+            'creature_type_uid' => $type->uid,
+            'creature_type_id' => $type->id,
         ];
     }
 

@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useLocation, useParams } from "react-router-dom";
-import { fetchAuthMe } from "../api/auth";
+import { fetchAuthMe, subscribeToAuthStateChange } from "../api/auth";
+import { canAccessMembers } from "../auth/permissions";
+import ForbiddenState from "../components/common/ForbiddenState";
 import { getStoredSystem, type StoredSystemDetail } from "../api/universe";
 import { formatTimestampAsCgt, getCgtTime, type CgtResponse } from "../api/time";
 import NotLoggedInState from "../components/common/NotLoggedInState";
@@ -129,6 +131,8 @@ const MembersUniverseSystemPage: React.FC = () => {
   const routeState = (location.state ?? null) as UniverseSystemLocationState | null;
   const [authChecked, setAuthChecked] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [canSeeMembers, setCanSeeMembers] = useState(false);
+  const [authRefreshNonce, setAuthRefreshNonce] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<StoredSystemDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -149,6 +153,12 @@ const MembersUniverseSystemPage: React.FC = () => {
   const systemViewportRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    return subscribeToAuthStateChange(() => {
+      setAuthRefreshNonce((value) => value + 1);
+    });
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
 
     (async () => {
@@ -156,9 +166,11 @@ const MembersUniverseSystemPage: React.FC = () => {
         const auth = await fetchAuthMe();
         if (cancelled) return;
         setIsLoggedIn(!!auth?.user);
+        setCanSeeMembers(canAccessMembers(auth?.user ?? null));
       } catch {
         if (!cancelled) {
           setIsLoggedIn(false);
+          setCanSeeMembers(false);
         }
       } finally {
         if (!cancelled) {
@@ -170,7 +182,7 @@ const MembersUniverseSystemPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [authRefreshNonce]);
 
   useEffect(() => {
     let cancelled = false;
@@ -194,9 +206,14 @@ const MembersUniverseSystemPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!systemIdentifier) {
+    if (!authChecked) {
+      return;
+    }
+
+    if (!isLoggedIn || !canSeeMembers || !systemIdentifier) {
       setLoading(false);
       setDetail(null);
+      setError(null);
       return;
     }
 
@@ -224,7 +241,7 @@ const MembersUniverseSystemPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [systemIdentifier]);
+  }, [authChecked, canSeeMembers, isLoggedIn, systemIdentifier]);
 
   useEffect(() => {
     const viewport = systemViewportRef.current;
@@ -371,6 +388,21 @@ const MembersUniverseSystemPage: React.FC = () => {
             <NotLoggedInState
               title="Not logged in"
               message="You need to sign in to access member tools."
+            />
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  if (!canSeeMembers) {
+    return (
+      <div className="site-scale">
+        <div className="app app--one">
+          <main className="board admin-board">
+            <ForbiddenState
+              title="403 Forbidden"
+              message="You do not have permission to access member tools."
             />
           </main>
         </div>

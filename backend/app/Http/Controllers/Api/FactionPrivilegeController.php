@@ -28,7 +28,7 @@ class FactionPrivilegeController extends Controller
             'refresh' => ['nullable', 'boolean'],
         ]);
 
-        $refresh = (bool) ($data['refresh'] ?? true);
+        $refresh = (bool) ($data['refresh'] ?? false);
 
         $factions = $user->factions()->get([
             'factions.id',

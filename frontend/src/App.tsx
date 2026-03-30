@@ -9,6 +9,7 @@ import JenPage from "./pages/JenPage";
 import AdminPage from "./pages/AdminPage";
 import MembersPage from "./pages/MembersPage";
 import PaymentsPage from "./pages/PaymentsPage";
+import DroidBrainPage from "./pages/DroidBrainPage";
 import AdminRoute from "./components/auth/AdminRoute";
 import SiteLockState from "./components/common/SiteLockState";
 import { fetchSiteLockStatus } from "./api/siteLock";
@@ -88,6 +89,7 @@ function App() {
           <Route path="/members" element={<MembersPage />} />
           <Route path="/members/universe/system/:systemIdentifier" element={<MembersUniverseSystemPage />} />
           <Route path="/payments" element={<PaymentsPage />} />
+          <Route path="/intel/droidbrain" element={<DroidBrainPage />} />
           <Route path="/sys/debug" element={<SysDebugPage />} />
           <Route path="/sys/debug/universe" element={<SysUniversePage />} />
 

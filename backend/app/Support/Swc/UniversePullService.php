@@ -18,6 +18,12 @@ class UniversePullService
             'planet' => $this->pullPlanet($identifier),
             'planet_type' => $this->pullPlanetType($identifier),
             'station' => $this->pullStation($identifier),
+            'droid_type' => $this->pullDroidType($identifier),
+            'creature_type' => $this->pullCreatureType($identifier),
+            'npc_type' => $this->pullNpcType($identifier),
+            'race' => $this->pullRace($identifier),
+            'weapon_type' => $this->pullWeaponType($identifier),
+            'vehicle_type' => $this->pullVehicleType($identifier),
             'item_type' => $this->pullItemType($identifier),
             'facility_type' => $this->pullFacilityType($identifier),
             'ship_type' => $this->pullShipType($identifier),
@@ -141,6 +147,180 @@ class UniversePullService
                 'page_size' => $itemCount,
             ],
             'ship_types' => $items,
+        ];
+    }
+
+    public function pullAllVehicleTypesIndex(): array
+    {
+        $startIndex = 1;
+        $itemCount = 50;
+        $total = null;
+        $items = [];
+        $pages = 0;
+
+        do {
+            $page = $this->pullTypeIndexPage('vehicles', $startIndex, $itemCount);
+            $pages += 1;
+            $items = [...$items, ...($page['items'] ?? [])];
+            $meta = $page['meta'] ?? [];
+            $total = $meta['total'] ?? $total;
+            $startIndex += $itemCount;
+        } while ($total !== null && count($items) < $total);
+
+        return [
+            'resource' => 'vehicle_type_index',
+            'meta' => [
+                'total' => $total ?? count($items),
+                'item_count' => count($items),
+                'pages' => $pages,
+                'page_size' => $itemCount,
+            ],
+            'vehicle_types' => $items,
+        ];
+    }
+
+    public function pullAllNpcTypesIndex(): array
+    {
+        $startIndex = 1;
+        $itemCount = 50;
+        $total = null;
+        $items = [];
+        $pages = 0;
+
+        do {
+            $page = $this->pullTypeIndexPage('npcs', $startIndex, $itemCount);
+            $pages += 1;
+            $items = [...$items, ...($page['items'] ?? [])];
+            $meta = $page['meta'] ?? [];
+            $total = $meta['total'] ?? $total;
+            $startIndex += $itemCount;
+        } while ($total !== null && count($items) < $total);
+
+        return [
+            'resource' => 'npc_type_index',
+            'meta' => [
+                'total' => $total ?? count($items),
+                'item_count' => count($items),
+                'pages' => $pages,
+                'page_size' => $itemCount,
+            ],
+            'npc_types' => $items,
+        ];
+    }
+
+    public function pullAllDroidTypesIndex(): array
+    {
+        $startIndex = 1;
+        $itemCount = 50;
+        $total = null;
+        $items = [];
+        $pages = 0;
+
+        do {
+            $page = $this->pullTypeIndexPage('droids', $startIndex, $itemCount);
+            $pages += 1;
+            $items = [...$items, ...($page['items'] ?? [])];
+            $meta = $page['meta'] ?? [];
+            $total = $meta['total'] ?? $total;
+            $startIndex += $itemCount;
+        } while ($total !== null && count($items) < $total);
+
+        return [
+            'resource' => 'droid_type_index',
+            'meta' => [
+                'total' => $total ?? count($items),
+                'item_count' => count($items),
+                'pages' => $pages,
+                'page_size' => $itemCount,
+            ],
+            'droid_types' => $items,
+        ];
+    }
+
+    public function pullAllRacesIndex(): array
+    {
+        $startIndex = 1;
+        $itemCount = 50;
+        $total = null;
+        $items = [];
+        $pages = 0;
+
+        do {
+            $page = $this->pullTypeIndexPage('races', $startIndex, $itemCount);
+            $pages += 1;
+            $items = [...$items, ...($page['items'] ?? [])];
+            $meta = $page['meta'] ?? [];
+            $total = $meta['total'] ?? $total;
+            $startIndex += $itemCount;
+        } while ($total !== null && count($items) < $total);
+
+        return [
+            'resource' => 'race_index',
+            'meta' => [
+                'total' => $total ?? count($items),
+                'item_count' => count($items),
+                'pages' => $pages,
+                'page_size' => $itemCount,
+            ],
+            'races' => $items,
+        ];
+    }
+
+    public function pullAllWeaponTypesIndex(): array
+    {
+        $startIndex = 1;
+        $itemCount = 50;
+        $total = null;
+        $items = [];
+        $pages = 0;
+
+        do {
+            $page = $this->pullTypeIndexPage('weapons', $startIndex, $itemCount);
+            $pages += 1;
+            $items = [...$items, ...($page['items'] ?? [])];
+            $meta = $page['meta'] ?? [];
+            $total = $meta['total'] ?? $total;
+            $startIndex += $itemCount;
+        } while ($total !== null && count($items) < $total);
+
+        return [
+            'resource' => 'weapon_type_index',
+            'meta' => [
+                'total' => $total ?? count($items),
+                'item_count' => count($items),
+                'pages' => $pages,
+                'page_size' => $itemCount,
+            ],
+            'weapon_types' => $items,
+        ];
+    }
+
+    public function pullAllCreatureTypesIndex(): array
+    {
+        $startIndex = 1;
+        $itemCount = 50;
+        $total = null;
+        $items = [];
+        $pages = 0;
+
+        do {
+            $page = $this->pullTypeIndexPage('creatures', $startIndex, $itemCount);
+            $pages += 1;
+            $items = [...$items, ...($page['items'] ?? [])];
+            $meta = $page['meta'] ?? [];
+            $total = $meta['total'] ?? $total;
+            $startIndex += $itemCount;
+        } while ($total !== null && count($items) < $total);
+
+        return [
+            'resource' => 'creature_type_index',
+            'meta' => [
+                'total' => $total ?? count($items),
+                'item_count' => count($items),
+                'pages' => $pages,
+                'page_size' => $itemCount,
+            ],
+            'creature_types' => $items,
         ];
     }
 
@@ -669,6 +849,102 @@ class UniversePullService
             'resource' => 'ship_type',
             'identifier' => $identifier,
             'ship_type' => $this->parseShipTypeNode($typeNode, $identifier),
+        ];
+    }
+
+    protected function pullVehicleType(string $identifier): array
+    {
+        $xml = $this->fetchXml('/types/vehicles/' . $this->encodeIdentifierPath($identifier) . '/');
+        $typeNode = $this->extractTypeDetailNode($xml, ['vehicle', 'vehicletype', 'type']);
+
+        if (!$typeNode) {
+            throw new \RuntimeException('Vehicle type payload did not include a vehicle type node.');
+        }
+
+        return [
+            'resource' => 'vehicle_type',
+            'identifier' => $identifier,
+            'vehicle_type' => $this->parseVehicleTypeNode($typeNode, $identifier),
+        ];
+    }
+
+    protected function pullDroidType(string $identifier): array
+    {
+        $xml = $this->fetchXml('/types/droids/' . $this->encodeIdentifierPath($identifier) . '/');
+        $typeNode = $this->extractTypeDetailNode($xml, ['droidtype', 'droid', 'type']);
+
+        if (!$typeNode) {
+            throw new \RuntimeException('Droid type payload did not include a droid type node.');
+        }
+
+        return [
+            'resource' => 'droid_type',
+            'identifier' => $identifier,
+            'droid_type' => $this->parseDroidTypeNode($typeNode, $identifier),
+        ];
+    }
+
+    protected function pullNpcType(string $identifier): array
+    {
+        $xml = $this->fetchXml('/types/npcs/' . $this->encodeIdentifierPath($identifier) . '/');
+        $typeNode = $this->extractTypeDetailNode($xml, ['npctype', 'npc', 'type']);
+
+        if (!$typeNode) {
+            throw new \RuntimeException('NPC type payload did not include an NPC type node.');
+        }
+
+        return [
+            'resource' => 'npc_type',
+            'identifier' => $identifier,
+            'npc_type' => $this->parseNpcTypeNode($typeNode, $identifier),
+        ];
+    }
+
+    protected function pullRace(string $identifier): array
+    {
+        $xml = $this->fetchXml('/types/races/' . $this->encodeIdentifierPath($identifier) . '/');
+        $typeNode = $this->extractTypeDetailNode($xml, ['race', 'racetype', 'type']);
+
+        if (!$typeNode) {
+            throw new \RuntimeException('Race payload did not include a race node.');
+        }
+
+        return [
+            'resource' => 'race',
+            'identifier' => $identifier,
+            'race' => $this->parseRaceNode($typeNode, $identifier),
+        ];
+    }
+
+    protected function pullWeaponType(string $identifier): array
+    {
+        $xml = $this->fetchXml('/types/weapons/' . $this->encodeIdentifierPath($identifier) . '/');
+        $typeNode = $this->extractTypeDetailNode($xml, ['weapontype', 'weapon', 'type']);
+
+        if (!$typeNode) {
+            throw new \RuntimeException('Weapon type payload did not include a weapon type node.');
+        }
+
+        return [
+            'resource' => 'weapon_type',
+            'identifier' => $identifier,
+            'weapon_type' => $this->parseWeaponTypeNode($typeNode, $identifier),
+        ];
+    }
+
+    protected function pullCreatureType(string $identifier): array
+    {
+        $xml = $this->fetchXml('/types/creatures/' . $this->encodeIdentifierPath($identifier) . '/');
+        $typeNode = $this->extractTypeDetailNode($xml, ['creaturetype', 'creature', 'type']);
+
+        if (!$typeNode) {
+            throw new \RuntimeException('Creature type payload did not include a creature type node.');
+        }
+
+        return [
+            'resource' => 'creature_type',
+            'identifier' => $identifier,
+            'creature_type' => $this->parseCreatureTypeNode($typeNode, $identifier),
         ];
     }
 
@@ -1318,6 +1594,32 @@ class UniversePullService
             'large' => $this->firstStringValue($typeNode->images, ['large']),
             'icon' => $this->firstStringValue($typeNode->images, ['icon']),
         ] : [];
+        $weapons = [];
+        if (isset($typeNode->weapons) && isset($typeNode->weapons->weapon)) {
+            foreach ($typeNode->weapons->weapon as $weapon) {
+                $weapons[] = [
+                    'uid' => trim((string) ($weapon['uid'] ?? '')) ?: null,
+                    'href' => trim((string) ($weapon['href'] ?? '')) ?: null,
+                    'name' => trim((string) $weapon) ?: null,
+                    'quantity' => $this->toIntOrNull($weapon['quantity'] ?? null),
+                    'arc' => trim((string) ($weapon['arc'] ?? '')) ?: null,
+                    'arc_from' => $this->toIntOrNull($weapon['arcFrom'] ?? null),
+                    'arc_to' => $this->toIntOrNull($weapon['arcTo'] ?? null),
+                ];
+            }
+        }
+        $materials = [];
+        if (isset($typeNode->materials) && isset($typeNode->materials->material)) {
+            foreach ($typeNode->materials->material as $material) {
+                $materials[] = [
+                    'uid' => trim((string) ($material['uid'] ?? '')) ?: null,
+                    'href' => trim((string) ($material['href'] ?? '')) ?: null,
+                    'name' => trim((string) $material) ?: null,
+                    'quantity' => $this->toIntOrNull($material['quantity'] ?? null),
+                ];
+            }
+        }
+        $speedNode = isset($typeNode->speed) ? $typeNode->speed : null;
 
         return [
             'uid' => $uid,
@@ -1325,14 +1627,42 @@ class UniversePullService
             'class_name' => $this->firstStringValue($typeNode, ['class', 'classname', 'class_name']),
             'description' => $this->firstStringValue($typeNode, ['description', 'desc']),
             'length' => $this->firstFloatValue($typeNode, ['length']),
-            'max_speed' => $this->firstIntValue($typeNode, ['maxspeed', 'speed']),
-            'hyperdrive' => $this->firstFloatValue($typeNode, ['hyperdrive']),
+            'manoeuvrability' => $this->firstIntValue($typeNode, ['manoeuvrability']),
+            'sensors' => $this->firstIntValue($typeNode, ['sensors']),
+            'ecm' => $this->firstIntValue($typeNode, ['ecm']),
+            'weight_tonnes' => $this->firstFloatValue($typeNode, ['weight']),
+            'volume_m3' => $this->firstFloatValue($typeNode, ['volume']),
+            'weight_capacity_tonnes' => $this->firstFloatValue($typeNode, ['weightcapacity']),
+            'volume_capacity_m3' => $this->firstFloatValue($typeNode, ['volumecapacity']),
+            'max_speed' => $speedNode instanceof \SimpleXMLElement
+                ? ($this->firstIntValue($speedNode, ['sublight', 'planetary', 'speed']) ?? $this->firstIntValue($typeNode, ['maxspeed', 'speed']))
+                : $this->firstIntValue($typeNode, ['maxspeed', 'speed']),
+            'hyperdrive' => $speedNode instanceof \SimpleXMLElement
+                ? $this->toFloatOrNull($this->firstStringValue($speedNode, ['hyperspace']))
+                : $this->firstFloatValue($typeNode, ['hyperdrive']),
             'max_passengers' => $this->firstIntValue($typeNode, ['maxpassengers']),
+            'escape_pods' => $this->firstIntValue($typeNode, ['escapepods']),
             'hull' => $this->firstIntValue($typeNode, ['hull']),
             'shield' => $this->firstIntValue($typeNode, ['shield']),
+            'armour' => $this->firstIntValue($typeNode, ['armour']),
+            'ionic_capacity' => $this->firstIntValue($typeNode, ['ioniccapacity']),
+            'has_repulsors' => $this->toBoolOrNull($typeNode->repulsors ?? null),
+            'slot_size' => $this->firstFloatValue($typeNode, ['slotsize']),
+            'medical_rooms' => $this->firstIntValue($typeNode, ['medicalrooms']),
+            'has_hangar_bay' => $this->toBoolOrNull($typeNode->hangarbay ?? null),
+            'has_docking_bay' => $this->toBoolOrNull($typeNode->dockingbay ?? null),
+            'can_recycle' => $this->toBoolOrNull($typeNode->canrecycle ?? null),
+            'can_interdict' => $this->toBoolOrNull($typeNode->caninterdict ?? null),
             'price_credits' => isset($typeNode->price) ? $this->firstIntValue($typeNode->price, ['credits']) : null,
+            'production_modifier' => isset($typeNode->production) ? $this->firstIntValue($typeNode->production, ['modifier']) : null,
+            'recommended_workers' => isset($typeNode->production) ? $this->firstIntValue($typeNode->production, ['recommendedWorkers']) : null,
+            'recycling_xp' => isset($typeNode->production) ? $this->firstIntValue($typeNode->production, ['recyclingXP']) : null,
+            'generic_slots' => isset($typeNode->production) ? $this->firstIntValue($typeNode->production, ['genericSlots']) : null,
+            'weapons' => $weapons !== [] ? $weapons : null,
+            'materials' => $materials !== [] ? $materials : null,
             'images' => $images !== [] ? $images : null,
             'image_url' => $images['large'] ?? $images['small'] ?? $images['icon'] ?? $this->firstStringValue($typeNode, ['image', 'image_url', 'imageurl']),
+            'icon_url' => $images['icon'] ?? null,
             'payload' => $payload,
         ];
     }
@@ -1360,6 +1690,492 @@ class UniversePullService
             'price_credits' => isset($typeNode->price) ? $this->firstIntValue($typeNode->price, ['credits']) : null,
             'images' => $images !== [] ? $images : null,
             'image_url' => $images['large'] ?? $images['small'] ?? $images['icon'] ?? $this->firstStringValue($typeNode, ['image', 'image_url', 'imageurl']),
+            'payload' => $payload,
+        ];
+    }
+
+    protected function parseVehicleTypeNode(\SimpleXMLElement $typeNode, ?string $fallbackIdentifier = null): array
+    {
+        $payload = $this->simpleXmlToArray($typeNode);
+        $uid = trim((string) ($typeNode->uid ?? $typeNode['uid'] ?? $fallbackIdentifier ?? '')) ?: null;
+        $name = trim((string) ($typeNode->name ?? $typeNode['name'] ?? $typeNode)) ?: null;
+        $images = isset($typeNode->images) ? [
+            'icon' => $this->firstStringValue($typeNode->images, ['icon']),
+            'small' => $this->firstStringValue($typeNode->images, ['small']),
+            'large' => $this->firstStringValue($typeNode->images, ['large']),
+        ] : [];
+        $weapons = [];
+        if (isset($typeNode->weapons) && isset($typeNode->weapons->weapon)) {
+            foreach ($typeNode->weapons->weapon as $weapon) {
+                $weapons[] = [
+                    'uid' => trim((string) ($weapon['uid'] ?? '')) ?: null,
+                    'href' => trim((string) ($weapon['href'] ?? '')) ?: null,
+                    'name' => trim((string) $weapon) ?: null,
+                    'quantity' => $this->toIntOrNull($weapon['quantity'] ?? null),
+                    'arc' => trim((string) ($weapon['arc'] ?? '')) ?: null,
+                    'arc_from' => $this->toIntOrNull($weapon['arcFrom'] ?? null),
+                    'arc_to' => $this->toIntOrNull($weapon['arcTo'] ?? null),
+                ];
+            }
+        }
+        $materials = [];
+        if (isset($typeNode->materials) && isset($typeNode->materials->material)) {
+            foreach ($typeNode->materials->material as $material) {
+                $materials[] = [
+                    'uid' => trim((string) ($material['uid'] ?? '')) ?: null,
+                    'href' => trim((string) ($material['href'] ?? '')) ?: null,
+                    'name' => trim((string) $material) ?: null,
+                    'quantity' => $this->toIntOrNull($material['quantity'] ?? null),
+                ];
+            }
+        }
+        $terrainRestrictions = [];
+        if (isset($typeNode->terrainrestrictions) && isset($typeNode->terrainrestrictions->terrainrestriction)) {
+            foreach ($typeNode->terrainrestrictions->terrainrestriction as $restriction) {
+                $terrainRestrictions[] = [
+                    'uid' => trim((string) ($restriction['uid'] ?? '')) ?: null,
+                    'code' => trim((string) ($restriction['code'] ?? '')) ?: null,
+                    'href' => trim((string) ($restriction['href'] ?? '')) ?: null,
+                    'name' => trim((string) $restriction) ?: null,
+                ];
+            }
+        }
+
+        $speedNode = isset($typeNode->speed) ? $typeNode->speed : null;
+
+        return [
+            'uid' => $uid,
+            'name' => $name,
+            'class_name' => $this->firstStringValue($typeNode, ['class', 'classname', 'class_name']),
+            'description' => $this->firstStringValue($typeNode, ['description', 'desc']),
+            'length' => $this->firstFloatValue($typeNode, ['length']),
+            'manoeuvrability' => $this->firstIntValue($typeNode, ['manoeuvrability']),
+            'sensors' => $this->firstIntValue($typeNode, ['sensors']),
+            'ecm' => $this->firstIntValue($typeNode, ['ecm']),
+            'weight_tonnes' => $this->firstFloatValue($typeNode, ['weight']),
+            'volume_m3' => $this->firstFloatValue($typeNode, ['volume']),
+            'weight_capacity_tonnes' => $this->firstFloatValue($typeNode, ['weightcapacity']),
+            'volume_capacity_m3' => $this->firstFloatValue($typeNode, ['volumecapacity']),
+            'max_speed' => $speedNode instanceof \SimpleXMLElement
+                ? ($this->firstIntValue($speedNode, ['planetary', 'sublight', 'speed']) ?? $this->firstIntValue($typeNode, ['maxspeed', 'speed']))
+                : $this->firstIntValue($typeNode, ['maxspeed', 'speed']),
+            'max_passengers' => $this->firstIntValue($typeNode, ['maxpassengers']),
+            'hull' => $this->firstIntValue($typeNode, ['hull']),
+            'shield' => $this->firstIntValue($typeNode, ['shield']),
+            'ionic_capacity' => $this->firstIntValue($typeNode, ['ioniccapacity']),
+            'has_repulsors' => $this->toBoolOrNull($typeNode->repulsors ?? null),
+            'slot_size' => $this->firstFloatValue($typeNode, ['slotsize']),
+            'medical_rooms' => $this->firstIntValue($typeNode, ['medicalrooms']),
+            'has_hangar_bay' => $this->toBoolOrNull($typeNode->hangarbay ?? null),
+            'has_docking_bay' => $this->toBoolOrNull($typeNode->dockingbay ?? null),
+            'can_recycle' => $this->toBoolOrNull($typeNode->canrecycle ?? null),
+            'price_credits' => isset($typeNode->price) ? $this->firstIntValue($typeNode->price, ['credits']) : null,
+            'production_modifier' => isset($typeNode->production) ? $this->firstIntValue($typeNode->production, ['modifier']) : null,
+            'recommended_workers' => isset($typeNode->production) ? $this->firstIntValue($typeNode->production, ['recommendedWorkers']) : null,
+            'recycling_xp' => isset($typeNode->production) ? $this->firstIntValue($typeNode->production, ['recyclingXP']) : null,
+            'generic_slots' => isset($typeNode->production) ? $this->firstIntValue($typeNode->production, ['genericSlots']) : null,
+            'terrain_restrictions' => $terrainRestrictions,
+            'weapons' => $weapons,
+            'materials' => $materials,
+            'images' => $images !== [] ? $images : null,
+            'image_url' => $images['large'] ?? $images['small'] ?? $images['icon'] ?? $this->firstStringValue($typeNode, ['image', 'image_url', 'imageurl']),
+            'icon_url' => $images['icon'] ?? null,
+            'payload' => $payload,
+        ];
+    }
+
+    protected function parseNpcTypeNode(\SimpleXMLElement $typeNode, ?string $fallbackIdentifier = null): array
+    {
+        $payload = $this->simpleXmlToArray($typeNode);
+        $uid = trim((string) ($typeNode->uid ?? $typeNode['uid'] ?? $fallbackIdentifier ?? '')) ?: null;
+        $name = trim((string) ($typeNode->name ?? $typeNode['name'] ?? $typeNode)) ?: null;
+        $images = isset($typeNode->images) ? [
+            'type' => $this->firstStringValue($typeNode->images, ['type']),
+            'small' => $this->firstStringValue($typeNode->images, ['small']),
+            'large' => $this->firstStringValue($typeNode->images, ['large']),
+            'icon' => $this->firstStringValue($typeNode->images, ['icon']),
+        ] : [];
+
+        $hiringLocations = [];
+        if (isset($typeNode->hiringlocations) && isset($typeNode->hiringlocations->hiringlocation)) {
+            foreach ($typeNode->hiringlocations->hiringlocation as $location) {
+                $hiringLocations[] = [
+                    'uid' => trim((string) ($location['uid'] ?? '')) ?: null,
+                    'href' => trim((string) ($location['href'] ?? '')) ?: null,
+                    'name' => trim((string) $location) ?: null,
+                ];
+            }
+        }
+
+        $skills = [];
+        if (isset($typeNode->skills)) {
+            foreach ($typeNode->skills->children() as $groupName => $groupNode) {
+                if (!$groupNode instanceof \SimpleXMLElement) {
+                    continue;
+                }
+
+                $groupSkills = [];
+                foreach ($groupNode->skill as $skill) {
+                    $skillType = trim((string) ($skill['type'] ?? ''));
+                    if ($skillType === '') {
+                        continue;
+                    }
+
+                    $groupSkills[$skillType] = $this->toIntOrNull($skill);
+                }
+
+                $skills[$groupName] = [
+                    'count' => $this->toIntOrNull($groupNode['count'] ?? null),
+                    'force' => $this->toBoolOrNull($groupNode['force'] ?? null),
+                    'skills' => $groupSkills,
+                ];
+            }
+        }
+
+        return [
+            'uid' => $uid,
+            'name' => $name,
+            'class_name' => $this->firstStringValue($typeNode, ['class', 'classname', 'class_name']),
+            'description' => $this->firstStringValue($typeNode, ['description', 'desc']),
+            'price_credits' => isset($typeNode->price) ? $this->firstIntValue($typeNode->price, ['credits']) : null,
+            'hiring_locations' => $hiringLocations,
+            'skills' => $skills,
+            'images' => $images !== [] ? $images : null,
+            'image_url' => $images['type'] ?? $images['large'] ?? $images['small'] ?? $images['icon'] ?? $this->firstStringValue($typeNode, ['image', 'image_url', 'imageurl']),
+            'payload' => $payload,
+        ];
+    }
+
+    protected function parseDroidTypeNode(\SimpleXMLElement $typeNode, ?string $fallbackIdentifier = null): array
+    {
+        $payload = $this->simpleXmlToArray($typeNode);
+        $uid = trim((string) ($typeNode->uid ?? $typeNode['uid'] ?? $fallbackIdentifier ?? '')) ?: null;
+        $name = trim((string) ($typeNode->name ?? $typeNode['name'] ?? $typeNode)) ?: null;
+        $images = isset($typeNode->images) ? [
+            'type' => $this->firstStringValue($typeNode->images, ['type']),
+            'small' => $this->firstStringValue($typeNode->images, ['small']),
+            'large' => $this->firstStringValue($typeNode->images, ['large']),
+            'icon' => $this->firstStringValue($typeNode->images, ['icon']),
+        ] : [];
+
+        $skills = [];
+        if (isset($typeNode->skills)) {
+            foreach ($typeNode->skills->children() as $groupName => $groupNode) {
+                if (!$groupNode instanceof \SimpleXMLElement) {
+                    continue;
+                }
+
+                $groupSkills = [];
+                foreach ($groupNode->skill as $skill) {
+                    $skillType = trim((string) ($skill['type'] ?? ''));
+                    if ($skillType === '') {
+                        continue;
+                    }
+
+                    $groupSkills[$skillType] = $this->toIntOrNull($skill);
+                }
+
+                $skills[$groupName] = [
+                    'count' => $this->toIntOrNull($groupNode['count'] ?? null),
+                    'force' => $this->toBoolOrNull($groupNode['force'] ?? null),
+                    'skills' => $groupSkills,
+                ];
+            }
+        }
+
+        $terrainRestrictions = [];
+        if (isset($typeNode->terrainrestrictions) && isset($typeNode->terrainrestrictions->terrainrestriction)) {
+            foreach ($typeNode->terrainrestrictions->terrainrestriction as $restriction) {
+                $terrainRestrictions[] = [
+                    'uid' => trim((string) ($restriction['uid'] ?? '')) ?: null,
+                    'code' => trim((string) ($restriction['code'] ?? '')) ?: null,
+                    'href' => trim((string) ($restriction['href'] ?? '')) ?: null,
+                    'name' => trim((string) $restriction) ?: null,
+                ];
+            }
+        }
+
+        $weapons = [];
+        if (isset($typeNode->weapons) && isset($typeNode->weapons->weapon)) {
+            foreach ($typeNode->weapons->weapon as $weapon) {
+                $weapons[] = [
+                    'uid' => trim((string) ($weapon['uid'] ?? '')) ?: null,
+                    'href' => trim((string) ($weapon['href'] ?? '')) ?: null,
+                    'name' => trim((string) $weapon) ?: null,
+                    'quantity' => $this->toIntOrNull($weapon['quantity'] ?? null),
+                    'arc' => trim((string) ($weapon['arc'] ?? '')) ?: null,
+                    'arc_from' => $this->toIntOrNull($weapon['arcFrom'] ?? null),
+                    'arc_to' => $this->toIntOrNull($weapon['arcTo'] ?? null),
+                ];
+            }
+        }
+
+        $materials = [];
+        if (isset($typeNode->materials) && isset($typeNode->materials->material)) {
+            foreach ($typeNode->materials->material as $material) {
+                $materials[] = [
+                    'uid' => trim((string) ($material['uid'] ?? '')) ?: null,
+                    'href' => trim((string) ($material['href'] ?? '')) ?: null,
+                    'name' => trim((string) $material) ?: null,
+                    'quantity' => $this->toIntOrNull($material['quantity'] ?? null),
+                ];
+            }
+        }
+
+        return [
+            'uid' => $uid,
+            'name' => $name,
+            'class_name' => $this->firstStringValue($typeNode, ['class', 'classname', 'class_name']),
+            'description' => $this->firstStringValue($typeNode, ['description', 'desc']),
+            'sensors' => $this->firstIntValue($typeNode, ['sensors']),
+            'ecm' => $this->firstIntValue($typeNode, ['ecm']),
+            'batch_quantity' => $this->firstIntValue($typeNode, ['batchquantity']),
+            'weight_tonnes' => $this->firstFloatValue($typeNode, ['weight']),
+            'volume_m3' => $this->firstFloatValue($typeNode, ['volume']),
+            'weight_capacity_tonnes' => $this->firstFloatValue($typeNode, ['weightcapacity']),
+            'volume_capacity_m3' => $this->firstFloatValue($typeNode, ['volumecapacity']),
+            'hull' => $this->firstIntValue($typeNode, ['hull']),
+            'shield' => $this->firstIntValue($typeNode, ['shield']),
+            'ionic_capacity' => $this->firstIntValue($typeNode, ['ioniccapacity']),
+            'armour' => $this->firstIntValue($typeNode, ['armour']),
+            'slot_size' => $this->firstFloatValue($typeNode, ['slotsize']),
+            'terrain_restrictions' => $terrainRestrictions !== [] ? $terrainRestrictions : null,
+            'price_credits' => isset($typeNode->price) ? $this->firstIntValue($typeNode->price, ['credits']) : null,
+            'production_modifier' => isset($typeNode->production) ? $this->firstIntValue($typeNode->production, ['modifier']) : null,
+            'recommended_workers' => isset($typeNode->production) ? $this->firstIntValue($typeNode->production, ['recommendedWorkers']) : null,
+            'recycling_xp' => isset($typeNode->production) ? $this->firstIntValue($typeNode->production, ['recyclingXP']) : null,
+            'generic_slots' => isset($typeNode->production) ? $this->firstIntValue($typeNode->production, ['genericSlots']) : null,
+            'skills' => $skills !== [] ? $skills : null,
+            'weapons' => $weapons !== [] ? $weapons : null,
+            'materials' => $materials !== [] ? $materials : null,
+            'images' => $images !== [] ? $images : null,
+            'image_url' => $images['type'] ?? $images['large'] ?? $images['small'] ?? $images['icon'] ?? $this->firstStringValue($typeNode, ['image', 'image_url', 'imageurl']),
+            'icon_url' => $images['icon'] ?? null,
+            'payload' => $payload,
+        ];
+    }
+
+    protected function parseRaceNode(\SimpleXMLElement $typeNode, ?string $fallbackIdentifier = null): array
+    {
+        $payload = $this->simpleXmlToArray($typeNode);
+        $uid = trim((string) ($typeNode->uid ?? $typeNode['uid'] ?? $fallbackIdentifier ?? '')) ?: null;
+        $name = trim((string) ($typeNode->name ?? $typeNode['name'] ?? $typeNode)) ?: null;
+        $images = [];
+        if (isset($typeNode->images)) {
+            foreach (['female', 'male'] as $groupName) {
+                if (!isset($typeNode->images->{$groupName})) {
+                    continue;
+                }
+
+                $groupImages = [];
+                foreach ($typeNode->images->{$groupName}->image as $imageNode) {
+                    $url = trim((string) $imageNode);
+                    if ($url !== '') {
+                        $groupImages[] = $url;
+                    }
+                }
+
+                $images[$groupName] = $groupImages;
+            }
+
+            foreach (['type', 'small', 'large', 'icon'] as $key) {
+                $value = $this->firstStringValue($typeNode->images, [$key]);
+                if ($value !== null) {
+                    $images[$key] = $value;
+                }
+            }
+        }
+
+        $homeworld = isset($typeNode->homeworld) ? [
+            'uid' => trim((string) ($typeNode->homeworld['uid'] ?? '')) ?: null,
+            'name' => trim((string) ($typeNode->homeworld['name'] ?? $typeNode->homeworld)) ?: null,
+            'href' => trim((string) ($typeNode->homeworld['href'] ?? '')) ?: null,
+        ] : null;
+
+        $skills = [];
+        if (isset($typeNode->skills)) {
+            foreach ($typeNode->skills->children() as $groupName => $groupNode) {
+                if (!$groupNode instanceof \SimpleXMLElement) {
+                    continue;
+                }
+
+                $groupSkills = [];
+                foreach ($groupNode->skill as $skill) {
+                    $skillType = trim((string) ($skill['type'] ?? ''));
+                    if ($skillType === '') {
+                        continue;
+                    }
+
+                    $groupSkills[$skillType] = $this->toIntOrNull($skill);
+                }
+
+                $skills[$groupName] = [
+                    'count' => $this->toIntOrNull($groupNode['count'] ?? null),
+                    'force' => $this->toBoolOrNull($groupNode['force'] ?? null),
+                    'skills' => $groupSkills,
+                ];
+            }
+        }
+
+        $terrainRestrictions = [];
+        if (isset($typeNode->terrainrestrictions) && isset($typeNode->terrainrestrictions->terrainrestriction)) {
+            foreach ($typeNode->terrainrestrictions->terrainrestriction as $terrainNode) {
+                $terrainRestrictions[] = [
+                    'uid' => trim((string) ($terrainNode['uid'] ?? '')) ?: null,
+                    'code' => trim((string) ($terrainNode['code'] ?? '')) ?: null,
+                    'href' => trim((string) ($terrainNode['href'] ?? '')) ?: null,
+                    'name' => trim((string) $terrainNode) ?: null,
+                ];
+            }
+        }
+
+        return [
+            'uid' => $uid,
+            'name' => $name,
+            'description' => $this->firstStringValue($typeNode, ['description', 'desc']),
+            'force_probability' => $this->firstIntValue($typeNode, ['forceprobability']),
+            'hp_bonus' => $this->firstIntValue($typeNode, ['hpbonus']),
+            'hp_multiplier' => $this->toFloatOrNull($this->firstStringValue($typeNode, ['hpmultiplier'])),
+            'homeworld_uid' => $homeworld['uid'] ?? null,
+            'homeworld_name' => $homeworld['name'] ?? null,
+            'homeworld_href' => $homeworld['href'] ?? null,
+            'skills' => $skills !== [] ? $skills : null,
+            'terrain_restrictions' => $terrainRestrictions !== [] ? $terrainRestrictions : null,
+            'images' => $images !== [] ? $images : null,
+            'image_url' => $images['type']
+                ?? $images['large']
+                ?? $images['small']
+                ?? $images['icon']
+                ?? ($images['female'][0] ?? null)
+                ?? ($images['male'][0] ?? null)
+                ?? $this->firstStringValue($typeNode, ['image', 'image_url', 'imageurl']),
+            'payload' => $payload,
+        ];
+    }
+
+    protected function parseWeaponTypeNode(\SimpleXMLElement $typeNode, ?string $fallbackIdentifier = null): array
+    {
+        $payload = $this->simpleXmlToArray($typeNode);
+        $uid = trim((string) ($typeNode->uid ?? $typeNode['uid'] ?? $fallbackIdentifier ?? '')) ?: null;
+        $name = trim((string) ($typeNode->name ?? $typeNode['name'] ?? $typeNode)) ?: null;
+        $images = isset($typeNode->images) ? [
+            'type' => $this->firstStringValue($typeNode->images, ['type']),
+            'button' => $this->firstStringValue($typeNode->images, ['button']),
+            'small' => $this->firstStringValue($typeNode->images, ['small']),
+            'large' => $this->firstStringValue($typeNode->images, ['large']),
+            'icon' => $this->firstStringValue($typeNode->images, ['icon']),
+        ] : [];
+
+        return [
+            'uid' => $uid,
+            'name' => $name,
+            'class_name' => $this->firstStringValue($typeNode, ['class', 'classname', 'class_name']),
+            'description' => $this->firstStringValue($typeNode, ['description', 'desc']),
+            'damage_type' => $this->firstStringValue($typeNode, ['damagetype']),
+            'min_damage' => $this->firstIntValue($typeNode, ['mindamage']),
+            'max_damage' => $this->firstIntValue($typeNode, ['maxdamage']),
+            'optimum_range' => $this->firstIntValue($typeNode, ['optimumrange']),
+            'max_hits' => $this->firstIntValue($typeNode, ['maxhits']),
+            'drop_off' => $this->firstFloatValue($typeNode, ['dropoff', 'dropOff']),
+            'firepower' => $this->firstIntValue($typeNode, ['firepower']),
+            'tracking' => $this->firstIntValue($typeNode, ['tracking']),
+            'is_poison' => $this->toBoolOrNull($typeNode->poison ?? null),
+            'is_dual' => $this->toBoolOrNull($typeNode->dual ?? null),
+            'price_credits' => isset($typeNode->price) ? $this->firstIntValue($typeNode->price, ['credits']) : null,
+            'images' => $images !== [] ? $images : null,
+            'image_url' => $images['type'] ?? $images['large'] ?? $images['small'] ?? $images['button'] ?? $images['icon'] ?? $this->firstStringValue($typeNode, ['image', 'image_url', 'imageurl']),
+            'icon_url' => $images['icon'] ?? $images['button'] ?? null,
+            'payload' => $payload,
+        ];
+    }
+
+    protected function parseCreatureTypeNode(\SimpleXMLElement $typeNode, ?string $fallbackIdentifier = null): array
+    {
+        $payload = $this->simpleXmlToArray($typeNode);
+        $uid = trim((string) ($typeNode->uid ?? $typeNode['uid'] ?? $fallbackIdentifier ?? '')) ?: null;
+        $name = trim((string) ($typeNode->name ?? $typeNode['name'] ?? $typeNode)) ?: null;
+        $images = isset($typeNode->images) ? [
+            'type' => $this->firstStringValue($typeNode->images, ['type']),
+            'small' => $this->firstStringValue($typeNode->images, ['small']),
+            'large' => $this->firstStringValue($typeNode->images, ['large']),
+            'icon' => $this->firstStringValue($typeNode->images, ['icon']),
+        ] : [];
+
+        $homeworld = isset($typeNode->homeworld) ? [
+            'uid' => trim((string) ($typeNode->homeworld['uid'] ?? '')) ?: null,
+            'name' => trim((string) ($typeNode->homeworld['name'] ?? $typeNode->homeworld)) ?: null,
+            'href' => trim((string) ($typeNode->homeworld['href'] ?? '')) ?: null,
+        ] : null;
+
+        $spawnTerrainTypes = [];
+        if (isset($typeNode->spawnterraintypes) && isset($typeNode->spawnterraintypes->spawnterraintype)) {
+            foreach ($typeNode->spawnterraintypes->spawnterraintype as $terrainNode) {
+                $spawnTerrainTypes[] = [
+                    'uid' => trim((string) ($terrainNode['uid'] ?? '')) ?: null,
+                    'code' => trim((string) ($terrainNode['code'] ?? '')) ?: null,
+                    'href' => trim((string) ($terrainNode['href'] ?? '')) ?: null,
+                    'name' => trim((string) $terrainNode) ?: null,
+                ];
+            }
+        }
+
+        $terrainRestrictions = [];
+        if (isset($typeNode->terrainrestrictions) && isset($typeNode->terrainrestrictions->terrainrestriction)) {
+            foreach ($typeNode->terrainrestrictions->terrainrestriction as $terrainNode) {
+                $terrainRestrictions[] = [
+                    'uid' => trim((string) ($terrainNode['uid'] ?? '')) ?: null,
+                    'code' => trim((string) ($terrainNode['code'] ?? '')) ?: null,
+                    'href' => trim((string) ($terrainNode['href'] ?? '')) ?: null,
+                    'name' => trim((string) $terrainNode) ?: null,
+                ];
+            }
+        }
+
+        $skills = [];
+        if (isset($typeNode->skills)) {
+            foreach ($typeNode->skills->children() as $groupName => $groupNode) {
+                if (!$groupNode instanceof \SimpleXMLElement) {
+                    continue;
+                }
+
+                $groupSkills = [];
+                foreach ($groupNode->skill as $skill) {
+                    $skillType = trim((string) ($skill['type'] ?? ''));
+                    if ($skillType === '') {
+                        continue;
+                    }
+
+                    $groupSkills[$skillType] = $this->toIntOrNull($skill);
+                }
+
+                $skills[$groupName] = [
+                    'count' => $this->toIntOrNull($groupNode['count'] ?? null),
+                    'force' => $this->toBoolOrNull($groupNode['force'] ?? null),
+                    'skills' => $groupSkills,
+                ];
+            }
+        }
+
+        return [
+            'uid' => $uid,
+            'name' => $name,
+            'class_name' => $this->firstStringValue($typeNode, ['class', 'classname', 'class_name']),
+            'description' => $this->firstStringValue($typeNode, ['description', 'desc']),
+            'slot_size' => $this->firstFloatValue($typeNode, ['slotsize']),
+            'species' => $this->firstStringValue($typeNode, ['species']),
+            'base_hp' => $this->firstIntValue($typeNode, ['basehp']),
+            'weight_tonnes' => $this->firstFloatValue($typeNode, ['weight']),
+            'volume_m3' => $this->firstFloatValue($typeNode, ['volume']),
+            'homeworld_uid' => $homeworld['uid'] ?? null,
+            'homeworld_name' => $homeworld['name'] ?? null,
+            'homeworld_href' => $homeworld['href'] ?? null,
+            'spawn_terrain_types' => $spawnTerrainTypes !== [] ? $spawnTerrainTypes : null,
+            'terrain_restrictions' => $terrainRestrictions !== [] ? $terrainRestrictions : null,
+            'skills' => $skills !== [] ? $skills : null,
+            'price_credits' => isset($typeNode->price) ? $this->firstIntValue($typeNode->price, ['credits']) : null,
+            'images' => $images !== [] ? $images : null,
+            'image_url' => $images['type'] ?? $images['large'] ?? $images['small'] ?? $images['icon'] ?? $this->firstStringValue($typeNode, ['image', 'image_url', 'imageurl']),
+            'icon_url' => $images['icon'] ?? null,
             'payload' => $payload,
         ];
     }
@@ -1455,9 +2271,24 @@ class UniversePullService
     {
         foreach ($keys as $key) {
             if (isset($node->{$key})) {
-                $value = trim((string) $node->{$key});
+                $child = $node->{$key};
+
+                $value = trim((string) $child);
                 if ($value !== '') {
                     return $value;
+                }
+
+                $attributeValue = trim((string) ($child['value'] ?? ''));
+                if ($attributeValue !== '') {
+                    return $attributeValue;
+                }
+
+                $attributes = $child->attributes();
+                if ($attributes !== null) {
+                    $attributeValue = trim((string) ($attributes['value'] ?? ''));
+                    if ($attributeValue !== '') {
+                        return $attributeValue;
+                    }
                 }
             }
         }

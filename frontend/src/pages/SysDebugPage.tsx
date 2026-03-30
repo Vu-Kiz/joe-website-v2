@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchAuthMe, getBackendOrigin, type SwcUser } from "../api/auth";
+import { fetchAuthMe, getBackendOrigin, subscribeToAuthStateChange, type SwcUser } from "../api/auth";
+import { listAdminUsers, type AdminManageableUser } from "../api/adminUsers";
 import { getStoredSector, type StoredSectorDetail } from "../api/universe";
 import SectorGridMap from "../components/maps/SectorGridMap";
 import {
@@ -10,11 +11,14 @@ import {
   getDebugRawSwc,
   getDebugSwcAuth,
   importDebugEventsHistory,
+  pullDebugCreditLog,
   runUniversePull,
   testFactionPrivilege,
   testManualPayment,
   testPaymentTransfer,
 } from "../api/sysDebug";
+import { canAccessSysadmin } from "../auth/permissions";
+import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import "../styles/main.sass";
 import "../styles/_admin.sass";
@@ -42,6 +46,34 @@ type UniverseTrailItem = {
   identifier: string;
 };
 type SysDebugTab = "debug" | "systemPuller";
+type DebugPendingPaymentItem = {
+  id: number;
+  payer_subject_type: "user" | "faction";
+  payer_subject_id: number | null;
+  payer_label: string | null;
+  payee_handle: string | null;
+  total_amount: number;
+  meta?: Record<string, unknown>;
+};
+type DebugPaymentTransfer = {
+  id: number;
+  payer_subject_type: "user" | "faction";
+  payer_subject_id: number | null;
+  payer_label: string | null;
+  payee_handle: string | null;
+  total_amount: number;
+  reference?: string | null;
+  communication?: string | null;
+};
+type ManualPaymentCandidate = {
+  key: string;
+  payerSubjectType: "user" | "faction";
+  payerSubjectId: number;
+  payerLabel: string | null;
+  payeeHandle: string | null;
+  totalAmount: number;
+  communicationPrefix: string;
+};
 
 const emptyPanel = (): DebugPanelState => ({
   loading: false,
@@ -62,6 +94,11 @@ const initialPanels: Record<PanelKey, DebugPanelState> = {
 };
 
 const pretty = (value: any) => JSON.stringify(value, null, 2);
+
+const generateDebugTransferReference = () => {
+  const number = Math.floor(10000000 + Math.random() * 90000000);
+  return `JOE-XFER-${number}`;
+};
 
 const parseQueryStringToObject = (input: string): Record<string, string> => {
   const trimmed = input.trim();
@@ -98,6 +135,8 @@ const SysDebugPage: React.FC = () => {
   const [pageLoading, setPageLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
   const [viewer, setViewer] = useState<SwcUser | null>(null);
+  const [authRefreshNonce, setAuthRefreshNonce] = useState(0);
+  const [adminUsers, setAdminUsers] = useState<AdminManageableUser[]>([]);
   const [activeTab, setActiveTab] = useState<SysDebugTab>("debug");
 
   const [targetUserId, setTargetUserId] = useState("");
@@ -107,12 +146,14 @@ const SysDebugPage: React.FC = () => {
 
   const [rawSwcPath, setRawSwcPath] = useState("character/");
   const [rawSwcQuery, setRawSwcQuery] = useState("");
+  const [rawSwcAuthContext, setRawSwcAuthContext] = useState<"member_tools" | "payments" | "events" | "debug">("member_tools");
   const [eventsPath, setEventsPath] = useState("events/personal/");
   const [eventsQuery, setEventsQuery] = useState("start_index=0&item_count=1000&max_pages=50");
 
   const [privGroup, setPrivGroup] = useState("finance");
-  const [privName, setPrivName] = useState("can_transfer");
+  const [privName, setPrivName] = useState("send_credits");
   const [privFactionId, setPrivFactionId] = useState("");
+  const [privAuthContext, setPrivAuthContext] = useState<"member_tools" | "payments" | "events" | "debug">("member_tools");
 
   const [paymentTransferId, setPaymentTransferId] = useState("");
   const [pullResource, setPullResource] = useState<UniverseResource>("system");
@@ -125,13 +166,127 @@ const SysDebugPage: React.FC = () => {
   const [manualPayerType, setManualPayerType] = useState<"user" | "faction">("user");
   const [manualPayerId, setManualPayerId] = useState("");
   const [manualAmount, setManualAmount] = useState("");
-  const [manualReceiverUid, setManualReceiverUid] = useState("");
-  const [manualCommunication, setManualCommunication] = useState("");
+  const [manualRecipientKey, setManualRecipientKey] = useState("");
+  const [manualReceiverHandle, setManualReceiverHandle] = useState("");
+  const [manualReference, setManualReference] = useState("");
+  const [manualCommunicationPrefix, setManualCommunicationPrefix] = useState("");
   const [manualItemCount, setManualItemCount] = useState("100");
 
   const targetLabel = useMemo(() => {
     return activeTargetUserId ? `User #${activeTargetUserId}` : "Me";
   }, [activeTargetUserId]);
+
+  const receiverUsers = useMemo(
+    () =>
+      adminUsers
+        .filter((user) => !!user.handle && !!user.swc_character_id)
+        .sort((left, right) => String(left.handle ?? "").localeCompare(String(right.handle ?? ""))),
+    [adminUsers]
+  );
+
+  const defaultUserPayerId = useMemo(() => {
+    const paymentsUserId = panels.payments.result?.user?.id;
+    return Number.isFinite(paymentsUserId) && paymentsUserId > 0
+      ? String(paymentsUserId)
+      : activeTargetUserId
+        ? String(activeTargetUserId)
+        : "";
+  }, [activeTargetUserId, panels.payments.result]);
+
+  const defaultFactionPayerId = useMemo(() => {
+    const payableFromAuth = ((panels.swcAuth.result?.factions ?? []) as Array<any>)
+      .filter((faction) => faction?.pivot?.can_pay_from_faction)
+      .map((faction) => String(faction.id));
+
+    if (payableFromAuth.length > 0) {
+      return payableFromAuth[0];
+    }
+
+    const visibleFactionIds = (panels.payments.result?.visible_faction_ids ?? []) as number[];
+    return visibleFactionIds.length > 0 ? String(visibleFactionIds[0]) : "";
+  }, [panels.payments.result, panels.swcAuth.result]);
+
+  const manualPaymentCandidates = useMemo<ManualPaymentCandidate[]>(() => {
+    const pendingItems = (panels.payments.result?.pending_items ?? []) as DebugPendingPaymentItem[];
+    const transfers = (panels.payments.result?.transfers ?? []) as DebugPaymentTransfer[];
+    const grouped = new Map<string, ManualPaymentCandidate>();
+
+    for (const item of pendingItems) {
+      if (!item.payee_handle || !item.payer_subject_type || !item.payer_subject_id) {
+        continue;
+      }
+
+      const key = [
+        item.payer_subject_type,
+        item.payer_subject_id,
+        item.payee_handle,
+      ].join(":");
+
+      const existing = grouped.get(key);
+      const communicationPrefix =
+        String(item.meta?.communication_prefix ?? "").trim() || "JOE payout";
+
+      if (existing) {
+        existing.totalAmount += Number(item.total_amount ?? 0);
+        continue;
+      }
+
+      grouped.set(key, {
+        key,
+        payerSubjectType: item.payer_subject_type,
+        payerSubjectId: item.payer_subject_id,
+        payerLabel: item.payer_label ?? null,
+        payeeHandle: item.payee_handle,
+        totalAmount: Number(item.total_amount ?? 0),
+        communicationPrefix,
+      });
+    }
+
+    for (const transfer of transfers) {
+      if (!transfer.payee_handle || !transfer.payer_subject_type || !transfer.payer_subject_id) {
+        continue;
+      }
+
+      const key = [
+        transfer.payer_subject_type,
+        transfer.payer_subject_id,
+        transfer.payee_handle,
+      ].join(":");
+
+      if (grouped.has(key)) {
+        continue;
+      }
+
+      const communication = String(transfer.communication ?? "").trim();
+      const reference = String(transfer.reference ?? "").trim();
+      let communicationPrefix = "JOE payout";
+      const bracketedReference = reference ? `[${reference}]` : "";
+
+      if (communication && reference && communication.endsWith(bracketedReference)) {
+        const stripped = communication.slice(0, -bracketedReference.length).trim();
+        communicationPrefix = stripped || "JOE payout";
+      } else if (communication && reference && communication.endsWith(reference)) {
+        const stripped = communication.slice(0, -reference.length).trim();
+        communicationPrefix = stripped || "JOE payout";
+      } else if (communication) {
+        communicationPrefix = communication;
+      }
+
+      grouped.set(key, {
+        key,
+        payerSubjectType: transfer.payer_subject_type,
+        payerSubjectId: transfer.payer_subject_id,
+        payerLabel: transfer.payer_label ?? null,
+        payeeHandle: transfer.payee_handle,
+        totalAmount: Number(transfer.total_amount ?? 0),
+        communicationPrefix,
+      });
+    }
+
+    return Array.from(grouped.values()).sort((left, right) =>
+      (left.payeeHandle ?? "").localeCompare(right.payeeHandle ?? "")
+    );
+  }, [panels.payments.result]);
 
   function setPanelLoading(key: PanelKey, loading: boolean) {
     setPanels((prev) => ({
@@ -182,9 +337,9 @@ const SysDebugPage: React.FC = () => {
     }
   }
 
-  async function loadViewer() {
-    const authRes = await fetchAuthMe();
-    setViewer(authRes.user);
+  async function loadAdminUsers() {
+    const response = await listAdminUsers();
+    setAdminUsers(response.users ?? []);
   }
 
   async function loadSwcAuth(userId?: number) {
@@ -200,13 +355,28 @@ const SysDebugPage: React.FC = () => {
   }
 
   async function loadInitial() {
-    await loadViewer();
+    const authRes = await fetchAuthMe();
+    const currentUser = authRes.user;
+    setViewer(currentUser);
+
+    if (!currentUser || !canAccessSysadmin(currentUser)) {
+      setAdminUsers([]);
+      return;
+    }
+
+    await loadAdminUsers();
     await Promise.all([
       loadSwcAuth(undefined),
       loadPayments(undefined),
       loadFactions(),
     ]);
   }
+
+  useEffect(() => {
+    return subscribeToAuthStateChange(() => {
+      setAuthRefreshNonce((value) => value + 1);
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -233,7 +403,7 @@ const SysDebugPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [authRefreshNonce]);
 
   async function onLoadTarget() {
     const parsed = Number(targetUserId);
@@ -252,7 +422,7 @@ const SysDebugPage: React.FC = () => {
 
     await runPanel(
       "rawSwc",
-      () => getDebugRawSwc(rawSwcPath, queryObj, activeTargetUserId),
+      () => getDebugRawSwc(rawSwcPath, queryObj, activeTargetUserId, rawSwcAuthContext),
       (res) => res
     );
   }
@@ -290,6 +460,7 @@ const SysDebugPage: React.FC = () => {
           privGroup,
           privName,
           privFactionId.trim(),
+          privAuthContext,
           activeTargetUserId
         ),
       (res) => res
@@ -334,8 +505,9 @@ const SysDebugPage: React.FC = () => {
             payer_subject_type: manualPayerType,
             payer_subject_id: parsedPayerId,
             amount: parsedAmount,
-            receiver_uid: manualReceiverUid.trim() || undefined,
-            communication: manualCommunication.trim() || undefined,
+            receiver_handle: manualReceiverHandle.trim() || undefined,
+            reference: manualReference.trim() || undefined,
+            communication_prefix: manualCommunicationPrefix.trim() || undefined,
             item_count:
               Number.isFinite(parsedItemCount) && parsedItemCount > 0
                 ? parsedItemCount
@@ -343,6 +515,14 @@ const SysDebugPage: React.FC = () => {
           },
           activeTargetUserId
         ),
+      (res) => res
+    );
+  }
+
+  async function onPullCreditLogTest() {
+    await runPanel(
+      "paymentTest",
+      () => pullDebugCreditLog(activeTargetUserId),
       (res) => res
     );
   }
@@ -419,6 +599,43 @@ const SysDebugPage: React.FC = () => {
     }
   }
 
+  function applyManualReceiverHandle(handle: string) {
+    setManualRecipientKey(handle);
+    setManualReceiverHandle(handle);
+    setManualReference(generateDebugTransferReference());
+
+    const matchingCandidates = manualPaymentCandidates.filter(
+      (candidate) => candidate.payeeHandle === handle
+    );
+
+    const matchingCandidate =
+      matchingCandidates.find((candidate) => candidate.payerSubjectType === manualPayerType) ??
+      matchingCandidates[0] ??
+      null;
+
+    if (manualPayerType === "user") {
+      setManualPayerId(matchingCandidate ? String(matchingCandidate.payerSubjectId) : defaultUserPayerId);
+    } else {
+      setManualPayerId(matchingCandidate ? String(matchingCandidate.payerSubjectId) : defaultFactionPayerId);
+    }
+
+    if (matchingCandidate) {
+      setManualAmount(String(matchingCandidate.totalAmount));
+      setManualCommunicationPrefix(matchingCandidate.communicationPrefix);
+    }
+  }
+
+  useEffect(() => {
+    if (manualPayerType === "user" && defaultUserPayerId && !manualPayerId) {
+      setManualPayerId(defaultUserPayerId);
+      return;
+    }
+
+    if (manualPayerType === "faction" && defaultFactionPayerId && !manualPayerId) {
+      setManualPayerId(defaultFactionPayerId);
+    }
+  }, [defaultFactionPayerId, defaultUserPayerId, manualPayerId, manualPayerType]);
+
   if (pageLoading) {
     return (
       <div className="site-scale">
@@ -462,13 +679,15 @@ const SysDebugPage: React.FC = () => {
     );
   }
 
-  if (!viewer.is_sysadmin) {
+  if (!canAccessSysadmin(viewer)) {
     return (
       <div className="site-scale">
         <div className="app app--one">
           <main className="board admin-board">
-            <h1>Sys Debug</h1>
-            <p className="small">Sysadmin access required.</p>
+            <ForbiddenState
+              title="403 Forbidden"
+              message="You do not have permission to access sys debug tools."
+            />
           </main>
         </div>
       </div>
@@ -906,6 +1125,20 @@ const SysDebugPage: React.FC = () => {
                 "rawSwc",
                 "Raw SWC Test",
                 <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
+                  <select
+                    className="input"
+                    value={rawSwcAuthContext}
+                    onChange={(e) =>
+                      setRawSwcAuthContext(
+                        e.target.value as "member_tools" | "payments" | "events" | "debug"
+                      )
+                    }
+                  >
+                    <option value="member_tools">member_tools</option>
+                    <option value="payments">payments</option>
+                    <option value="events">events</option>
+                    <option value="debug">debug</option>
+                  </select>
                   <input
                     className="input"
                     value={rawSwcPath}
@@ -936,6 +1169,20 @@ const SysDebugPage: React.FC = () => {
                 "privilegeTest",
                 "Faction Privilege Test",
                 <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
+                  <select
+                    className="input"
+                    value={privAuthContext}
+                    onChange={(e) =>
+                      setPrivAuthContext(
+                        e.target.value as "member_tools" | "payments" | "events" | "debug"
+                      )
+                    }
+                  >
+                    <option value="member_tools">member_tools</option>
+                    <option value="payments">payments</option>
+                    <option value="events">events</option>
+                    <option value="debug">debug</option>
+                  </select>
                   <input
                     className="input"
                     value={privGroup}
@@ -984,6 +1231,16 @@ const SysDebugPage: React.FC = () => {
                     <p className="small" style={{ margin: 0 }}>
                       Uses a real local payment transfer and checks whether the backend can match it in SWC credit log.
                     </p>
+                    <div>
+                      <button
+                        className="btn"
+                        type="button"
+                        onClick={onPullCreditLogTest}
+                        disabled={panels.paymentTest.loading}
+                      >
+                        Pull credit log
+                      </button>
+                    </div>
                     <input
                       className="input"
                       value={paymentTransferId}
@@ -1013,8 +1270,21 @@ const SysDebugPage: React.FC = () => {
                   >
                     <h3 style={{ margin: 0 }}>Manual test</h3>
                     <p className="small" style={{ margin: 0 }}>
-                      Checks whether a payment with these exact details is visible in the payer credit log.
+                      Builds the test like a real payout link, then checks whether that payment is visible in the payer credit log.
                     </p>
+
+                    <select
+                      className="input"
+                      value={manualRecipientKey}
+                      onChange={(e) => applyManualReceiverHandle(e.target.value)}
+                    >
+                      <option value="">Choose player</option>
+                      {receiverUsers.map((user) => (
+                        <option key={user.id} value={user.handle ?? ""}>
+                          {user.handle} ({user.swc_character_id})
+                        </option>
+                      ))}
+                    </select>
 
                     <select
                       className="input"
@@ -1041,16 +1311,33 @@ const SysDebugPage: React.FC = () => {
 
                     <input
                       className="input"
-                      value={manualReceiverUid}
-                      onChange={(e) => setManualReceiverUid(e.target.value)}
-                      placeholder="Receiver SWC UID (optional, e.g. 1:1479821)"
+                      value={manualReceiverHandle}
+                      onChange={(e) => setManualReceiverHandle(e.target.value)}
+                      placeholder="Receiver handle (recommended)"
                     />
 
                     <input
                       className="input"
-                      value={manualCommunication}
-                      onChange={(e) => setManualCommunication(e.target.value)}
-                      placeholder="Communication (optional, but best for exact match)"
+                      value={manualReference}
+                      onChange={(e) => setManualReference(e.target.value)}
+                      placeholder="Reference (e.g. JOE-XFER-12345678)"
+                    />
+
+                    <div>
+                      <button
+                        className="btn"
+                        type="button"
+                        onClick={() => setManualReference(generateDebugTransferReference())}
+                      >
+                        Generate fresh reference
+                      </button>
+                    </div>
+
+                    <input
+                      className="input"
+                      value={manualCommunicationPrefix}
+                      onChange={(e) => setManualCommunicationPrefix(e.target.value)}
+                      placeholder="Communication prefix (optional, defaults to JOE payout)"
                     />
 
                     <input

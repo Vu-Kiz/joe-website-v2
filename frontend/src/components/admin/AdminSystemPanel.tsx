@@ -75,6 +75,36 @@ const AdminSystemPanel: React.FC = () => {
   const [shipTypeError, setShipTypeError] = useState<string | null>(null);
   const [shipTypePersistence, setShipTypePersistence] = useState<any | null>(null);
   const [shipTypeProgressLines, setShipTypeProgressLines] = useState<string[]>([]);
+  const [vehicleTypeLoading, setVehicleTypeLoading] = useState(false);
+  const [vehicleTypeMessage, setVehicleTypeMessage] = useState<string | null>(null);
+  const [vehicleTypeError, setVehicleTypeError] = useState<string | null>(null);
+  const [vehicleTypePersistence, setVehicleTypePersistence] = useState<any | null>(null);
+  const [vehicleTypeProgressLines, setVehicleTypeProgressLines] = useState<string[]>([]);
+  const [droidTypeLoading, setDroidTypeLoading] = useState(false);
+  const [droidTypeMessage, setDroidTypeMessage] = useState<string | null>(null);
+  const [droidTypeError, setDroidTypeError] = useState<string | null>(null);
+  const [droidTypePersistence, setDroidTypePersistence] = useState<any | null>(null);
+  const [droidTypeProgressLines, setDroidTypeProgressLines] = useState<string[]>([]);
+  const [creatureTypeLoading, setCreatureTypeLoading] = useState(false);
+  const [creatureTypeMessage, setCreatureTypeMessage] = useState<string | null>(null);
+  const [creatureTypeError, setCreatureTypeError] = useState<string | null>(null);
+  const [creatureTypePersistence, setCreatureTypePersistence] = useState<any | null>(null);
+  const [creatureTypeProgressLines, setCreatureTypeProgressLines] = useState<string[]>([]);
+  const [npcTypeLoading, setNpcTypeLoading] = useState(false);
+  const [npcTypeMessage, setNpcTypeMessage] = useState<string | null>(null);
+  const [npcTypeError, setNpcTypeError] = useState<string | null>(null);
+  const [npcTypePersistence, setNpcTypePersistence] = useState<any | null>(null);
+  const [npcTypeProgressLines, setNpcTypeProgressLines] = useState<string[]>([]);
+  const [raceLoading, setRaceLoading] = useState(false);
+  const [raceMessage, setRaceMessage] = useState<string | null>(null);
+  const [raceError, setRaceError] = useState<string | null>(null);
+  const [racePersistence, setRacePersistence] = useState<any | null>(null);
+  const [raceProgressLines, setRaceProgressLines] = useState<string[]>([]);
+  const [weaponTypeLoading, setWeaponTypeLoading] = useState(false);
+  const [weaponTypeMessage, setWeaponTypeMessage] = useState<string | null>(null);
+  const [weaponTypeError, setWeaponTypeError] = useState<string | null>(null);
+  const [weaponTypePersistence, setWeaponTypePersistence] = useState<any | null>(null);
+  const [weaponTypeProgressLines, setWeaponTypeProgressLines] = useState<string[]>([]);
   const [terrainTypeLoading, setTerrainTypeLoading] = useState(false);
   const [terrainTypeMessage, setTerrainTypeMessage] = useState<string | null>(null);
   const [terrainTypeError, setTerrainTypeError] = useState<string | null>(null);
@@ -739,6 +769,240 @@ const AdminSystemPanel: React.FC = () => {
     }
   }
 
+  async function onPullAllVehicleTypes() {
+    try {
+      setVehicleTypeLoading(true);
+      setVehicleTypeError(null);
+      setVehicleTypeMessage(null);
+      setVehicleTypePersistence(null);
+      setVehicleTypeProgressLines(["Starting vehicle type catalog pull..."]);
+
+      await ensureCsrfCookie();
+      const xsrf = getXsrfToken();
+
+      const response = await fetch(`${getApiBaseUrl()}/sys/universe/pull-all-vehicle-types-stream`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Accept: "application/x-ndjson, application/json",
+          ...(xsrf ? { "X-XSRF-TOKEN": xsrf } : {}),
+        },
+      });
+
+      if (!response.ok || !response.body) {
+        const text = await response.text();
+        throw new Error(text || "Vehicle type pull failed.");
+      }
+
+      await consumeTypeStream(
+        response,
+        setVehicleTypeProgressLines,
+        setVehicleTypeMessage,
+        setVehicleTypePersistence,
+        "Vehicle type pull failed."
+      );
+    } catch (e: any) {
+      setVehicleTypeError(e?.message ?? "Vehicle type pull failed.");
+    } finally {
+      setVehicleTypeLoading(false);
+    }
+  }
+
+  async function onPullAllDroidTypes() {
+    try {
+      setDroidTypeLoading(true);
+      setDroidTypeError(null);
+      setDroidTypeMessage(null);
+      setDroidTypePersistence(null);
+      setDroidTypeProgressLines(["Starting droid type catalog pull..."]);
+
+      await ensureCsrfCookie();
+      const xsrf = getXsrfToken();
+
+      const response = await fetch(`${getApiBaseUrl()}/sys/universe/pull-all-droid-types-stream`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Accept: "application/x-ndjson, application/json",
+          ...(xsrf ? { "X-XSRF-TOKEN": xsrf } : {}),
+        },
+      });
+
+      if (!response.ok || !response.body) {
+        const text = await response.text();
+        throw new Error(text || "Droid type pull failed.");
+      }
+
+      await consumeTypeStream(
+        response,
+        setDroidTypeProgressLines,
+        setDroidTypeMessage,
+        setDroidTypePersistence,
+        "Droid type pull failed."
+      );
+    } catch (e: any) {
+      setDroidTypeError(e?.message ?? "Droid type pull failed.");
+    } finally {
+      setDroidTypeLoading(false);
+    }
+  }
+
+  async function onPullAllNpcTypes() {
+    try {
+      setNpcTypeLoading(true);
+      setNpcTypeError(null);
+      setNpcTypeMessage(null);
+      setNpcTypePersistence(null);
+      setNpcTypeProgressLines(["Starting NPC type catalog pull..."]);
+
+      await ensureCsrfCookie();
+      const xsrf = getXsrfToken();
+
+      const response = await fetch(`${getApiBaseUrl()}/sys/universe/pull-all-npc-types-stream`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Accept: "application/x-ndjson, application/json",
+          ...(xsrf ? { "X-XSRF-TOKEN": xsrf } : {}),
+        },
+      });
+
+      if (!response.ok || !response.body) {
+        const text = await response.text();
+        throw new Error(text || "NPC type pull failed.");
+      }
+
+      await consumeTypeStream(
+        response,
+        setNpcTypeProgressLines,
+        setNpcTypeMessage,
+        setNpcTypePersistence,
+        "NPC type pull failed."
+      );
+    } catch (e: any) {
+      setNpcTypeError(e?.message ?? "NPC type pull failed.");
+    } finally {
+      setNpcTypeLoading(false);
+    }
+  }
+
+  async function onPullAllRaces() {
+    try {
+      setRaceLoading(true);
+      setRaceError(null);
+      setRaceMessage(null);
+      setRacePersistence(null);
+      setRaceProgressLines(["Starting race catalog pull..."]);
+
+      await ensureCsrfCookie();
+      const xsrf = getXsrfToken();
+
+      const response = await fetch(`${getApiBaseUrl()}/sys/universe/pull-all-races-stream`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Accept: "application/x-ndjson, application/json",
+          ...(xsrf ? { "X-XSRF-TOKEN": xsrf } : {}),
+        },
+      });
+
+      if (!response.ok || !response.body) {
+        const text = await response.text();
+        throw new Error(text || "Race pull failed.");
+      }
+
+      await consumeTypeStream(
+        response,
+        setRaceProgressLines,
+        setRaceMessage,
+        setRacePersistence,
+        "Race pull failed."
+      );
+    } catch (e: any) {
+      setRaceError(e?.message ?? "Race pull failed.");
+    } finally {
+      setRaceLoading(false);
+    }
+  }
+
+  async function onPullAllWeaponTypes() {
+    try {
+      setWeaponTypeLoading(true);
+      setWeaponTypeError(null);
+      setWeaponTypeMessage(null);
+      setWeaponTypePersistence(null);
+      setWeaponTypeProgressLines(["Starting weapon type catalog pull..."]);
+
+      await ensureCsrfCookie();
+      const xsrf = getXsrfToken();
+
+      const response = await fetch(`${getApiBaseUrl()}/sys/universe/pull-all-weapon-types-stream`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Accept: "application/x-ndjson, application/json",
+          ...(xsrf ? { "X-XSRF-TOKEN": xsrf } : {}),
+        },
+      });
+
+      if (!response.ok || !response.body) {
+        const text = await response.text();
+        throw new Error(text || "Weapon type pull failed.");
+      }
+
+      await consumeTypeStream(
+        response,
+        setWeaponTypeProgressLines,
+        setWeaponTypeMessage,
+        setWeaponTypePersistence,
+        "Weapon type pull failed."
+      );
+    } catch (e: any) {
+      setWeaponTypeError(e?.message ?? "Weapon type pull failed.");
+    } finally {
+      setWeaponTypeLoading(false);
+    }
+  }
+
+  async function onPullAllCreatureTypes() {
+    try {
+      setCreatureTypeLoading(true);
+      setCreatureTypeError(null);
+      setCreatureTypeMessage(null);
+      setCreatureTypePersistence(null);
+      setCreatureTypeProgressLines(["Starting creature type catalog pull..."]);
+
+      await ensureCsrfCookie();
+      const xsrf = getXsrfToken();
+
+      const response = await fetch(`${getApiBaseUrl()}/sys/universe/pull-all-creature-types-stream`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Accept: "application/x-ndjson, application/json",
+          ...(xsrf ? { "X-XSRF-TOKEN": xsrf } : {}),
+        },
+      });
+
+      if (!response.ok || !response.body) {
+        const text = await response.text();
+        throw new Error(text || "Creature type pull failed.");
+      }
+
+      await consumeTypeStream(
+        response,
+        setCreatureTypeProgressLines,
+        setCreatureTypeMessage,
+        setCreatureTypePersistence,
+        "Creature type pull failed."
+      );
+    } catch (e: any) {
+      setCreatureTypeError(e?.message ?? "Creature type pull failed.");
+    } finally {
+      setCreatureTypeLoading(false);
+    }
+  }
+
   async function onPullAllMaterialTypes() {
     try {
       setMaterialTypeLoading(true);
@@ -1225,6 +1489,42 @@ const AdminSystemPanel: React.FC = () => {
             shipTypePersistence={shipTypePersistence}
             shipTypeProgressLines={shipTypeProgressLines}
             onPullAllShipTypes={onPullAllShipTypes}
+            vehicleTypeLoading={vehicleTypeLoading}
+            vehicleTypeMessage={vehicleTypeMessage}
+            vehicleTypeError={vehicleTypeError}
+            vehicleTypePersistence={vehicleTypePersistence}
+            vehicleTypeProgressLines={vehicleTypeProgressLines}
+            onPullAllVehicleTypes={onPullAllVehicleTypes}
+            droidTypeLoading={droidTypeLoading}
+            droidTypeMessage={droidTypeMessage}
+            droidTypeError={droidTypeError}
+            droidTypePersistence={droidTypePersistence}
+            droidTypeProgressLines={droidTypeProgressLines}
+            onPullAllDroidTypes={onPullAllDroidTypes}
+            creatureTypeLoading={creatureTypeLoading}
+            creatureTypeMessage={creatureTypeMessage}
+            creatureTypeError={creatureTypeError}
+            creatureTypePersistence={creatureTypePersistence}
+            creatureTypeProgressLines={creatureTypeProgressLines}
+            onPullAllCreatureTypes={onPullAllCreatureTypes}
+            npcTypeLoading={npcTypeLoading}
+            npcTypeMessage={npcTypeMessage}
+            npcTypeError={npcTypeError}
+            npcTypePersistence={npcTypePersistence}
+            npcTypeProgressLines={npcTypeProgressLines}
+            onPullAllNpcTypes={onPullAllNpcTypes}
+            raceLoading={raceLoading}
+            raceMessage={raceMessage}
+            raceError={raceError}
+            racePersistence={racePersistence}
+            raceProgressLines={raceProgressLines}
+            onPullAllRaces={onPullAllRaces}
+            weaponTypeLoading={weaponTypeLoading}
+            weaponTypeMessage={weaponTypeMessage}
+            weaponTypeError={weaponTypeError}
+            weaponTypePersistence={weaponTypePersistence}
+            weaponTypeProgressLines={weaponTypeProgressLines}
+            onPullAllWeaponTypes={onPullAllWeaponTypes}
             facilityTypeLoading={facilityTypeLoading}
             facilityTypeMessage={facilityTypeMessage}
             facilityTypeError={facilityTypeError}

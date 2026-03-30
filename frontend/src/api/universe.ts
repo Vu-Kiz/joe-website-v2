@@ -37,6 +37,72 @@ export type StoredMapSystem = {
   last_pulled_at: string | null;
 };
 
+export type HyperPlannerSystem = {
+  uid: string | null;
+  identifier: string | null;
+  name: string | null;
+  sector_uid: string | null;
+  sector_name: string | null;
+  galx: number | null;
+  galy: number | null;
+  kind?: "system" | "coords";
+  label?: string | null;
+};
+
+export type HyperPlannerResult = {
+  from: HyperPlannerSystem | null;
+  to: HyperPlannerSystem | null;
+  summary: {
+    hop_count: number;
+    visited_systems: number;
+    total_modifier: number | null;
+    average_modifier: number | null;
+    direct_seconds: number;
+    direct_formatted_time: string;
+    time_saved_seconds: number;
+    time_saved_formatted: string;
+    total_seconds: number;
+    formatted_time: string;
+    piloting_skill: number;
+    hyperspeed: number;
+  };
+  systems: HyperPlannerSystem[];
+  hops: Array<{
+    hop_type?: "hyperlane" | "direct";
+    lane_uid: string | null;
+    lane_name: string | null;
+    owner_name: string | null;
+    blocks: string | null;
+    modifier: number | null;
+    existing_blocks: number;
+    blocks_used: number;
+    journey_length: number;
+    direct_seconds: number;
+    direct_formatted_time: string;
+    time_modifier: number;
+    lane_seconds: number;
+    formatted_time: string;
+    from: HyperPlannerSystem | null;
+    to: HyperPlannerSystem | null;
+  }>;
+};
+
+export type HyperPlan = {
+  id: number;
+  name: string;
+  from_system_identifier: string;
+  from_system_name: string | null;
+  to_system_identifier: string;
+  to_system_name: string | null;
+  ship_uid: string | null;
+  ship_name: string | null;
+  ship_class_name: string | null;
+  hyperspeed: number;
+  piloting_skill: number;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
 export type StoredSectorDetail = {
   resource: "sector";
   identifier: string;
@@ -289,8 +355,52 @@ export type StoredShipTypeSummary = {
   class_name: string | null;
   description: string | null;
   length: number | null;
+  manoeuvrability: number | null;
+  sensors: number | null;
+  ecm: number | null;
+  weight_tonnes: number | null;
+  volume_m3: number | null;
+  weight_capacity_tonnes: number | null;
+  volume_capacity_m3: number | null;
   max_speed: number | null;
   hyperdrive: number | null;
+  max_passengers: number | null;
+  escape_pods: number | null;
+  hull: number | null;
+  shield: number | null;
+  armour: number | null;
+  ionic_capacity: number | null;
+  has_repulsors: boolean | null;
+  slot_size: number | null;
+  medical_rooms: number | null;
+  has_hangar_bay: boolean | null;
+  has_docking_bay: boolean | null;
+  can_recycle: boolean | null;
+  can_interdict: boolean | null;
+  price_credits: number | null;
+  production_modifier: number | null;
+  recommended_workers: number | null;
+  recycling_xp: number | null;
+  generic_slots: number | null;
+  weapons: Array<Record<string, unknown>> | null;
+  materials: Array<Record<string, unknown>> | null;
+  images: Record<string, string | null> | null;
+  image_url: string | null;
+  icon_url: string | null;
+  last_pulled_at: string | null;
+};
+
+export type StoredShipTypeDetail = StoredShipTypeSummary & {
+  payload: Record<string, unknown> | null;
+};
+
+export type StoredVehicleTypeSummary = {
+  uid: string;
+  name: string | null;
+  class_name: string | null;
+  description: string | null;
+  length: number | null;
+  max_speed: number | null;
   max_passengers: number | null;
   hull: number | null;
   shield: number | null;
@@ -301,7 +411,155 @@ export type StoredShipTypeSummary = {
   last_pulled_at: string | null;
 };
 
-export type StoredShipTypeDetail = StoredShipTypeSummary & {
+export type StoredVehicleTypeDetail = StoredVehicleTypeSummary & {
+  manoeuvrability: number | null;
+  sensors: number | null;
+  ecm: number | null;
+  weight_tonnes: number | null;
+  volume_m3: number | null;
+  weight_capacity_tonnes: number | null;
+  volume_capacity_m3: number | null;
+  ionic_capacity: number | null;
+  has_repulsors: boolean | null;
+  slot_size: number | null;
+  medical_rooms: number | null;
+  has_hangar_bay: boolean | null;
+  has_docking_bay: boolean | null;
+  can_recycle: boolean | null;
+  production_modifier: number | null;
+  recommended_workers: number | null;
+  recycling_xp: number | null;
+  generic_slots: number | null;
+  terrain_restrictions: Array<Record<string, unknown>> | null;
+  weapons: Array<Record<string, unknown>> | null;
+  materials: Array<Record<string, unknown>> | null;
+  payload: Record<string, unknown> | null;
+};
+
+export type StoredDroidTypeSummary = {
+  uid: string;
+  name: string | null;
+  class_name: string | null;
+  description: string | null;
+  sensors: number | null;
+  ecm: number | null;
+  batch_quantity: number | null;
+  weight_tonnes: number | null;
+  volume_m3: number | null;
+  weight_capacity_tonnes: number | null;
+  volume_capacity_m3: number | null;
+  hull: number | null;
+  shield: number | null;
+  ionic_capacity: number | null;
+  armour: number | null;
+  slot_size: number | null;
+  terrain_restrictions: Array<Record<string, unknown>> | null;
+  price_credits: number | null;
+  production_modifier: number | null;
+  recommended_workers: number | null;
+  recycling_xp: number | null;
+  generic_slots: number | null;
+  skills: Record<string, unknown> | null;
+  weapons: Array<Record<string, unknown>> | null;
+  materials: Array<Record<string, unknown>> | null;
+  images: Record<string, string | null> | null;
+  image_url: string | null;
+  icon_url: string | null;
+  last_pulled_at: string | null;
+};
+
+export type StoredDroidTypeDetail = StoredDroidTypeSummary & {
+  payload: Record<string, unknown> | null;
+};
+
+export type StoredCreatureTypeSummary = {
+  uid: string;
+  name: string | null;
+  class_name: string | null;
+  description: string | null;
+  slot_size: number | null;
+  species: string | null;
+  base_hp: number | null;
+  weight_tonnes: number | null;
+  volume_m3: number | null;
+  homeworld_uid: string | null;
+  homeworld_name: string | null;
+  homeworld_href: string | null;
+  spawn_terrain_types: Array<Record<string, unknown>> | null;
+  terrain_restrictions: Array<Record<string, unknown>> | null;
+  skills: Record<string, unknown> | null;
+  price_credits: number | null;
+  images: Record<string, string | null> | null;
+  image_url: string | null;
+  icon_url: string | null;
+  last_pulled_at: string | null;
+};
+
+export type StoredCreatureTypeDetail = StoredCreatureTypeSummary & {
+  payload: Record<string, unknown> | null;
+};
+
+export type StoredNpcTypeSummary = {
+  uid: string;
+  name: string | null;
+  class_name: string | null;
+  description: string | null;
+  price_credits: number | null;
+  images: Record<string, string | null> | null;
+  image_url: string | null;
+  last_pulled_at: string | null;
+};
+
+export type StoredNpcTypeDetail = StoredNpcTypeSummary & {
+  hiring_locations: Array<Record<string, unknown>> | null;
+  skills: Record<string, unknown> | null;
+  payload: Record<string, unknown> | null;
+};
+
+export type StoredRaceSummary = {
+  uid: string;
+  name: string | null;
+  description: string | null;
+  force_probability: number | null;
+  hp_bonus: number | null;
+  hp_multiplier: number | null;
+  homeworld_uid: string | null;
+  homeworld_name: string | null;
+  homeworld_href: string | null;
+  images: Record<string, unknown> | null;
+  image_url: string | null;
+  last_pulled_at: string | null;
+};
+
+export type StoredRaceDetail = StoredRaceSummary & {
+  skills: Record<string, unknown> | null;
+  terrain_restrictions: Array<Record<string, unknown>> | null;
+  payload: Record<string, unknown> | null;
+};
+
+export type StoredWeaponTypeSummary = {
+  uid: string;
+  name: string | null;
+  class_name: string | null;
+  description: string | null;
+  damage_type: string | null;
+  min_damage: number | null;
+  max_damage: number | null;
+  optimum_range: number | null;
+  max_hits: number | null;
+  drop_off: number | null;
+  firepower: number | null;
+  tracking: number | null;
+  is_poison: boolean | null;
+  is_dual: boolean | null;
+  price_credits: number | null;
+  images: Record<string, string | null> | null;
+  image_url: string | null;
+  icon_url: string | null;
+  last_pulled_at: string | null;
+};
+
+export type StoredWeaponTypeDetail = StoredWeaponTypeSummary & {
   payload: Record<string, unknown> | null;
 };
 
@@ -348,6 +606,9 @@ export type StoredTerrainTypeSummary = {
   uid: string;
   name: string | null;
   code: string | null;
+  material_probability_percent: number | null;
+  material_types: Array<Record<string, unknown>> | null;
+  images: Record<string, string | null> | null;
   description: string | null;
   image_url: string | null;
   last_pulled_at: string | null;
@@ -388,7 +649,7 @@ export type StoredPlanetTypeDetail = StoredPlanetTypeSummary & {
   payload: Record<string, unknown> | null;
 };
 
-export type EntityStatsKind = "station" | "facility" | "item" | "planet" | "ship" | "terrain" | "material";
+export type EntityStatsKind = "station" | "facility" | "item" | "planet" | "ship" | "vehicle" | "droid" | "creature" | "npc" | "race" | "weapon" | "terrain" | "material";
 
 export function getStoredSectors() {
   return apiFetch<{ ok: boolean; data: StoredSectorSummary[] }>("/universe/sectors");
@@ -402,6 +663,53 @@ export function getStoredSector(sector: string) {
 
 export function getStoredMapSystems() {
   return apiFetch<{ ok: boolean; data: StoredMapSystem[] }>("/universe/map-systems");
+}
+
+export function getHyperPlannerRoute(
+  from: string,
+  to: string,
+  options?: {
+    pilotingSkill?: number;
+    hyperspeed?: number;
+  }
+) {
+  const params = new URLSearchParams({
+    from,
+    to,
+    ...(options?.pilotingSkill != null ? { piloting_skill: String(options.pilotingSkill) } : {}),
+    ...(options?.hyperspeed != null ? { hyperspeed: String(options.hyperspeed) } : {}),
+  });
+  return apiFetch<{ ok: boolean; data: HyperPlannerResult }>(
+    `/universe/hyper-planner?${params.toString()}`
+  );
+}
+
+export function getHyperPlans() {
+  return apiFetch<{ ok: boolean; data: HyperPlan[] }>("/universe/hyper-plans");
+}
+
+export function saveHyperPlan(payload: {
+  name: string;
+  from_system_identifier: string;
+  from_system_name?: string | null;
+  to_system_identifier: string;
+  to_system_name?: string | null;
+  ship_uid?: string | null;
+  ship_name?: string | null;
+  ship_class_name?: string | null;
+  hyperspeed: number;
+  piloting_skill: number;
+}) {
+  return apiFetch<{ ok: boolean; message: string; data: HyperPlan }>("/universe/hyper-plans", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteHyperPlan(planId: number) {
+  return apiFetch<{ ok: boolean; message: string }>(`/universe/hyper-plans/${planId}`, {
+    method: "DELETE",
+  });
 }
 
 export function getStoredSearchRecords() {
@@ -474,6 +782,30 @@ export function getStoredShipTypes() {
   return apiFetch<{ ok: boolean; data: StoredShipTypeSummary[] }>("/universe/ship-types");
 }
 
+export function getStoredVehicleTypes() {
+  return apiFetch<{ ok: boolean; data: StoredVehicleTypeSummary[] }>("/universe/vehicle-types");
+}
+
+export function getStoredDroidTypes() {
+  return apiFetch<{ ok: boolean; data: StoredDroidTypeSummary[] }>("/universe/droid-types");
+}
+
+export function getStoredCreatureTypes() {
+  return apiFetch<{ ok: boolean; data: StoredCreatureTypeSummary[] }>("/universe/creature-types");
+}
+
+export function getStoredNpcTypes() {
+  return apiFetch<{ ok: boolean; data: StoredNpcTypeSummary[] }>("/universe/npc-types");
+}
+
+export function getStoredRaces() {
+  return apiFetch<{ ok: boolean; data: StoredRaceSummary[] }>("/universe/races");
+}
+
+export function getStoredWeaponTypes() {
+  return apiFetch<{ ok: boolean; data: StoredWeaponTypeSummary[] }>("/universe/weapon-types");
+}
+
 export function getStoredFacilityTypes() {
   return apiFetch<{ ok: boolean; data: StoredFacilityTypeSummary[] }>("/universe/facility-types");
 }
@@ -507,6 +839,42 @@ export function getStoredItemType(itemType: string) {
 export function getStoredShipType(shipType: string) {
   return apiFetch<{ ok: boolean; data: StoredShipTypeDetail }>(
     `/universe/ship-types/${encodeURIComponent(shipType)}`
+  );
+}
+
+export function getStoredVehicleType(vehicleType: string) {
+  return apiFetch<{ ok: boolean; data: StoredVehicleTypeDetail }>(
+    `/universe/vehicle-types/${encodeURIComponent(vehicleType)}`
+  );
+}
+
+export function getStoredDroidType(droidType: string) {
+  return apiFetch<{ ok: boolean; data: StoredDroidTypeDetail }>(
+    `/universe/droid-types/${encodeURIComponent(droidType)}`
+  );
+}
+
+export function getStoredCreatureType(creatureType: string) {
+  return apiFetch<{ ok: boolean; data: StoredCreatureTypeDetail }>(
+    `/universe/creature-types/${encodeURIComponent(creatureType)}`
+  );
+}
+
+export function getStoredNpcType(npcType: string) {
+  return apiFetch<{ ok: boolean; data: StoredNpcTypeDetail }>(
+    `/universe/npc-types/${encodeURIComponent(npcType)}`
+  );
+}
+
+export function getStoredRace(race: string) {
+  return apiFetch<{ ok: boolean; data: StoredRaceDetail }>(
+    `/universe/races/${encodeURIComponent(race)}`
+  );
+}
+
+export function getStoredWeaponType(weaponType: string) {
+  return apiFetch<{ ok: boolean; data: StoredWeaponTypeDetail }>(
+    `/universe/weapon-types/${encodeURIComponent(weaponType)}`
   );
 }
 

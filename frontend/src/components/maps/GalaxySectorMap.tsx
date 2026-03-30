@@ -67,6 +67,8 @@ type GalaxySectorMapProps = {
     has_stations?: boolean | null;
   }) => Promise<SectorSearchRecord> | SectorSearchRecord;
   ensureSectorAnnotationsLoaded?: (sectorUid: string) => Promise<SectorCellAnnotation[]>;
+  canViewCellIntel?: boolean;
+  canViewScanWindow?: boolean;
   canEditCellIntel?: boolean;
   loadSystemDetail?: (systemIdentifier: string) => Promise<StoredSystemDetail | null>;
   focusRequest?: FocusRequest | null;
@@ -374,11 +376,12 @@ function getSearchRecordSquareName(record: SectorSearchRecord | null | undefined
 
 function getPrimaryCellName(
   system: StoredMapSystem | null | undefined,
-  record: SectorSearchRecord | null | undefined
+  record: SectorSearchRecord | null | undefined,
+  canViewCellIntel: boolean
 ) {
   const importedName = getSearchRecordSquareName(record);
 
-  if (record?.has_asteroids && importedName) {
+  if (canViewCellIntel && record?.has_asteroids && importedName) {
     return importedName;
   }
 
@@ -386,7 +389,7 @@ function getPrimaryCellName(
     system?.name
     ?? system?.identifier
     ?? formatSwcDisplayId(system?.uid)
-    ?? importedName
+    ?? (canViewCellIntel ? importedName : null)
     ?? null
   );
 }
@@ -823,6 +826,8 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
   onSaveAnnotation,
   onSaveSearchRecord,
   ensureSectorAnnotationsLoaded,
+  canViewCellIntel = false,
+  canViewScanWindow = false,
   canEditCellIntel = false,
   loadSystemDetail,
   focusRequest,
@@ -2035,7 +2040,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
           const systems = systemsByCoordinate.get(`${galx}:${galy}`) ?? [];
           const searchRecord = (searchRecordsByCoordinate.get(`${galx}:${galy}`) ?? [])[0] ?? null;
           const sectorUid = sectorUidByCoordinate.get(`${galx}:${galy}`) ?? null;
-          const systemName = getPrimaryCellName(systems[0] ?? null, searchRecord);
+          const systemName = getPrimaryCellName(systems[0] ?? null, searchRecord, canViewCellIntel);
 
           setHoverInfo({
             galx,
@@ -2127,48 +2132,64 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
                 <img src={systemIconUrl} alt="" className="members-universe-map__legend-icon" />
                 <span className="small">System</span>
               </div>
-              <div className="members-universe-map__legend-section-label small">Asteroid Types</div>
-              <div className="members-universe-map__legend-item">
-                <img src={asteroidFieldIconUnknownUrl} alt="" className="members-universe-map__legend-icon" />
-                <span className="small">Asteroid Field, Unsearched</span>
-              </div>
-              <div className="members-universe-map__legend-item">
-                <img src={asteroidFieldIconUrl} alt="" className="members-universe-map__legend-icon" />
-                <span className="small">Asteroid Field, No Planetoids</span>
-              </div>
-              <div className="members-universe-map__legend-item">
-                <img src={asteroidFieldIcon1x1Url} alt="" className="members-universe-map__legend-icon" />
-                <span className="small">Asteroid Field, 1x1 Planetoid</span>
-              </div>
-              <div className="members-universe-map__legend-item">
-                <img src={asteroidFieldIcon1x1DoubleUrl} alt="" className="members-universe-map__legend-icon" />
-                <span className="small">Asteroid Field, 2 1x1 Planetoids</span>
-              </div>
-              <div className="members-universe-map__legend-item">
-                <img src={asteroidFieldIcon2x2Url} alt="" className="members-universe-map__legend-icon" />
-                <span className="small">Asteroid Field, 2x2 Planetoid</span>
-              </div>
-              <div className="members-universe-map__legend-item">
-                <img src={asteroidFieldIcon1x1And2x2Url} alt="" className="members-universe-map__legend-icon" />
-                <span className="small">Asteroid Field, 1x1 And 2x2 Planetoids</span>
-              </div>
-              <div className="members-universe-map__legend-section-label small">Intel flags</div>
-              <div className="members-universe-map__legend-item">
-                <img src={shipsDuelconUrl} alt="" className="members-universe-map__legend-icon" />
-                <span className="small">Ships Present</span>
-              </div>
-              <div className="members-universe-map__legend-item">
-                <img src={stationsDuelconUrl} alt="" className="members-universe-map__legend-icon" />
-                <span className="small">Stations Present</span>
-              </div>
-              <div className="members-universe-map__legend-item">
-                <img src={scannedDuelconUrl} alt="" className="members-universe-map__legend-icon" />
-                <span className="small">Recently Scanned (&lt;1 yr)</span>
-              </div>
-              <div className="members-universe-map__legend-item">
-                <img src={rescanDueIconUrl} alt="" className="members-universe-map__legend-icon" />
-                <span className="small">Rescan Due (&gt;1 yr)</span>
-              </div>
+              {canViewCellIntel ? (
+                <>
+                  <div className="members-universe-map__legend-section-label small">Asteroid Types</div>
+                  <div className="members-universe-map__legend-item">
+                    <img src={asteroidFieldIconUnknownUrl} alt="" className="members-universe-map__legend-icon" />
+                    <span className="small">Asteroid Field, Unsearched</span>
+                  </div>
+                  <div className="members-universe-map__legend-item">
+                    <img src={asteroidFieldIconUrl} alt="" className="members-universe-map__legend-icon" />
+                    <span className="small">Asteroid Field, No Planetoids</span>
+                  </div>
+                  <div className="members-universe-map__legend-item">
+                    <img src={asteroidFieldIcon1x1Url} alt="" className="members-universe-map__legend-icon" />
+                    <span className="small">Asteroid Field, 1x1 Planetoid</span>
+                  </div>
+                  <div className="members-universe-map__legend-item">
+                    <img src={asteroidFieldIcon1x1DoubleUrl} alt="" className="members-universe-map__legend-icon" />
+                    <span className="small">Asteroid Field, 2 1x1 Planetoids</span>
+                  </div>
+                  <div className="members-universe-map__legend-item">
+                    <img src={asteroidFieldIcon2x2Url} alt="" className="members-universe-map__legend-icon" />
+                    <span className="small">Asteroid Field, 2x2 Planetoid</span>
+                  </div>
+                  <div className="members-universe-map__legend-item">
+                    <img src={asteroidFieldIcon1x1And2x2Url} alt="" className="members-universe-map__legend-icon" />
+                    <span className="small">Asteroid Field, 1x1 And 2x2 Planetoids</span>
+                  </div>
+                  <div className="members-universe-map__legend-section-label small">Intel Flags</div>
+                  <div className="members-universe-map__legend-item">
+                    <img src={shipsDuelconUrl} alt="" className="members-universe-map__legend-icon" />
+                    <span className="small">Ships Present</span>
+                  </div>
+                  <div className="members-universe-map__legend-item">
+                    <img src={stationsDuelconUrl} alt="" className="members-universe-map__legend-icon" />
+                    <span className="small">Stations Present</span>
+                  </div>
+                  <div className="members-universe-map__legend-item">
+                    <img src={scannedDuelconUrl} alt="" className="members-universe-map__legend-icon" />
+                    <span className="small">Recently Scanned (&lt;1 yr)</span>
+                  </div>
+                  <div className="members-universe-map__legend-item">
+                    <img src={rescanDueIconUrl} alt="" className="members-universe-map__legend-icon" />
+                    <span className="small">Rescan Due (&gt;1 yr)</span>
+                  </div>
+                </>
+              ) : canViewScanWindow ? (
+                <>
+                  <div className="members-universe-map__legend-section-label small">Scan Flags</div>
+                  <div className="members-universe-map__legend-item">
+                    <img src={scannedDuelconUrl} alt="" className="members-universe-map__legend-icon" />
+                    <span className="small">Recently Scanned (&lt;1 yr)</span>
+                  </div>
+                  <div className="members-universe-map__legend-item">
+                    <img src={rescanDueIconUrl} alt="" className="members-universe-map__legend-icon" />
+                    <span className="small">Rescan Due (&gt;1 yr)</span>
+                  </div>
+                </>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -2198,7 +2219,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
         ) : null}
         <div className="members-universe-map__stars" />
         <div className="members-universe-map__overlays" aria-hidden="true">
-          {asteroidMarkers.map((marker) => (
+          {canViewCellIntel ? asteroidMarkers.map((marker) => (
           <div
             key={marker.key}
             className="members-universe-map__asteroid-marker"
@@ -2232,8 +2253,8 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
                 />
               ) : null}
             </div>
-          ))}
-          {!hideSecondaryIcons ? intelFlagMarkers.map((marker) => (
+          )) : null}
+          {canViewCellIntel && !hideSecondaryIcons ? intelFlagMarkers.map((marker) => (
             <div
               key={marker.key}
               className="members-universe-map__intel-flag-marker"
@@ -2260,7 +2281,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
               ) : null}
             </div>
           )) : null}
-          {!hideSecondaryIcons ? scanBadgeMarkers.map((marker) => (
+          {(canViewCellIntel || canViewScanWindow) && !hideSecondaryIcons ? scanBadgeMarkers.map((marker) => (
             <img
               key={marker.key}
               src={marker.kind === "rescan" ? rescanDueIconUrl : scannedDuelconUrl}
@@ -2326,9 +2347,9 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
                       `Sector ${formatSwcDisplayId(selectedCell.sectorUid) ?? selectedCell.sectorUid}`}
                   </span>
                 ) : null}
-                {getPrimaryCellName(selectedCell.system, selectedCell.searchRecord) ? (
+                {getPrimaryCellName(selectedCell.system, selectedCell.searchRecord, canViewCellIntel) ? (
                   <span className="members-universe-map__selection-label">
-                    {getPrimaryCellName(selectedCell.system, selectedCell.searchRecord)}
+                    {getPrimaryCellName(selectedCell.system, selectedCell.searchRecord, canViewCellIntel)}
                   </span>
                 ) : null}
               </div>
@@ -2432,7 +2453,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
                 )}
               </div>
             ) : null}
-            {selectedCell.annotation?.notes ? (
+            {canViewCellIntel && selectedCell.annotation?.notes ? (
               <BBCodeView
                 value={selectedCell.annotation.notes}
                 className="small members-universe-map__note-body"
@@ -2603,6 +2624,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
                 )}
               </div>
             ) : null}
+            {canViewCellIntel ? (
             <div className="members-universe__inline">
               <button
                 className="btn btn--small"
@@ -2653,7 +2675,8 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
                 </button>
               ) : null}
             </div>
-            {isEditingNote ? (
+            ) : null}
+            {canViewCellIntel && isEditingNote ? (
               <>
                 <div className="members-universe-map__note-toolbar">
                   <button
@@ -2757,7 +2780,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
                 </div>
               </>
             ) : null}
-            {!selectedCell.annotation?.notes && !noteDraft ? (
+            {canViewCellIntel && !selectedCell.annotation?.notes && !noteDraft ? (
               <span className="small">No note on this grid cell.</span>
             ) : null}
             {selectedCell.system ? (

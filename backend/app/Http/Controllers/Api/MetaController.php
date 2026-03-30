@@ -36,7 +36,7 @@ class MetaController extends Controller
                     'key'   => 'droidbrain',
                     'name'  => 'DroidBrain Intel',
                     'route' => '/intel/droidbrain',
-                    'enabled' => false, // example: still in dev
+                    'enabled' => true,
                 ],
             ],
 

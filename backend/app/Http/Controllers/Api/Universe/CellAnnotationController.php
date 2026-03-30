@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\SwcSector;
 use App\Models\SwcSectorCellAnnotation;
 use App\Support\Admin\AdminActionLogger;
+use App\Support\Swc\Auth\Permissions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -13,6 +14,13 @@ class CellAnnotationController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        if (!Permissions::hasAny($request->user(), ['can_view_asteroid_intel', 'is_admin'])) {
+            return response()->json([
+                'ok' => true,
+                'data' => [],
+            ]);
+        }
+
         $data = $request->validate([
             'sector_uid' => ['required', 'string', 'max:255'],
         ]);

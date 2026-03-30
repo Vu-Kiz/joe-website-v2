@@ -235,53 +235,57 @@ const AboutMe: React.FC = () => {
         {user.swc_character_id ? "Relink SWC Account" : "Link SWC Account"}
       </button>
 
-      <hr className="divider" />
+      {user.is_joe_member ? (
+        <>
+          <hr className="divider" />
 
-      <h2 className="h2">SWC Tool Access</h2>
+          <h2 className="h2">SWC Tool Access</h2>
 
-      <p className="muted">
-        Turn tools on or off here, then sync once to grant only the access you want.
-      </p>
+          <p className="muted">
+            Turn tools on or off here, then sync once to grant only the access you want.
+          </p>
 
-      <button className="btn" type="button" onClick={onConnectToolAccess} disabled={!hasSelectedTools}>
-        {swcAuth?.member_tools_connected ? "Resync Selected Tool Access" : "Connect Selected Tool Access"}
-      </button>
+          <button className="btn" type="button" onClick={onConnectToolAccess} disabled={!hasSelectedTools}>
+            {swcAuth?.member_tools_connected ? "Resync Selected Tool Access" : "Connect Selected Tool Access"}
+          </button>
 
-      {!hasSelectedTools && (
-        <p className="small">Turn on at least one tool before syncing SWC access.</p>
-      )}
+          {!hasSelectedTools && (
+            <p className="small">Turn on at least one tool before syncing SWC access.</p>
+          )}
 
-      <div className="aboutme-access-grid">
-        {toolCards.map((tool) => (
-          <section key={tool.key} className="aboutme-access-card">
-            <div className="aboutme-access-row">
-              <h3 className="aboutme-access-title">{tool.title}</h3>
-            </div>
+          <div className="aboutme-access-grid">
+            {toolCards.map((tool) => (
+              <section key={tool.key} className="aboutme-access-card">
+                <div className="aboutme-access-row">
+                  <h3 className="aboutme-access-title">{tool.title}</h3>
+                </div>
 
-            <p className="muted aboutme-access-copy">{tool.description}</p>
+                <p className="muted aboutme-access-copy">{tool.description}</p>
 
-            <div className="aboutme-access-status-row">
-              <span className="small">Access now</span>
-              <strong>{tool.accessNow ? "Yes" : "No"}</strong>
-            </div>
+                <div className="aboutme-access-status-row">
+                  <span className="small">Access now</span>
+                  <strong>{tool.accessNow ? "Yes" : "No"}</strong>
+                </div>
 
-            <div className="aboutme-access-actions">
-              <button
-                className={`aboutme-access-toggle${tool.enabled ? " aboutme-access-toggle--on" : ""}`}
-                type="button"
-                aria-pressed={tool.enabled}
-                onClick={() => toggleTool(tool.key)}
-              >
-                {tool.enabled ? "Enabled" : "Disabled"}
-              </button>
+                <div className="aboutme-access-actions">
+                  <button
+                    className={`aboutme-access-toggle${tool.enabled ? " aboutme-access-toggle--on" : ""}`}
+                    type="button"
+                    aria-pressed={tool.enabled}
+                    onClick={() => toggleTool(tool.key)}
+                  >
+                    {tool.enabled ? "Enabled" : "Disabled"}
+                  </button>
 
-              <Link className="btn" to={tool.route}>
-                {tool.routeLabel}
-              </Link>
-            </div>
-          </section>
-        ))}
-      </div>
+                  <Link className="btn" to={tool.route}>
+                    {tool.routeLabel}
+                  </Link>
+                </div>
+              </section>
+            ))}
+          </div>
+        </>
+      ) : null}
 
       <hr className="divider" />
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { fetchAuthMe, type SwcUser } from "../api/auth";
+import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../api/auth";
 import { canAccessAdmin, canAccessSysadmin } from "../auth/permissions";
 
 import AdminHeader from "../components/admin/AdminHeader";
@@ -26,6 +26,13 @@ const AdminPage: React.FC = () => {
   const [user, setUser] = useState<SwcUser | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<AdminView>("home");
+  const [authRefreshNonce, setAuthRefreshNonce] = useState(0);
+
+  useEffect(() => {
+    return subscribeToAuthStateChange(() => {
+      setAuthRefreshNonce((value) => value + 1);
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,7 +61,7 @@ const AdminPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [authRefreshNonce]);
 
   const isLoggedIn = !!user;
   const canSeeAdmin = useMemo(() => canAccessAdmin(user), [user]);

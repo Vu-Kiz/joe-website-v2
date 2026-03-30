@@ -1,6 +1,6 @@
 import type { PaymentItem } from "../../api/payments";
 
-export type PaymentsView = "pending" | "owed" | "history" | "templates";
+export type PaymentsView = "pending" | "owed" | "history" | "templates" | "droidbrain";
 
 export type PaymentGroup = {
   key: string;

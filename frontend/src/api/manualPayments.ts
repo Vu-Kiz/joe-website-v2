@@ -44,6 +44,7 @@ export type ManualPaymentTemplateFormPayload = {
 
   payee_subject_type: "user";
   payee_subject_id: number | null;
+  payee_user_id?: number | null;
   payee_swc_uid?: string | null;
   payee_handle?: string | null;
   payee_label?: string | null;
@@ -63,9 +64,59 @@ export type ManualPaymentTemplateFormPayload = {
   status?: "active" | "paused";
 };
 
+export type ManualPaymentTemplateOptionsResponse = {
+  ok: true;
+  data: {
+    default_payee: {
+      id: number;
+      handle: string | null;
+      swc_character_id: number | null;
+      swc_uid: string | null;
+      avatar_url: string | null;
+    } | null;
+    users: Array<{
+      id: number;
+      handle: string | null;
+      swc_character_id: number | null;
+      swc_uid: string | null;
+      avatar_url: string | null;
+    }>;
+    payer_options: Array<{
+      key: string;
+      payer_subject_type: "user" | "faction";
+      payer_subject_id: number | null;
+      label: string;
+      source?: string;
+    }>;
+    payer_debug?: Array<{
+      type: "user" | "faction";
+      id: number | null;
+      name: string;
+      swc_uid?: number | null;
+      allowed: boolean;
+      source: string;
+      message?: string | null;
+      local_allowed?: boolean;
+      swc_check?: {
+        ok: boolean;
+        allowed: boolean;
+        status?: number | null;
+        source?: string | null;
+        checked_at?: string | null;
+      } | null;
+    }>;
+  };
+};
+
 export async function getManualPaymentTemplates() {
   return apiFetch<{ ok: true; data: ManualPaymentTemplate[] }>(
     `/manual-payment-templates`
+  );
+}
+
+export async function getManualPaymentTemplateOptions() {
+  return apiFetch<ManualPaymentTemplateOptionsResponse>(
+    `/manual-payment-templates/options`
   );
 }
 
@@ -101,6 +152,38 @@ export async function deleteManualPaymentTemplate(id: number) {
     `/manual-payment-templates/${id}`,
     {
       method: "DELETE",
+    }
+  );
+}
+
+export async function toggleManualPaymentTemplate(id: number) {
+  return apiFetch<{ ok: true; data: ManualPaymentTemplate }>(
+    `/manual-payment-templates/${id}/toggle`,
+    {
+      method: "POST",
+    }
+  );
+}
+
+export async function generateManualPaymentTemplate(id: number) {
+  return apiFetch<{
+    ok: true;
+    data: {
+      template: ManualPaymentTemplate;
+      payment_item: {
+        id: number;
+        payer_subject_type: "user" | "faction";
+        payer_subject_id: number | null;
+        payer_label: string | null;
+        payee_handle: string | null;
+        total_amount: number;
+        status: string;
+      } | null;
+    };
+  }>(
+    `/manual-payment-templates/${id}/generate`,
+    {
+      method: "POST",
     }
   );
 }

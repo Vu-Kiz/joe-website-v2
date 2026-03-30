@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\Admin\DebugController;
 use App\Http\Controllers\Api\FactionController;
 use App\Http\Controllers\Api\FactionPrivilegeController;
 use App\Http\Controllers\Api\ManualPaymentTemplateController;
+use App\Http\Controllers\Api\DroidBrainController;
 
 
 
@@ -81,6 +82,7 @@ Route::prefix('jobs')->group(function () {
         Route::delete('/{id}', [JobsController::class, 'destroy']);
         Route::post('/{id}/take', [JobsController::class, 'take']);
         Route::post('/{id}/complete', [JobsController::class, 'complete']);
+        Route::post('/{id}/bonus', [JobsController::class, 'setBonus']);
         Route::post('/{id}/close', [JobsController::class, 'close']);
         Route::post('/{id}/join', [JobsController::class, 'join']);
     });
@@ -88,17 +90,27 @@ Route::prefix('jobs')->group(function () {
 
 Route::middleware(['auth:sanctum', 'member_tool_access'])->prefix('job-assignments')->group(function () {
     Route::post('/{id}/complete', [JobsController::class, 'completeAssignment']);
+    Route::post('/{id}/bonus', [JobsController::class, 'setAssignmentBonus']);
 });
 
 Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
     Route::get('/payments', [\App\Http\Controllers\Api\PaymentController::class, 'index']);
     Route::get('/payments/owed-to-me', [\App\Http\Controllers\Api\PaymentController::class, 'owedToMe']);
     Route::get('/payment-transfers', [\App\Http\Controllers\Api\PaymentController::class, 'transfers']);
+    Route::get('/payment-transfers/unverified-support', [\App\Http\Controllers\Api\PaymentController::class, 'unverifiedSupportQueue']);
     Route::post('/payments/build-single', [\App\Http\Controllers\Api\PaymentController::class, 'buildSingle']);
     Route::post('/payments/build-bulk', [\App\Http\Controllers\Api\PaymentController::class, 'buildBulk']);
+    Route::post('/payments/pull-credit-log', [\App\Http\Controllers\Api\PaymentController::class, 'pullCreditLog']);
+    Route::get('/payments/droidbrain-settings', [\App\Http\Controllers\Api\PaymentController::class, 'droidBrainSettings']);
+    Route::put('/payments/droidbrain-settings', [\App\Http\Controllers\Api\PaymentController::class, 'updateDroidBrainSettings']);
     Route::post('/payment-transfers/{paymentTransfer}/verify', [\App\Http\Controllers\Api\PaymentController::class, 'verify']);
+    Route::post('/payment-transfers/{paymentTransfer}/manual-verify', [\App\Http\Controllers\Api\PaymentController::class, 'manualVerify']);
     Route::get('/universe/sectors', [UniverseController::class, 'sectors']);
     Route::get('/universe/map-systems', [UniverseController::class, 'mapSystems']);
+    Route::get('/universe/hyper-planner', [UniverseController::class, 'hyperPlanner']);
+    Route::get('/universe/hyper-plans', [UniverseController::class, 'hyperPlans']);
+    Route::post('/universe/hyper-plans', [UniverseController::class, 'storeHyperPlan']);
+    Route::delete('/universe/hyper-plans/{hyperPlan}', [UniverseController::class, 'deleteHyperPlan']);
     Route::get('/universe/search-records', [UniverseController::class, 'searchRecords']);
     Route::get('/universe/sectors/{sector}', [UniverseController::class, 'sector']);
     Route::get('/universe/systems/{system}', [UniverseController::class, 'system']);
@@ -114,6 +126,18 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
     Route::get('/universe/planet-types/{planetType}', [UniverseController::class, 'planetType']);
     Route::get('/universe/ship-types', [UniverseController::class, 'shipTypes']);
     Route::get('/universe/ship-types/{shipType}', [UniverseController::class, 'shipType']);
+    Route::get('/universe/vehicle-types', [UniverseController::class, 'vehicleTypes']);
+    Route::get('/universe/vehicle-types/{vehicleType}', [UniverseController::class, 'vehicleType']);
+    Route::get('/universe/droid-types', [UniverseController::class, 'droidTypes']);
+    Route::get('/universe/droid-types/{droidType}', [UniverseController::class, 'droidType']);
+    Route::get('/universe/creature-types', [UniverseController::class, 'creatureTypes']);
+    Route::get('/universe/creature-types/{creatureType}', [UniverseController::class, 'creatureType']);
+    Route::get('/universe/npc-types', [UniverseController::class, 'npcTypes']);
+    Route::get('/universe/npc-types/{npcType}', [UniverseController::class, 'npcType']);
+    Route::get('/universe/races', [UniverseController::class, 'races']);
+    Route::get('/universe/races/{race}', [UniverseController::class, 'race']);
+    Route::get('/universe/weapon-types', [UniverseController::class, 'weaponTypes']);
+    Route::get('/universe/weapon-types/{weaponType}', [UniverseController::class, 'weaponType']);
     Route::get('/universe/terrain-types', [UniverseController::class, 'terrainTypes']);
     Route::get('/universe/terrain-types/{terrainType}', [UniverseController::class, 'terrainType']);
     Route::get('/universe/material-types', [UniverseController::class, 'materialTypes']);
@@ -140,6 +164,18 @@ Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('sys')->group(funct
     Route::post('/universe/pull-all-item-types-stream', [PullController::class, 'runAllItemTypesStream']);
     Route::post('/universe/pull-all-ship-types', [PullController::class, 'runAllShipTypes']);
     Route::post('/universe/pull-all-ship-types-stream', [PullController::class, 'runAllShipTypesStream']);
+    Route::post('/universe/pull-all-vehicle-types', [PullController::class, 'runAllVehicleTypes']);
+    Route::post('/universe/pull-all-vehicle-types-stream', [PullController::class, 'runAllVehicleTypesStream']);
+    Route::post('/universe/pull-all-droid-types', [PullController::class, 'runAllDroidTypes']);
+    Route::post('/universe/pull-all-droid-types-stream', [PullController::class, 'runAllDroidTypesStream']);
+    Route::post('/universe/pull-all-creature-types', [PullController::class, 'runAllCreatureTypes']);
+    Route::post('/universe/pull-all-creature-types-stream', [PullController::class, 'runAllCreatureTypesStream']);
+    Route::post('/universe/pull-all-npc-types', [PullController::class, 'runAllNpcTypes']);
+    Route::post('/universe/pull-all-npc-types-stream', [PullController::class, 'runAllNpcTypesStream']);
+    Route::post('/universe/pull-all-races', [PullController::class, 'runAllRaces']);
+    Route::post('/universe/pull-all-races-stream', [PullController::class, 'runAllRacesStream']);
+    Route::post('/universe/pull-all-weapon-types', [PullController::class, 'runAllWeaponTypes']);
+    Route::post('/universe/pull-all-weapon-types-stream', [PullController::class, 'runAllWeaponTypesStream']);
     Route::post('/universe/pull-all-terrain-types', [PullController::class, 'runAllTerrainTypes']);
     Route::post('/universe/pull-all-terrain-types-stream', [PullController::class, 'runAllTerrainTypesStream']);
     Route::post('/universe/pull-all-material-types', [PullController::class, 'runAllMaterialTypes']);
@@ -211,6 +247,17 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
     Route::put('/swc/authorization/preferences', [SwcAuthorizationController::class, 'updatePreferences']);
 });
 
+Route::middleware(['auth:sanctum', 'require_any:is_intel,is_admin'])->group(function () {
+    Route::get('/droidbrain', [DroidBrainController::class, 'index']);
+    Route::get('/droidbrain/history', [DroidBrainController::class, 'history']);
+    Route::post('/droidbrain/upload', [DroidBrainController::class, 'upload']);
+    Route::get('/droidbrain/uploads/{fileId}/debug', [DroidBrainController::class, 'uploadDebug']);
+});
+
+Route::middleware(['auth:sanctum', 'require_any:is_sysadmin'])->group(function () {
+    Route::post('/droidbrain/uploads/{fileId}/reward-payment', [DroidBrainController::class, 'createRewardPayment']);
+});
+
 Route::get('/tenets-of-salvage', [TenetOfSalvageController::class, 'index']);
 
 Route::middleware(['auth:sanctum', 'require_any:is_admin'])->group(function () {
@@ -229,6 +276,7 @@ Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('sys/debug')->group
     Route::post('/events-history/import', [DebugController::class, 'importEventsHistory']);
     Route::get('/test-faction-privilege', [DebugController::class, 'testFactionPrivilege']);
     Route::post('/test-payment', [DebugController::class, 'testPayment']);
+    Route::post('/pull-credit-log', [DebugController::class, 'pullCreditLog']);
 });
 
 Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
@@ -236,10 +284,12 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
     Route::get('/factions/mine/payable', [FactionController::class, 'minePayable']);
     Route::post('/universe/search-records/import-personal-events', [SearchRecordController::class, 'importPersonalEvents']);
     Route::get('/manual-payment-templates', [ManualPaymentTemplateController::class, 'index']);
+    Route::get('/manual-payment-templates/options', [ManualPaymentTemplateController::class, 'options']);
     Route::post('/manual-payment-templates', [ManualPaymentTemplateController::class, 'store']);
     Route::put('/manual-payment-templates/{manualPaymentTemplate}', [ManualPaymentTemplateController::class, 'update']);
     Route::post('/manual-payment-templates/{manualPaymentTemplate}/toggle', [ManualPaymentTemplateController::class, 'toggle']);
     Route::post('/manual-payment-templates/{manualPaymentTemplate}/generate', [ManualPaymentTemplateController::class, 'generate']);
+    Route::delete('/manual-payment-templates/{manualPaymentTemplate}', [ManualPaymentTemplateController::class, 'destroy']);
     Route::get('/factions/mine/privileges', [FactionPrivilegeController::class, 'mine']);
     
 });

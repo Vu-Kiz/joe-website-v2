@@ -10,6 +10,24 @@ use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
+    protected function resolveDisplayHandle(User $user): string
+    {
+        $candidates = [
+            $user->swc_handle,
+            $user->discord_global_name,
+            $user->discord_username,
+        ];
+
+        foreach ($candidates as $candidate) {
+            $value = trim((string) $candidate);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return 'User #' . $user->id;
+    }
+
     public function index(Request $request): JsonResponse
     {
         $users = User::query()
@@ -19,10 +37,18 @@ class UserController extends Controller
                 'swc_handle',
                 'swc_character_id',
                 'swc_avatar_url',
+                'discord_username',
+                'discord_global_name',
+                'discord_avatar_url',
                 'is_joe_member',
                 'is_admin',
                 'is_sysadmin',
                 'is_intel',
+                'can_view_asteroid_intel',
+                'scan_window_top_left_galx',
+                'scan_window_top_left_galy',
+                'scan_window_bottom_right_galx',
+                'scan_window_bottom_right_galy',
                 'is_garry',
                 'is_raid',
                 'can_manage_blog',
@@ -32,13 +58,21 @@ class UserController extends Controller
             ->map(function (User $user) {
                 return [
                     'id'               => $user->id,
-                    'handle'           => $user->swc_handle,
+                    'handle'           => $this->resolveDisplayHandle($user),
+                    'swc_handle'       => $user->swc_handle,
                     'swc_character_id' => $user->swc_character_id,
-                    'swc_avatar_url'   => $user->swc_avatar_url,
+                    'swc_avatar_url'   => $user->swc_avatar_url ?: $user->discord_avatar_url,
+                    'discord_username' => $user->discord_username,
+                    'discord_global_name' => $user->discord_global_name,
                     'is_joe_member'    => (bool) $user->is_joe_member,
                     'is_admin'         => (bool) $user->is_admin,
                     'is_sysadmin'      => (bool) $user->is_sysadmin,
                     'is_intel'         => (bool) $user->is_intel,
+                    'can_view_asteroid_intel' => (bool) $user->can_view_asteroid_intel,
+                    'scan_window_top_left_galx' => $user->scan_window_top_left_galx,
+                    'scan_window_top_left_galy' => $user->scan_window_top_left_galy,
+                    'scan_window_bottom_right_galx' => $user->scan_window_bottom_right_galx,
+                    'scan_window_bottom_right_galy' => $user->scan_window_bottom_right_galy,
                     'is_garry'         => (bool) $user->is_garry,
                     'is_raid'          => (bool) $user->is_raid,
                     'can_manage_blog'  => (bool) $user->can_manage_blog,
@@ -60,6 +94,11 @@ class UserController extends Controller
 
         $validated = $request->validate([
             'is_admin'        => ['sometimes', 'boolean'],
+            'can_view_asteroid_intel' => ['sometimes', 'boolean'],
+            'scan_window_top_left_galx' => ['sometimes', 'nullable', 'integer'],
+            'scan_window_top_left_galy' => ['sometimes', 'nullable', 'integer'],
+            'scan_window_bottom_right_galx' => ['sometimes', 'nullable', 'integer'],
+            'scan_window_bottom_right_galy' => ['sometimes', 'nullable', 'integer'],
             'can_manage_blog' => ['sometimes', 'boolean'],
             'can_manage_tips' => ['sometimes', 'boolean'],
             'can_manage_eotm' => ['sometimes', 'boolean'],
@@ -79,6 +118,11 @@ class UserController extends Controller
 
         $beforeAll = [
             'is_admin'        => (bool) $user->is_admin,
+            'can_view_asteroid_intel' => (bool) $user->can_view_asteroid_intel,
+            'scan_window_top_left_galx' => $user->scan_window_top_left_galx,
+            'scan_window_top_left_galy' => $user->scan_window_top_left_galy,
+            'scan_window_bottom_right_galx' => $user->scan_window_bottom_right_galx,
+            'scan_window_bottom_right_galy' => $user->scan_window_bottom_right_galy,
             'can_manage_blog' => (bool) $user->can_manage_blog,
             'can_manage_tips' => (bool) $user->can_manage_tips,
             'can_manage_eotm' => (bool) $user->can_manage_eotm,
@@ -86,6 +130,26 @@ class UserController extends Controller
 
         if (array_key_exists('is_admin', $validated)) {
             $user->is_admin = (bool) $validated['is_admin'];
+        }
+
+        if (array_key_exists('can_view_asteroid_intel', $validated)) {
+            $user->can_view_asteroid_intel = (bool) $validated['can_view_asteroid_intel'];
+        }
+
+        if (array_key_exists('scan_window_top_left_galx', $validated)) {
+            $user->scan_window_top_left_galx = $validated['scan_window_top_left_galx'];
+        }
+
+        if (array_key_exists('scan_window_top_left_galy', $validated)) {
+            $user->scan_window_top_left_galy = $validated['scan_window_top_left_galy'];
+        }
+
+        if (array_key_exists('scan_window_bottom_right_galx', $validated)) {
+            $user->scan_window_bottom_right_galx = $validated['scan_window_bottom_right_galx'];
+        }
+
+        if (array_key_exists('scan_window_bottom_right_galy', $validated)) {
+            $user->scan_window_bottom_right_galy = $validated['scan_window_bottom_right_galy'];
         }
 
         if (array_key_exists('can_manage_blog', $validated)) {
@@ -105,6 +169,11 @@ class UserController extends Controller
 
         $afterAll = [
             'is_admin'        => (bool) $user->is_admin,
+            'can_view_asteroid_intel' => (bool) $user->can_view_asteroid_intel,
+            'scan_window_top_left_galx' => $user->scan_window_top_left_galx,
+            'scan_window_top_left_galy' => $user->scan_window_top_left_galy,
+            'scan_window_bottom_right_galx' => $user->scan_window_bottom_right_galx,
+            'scan_window_bottom_right_galy' => $user->scan_window_bottom_right_galy,
             'can_manage_blog' => (bool) $user->can_manage_blog,
             'can_manage_tips' => (bool) $user->can_manage_tips,
             'can_manage_eotm' => (bool) $user->can_manage_eotm,
@@ -125,7 +194,7 @@ class UserController extends Controller
                 $request,
                 'users',
                 'update_permissions',
-                'Updated user permissions for ' . ($user->swc_handle ?: ('user #' . $user->id)),
+                'Updated user permissions for ' . $this->resolveDisplayHandle($user),
                 'user',
                 $user->id,
                 $before,
@@ -137,13 +206,21 @@ class UserController extends Controller
             'ok' => true,
             'user' => [
                 'id'               => $user->id,
-                'handle'           => $user->swc_handle,
+                'handle'           => $this->resolveDisplayHandle($user),
+                'swc_handle'       => $user->swc_handle,
                 'swc_character_id' => $user->swc_character_id,
-                'swc_avatar_url'   => $user->swc_avatar_url,
+                'swc_avatar_url'   => $user->swc_avatar_url ?: $user->discord_avatar_url,
+                'discord_username' => $user->discord_username,
+                'discord_global_name' => $user->discord_global_name,
                 'is_joe_member'    => (bool) $user->is_joe_member,
                 'is_admin'         => (bool) $user->is_admin,
                 'is_sysadmin'      => (bool) $user->is_sysadmin,
                 'is_intel'         => (bool) $user->is_intel,
+                'can_view_asteroid_intel' => (bool) $user->can_view_asteroid_intel,
+                'scan_window_top_left_galx' => $user->scan_window_top_left_galx,
+                'scan_window_top_left_galy' => $user->scan_window_top_left_galy,
+                'scan_window_bottom_right_galx' => $user->scan_window_bottom_right_galx,
+                'scan_window_bottom_right_galy' => $user->scan_window_bottom_right_galy,
                 'is_garry'         => (bool) $user->is_garry,
                 'is_raid'          => (bool) $user->is_raid,
                 'can_manage_blog'  => (bool) $user->can_manage_blog,

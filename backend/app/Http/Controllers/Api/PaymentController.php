@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\DroidBrainPaymentSetting;
+use App\Models\Faction;
 use App\Models\PaymentItem;
 use App\Models\PaymentTransfer;
 use App\Support\Factions\FactionPermissionService;
@@ -37,9 +39,9 @@ class PaymentController extends Controller
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        $factionIds = $user->factions()
-            ->wherePivot('can_view_payments', true)
-            ->pluck('factions.id');
+        $factionIds = $this->factionPermissionService
+            ->getPayableFactions($user)
+            ->pluck('id');
 
         $items = PaymentItem::query()
             ->where('status', 'pending')
@@ -89,9 +91,9 @@ class PaymentController extends Controller
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        $factionIds = $user->factions()
-            ->wherePivot('can_view_payments', true)
-            ->pluck('factions.id');
+        $factionIds = $this->factionPermissionService
+            ->getPayableFactions($user)
+            ->pluck('id');
 
         $transfers = PaymentTransfer::query()
             ->where(function ($q) use ($user, $factionIds) {
@@ -105,6 +107,33 @@ class PaymentController extends Controller
             })
             ->with('items')
             ->latest()
+            ->get();
+
+        return response()->json([
+            'ok' => true,
+            'data' => $transfers,
+        ]);
+    }
+
+    public function unverifiedSupportQueue(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        if (!(bool) $user->is_sysadmin) {
+            return response()->json([
+                'message' => 'Only sysadmins can view the unverified payment queue.',
+            ], 403);
+        }
+
+        $transfers = PaymentTransfer::query()
+            ->whereNotIn('status', ['verified', 'paid'])
+            ->with('items')
+            ->latest()
+            ->limit(500)
             ->get();
 
         return response()->json([
@@ -150,12 +179,6 @@ class PaymentController extends Controller
         $payerType = $items->first()->payer_subject_type;
 
         if ($payerType === 'faction') {
-            if (!$this->swcAuthorizationService->hasFactionCreditLogAccess($user)) {
-                return response()->json([
-                    'message' => 'Faction SWC credit log access is required.',
-                ], 403);
-            }
-
             $payerFactionId = (int) $items->first()->payer_subject_id;
 
             if (!$this->factionPermissionService->canPayFromFaction($user, $payerFactionId)) {
@@ -225,12 +248,6 @@ class PaymentController extends Controller
         $payerType = $items->first()->payer_subject_type;
 
         if ($payerType === 'faction') {
-            if (!$this->swcAuthorizationService->hasFactionCreditLogAccess($user)) {
-                return response()->json([
-                    'message' => 'Faction SWC credit log access is required.',
-                ], 403);
-            }
-
             $payerFactionId = (int) $items->first()->payer_subject_id;
 
             if (!$this->factionPermissionService->canPayFromFaction($user, $payerFactionId)) {
@@ -257,6 +274,73 @@ class PaymentController extends Controller
                     ? $this->urlBuilder->buildBulkPageUrl($transfers->first())
                     : null,
                 'pipe_lines' => $this->bulkExportService->toPipeLines($transfers),
+            ],
+        ]);
+    }
+
+    public function droidBrainSettings(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        if (!(bool) $user->is_sysadmin) {
+            return response()->json(['message' => 'Only sysadmins can manage DroidBrain payment settings.'], 403);
+        }
+
+        $settings = DroidBrainPaymentSetting::query()->latest('id')->first();
+        $factions = Faction::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'swc_uid', 'abbreviation'])
+            ->map(fn (Faction $faction) => [
+                'id' => $faction->id,
+                'name' => $faction->name,
+                'swc_uid' => $faction->swc_uid,
+                'abbreviation' => $faction->abbreviation,
+            ])
+            ->values();
+
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'settings' => [
+                    'default_payer_faction_id' => $settings?->default_payer_faction_id,
+                ],
+                'payer_options' => $factions,
+            ],
+        ]);
+    }
+
+    public function updateDroidBrainSettings(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        if (!(bool) $user->is_sysadmin) {
+            return response()->json(['message' => 'Only sysadmins can manage DroidBrain payment settings.'], 403);
+        }
+
+        $validated = $request->validate([
+            'default_payer_faction_id' => ['nullable', 'integer', 'exists:factions,id'],
+        ]);
+
+        $settings = DroidBrainPaymentSetting::query()->latest('id')->first();
+        if (!$settings) {
+            $settings = new DroidBrainPaymentSetting();
+        }
+
+        $settings->default_payer_faction_id = $validated['default_payer_faction_id'] ?? null;
+        $settings->save();
+
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'default_payer_faction_id' => $settings->default_payer_faction_id,
             ],
         ]);
     }
@@ -298,5 +382,100 @@ class PaymentController extends Controller
             'data' => $result,
             'transfer' => $paymentTransfer->fresh('items'),
         ], $result['ok'] ? 200 : 422);
+    }
+
+    public function manualVerify(Request $request, PaymentTransfer $paymentTransfer): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        if (!(bool) $user->is_sysadmin) {
+            return response()->json([
+                'message' => 'Only sysadmins can manually verify payments.',
+            ], 403);
+        }
+
+        $data = $request->validate([
+            'swc_transaction_id' => ['nullable', 'integer', 'min:1'],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        if ($paymentTransfer->status === 'verified') {
+            return response()->json([
+                'ok' => true,
+                'data' => [
+                    'ok' => true,
+                    'already_verified' => true,
+                    'matched_transaction_id' => $paymentTransfer->verified_transaction_id,
+                    'message' => 'Transfer is already verified.',
+                ],
+                'transfer' => $paymentTransfer->fresh('items'),
+            ]);
+        }
+
+        $result = $this->paymentVerificationService->markTransferVerifiedManually(
+            $paymentTransfer,
+            isset($data['swc_transaction_id']) ? (int) $data['swc_transaction_id'] : null,
+            isset($data['note']) ? (string) $data['note'] : null
+        );
+
+        return response()->json([
+            'ok' => true,
+            'data' => $result,
+            'transfer' => $paymentTransfer->fresh('items'),
+        ]);
+    }
+
+    public function pullCreditLog(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $payableFactionIds = $this->factionPermissionService
+            ->getPayableFactions($user)
+            ->pluck('id');
+
+        $canUsePersonalLog = $this->swcAuthorizationService->hasPersonalCreditLogAccess($user);
+        $canUseFactionLog = $this->swcAuthorizationService->hasFactionCreditLogAccess($user);
+
+        if (!$canUsePersonalLog && !$canUseFactionLog) {
+            return response()->json([
+                'message' => 'Your SWC payments access has timed out. Please reconnect your access and try again.',
+            ], 403);
+        }
+
+        $transfers = PaymentTransfer::query()
+            ->whereNotIn('status', ['verified', 'paid'])
+            ->where(function ($query) use ($user, $payableFactionIds, $canUsePersonalLog, $canUseFactionLog) {
+                if ($canUsePersonalLog) {
+                    $query->orWhere(function ($q) use ($user) {
+                        $q->where('payer_subject_type', 'user')
+                            ->where('payer_subject_id', $user->id);
+                    });
+                }
+
+                if ($canUseFactionLog && $payableFactionIds->isNotEmpty()) {
+                    $query->orWhere(function ($q) use ($payableFactionIds) {
+                        $q->where('payer_subject_type', 'faction')
+                            ->whereIn('payer_subject_id', $payableFactionIds);
+                    });
+                }
+            })
+            ->with('items')
+            ->latest()
+            ->get();
+
+        $result = $this->paymentVerificationService->verifyTransfersForUserContext($user, $transfers, 250);
+
+        return response()->json([
+            'ok' => true,
+            'data' => $result,
+        ]);
     }
 }

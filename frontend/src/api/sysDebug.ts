@@ -94,6 +94,15 @@ export type DebugRawSwcResponse = {
   query: Record<string, string>;
   body: string | null;
   json: any;
+  creditlog_summary?: {
+    resource: string;
+    request: string | null;
+    page_transaction_count: number;
+    transactions_attributes?: Record<string, unknown> | null;
+    swcapi_attributes?: Record<string, unknown> | null;
+    first_transaction_id?: string | number | null;
+    last_transaction_id?: string | number | null;
+  } | null;
 };
 
 export type DebugEventsHistoryResponse = {
@@ -184,6 +193,14 @@ export type DebugTestPaymentResponse = {
     communication: string | null;
     status: string;
   };
+  manual_preview?: {
+    receiver_handle: string | null;
+    receiver_uid: string | null;
+    reference: string | null;
+    communication_prefix: string | null;
+    generated_communication: string | null;
+    payment_url: string | null;
+  };
   inspection: {
     ok: boolean;
     matched: boolean;
@@ -202,6 +219,27 @@ export type DebugTestPaymentResponse = {
       summary: any;
     }>;
     searched_transactions_preview: any[];
+  };
+};
+
+export type DebugPullCreditLogResponse = {
+  ok: boolean;
+  target_user?: {
+    id: number;
+    swc_handle: string | null;
+    swc_character_id: number | null;
+  };
+  data: {
+    ok: boolean;
+    processed: number;
+    verified: number;
+    already_verified: number;
+    unmatched: number;
+    errors: number;
+    contexts_loaded: number;
+    message: string;
+    matches: any[];
+    failures: any[];
   };
 };
 
@@ -251,7 +289,7 @@ export function getDebugRawSwc(
   path: string,
   queryParams?: Record<string, string>,
   userId?: number,
-  authContext?: "payments" | "events" | "debug"
+  authContext?: "member_tools" | "payments" | "events" | "debug"
 ) {
   const params = withOptionalUserId(new URLSearchParams(), userId);
   params.set("path", path);
@@ -313,12 +351,16 @@ export function testFactionPrivilege(
   group: string,
   privilege: string,
   factionId: number | string,
+  authContext?: "member_tools" | "payments" | "events" | "debug",
   userId?: number
 ) {
   const params = withOptionalUserId(new URLSearchParams(), userId);
   params.set("group", group);
   params.set("privilege", privilege);
   params.set("faction_id", String(factionId));
+  if (authContext) {
+    params.set("auth_context", authContext);
+  }
 
   return apiFetch<DebugFactionPrivilegeResponse>(
     `/sys/debug/test-faction-privilege?${params.toString()}`
@@ -345,7 +387,10 @@ export function testManualPayment(
     payer_subject_type: "user" | "faction";
     payer_subject_id: number;
     amount: number;
+    receiver_handle?: string;
     receiver_uid?: string;
+    reference?: string;
+    communication_prefix?: string;
     communication?: string;
     item_count?: number;
   },
@@ -359,6 +404,18 @@ export function testManualPayment(
     {
       method: "POST",
       body: JSON.stringify(payload),
+    }
+  );
+}
+
+export function pullDebugCreditLog(userId?: number) {
+  const params = withOptionalUserId(new URLSearchParams(), userId);
+  const qs = params.toString();
+
+  return apiFetch<DebugPullCreditLogResponse>(
+    `/sys/debug/pull-credit-log${qs ? `?${qs}` : ""}`,
+    {
+      method: "POST",
     }
   );
 }

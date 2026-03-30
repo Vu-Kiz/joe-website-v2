@@ -16,7 +16,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev   # 👈 use the same file you fixed in dev
+      dockerfile: Dockerfile.prod
     image: joe-backend-v2:prod     # tag for the built image
     container_name: joe_backend_v2_prod
     restart: unless-stopped

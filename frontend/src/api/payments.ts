@@ -42,6 +42,7 @@ export type PaymentTransfer = {
   verified_at: string | null;
   paid_at: string | null;
   verified_transaction_id?: number | null;
+  meta?: Record<string, unknown> | null;
   items?: PaymentItem[];
 };
 
@@ -83,6 +84,51 @@ export type VerifyPaymentTransferResponse = {
   transfer: PaymentTransfer;
 };
 
+export type PullCreditLogResponse = {
+  ok: boolean;
+  data: {
+    ok: boolean;
+    processed: number;
+    verified: number;
+    already_verified: number;
+    unmatched: number;
+    errors: number;
+    contexts_loaded: number;
+    message: string;
+    matches: Array<{
+      transfer_id: number;
+      reference: string;
+      transaction_id: number;
+      payee: string | null;
+      amount: number;
+      context: string;
+    }>;
+    failures: Array<{
+      transfer_id: number;
+      reference: string;
+      payee?: string | null;
+      amount?: number;
+      error?: string;
+      context: string;
+    }>;
+  };
+};
+
+export type DroidBrainPaymentSettingsResponse = {
+  ok: true;
+  data: {
+    settings: {
+      default_payer_faction_id: number | null;
+    };
+    payer_options: Array<{
+      id: number;
+      name: string;
+      swc_uid: string | null;
+      abbreviation: string | null;
+    }>;
+  };
+};
+
 export async function getPayments() {
   return apiFetch<PaymentsResponse>("/payments");
 }
@@ -93,6 +139,10 @@ export async function getPaymentsOwedToMe() {
 
 export async function getPaymentTransfers() {
   return apiFetch<PaymentTransfersResponse>("/payment-transfers");
+}
+
+export async function getUnverifiedSupportTransfers() {
+  return apiFetch<PaymentTransfersResponse>("/payment-transfers/unverified-support");
 }
 
 export async function buildSinglePayment(payment_item_ids: number[]) {
@@ -114,6 +164,44 @@ export async function verifyPaymentTransfer(id: number) {
     `/payment-transfers/${id}/verify`,
     {
       method: "POST",
+    }
+  );
+}
+
+export async function manualVerifyPaymentTransfer(
+  id: number,
+  payload: {
+    swc_transaction_id?: number | null;
+    note?: string | null;
+  }
+) {
+  return apiFetch<VerifyPaymentTransferResponse>(
+    `/payment-transfers/${id}/manual-verify`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function pullCreditLog() {
+  return apiFetch<PullCreditLogResponse>("/payments/pull-credit-log", {
+    method: "POST",
+  });
+}
+
+export async function getDroidBrainPaymentSettings() {
+  return apiFetch<DroidBrainPaymentSettingsResponse>("/payments/droidbrain-settings");
+}
+
+export async function updateDroidBrainPaymentSettings(payload: {
+  default_payer_faction_id: number | null;
+}) {
+  return apiFetch<{ ok: true; data: { default_payer_faction_id: number | null } }>(
+    "/payments/droidbrain-settings",
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
     }
   );
 }

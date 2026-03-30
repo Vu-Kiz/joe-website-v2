@@ -1,19 +1,31 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  getStoredCreatureType,
+  getStoredCreatureTypes,
   getStoredFacilityType,
   getStoredFacilityTypes,
+  getStoredDroidType,
+  getStoredDroidTypes,
   getStoredItemType,
   getStoredItemTypes,
   getStoredMaterialType,
   getStoredMaterialTypes,
+  getStoredNpcType,
+  getStoredNpcTypes,
   getStoredPlanetType,
   getStoredPlanetTypes,
+  getStoredRace,
+  getStoredRaces,
   getStoredShipType,
   getStoredShipTypes,
+  getStoredVehicleType,
+  getStoredVehicleTypes,
   getStoredStationType,
   getStoredStationTypes,
   getStoredTerrainType,
   getStoredTerrainTypes,
+  getStoredWeaponType,
+  getStoredWeaponTypes,
   populateAdminMaterialIcons,
   populateAdminStationIcons,
   type EntityStatsKind,
@@ -36,6 +48,12 @@ const kindOptions: Array<{ key: EntityStatsKind; label: string }> = [
   { key: "item", label: "Item Types" },
   { key: "planet", label: "Planet Types" },
   { key: "ship", label: "Ship Types" },
+  { key: "vehicle", label: "Vehicle Types" },
+  { key: "droid", label: "Droid Types" },
+  { key: "creature", label: "Creature Types" },
+  { key: "npc", label: "NPC Types" },
+  { key: "race", label: "Races" },
+  { key: "weapon", label: "Weapon Types" },
   { key: "terrain", label: "Terrain Types" },
   { key: "material", label: "Material Types" },
 ];
@@ -92,6 +110,18 @@ const AdminEntityStatsPanel: React.FC = () => {
               ? await getStoredPlanetTypes()
             : kind === "ship"
               ? await getStoredShipTypes()
+            : kind === "vehicle"
+              ? await getStoredVehicleTypes()
+            : kind === "droid"
+              ? await getStoredDroidTypes()
+            : kind === "creature"
+              ? await getStoredCreatureTypes()
+            : kind === "npc"
+              ? await getStoredNpcTypes()
+            : kind === "race"
+              ? await getStoredRaces()
+            : kind === "weapon"
+              ? await getStoredWeaponTypes()
             : kind === "terrain"
               ? await getStoredTerrainTypes()
               : await getStoredMaterialTypes();
@@ -145,6 +175,18 @@ const AdminEntityStatsPanel: React.FC = () => {
               ? await getStoredPlanetType(selectedId)
             : kind === "ship"
               ? await getStoredShipType(selectedId)
+            : kind === "vehicle"
+              ? await getStoredVehicleType(selectedId)
+            : kind === "droid"
+              ? await getStoredDroidType(selectedId)
+            : kind === "creature"
+              ? await getStoredCreatureType(selectedId)
+            : kind === "npc"
+              ? await getStoredNpcType(selectedId)
+            : kind === "race"
+              ? await getStoredRace(selectedId)
+            : kind === "weapon"
+              ? await getStoredWeaponType(selectedId)
             : kind === "terrain"
               ? await getStoredTerrainType(selectedId)
               : await getStoredMaterialType(selectedId);
@@ -285,7 +327,7 @@ const AdminEntityStatsPanel: React.FC = () => {
       <div className="admin-panel__header">
         <h2>Entity Stats</h2>
         <p className="small">
-          Browse and edit stored station, facility, item, ship, terrain, and material type records without opening the database directly.
+          Browse and edit stored station, facility, item, ship, vehicle, droid, creature, NPC, race, weapon, terrain, and material catalog records without opening the database directly.
         </p>
       </div>
 

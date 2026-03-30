@@ -3,15 +3,20 @@ import type { PaymentsView } from "./types";
 type Props = {
   activeView: PaymentsView;
   onChange: (view: PaymentsView) => void;
+  showDroidBrain?: boolean;
 };
 
-const PaymentsNav = ({ activeView, onChange }: Props) => {
+const PaymentsNav = ({ activeView, onChange, showDroidBrain = false }: Props) => {
   const items: Array<{ key: PaymentsView; label: string }> = [
     { key: "pending", label: "Pending" },
     { key: "owed", label: "Owed To Me" },
     { key: "history", label: "History" },
     { key: "templates", label: "Manual Templates" },
   ];
+
+  if (showDroidBrain) {
+    items.push({ key: "droidbrain", label: "DroidBrain" });
+  }
 
   return (
     <div className="panel admin-nav">

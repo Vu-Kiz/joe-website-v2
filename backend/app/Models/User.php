@@ -29,6 +29,11 @@ class User extends Authenticatable
         'is_admin',
         'is_sysadmin',
         'is_intel',
+        'can_view_asteroid_intel',
+        'scan_window_top_left_galx',
+        'scan_window_top_left_galy',
+        'scan_window_bottom_right_galx',
+        'scan_window_bottom_right_galy',
         'is_garry',
         'is_raid',
     ];
@@ -41,6 +46,11 @@ class User extends Authenticatable
         'is_admin' => 'boolean',
         'is_sysadmin' => 'boolean',
         'is_intel' => 'boolean',
+        'can_view_asteroid_intel' => 'boolean',
+        'scan_window_top_left_galx' => 'integer',
+        'scan_window_top_left_galy' => 'integer',
+        'scan_window_bottom_right_galx' => 'integer',
+        'scan_window_bottom_right_galy' => 'integer',
         'is_garry' => 'boolean',
         'is_raid' => 'boolean',
         'has_swc_payments_access' => 'boolean',
@@ -84,5 +94,10 @@ class User extends Authenticatable
         return $this->hasOne(\App\Models\UserSwcAccount::class)
             ->where('is_primary', true)
             ->whereNull('unlinked_at');
+    }
+
+    public function hyperPlans()
+    {
+        return $this->hasMany(\App\Models\HyperPlan::class);
     }
 }

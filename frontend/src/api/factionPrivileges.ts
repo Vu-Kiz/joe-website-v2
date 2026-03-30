@@ -21,7 +21,7 @@ export type FactionPrivilegeCheckResult = {
 export async function getMyFactionPrivileges(
   privilegeGroup: string,
   privilegeName: string,
-  refresh = true
+  refresh = false
 ) {
   const params = new URLSearchParams({
     privilege_group: privilegeGroup,

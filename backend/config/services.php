@@ -31,4 +31,14 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'droidbrain_rewards' => [
+        'payer_faction_id' => env('DROIDBRAIN_REWARD_PAYER_FACTION_ID'),
+        'payer_faction_swc_uid' => env('DROIDBRAIN_REWARD_PAYER_FACTION_SWC_UID', '20:1376'),
+    ],
+
+    'jobs_discord' => [
+        'webhook_url' => env('JOBS_DISCORD_WEBHOOK_URL', ''),
+        'frontend_url' => env('JOBS_DISCORD_FRONTEND_URL', env('DISCORD_FRONTEND_URL', env('SWC_FRONTEND_URL'))),
+    ],
+
 ];

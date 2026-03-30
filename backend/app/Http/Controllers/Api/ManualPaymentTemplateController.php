@@ -6,13 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\ManualPaymentTemplate;
 use App\Models\User;
 use App\Support\Factions\FactionPermissionService;
+use App\Support\Swc\SwcPrivilegeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ManualPaymentTemplateController extends Controller
 {
     public function __construct(
-        protected FactionPermissionService $factionPermissionService
+        protected FactionPermissionService $factionPermissionService,
+        protected SwcPrivilegeService $swcPrivilegeService
     ) {
     }
 
@@ -24,8 +26,7 @@ class ManualPaymentTemplateController extends Controller
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        $payableFactionIds = $this->factionPermissionService
-            ->getPayableFactions($user)
+        $payableFactionIds = $this->getAvailablePayerFactions($user)
             ->pluck('id');
 
         $templates = ManualPaymentTemplate::query()
@@ -74,22 +75,35 @@ class ManualPaymentTemplateController extends Controller
             ])
             ->values();
 
+        $allFactions = $user->factions()->get([
+            'factions.id',
+            'factions.name',
+            'factions.swc_uid',
+            'factions.abbreviation',
+        ]);
+
         $payerOptions = collect([
             [
                 'key' => 'user:' . $user->id,
                 'payer_subject_type' => 'user',
                 'payer_subject_id' => $user->id,
                 'label' => 'Personal - ' . ($user->swc_handle ?: ('User #' . $user->id)),
+                'source' => 'personal',
             ],
         ]);
 
-        $factionOptions = $this->factionPermissionService
-            ->getPayableFactions($user)
+        $factionPermissionDebug = $allFactions
+            ->map(fn ($faction) => $this->buildFactionPayerDebug($user, $faction, false))
+            ->values();
+
+        $factionOptions = $factionPermissionDebug
+            ->filter(fn (array $entry) => (bool) ($entry['allowed'] ?? false))
             ->map(fn ($faction) => [
-                'key' => 'faction:' . $faction->id,
+                'key' => 'faction:' . $faction['id'],
                 'payer_subject_type' => 'faction',
-                'payer_subject_id' => $faction->id,
-                'label' => 'Faction - ' . $faction->name,
+                'payer_subject_id' => $faction['id'],
+                'label' => 'Faction - ' . $faction['name'],
+                'source' => $faction['source'] ?? 'unknown',
             ]);
 
         return response()->json([
@@ -104,6 +118,17 @@ class ManualPaymentTemplateController extends Controller
                 ],
                 'users' => $users,
                 'payer_options' => $payerOptions->concat($factionOptions)->values(),
+                'payer_debug' => [
+                    [
+                        'type' => 'user',
+                        'id' => $user->id,
+                        'name' => $user->swc_handle ?: ('User #' . $user->id),
+                        'allowed' => true,
+                        'source' => 'personal',
+                        'message' => 'Personal payments are always available for your own user.',
+                    ],
+                    ...$factionPermissionDebug->all(),
+                ],
             ],
         ]);
     }
@@ -295,6 +320,54 @@ class ManualPaymentTemplateController extends Controller
         ]);
     }
 
+    public function toggle(Request $request, ManualPaymentTemplate $manualPaymentTemplate): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $this->assertUserCanManageTemplate($user, $manualPaymentTemplate);
+
+        $manualPaymentTemplate->status = $manualPaymentTemplate->status === 'active'
+            ? 'paused'
+            : 'active';
+        $manualPaymentTemplate->save();
+
+        return response()->json([
+            'ok' => true,
+            'data' => $manualPaymentTemplate->fresh(),
+        ]);
+    }
+
+    public function generate(Request $request, ManualPaymentTemplate $manualPaymentTemplate): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $this->assertUserCanManageTemplate($user, $manualPaymentTemplate);
+
+        $manualPaymentTemplate->forceFill([
+            'last_generated_period' => null,
+            'status' => 'active',
+        ])->save();
+
+        $payment = app(\App\Support\Payments\ManualPaymentTemplateService::class)
+            ->generatePaymentForTemplate($manualPaymentTemplate->fresh(), now(), true);
+
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'template' => $manualPaymentTemplate->fresh(),
+                'payment_item' => $payment,
+            ],
+        ]);
+    }
+
     protected function resolvePayer($user, string $payerSubjectType, ?int $payerSubjectId): array
     {
         if ($payerSubjectType === 'user') {
@@ -315,6 +388,11 @@ class ManualPaymentTemplateController extends Controller
             ->firstWhere('id', (int) $payerSubjectId);
 
         if (!$faction) {
+            $faction = $this->getAvailablePayerFactions($user, true)
+                ->firstWhere('id', (int) $payerSubjectId);
+        }
+
+        if (!$faction) {
             throw \Illuminate\Validation\ValidationException::withMessages([
                 'payer_subject_id' => 'You are not allowed to pay from that faction.',
             ]);
@@ -333,10 +411,15 @@ class ManualPaymentTemplateController extends Controller
         }
 
         if ($template->payer_subject_type === 'faction') {
-            $allowed = $this->factionPermissionService
-                ->getPayableFactions($user)
+            $allowed = $this->getAvailablePayerFactions($user)
                 ->pluck('id')
                 ->contains((int) $template->payer_subject_id);
+
+            if (!$allowed) {
+                $allowed = $this->getAvailablePayerFactions($user, true)
+                    ->pluck('id')
+                    ->contains((int) $template->payer_subject_id);
+            }
 
             if ($allowed) {
                 return;
@@ -344,5 +427,56 @@ class ManualPaymentTemplateController extends Controller
         }
 
         abort(403, 'You are not allowed to manage this template.');
+    }
+
+    protected function getAvailablePayerFactions(User $user, bool $refreshPrivileges = false)
+    {
+        $factions = $user->factions()->get([
+            'factions.id',
+            'factions.name',
+            'factions.swc_uid',
+            'factions.abbreviation',
+        ]);
+
+        if ($user->is_sysadmin) {
+            return $factions->values();
+        }
+
+        return $factions
+            ->filter(fn ($faction) => (bool) ($this->buildFactionPayerDebug($user, $faction, $refreshPrivileges)['allowed'] ?? false))
+            ->values();
+    }
+
+    protected function buildFactionPayerDebug(User $user, $faction, bool $refreshPrivileges = false): array
+    {
+        $check = $this->swcPrivilegeService->checkFactionPrivilege(
+            user: $user,
+            faction: $faction,
+            privilegeGroup: 'finance',
+            privilegeName: 'send_credits',
+            refresh: $refreshPrivileges
+        );
+
+        return [
+            'type' => 'faction',
+            'id' => $faction->id,
+            'name' => $faction->name,
+            'swc_uid' => $faction->swc_uid,
+            'allowed' => (bool) (($check['ok'] ?? false) && ($check['allowed'] ?? false)),
+            'source' => (($check['ok'] ?? false) && ($check['allowed'] ?? false)) ? 'swc' : 'denied',
+            'message' => $check['message'] ?? (
+                (($check['ok'] ?? false) && ($check['allowed'] ?? false))
+                    ? 'Allowed by SWC finance/send_credits privilege.'
+                    : 'SWC finance/send_credits privilege not granted.'
+            ),
+            'local_allowed' => (bool) $faction->pivot?->can_pay_from_faction,
+            'swc_check' => [
+                'ok' => (bool) ($check['ok'] ?? false),
+                'allowed' => (bool) ($check['allowed'] ?? false),
+                'status' => $check['status'] ?? null,
+                'source' => $check['source'] ?? null,
+                'checked_at' => $check['checked_at'] ?? null,
+            ],
+        ];
     }
 }
