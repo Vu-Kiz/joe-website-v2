@@ -90,8 +90,6 @@ services:
       - db
     environment:
       PMA_HOST: db
-      PMA_USER: joe
-      PMA_PASSWORD: ${DB_PASSWORD}
     networks:
       - joe_prod_net
       - nginx_proxy
