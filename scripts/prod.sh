@@ -24,6 +24,28 @@ GIT_BRANCH="${GIT_BRANCH:-dev}"
 # Convenience alias for docker compose
 DC="docker compose --env-file ${ENV_FILE} -f ${COMPOSE_FILE}"
 
+run_migrations_with_retry() {
+  local attempts="${1:-20}"
+  local delay_seconds="${2:-3}"
+  local try=1
+
+  while (( try <= attempts )); do
+    if ${DC} exec backend php artisan migrate --force; then
+      return 0
+    fi
+
+    if (( try == attempts )); then
+      return 1
+    fi
+
+    echo "⏳ Database is not ready yet. Retrying migrations in ${delay_seconds}s (${try}/${attempts})..."
+    sleep "${delay_seconds}"
+    try=$((try + 1))
+  done
+
+  return 1
+}
+
 usage() {
   cat <<EOF
 JOE Website v2 — PROD CLI
@@ -94,7 +116,7 @@ case "${cmd}" in
 
   migrate)
     echo "▶ Running Laravel migrations in production (--force)..."
-    ${DC} exec backend php artisan migrate --force
+    run_migrations_with_retry
     ;;
 
   shell)
@@ -128,7 +150,7 @@ case "${cmd}" in
       ${DC} up -d
 
       echo "▶ Step 4/5: run database migrations..."
-      ${DC} exec backend php artisan migrate --force
+      run_migrations_with_retry
 
       echo "▶ Step 5/5: restart queue workers..."
       ${DC} exec backend php artisan queue:restart
