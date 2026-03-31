@@ -2,16 +2,17 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../api/auth";
 import {
-  createDroidBrainRewardPayment,
   getDroidBrain,
-  getDroidBrainUploadDebug,
   uploadDroidBrainFile,
   type DroidBrainContext,
   type DroidBrainTab,
-  type DroidBrainUploadDebug,
   type DroidBrainUploadResult,
 } from "../api/droidbrain";
-import { canAccessIntel, canAccessSysadmin } from "../auth/permissions";
+import {
+  canAccessDroidBrain,
+  canAccessDroidBrainFull,
+  canAccessSysadmin,
+} from "../auth/permissions";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import SpinnerLoadingCard from "../components/common/SpinnerLoadingCard";
@@ -36,12 +37,19 @@ const defaultTabLabels: Record<DroidBrainTab, string> = {
   summary: "Summary",
 };
 
+const restrictedTabLabels: Record<DroidBrainTab, string> = {
+  ships: "Ships",
+  stations: "Stations",
+  vehicles: "Vehicles",
+} as Record<DroidBrainTab, string>;
+
 const emptyContext = (tab: DroidBrainTab): DroidBrainContext => ({
   tab,
   tab_labels: defaultTabLabels,
   filters: {
     q: "",
     uid: "",
+    uploader: "",
     type: "",
     class: "",
     system: "",
@@ -49,6 +57,7 @@ const emptyContext = (tab: DroidBrainTab): DroidBrainContext => ({
     owner: "",
   },
   options: {
+    uploader_options: [],
     type_options: [],
     class_options: [],
     system_options: [],
@@ -89,10 +98,8 @@ const DroidBrainPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [authRefreshNonce, setAuthRefreshNonce] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [uploadResults, setUploadResults] = useState<DroidBrainUploadResult[]>([]);
-  const [uploadDebug, setUploadDebug] = useState<DroidBrainUploadDebug | null>(null);
-  const [loadingDebug, setLoadingDebug] = useState(false);
-  const [creatingRewardPayment, setCreatingRewardPayment] = useState(false);
 
   const activeTab = normalizeTab(searchParams.get("tab"));
   const requestParams = useMemo(() => {
@@ -131,7 +138,7 @@ const DroidBrainPage: React.FC = () => {
           return;
         }
 
-        if (!canAccessIntel(currentUser)) {
+        if (!canAccessDroidBrain(currentUser)) {
           setContext(null);
           setError(null);
           return;
@@ -152,7 +159,7 @@ const DroidBrainPage: React.FC = () => {
   }, [authRefreshNonce]);
 
   useEffect(() => {
-    if (!viewer || !canAccessIntel(viewer) || !shouldLoadCurrent) {
+    if (!viewer || !canAccessDroidBrain(viewer) || !shouldLoadCurrent) {
       return;
     }
 
@@ -183,8 +190,12 @@ const DroidBrainPage: React.FC = () => {
   }, [requestKey, requestParams, shouldLoadCurrent, viewer]);
 
   const filters = context?.filters ?? emptyContext(activeTab).filters;
+  const effectiveTab = context?.tab ?? activeTab;
   const isTabLoading = loadingKey === requestKey && context == null;
-  const tabLabels = context?.tab_labels ?? defaultTabLabels;
+  const isRefreshingResults = loadingKey === requestKey && context != null;
+  const isRestrictedView = !canAccessDroidBrainFull(viewer);
+  const tabLabels =
+    context?.tab_labels ?? (isRestrictedView ? restrictedTabLabels : defaultTabLabels);
 
   const updateParams = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(searchParams.toString());
@@ -240,7 +251,7 @@ const DroidBrainPage: React.FC = () => {
     );
   }
 
-  if (!canAccessIntel(viewer)) {
+  if (!canAccessDroidBrain(viewer)) {
     return (
       <div className="site-scale">
         <div className="app app--one">
@@ -277,26 +288,27 @@ const DroidBrainPage: React.FC = () => {
 
           <DroidBrainUploadPanel
             uploading={uploading}
+            uploadStatus={uploadStatus}
             uploadResults={uploadResults}
-            uploadDebug={uploadDebug}
-            loadingDebug={loadingDebug}
-            creatingRewardPayment={creatingRewardPayment}
             isSysadmin={canAccessSysadmin(viewer)}
             onUpload={async (files) => {
               try {
                 setUploading(true);
-                setUploadDebug(null);
+                setUploadStatus(null);
                 setUploadResults([]);
                 const batch = files.slice(0, MAX_DROIDBRAIN_UPLOAD_FILES);
                 const results: DroidBrainUploadResult[] = [];
 
-                for (const file of batch) {
+                for (let index = 0; index < batch.length; index += 1) {
+                  const file = batch[index];
+                  setUploadStatus(`Uploading file ${index + 1} of ${batch.length}: ${file.name}`);
                   const response = await uploadDroidBrainFile(file);
                   results.push(response.data);
                   setUploadResults([...results]);
                 }
 
                 setError(null);
+                setUploadStatus(`Refreshing DroidBrain results after ${batch.length} upload${batch.length === 1 ? "" : "s"}…`);
 
                 if (requestKey) {
                   setLoadingKey(requestKey);
@@ -308,46 +320,17 @@ const DroidBrainPage: React.FC = () => {
                 setError(e?.message ?? "Failed to upload DroidBrain file.");
               } finally {
                 setUploading(false);
+                setUploadStatus(null);
                 setLoadingKey(null);
-              }
-            }}
-            onLoadDebug={async (fileId) => {
-              try {
-                setLoadingDebug(true);
-                const response = await getDroidBrainUploadDebug(fileId);
-                setUploadDebug(response.data);
-                setError(null);
-              } catch (e: any) {
-                setError(e?.message ?? "Failed to load upload debug.");
-              } finally {
-                setLoadingDebug(false);
-              }
-            }}
-            onCreateRewardPayment={async (fileId, payerFactionId) => {
-              try {
-                setCreatingRewardPayment(true);
-                const response = await createDroidBrainRewardPayment(fileId, payerFactionId);
-                setUploadResults((current) =>
-                  current.map((item) =>
-                    item.file_id === fileId ? { ...item, reward_summary: response.data } : item
-                  )
-                );
-                const refreshed = await getDroidBrainUploadDebug(fileId);
-                setUploadDebug(refreshed.data);
-                setError(null);
-              } catch (e: any) {
-                setError(e?.message ?? "Failed to create DroidBrain payment item.");
-              } finally {
-                setCreatingRewardPayment(false);
               }
             }}
           />
 
           <DroidBrainTabs
-            activeTab={activeTab}
+            activeTab={effectiveTab}
             tabLabels={tabLabels}
             onSelect={(tab) => {
-              if (tab === activeTab) {
+              if (tab === effectiveTab) {
                 return;
               }
 
@@ -356,9 +339,10 @@ const DroidBrainPage: React.FC = () => {
           />
 
           <DroidBrainFiltersPanel
-            activeTab={activeTab}
+            activeTab={effectiveTab}
             filters={filters}
-            options={context?.options ?? emptyContext(activeTab).options}
+            isRestrictedView={isRestrictedView}
+            options={context?.options ?? emptyContext(effectiveTab).options}
             onChange={(patch) => updateParams(patch)}
           />
 
@@ -374,13 +358,26 @@ const DroidBrainPage: React.FC = () => {
             </div>
           )}
 
-          {context && activeTab === "summary" && (
+          {isRefreshingResults && (
+            <div className="panel admin-panel">
+              <div className="admin-panel__body">
+                <SpinnerLoadingCard
+                  compact
+                  title="Refreshing DroidBrain Results"
+                  tip="Updating the current tab with the latest imported records, filters, and page data."
+                />
+              </div>
+            </div>
+          )}
+
+          {context && effectiveTab === "summary" && (
             <DroidBrainSummaryPanel summary={context.summary} tabLabels={tabLabels} />
           )}
 
-          {context && activeTab !== "summary" && (
+          {context && effectiveTab !== "summary" && (
             <DroidBrainResultsPanel
               context={context}
+              isRestrictedView={isRestrictedView}
               onPageChange={(page) => updateParams({ page: String(page) })}
               onPageSizeChange={(pageSize) =>
                 updateParams({ per_page: String(pageSize), page: null })

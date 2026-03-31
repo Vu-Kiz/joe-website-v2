@@ -14,18 +14,21 @@ use Illuminate\Support\Facades\DB;
 
 class DroidBrainBrowserService
 {
+    protected array $fullTabs = ['ships', 'stations', 'planets', 'cities', 'vehicles', 'npcs', 'summary'];
+    protected array $restrictedTabs = ['ships', 'stations', 'vehicles'];
     protected int $perPageDefault = 50;
     protected int $perPageMax = 100;
 
-    public function buildContext(array $query): array
+    public function buildContext(array $query, bool $restricted = false): array
     {
-        $tab = $this->normalizeTab((string) ($query['tab'] ?? 'ships'));
+        $tab = $this->normalizeTab((string) ($query['tab'] ?? 'ships'), $restricted);
         $page = max(1, (int) ($query['page'] ?? 1));
         $perPage = min($this->perPageMax, max(1, (int) ($query['per_page'] ?? $this->perPageDefault)));
 
         $filters = [
-            'q' => trim((string) ($query['q'] ?? '')),
+            'q' => $restricted ? '' : trim((string) ($query['q'] ?? '')),
             'uid' => trim((string) ($query['uid'] ?? '')),
+            'uploader' => '',
             'type' => trim((string) ($query['type'] ?? '')),
             'class' => trim((string) ($query['class'] ?? '')),
             'system' => trim((string) ($query['system'] ?? '')),
@@ -33,16 +36,25 @@ class DroidBrainBrowserService
             'owner' => trim((string) ($query['owner'] ?? '')),
         ];
 
+        if ($restricted) {
+            $filters['type'] = '';
+            $filters['class'] = '';
+            $filters['system'] = '';
+            $filters['planet'] = '';
+            $filters['owner'] = '';
+        }
+
         $didSearch = $tab === 'summary'
             ? ($filters['owner'] !== '')
             : collect($filters)->contains(fn ($value) => $value !== '');
 
         $options = [
+            'uploader_options' => [],
             'type_options' => $this->getTypeOptions($tab),
             'class_options' => $this->getClassOptions($tab),
             'system_options' => $this->getSystemOptions($tab),
             'planet_options' => $this->getPlanetOptions($tab),
-            'owner_options' => $this->getOwnerOptions(),
+            'owner_options' => $restricted ? [] : $this->getOwnerOptions(),
         ];
 
         $result = $tab === 'summary'
@@ -54,7 +66,7 @@ class DroidBrainBrowserService
 
         return [
             'tab' => $tab,
-            'tab_labels' => $this->tabLabels(),
+            'tab_labels' => $this->tabLabels($restricted),
             'filters' => $filters,
             'options' => $options,
             'did_search' => $didSearch,
@@ -67,9 +79,9 @@ class DroidBrainBrowserService
         ];
     }
 
-    public function buildHistory(string $tab, string $entityUid, int $limit = 10): array
+    public function buildHistory(string $tab, string $entityUid, int $limit = 10, bool $restricted = false): array
     {
-        $tab = $this->normalizeTab($tab);
+        $tab = $this->normalizeTab($tab, $restricted);
         $entityUid = trim($entityUid);
         $limit = min(25, max(1, $limit));
 
@@ -142,9 +154,9 @@ class DroidBrainBrowserService
         return $selects;
     }
 
-    protected function tabLabels(): array
+    protected function tabLabels(bool $restricted = false): array
     {
-        return [
+        $labels = [
             'ships' => 'Ships',
             'stations' => 'Stations',
             'planets' => 'Planets',
@@ -153,11 +165,17 @@ class DroidBrainBrowserService
             'npcs' => 'NPCs',
             'summary' => 'Summary',
         ];
+
+        if (!$restricted) {
+            return $labels;
+        }
+
+        return array_intersect_key($labels, array_flip($this->restrictedTabs));
     }
 
-    protected function normalizeTab(string $tab): string
+    protected function normalizeTab(string $tab, bool $restricted = false): string
     {
-        $allowed = array_keys($this->tabLabels());
+        $allowed = array_keys($this->tabLabels($restricted));
         return in_array($tab, $allowed, true) ? $tab : 'ships';
     }
 

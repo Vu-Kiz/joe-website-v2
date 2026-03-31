@@ -14,7 +14,7 @@ import {
 } from "../api/jobs";
 import { getPayments } from "../api/payments";
 import { getMyPayableFactions, type PayableFaction } from "../api/factions";
-import { canAccessIntel, canAccessMembers, canAccessPayments } from "../auth/permissions";
+import { canAccessDroidBrain, canAccessIntel, canAccessMembers, canAccessPayments } from "../auth/permissions";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import OpenJobsPanel from "../components/members/jobs/OpenJobsPanel";
@@ -321,7 +321,7 @@ const MembersPage: React.FC = () => {
             } satisfies MembersToolCard,
           ]
         : []),
-      ...(canAccessIntel(user)
+      ...(canAccessDroidBrain(user)
         ? [
             {
               key: "droidbrain",

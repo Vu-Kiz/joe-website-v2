@@ -34,6 +34,7 @@ const detailPairs = (row: DroidBrainResultRow): Array<[string, string]> =>
     row.class_name ? ["Class", String(row.class_name)] : null,
     row.owner_name ? ["Owner", String(row.owner_name)] : null,
     row.government ? ["Government", String(row.government)] : null,
+    row.uploader_handle ? ["Uploader", String(row.uploader_handle)] : null,
   ].filter(Boolean) as Array<[string, string]>;
 
 const locationPairs = (row: DroidBrainResultRow): Array<[string, string]> =>
@@ -47,12 +48,14 @@ const locationPairs = (row: DroidBrainResultRow): Array<[string, string]> =>
 
 type Props = {
   context: DroidBrainContext;
+  isRestrictedView: boolean;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
 };
 
 const DroidBrainResultsPanel: React.FC<Props> = ({
   context,
+  isRestrictedView,
   onPageChange,
   onPageSizeChange,
 }) => {
@@ -98,7 +101,9 @@ const DroidBrainResultsPanel: React.FC<Props> = ({
         <p className="small">
           {context.did_search
             ? `${context.total_rows} result(s) found.`
-            : "Add a filter to start searching DroidBrain."}
+            : isRestrictedView
+              ? "Search by Exact ID to view imported DroidBrain records in the member view."
+              : "Add a filter to start searching DroidBrain."}
         </p>
       </div>
 

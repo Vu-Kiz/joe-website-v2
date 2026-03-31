@@ -12,6 +12,7 @@ export type DroidBrainTab =
 export type DroidBrainFilters = {
   q: string;
   uid: string;
+  uploader: string;
   type: string;
   class: string;
   system: string;
@@ -42,6 +43,7 @@ export type DroidBrainResultRow = Record<string, unknown> & {
   file_name?: string | null;
   file_change_status?: string | null;
   file_created_at?: string | null;
+  uploader_handle?: string | null;
 };
 
 export type DroidBrainContext = {
@@ -49,6 +51,7 @@ export type DroidBrainContext = {
   tab_labels: Record<DroidBrainTab, string>;
   filters: DroidBrainFilters;
   options: {
+    uploader_options: string[];
     type_options: string[];
     class_options: string[];
     system_options: string[];

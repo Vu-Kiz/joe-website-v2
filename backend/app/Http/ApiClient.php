@@ -18,7 +18,7 @@ class ApiClient
     {
         $ua = (string) Config::get(
             'swc.user_agent',
-            'JOE v2 Backend (swc-joe.com contact: admin@swc-joe.com)'
+            'JOE v2 Backend (joe-swc.com contact: admin@joe-swc.com)'
         );
 
         return Http::withHeaders([

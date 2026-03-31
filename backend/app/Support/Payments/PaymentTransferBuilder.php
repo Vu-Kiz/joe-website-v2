@@ -83,14 +83,6 @@ class PaymentTransferBuilder
 
     protected function generateReference(Collection $groupItems): string
     {
-        $isManualTemplateTransfer = $groupItems->every(
-            fn (PaymentItem $item) => (string) $item->source_type === 'manual_template'
-        );
-
-        if ($isManualTemplateTransfer) {
-            return 'JOE-XFER-' . random_int(10000000, 99999999);
-        }
-
         return 'JOE-XFER-' . now()->format('YmdHis') . '-' . random_int(1000, 9999);
     }
 }

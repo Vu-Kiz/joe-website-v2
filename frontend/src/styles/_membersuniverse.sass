@@ -961,14 +961,14 @@
 .members-universe-map__legend-body
   display: grid
   gap: 0.45rem
-  max-height: min(72vh, calc(100% - 2.4rem))
+  width: min(240px, calc(100% - 1.7rem))
+  min-width: 180px
   padding: 0.7rem 0.8rem
   border-radius: 12px
   border: 1px solid rgba(246,163,0,0.24)
   background: rgba(12,16,20,0.94)
   box-shadow: 0 12px 28px rgba(0,0,0,0.3)
   backdrop-filter: blur(2px)
-  overflow-y: auto
 
 .members-universe-map__legend-actions
   display: flex
@@ -1003,6 +1003,15 @@
     border-color: rgba(246,163,0,0.72)
     background: rgba(246,163,0,0.16)
     box-shadow: inset 0 0 0 1px rgba(246,163,0,0.18)
+
+.members-universe-map__legend-item--static
+  cursor: default
+
+  &:hover,
+  &:focus-visible
+    border-color: rgba(246,163,0,0.72)
+    background: rgba(246,163,0,0.16)
+    transform: none
 
 .members-universe-map__legend-icon
   display: block

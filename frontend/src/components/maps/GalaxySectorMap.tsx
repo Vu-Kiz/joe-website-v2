@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import systemIconUrl from "../../assets/map/SystemIcon.png";
 import asteroidFieldIconUrl from "../../assets/map/AsteroidFieldIcon.png";
 import asteroidFieldIconUnknownUrl from "../../assets/map/AsteroidFieldIconUnknown.png";
@@ -897,6 +897,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
   controlsOverlay,
 }) => {
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const legendBodyRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const noteTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const selectionBodyRef = useRef<HTMLDivElement | null>(null);
@@ -948,6 +949,8 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
   const [showSelectionFade, setShowSelectionFade] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
   const [legendFilters, setLegendFilters] = useState<LegendFilters>(DEFAULT_LEGEND_FILTERS);
+  const [legendMaxHeight, setLegendMaxHeight] = useState<number | null>(null);
+  const [legendShouldScroll, setLegendShouldScroll] = useState(false);
   const [controlsOpen, setControlsOpen] = useState(false);
   const offset = useMemo<Offset>(
     () => ({
@@ -1159,8 +1162,56 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
     () => legendSections.flatMap((section) => section.items.map((item) => item.key)),
     [legendSections]
   );
+  const hasSingleLegendItem = availableLegendKeys.length === 1;
+  const showLegendSectionLabels = availableLegendKeys.length > 0;
   const showLegendBulkToggle = availableLegendKeys.length > 1;
   const hasAnyLegendFilterEnabled = availableLegendKeys.some((key) => legendFilters[key]);
+
+  useLayoutEffect(() => {
+    if (!legendOpen) {
+      setLegendMaxHeight(null);
+      setLegendShouldScroll(false);
+      return;
+    }
+
+    const viewport = viewportRef.current;
+    const legendBody = legendBodyRef.current;
+
+    if (!viewport || !legendBody) {
+      return;
+    }
+
+    const measureLegend = () => {
+      const viewportRect = viewport.getBoundingClientRect();
+      const legendRect = legendBody.getBoundingClientRect();
+      const bottomPadding = 12;
+      const availableHeight = Math.max(
+        0,
+        Math.floor(viewportRect.bottom - legendRect.top - bottomPadding)
+      );
+
+      setLegendMaxHeight(availableHeight > 0 ? availableHeight : null);
+      setLegendShouldScroll(availableHeight > 0 && legendBody.scrollHeight > availableHeight);
+    };
+
+    measureLegend();
+
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => {
+            measureLegend();
+          })
+        : null;
+
+    resizeObserver?.observe(viewport);
+    resizeObserver?.observe(legendBody);
+    window.addEventListener("resize", measureLegend);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", measureLegend);
+    };
+  }, [legendOpen, legendSections, showLegendBulkToggle]);
 
   const visibleSystemMarkers = useMemo(
     () => (legendFilters.system ? systemMarkers : []),
@@ -2259,7 +2310,12 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
           </button>
           {legendOpen ? (
             <div
+              ref={legendBodyRef}
               className="members-universe-map__legend-body"
+              style={{
+                maxHeight: legendMaxHeight ? `${legendMaxHeight}px` : undefined,
+                overflowY: legendShouldScroll ? "auto" : "visible",
+              }}
               onMouseDown={(event) => event.stopPropagation()}
               onClick={(event) => event.stopPropagation()}
               onWheelCapture={(event) => event.stopPropagation()}
@@ -2289,18 +2345,30 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
               ) : null}
               {legendSections.map((section) => (
                 <React.Fragment key={section.label}>
-                  <div className="members-universe-map__legend-section-label small">{section.label}</div>
+                  {showLegendSectionLabels ? (
+                    <div className="members-universe-map__legend-section-label small">{section.label}</div>
+                  ) : null}
                   {section.items.map((item) => (
-                    <button
-                      key={item.key}
-                      type="button"
-                      className={`members-universe-map__legend-item${legendFilters[item.key] ? " is-active" : ""}`}
-                      aria-pressed={legendFilters[item.key]}
-                      onClick={() => setLegendFilters((current) => ({ ...current, [item.key]: !current[item.key] }))}
-                    >
-                      <img src={item.icon} alt="" className="members-universe-map__legend-icon" />
-                      <span className="small">{item.label}</span>
-                    </button>
+                    hasSingleLegendItem ? (
+                      <div
+                        key={item.key}
+                        className="members-universe-map__legend-item members-universe-map__legend-item--static is-active"
+                      >
+                        <img src={item.icon} alt="" className="members-universe-map__legend-icon" />
+                        <span className="small">{item.label}</span>
+                      </div>
+                    ) : (
+                      <button
+                        key={item.key}
+                        type="button"
+                        className={`members-universe-map__legend-item${legendFilters[item.key] ? " is-active" : ""}`}
+                        aria-pressed={legendFilters[item.key]}
+                        onClick={() => setLegendFilters((current) => ({ ...current, [item.key]: !current[item.key] }))}
+                      >
+                        <img src={item.icon} alt="" className="members-universe-map__legend-icon" />
+                        <span className="small">{item.label}</span>
+                      </button>
+                    )
                   ))}
                 </React.Fragment>
               ))}

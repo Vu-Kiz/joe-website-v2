@@ -4,7 +4,9 @@ import type { DroidBrainFilters, DroidBrainTab } from "../../api/droidbrain";
 type Props = {
   activeTab: DroidBrainTab;
   filters: DroidBrainFilters;
+  isRestrictedView: boolean;
   options: {
+    uploader_options: string[];
     type_options: string[];
     class_options: string[];
     system_options: string[];
@@ -14,16 +16,23 @@ type Props = {
   onChange: (patch: Record<string, string | null>) => void;
 };
 
-const DroidBrainFiltersPanel: React.FC<Props> = ({ activeTab, filters, options, onChange }) => (
+const DroidBrainFiltersPanel: React.FC<Props> = ({ activeTab, filters, isRestrictedView, options, onChange }) => (
   <DroidBrainFiltersPanelInner
     activeTab={activeTab}
     filters={filters}
+    isRestrictedView={isRestrictedView}
     options={options}
     onChange={onChange}
   />
 );
 
-const DroidBrainFiltersPanelInner: React.FC<Props> = ({ activeTab, filters, options, onChange }) => {
+const DroidBrainFiltersPanelInner: React.FC<Props> = ({
+  activeTab,
+  filters,
+  isRestrictedView,
+  options,
+  onChange,
+}) => {
   const [typeQuery, setTypeQuery] = useState(filters.type);
   const [showTypeMatches, setShowTypeMatches] = useState(false);
   const [systemQuery, setSystemQuery] = useState(filters.system);
@@ -59,7 +68,6 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({ activeTab, filters, opti
   const showClassFilter = ["ships", "vehicles", "npcs"].includes(activeTab);
   const showSystemFilter = ["ships", "stations", "planets"].includes(activeTab);
   const showPlanetFilter = ["ships", "stations", "cities", "vehicles", "npcs"].includes(activeTab);
-
   const filteredSystemOptions = useMemo(() => {
     const query = systemQuery.trim().toLowerCase();
     if (!query) {
@@ -120,15 +128,17 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({ activeTab, filters, opti
       <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
         {activeTab !== "summary" && (
           <>
-            <label className="small">
-              Search
-              <input
-                className="input"
-                value={filters.q}
-                onChange={(e) => onChange({ q: e.target.value, page: null })}
-                placeholder="Name, free text, or UID"
-              />
-            </label>
+            {!isRestrictedView ? (
+              <label className="small">
+                Search
+                <input
+                  className="input"
+                  value={filters.q}
+                  onChange={(e) => onChange({ q: e.target.value, page: null })}
+                  placeholder="Name, free text, or UID"
+                />
+              </label>
+            ) : null}
 
             <label className="small">
               Exact ID
@@ -139,10 +149,11 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({ activeTab, filters, opti
                 placeholder="123456"
               />
             </label>
+
           </>
         )}
 
-        {showTypeFilter ? (
+        {!isRestrictedView && showTypeFilter ? (
           <div className="small">
             <label className="small" htmlFor="droidbrain-type-filter">
               {activeTab === "npcs" ? "Race / Type" : "Type"}
@@ -199,7 +210,7 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({ activeTab, filters, opti
           </div>
         ) : null}
 
-        {showClassFilter ? (
+        {!isRestrictedView && showClassFilter ? (
           <div className="small">
             <label className="small" htmlFor="droidbrain-class-filter">
               Class
@@ -256,7 +267,7 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({ activeTab, filters, opti
           </div>
         ) : null}
 
-        {showSystemFilter ? (
+        {!isRestrictedView && showSystemFilter ? (
           <div className="small">
             <label className="small" htmlFor="droidbrain-system-filter">
               System
@@ -313,7 +324,7 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({ activeTab, filters, opti
           </div>
         ) : null}
 
-        {showPlanetFilter ? (
+        {!isRestrictedView && showPlanetFilter ? (
           <div className="small">
             <label className="small" htmlFor="droidbrain-planet-filter">
               Planet
@@ -370,6 +381,7 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({ activeTab, filters, opti
           </div>
         ) : null}
 
+        {!isRestrictedView ? (
         <div className="small">
           <label className="small" htmlFor="droidbrain-owner-filter">
             Owner
@@ -424,6 +436,7 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({ activeTab, filters, opti
             ) : null}
           </div>
         </div>
+        ) : null}
       </div>
     </div>
   );

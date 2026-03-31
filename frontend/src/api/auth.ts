@@ -70,7 +70,7 @@ function requireEnv(name: string): string {
 
 /**
  * API base for JSON calls (should include /api)
- * Example: https://dev-v2-api.swc-joe.com/api
+ * Example: https://api.joe-swc.com/api
  */
 export function getApiBaseUrl(): string {
   return requireEnv("VITE_API_BASE_URL").replace(/\/+$/, "");
@@ -78,7 +78,7 @@ export function getApiBaseUrl(): string {
 
 /**
  * Backend ORIGIN for browser redirects (must NOT include /api)
- * Example: https://dev-v2-api.swc-joe.com
+ * Example: https://api.joe-swc.com
  */
 export function getBackendOrigin(): string {
   const api = getApiBaseUrl();

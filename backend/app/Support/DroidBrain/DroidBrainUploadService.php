@@ -22,7 +22,11 @@ class DroidBrainUploadService
 
         $fileHash = hash('sha256', $rawXml);
         $existing = DB::table('droidbrain_files')->where('file_hash', $fileHash)->first();
-        if ($existing && $this->fileHasImportedData((int) $existing->id)) {
+        if (
+            $existing
+            && $this->fileHasImportedData((int) $existing->id)
+            && !$this->shouldReimportLegacyBrokenDuplicate($existing, $rawXml)
+        ) {
             $existingCounts = $this->getFileEntityCounts((int) $existing->id);
 
             return [
@@ -148,6 +152,24 @@ class DroidBrainUploadService
     protected function fileHasImportedData(int $fileId): bool
     {
         return array_sum($this->getFileEntityCounts($fileId)) > 0;
+    }
+
+    protected function shouldReimportLegacyBrokenDuplicate(object $existing, string $rawXml): bool
+    {
+        $payloadType = trim((string) ($existing->payload_type ?? ''));
+        if ($payloadType !== 'system_scans') {
+            return false;
+        }
+
+        $itemCount = substr_count($rawXml, '<item>');
+        if ($itemCount <= 1) {
+            return false;
+        }
+
+        $counts = $this->getFileEntityCounts((int) $existing->id);
+        $promotedEntities = (int) ($counts['ships'] ?? 0) + (int) ($counts['stations'] ?? 0);
+
+        return $promotedEntities <= 1;
     }
 
     protected function getFileEntityCounts(int $fileId): array
@@ -283,13 +305,13 @@ class DroidBrainUploadService
                 'cities' => [],
                 'vehicles' => [],
                 'npcs' => [],
-                'system_scans' => iterator_to_array($xml->channel->item),
+                'system_scans' => iterator_to_array($xml->channel->item, false),
             ];
         }
 
         if (strcasecmp($xml->getName(), 'INVENTORYLIST') === 0 && isset($xml->ENTITY)) {
             $entityType = strtoupper(trim((string) ($xml->ENTITY[0]->ENTITYTYPE_NAME ?? '')));
-            $entities = iterator_to_array($xml->ENTITY);
+            $entities = iterator_to_array($xml->ENTITY, false);
 
             return [
                 'ships' => $entityType === 'SHIPS' ? $entities : [],
@@ -523,6 +545,10 @@ class DroidBrainUploadService
         $typeUid = trim((string) ($node->typeUID ?? '')) ?: null;
         $typeName = trim((string) ($node->typeName ?? '')) ?: null;
         $entityUid = trim((string) ($node->entityUID ?? '')) ?: null;
+        $entityId = $this->toIntOrNull($node->entityID ?? null);
+        if ($entityUid === null && $entityId !== null) {
+            $entityUid = (string) $entityId;
+        }
         $ownerName = trim((string) ($node->ownerName ?? '')) ?: '';
         $name = trim((string) ($node->name ?? '')) ?: '';
         $catalog = match ($entityType) {
@@ -546,7 +572,7 @@ class DroidBrainUploadService
                 'file_id' => $fileId,
                 'snapshot_unixtime' => $snapshotUnix,
                 'entity_uid' => $entityUid,
-                'entity_id' => $this->toIntOrNull($node->entityID ?? null) ?? $this->extractEntityId($entityUid),
+                'entity_id' => $entityId ?? $this->extractEntityId($entityUid),
                 'name' => $name ?: null,
                 'owner_name' => $ownerName ?: null,
                 'owner_uid' => trim((string) ($node->ownerUID ?? '')) ?: null,
@@ -580,7 +606,7 @@ class DroidBrainUploadService
                 'file_id' => $fileId,
                 'snapshot_unixtime' => $snapshotUnix,
                 'entity_uid' => $entityUid,
-                'entity_id' => $this->toIntOrNull($node->entityID ?? null) ?? $this->extractEntityId($entityUid),
+                'entity_id' => $entityId ?? $this->extractEntityId($entityUid),
                 'name' => $name ?: null,
                 'owner_name' => $ownerName ?: null,
                 'owner_uid' => trim((string) ($node->ownerUID ?? '')) ?: null,
@@ -765,6 +791,10 @@ class DroidBrainUploadService
     protected function parseCommonEntity(\SimpleXMLElement $node, int $fileId, ?int $snapshotUnix): ?array
     {
         $entityUid = $this->firstStringValue($node, ['uid', 'UID']);
+        $entityId = $this->firstIntValue($node, ['entityID', 'ENTITYID']);
+        if ($entityUid === null && $entityId !== null) {
+            $entityUid = (string) $entityId;
+        }
         $name = $this->firstStringValue($node, ['name', 'NAME']);
 
         if ($entityUid === null && $name === null) {
@@ -784,7 +814,7 @@ class DroidBrainUploadService
             'file_id' => $fileId,
             'snapshot_unixtime' => $snapshotUnix ?? time(),
             'entity_uid' => $entityUid,
-            'entity_id' => $this->extractEntityId($entityUid),
+            'entity_id' => $entityId ?? $this->extractEntityId($entityUid),
             'name' => $name,
             'infotext' => $this->firstStringValue($node, ['infotext', 'INFOTEXT', 'description', 'desc']),
             'owner_name' => $owner['name'] ?? $this->firstStringValue($node, ['OWNER_NAME', 'GOVERNMENT']),

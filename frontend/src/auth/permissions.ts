@@ -26,6 +26,16 @@ export function canAccessIntel(user: SwcUser | null | undefined): boolean {
   return !!(user.is_intel || user.is_sysadmin);
 }
 
+export function canAccessDroidBrain(user: SwcUser | null | undefined): boolean {
+  if (!user) return false;
+  return !!(user.is_joe_member || user.is_intel || user.is_sysadmin);
+}
+
+export function canAccessDroidBrainFull(user: SwcUser | null | undefined): boolean {
+  if (!user) return false;
+  return !!(user.is_intel || user.is_sysadmin);
+}
+
 export function canViewAsteroidIntel(user: SwcUser | null | undefined): boolean {
   if (!user) return false;
   return !!(user.can_view_asteroid_intel || user.is_admin || user.is_sysadmin);

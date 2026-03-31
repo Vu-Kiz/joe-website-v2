@@ -21,5 +21,8 @@ Jawa Offworld Enterprises website and member tools.
 
 - `v2.0.1` is the next planned patch release
 - changes are being prepared on `dev`
-- current `dev` updates include Astrogation legend toggles and legend usability improvements
+- current `dev` updates include small auth/access and UI cleanup around members tools
+- current `dev` updates include payment transfer builder cleanup
+- current `dev` updates include DroidBrain fixes and polish
+- current `dev` updates include Astrogation map legend usability improvements
 - release notes should be added here once `v2.0.1` work is finalized

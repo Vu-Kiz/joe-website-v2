@@ -28,9 +28,11 @@ class DroidBrainController extends Controller
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
+        $fullAccess = (bool) ($user->is_intel || $user->is_sysadmin);
+
         return response()->json([
             'ok' => true,
-            'data' => $this->browserService->buildContext($request->query()),
+            'data' => $this->browserService->buildContext($request->query(), !$fullAccess),
         ]);
     }
 
@@ -41,6 +43,8 @@ class DroidBrainController extends Controller
         if (!$user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
+
+        $fullAccess = (bool) ($user->is_intel || $user->is_sysadmin);
 
         $validated = $request->validate([
             'tab' => ['required', 'string'],
@@ -53,7 +57,8 @@ class DroidBrainController extends Controller
             'data' => $this->browserService->buildHistory(
                 (string) $validated['tab'],
                 (string) $validated['uid'],
-                (int) ($validated['limit'] ?? 10)
+                (int) ($validated['limit'] ?? 10),
+                !$fullAccess
             ),
         ]);
     }

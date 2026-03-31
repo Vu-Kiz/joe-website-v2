@@ -29,7 +29,7 @@ class SwcAuthController extends Controller
     public function redirect(Request $request): RedirectResponse
     {
         if (!Auth::check()) {
-            $frontend = (string) Config::get('swc.frontend_url', 'https://dev-v2.swc-joe.com');
+            $frontend = (string) Config::get('swc.frontend_url', 'https://www.joe-swc.com');
             return redirect()->away($frontend . '/aboutme?oauth_error=' . urlencode('Sign in with Discord before linking SWC.'));
         }
 
@@ -47,7 +47,7 @@ class SwcAuthController extends Controller
     public function creditLogRedirect(Request $request): RedirectResponse
     {
         if (!Auth::check()) {
-            $frontend = (string) Config::get('swc.frontend_url', 'https://dev-v2.swc-joe.com');
+            $frontend = (string) Config::get('swc.frontend_url', 'https://www.joe-swc.com');
             return redirect()->away($frontend . '/payments');
         }
 
@@ -67,7 +67,7 @@ class SwcAuthController extends Controller
 
     public function memberToolsRedirect(Request $request): RedirectResponse
     {
-        $frontend = (string) Config::get('swc.frontend_url', 'https://dev-v2.swc-joe.com');
+        $frontend = (string) Config::get('swc.frontend_url', 'https://www.joe-swc.com');
         $returnTo = $this->sanitizeFrontendReturnPath(
             (string) $request->query('return_to', '/aboutme'),
             '/aboutme'
@@ -92,7 +92,7 @@ class SwcAuthController extends Controller
 
     public function eventsRedirect(Request $request): RedirectResponse
     {
-        $frontend = (string) Config::get('swc.frontend_url', 'https://dev-v2.swc-joe.com');
+        $frontend = (string) Config::get('swc.frontend_url', 'https://www.joe-swc.com');
         $returnTo = $this->sanitizeFrontendReturnPath(
             (string) $request->query('return_to', '/sys/debug'),
             '/sys/debug'
@@ -122,7 +122,7 @@ class SwcAuthController extends Controller
     public function debugRedirect(Request $request): RedirectResponse
     {
         if (!Auth::check()) {
-            $frontend = (string) Config::get('swc.frontend_url', 'https://dev-v2.swc-joe.com');
+            $frontend = (string) Config::get('swc.frontend_url', 'https://www.joe-swc.com');
             return redirect()->away($frontend . '/sys/debug');
         }
 
@@ -155,7 +155,7 @@ class SwcAuthController extends Controller
             '/sys/debug'
         );
 
-        $frontend = (string) Config::get('swc.frontend_url', 'https://dev-v2.swc-joe.com');
+        $frontend = (string) Config::get('swc.frontend_url', 'https://www.joe-swc.com');
 
         try {
             if ($memberToolsState !== '' && hash_equals($memberToolsState, $state)) {
