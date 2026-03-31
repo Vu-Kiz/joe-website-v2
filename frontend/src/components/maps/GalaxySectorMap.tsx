@@ -159,6 +159,41 @@ type IntelFlagMarker = {
   hasStations: boolean;
 };
 
+type LegendFilterKey =
+  | "system"
+  | "asteroid_unknown"
+  | "asteroid_none"
+  | "asteroid_1x1"
+  | "asteroid_1x1_double"
+  | "asteroid_2x2"
+  | "asteroid_1x1_2x2"
+  | "ships"
+  | "stations"
+  | "scanned"
+  | "rescan";
+
+type LegendFilters = Record<LegendFilterKey, boolean>;
+
+const DEFAULT_LEGEND_FILTERS: LegendFilters = {
+  system: true,
+  asteroid_unknown: true,
+  asteroid_none: true,
+  asteroid_1x1: true,
+  asteroid_1x1_double: true,
+  asteroid_2x2: true,
+  asteroid_1x1_2x2: true,
+  ships: true,
+  stations: true,
+  scanned: true,
+  rescan: true,
+};
+
+type LegendEntry = {
+  key: LegendFilterKey;
+  label: string;
+  icon: string;
+};
+
 const CELL_SIZE = 18;
 const VIEW_PADDING = 32;
 const GRID_VISIBILITY_THRESHOLD = 1.25;
@@ -367,6 +402,33 @@ function getAsteroidMarkerIcon(planetoids: PlanetoidEntry[], planetoidsChecked: 
   }
 
   return asteroidFieldIconUrl;
+}
+
+function getAsteroidLegendKey(
+  planetoids: PlanetoidEntry[],
+  planetoidsChecked: boolean | null | undefined
+): LegendFilterKey {
+  if (planetoids.length === 1) {
+    return planetoids[0].size === "2x2" ? "asteroid_2x2" : "asteroid_1x1";
+  }
+
+  if (planetoids.length >= 2) {
+    const sizes = planetoids.map((entry) => entry.size).sort();
+
+    if (sizes[0] === "1x1" && sizes[1] === "1x1") {
+      return "asteroid_1x1_double";
+    }
+
+    if (sizes[0] === "1x1" && sizes[1] === "2x2") {
+      return "asteroid_1x1_2x2";
+    }
+  }
+
+  if (planetoidsChecked == null) {
+    return "asteroid_unknown";
+  }
+
+  return "asteroid_none";
 }
 
 function getSearchRecordSquareName(record: SectorSearchRecord | null | undefined) {
@@ -885,6 +947,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
   const [cgtState, setCgtState] = useState<CgtResponse | null>(null);
   const [showSelectionFade, setShowSelectionFade] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
+  const [legendFilters, setLegendFilters] = useState<LegendFilters>(DEFAULT_LEGEND_FILTERS);
   const [controlsOpen, setControlsOpen] = useState(false);
   const offset = useMemo<Offset>(
     () => ({
@@ -1048,6 +1111,62 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
     [activeSectorUid, outlinedSectors]
   );
 
+  const legendSections = useMemo(() => {
+    const sections: Array<{ label: string; items: LegendEntry[] }> = [
+      {
+        label: "Map Markers",
+        items: [{ key: "system", label: "System", icon: systemIconUrl }],
+      },
+    ];
+
+    if (canViewCellIntel) {
+      sections.push(
+        {
+          label: "Asteroid Types",
+          items: [
+            { key: "asteroid_unknown", label: "Asteroid Field, Unsearched", icon: asteroidFieldIconUnknownUrl },
+            { key: "asteroid_none", label: "Asteroid Field, No Planetoids", icon: asteroidFieldIconUrl },
+            { key: "asteroid_1x1", label: "Asteroid Field, 1x1 Planetoid", icon: asteroidFieldIcon1x1Url },
+            { key: "asteroid_1x1_double", label: "Asteroid Field, 2 1x1 Planetoids", icon: asteroidFieldIcon1x1DoubleUrl },
+            { key: "asteroid_2x2", label: "Asteroid Field, 2x2 Planetoid", icon: asteroidFieldIcon2x2Url },
+            { key: "asteroid_1x1_2x2", label: "Asteroid Field, 1x1 And 2x2 Planetoids", icon: asteroidFieldIcon1x1And2x2Url },
+          ],
+        },
+        {
+          label: "Intel Flags",
+          items: [
+            { key: "ships", label: "Ships Present", icon: shipsDuelconUrl },
+            { key: "stations", label: "Stations Present", icon: stationsDuelconUrl },
+            { key: "scanned", label: "Recently Scanned (<1 yr)", icon: scannedDuelconUrl },
+            { key: "rescan", label: "Rescan Due (>1 yr)", icon: rescanDueIconUrl },
+          ],
+        }
+      );
+    } else if (canViewScanWindow) {
+      sections.push({
+        label: "Scan Flags",
+        items: [
+          { key: "scanned", label: "Recently Scanned (<1 yr)", icon: scannedDuelconUrl },
+          { key: "rescan", label: "Rescan Due (>1 yr)", icon: rescanDueIconUrl },
+        ],
+      });
+    }
+
+    return sections;
+  }, [canViewCellIntel, canViewScanWindow]);
+
+  const availableLegendKeys = useMemo(
+    () => legendSections.flatMap((section) => section.items.map((item) => item.key)),
+    [legendSections]
+  );
+  const showLegendBulkToggle = availableLegendKeys.length > 1;
+  const hasAnyLegendFilterEnabled = availableLegendKeys.some((key) => legendFilters[key]);
+
+  const visibleSystemMarkers = useMemo(
+    () => (legendFilters.system ? systemMarkers : []),
+    [legendFilters.system, systemMarkers]
+  );
+
   const sectorNameByUid = useMemo(
     () => new Map(outlinedSectors.map((sector) => [sector.uid, sector.name ?? null])),
     [outlinedSectors]
@@ -1158,8 +1277,16 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
     const markerSize = Math.max(5, CELL_SIZE * zoom * 0.72);
 
     return searchRecords
-      .filter((record) => record.has_asteroids)
+      .filter((record) => {
+        if (!record.has_asteroids) {
+          return false;
+        }
+
+        const planetoids = getPlanetoidEntries(record);
+        return legendFilters[getAsteroidLegendKey(planetoids, record.planetoids_checked)];
+      })
       .map((record) => {
+        const planetoids = getPlanetoidEntries(record);
         const center = worldCellCenter(
           Number(record.galx),
           Number(record.galy),
@@ -1175,7 +1302,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
           top,
           size: markerSize,
           record,
-          planetoids: getPlanetoidEntries(record),
+          planetoids,
         };
       })
       .filter(
@@ -1185,7 +1312,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
           marker.top >= -marker.size &&
           marker.top <= viewportSize.height + marker.size
       );
-  }, [offset, searchRecords, viewportSize.height, viewportSize.width, worldBounds, zoom]);
+  }, [legendFilters, offset, searchRecords, viewportSize.height, viewportSize.width, worldBounds, zoom]);
 
   const intelFlagMarkers = useMemo<IntelFlagMarker[]>(() => {
     if (!worldBounds) {
@@ -1197,7 +1324,9 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
     return searchRecords
       .filter(
         (record) =>
-          !record.has_asteroids && (record.has_ships === true || record.has_stations === true)
+          !record.has_asteroids &&
+          ((record.has_ships === true && legendFilters.ships) ||
+            (record.has_stations === true && legendFilters.stations))
       )
       .map((record) => {
         const center = worldCellCenter(
@@ -1214,10 +1343,11 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
           left,
           top,
           size: markerSize,
-          hasShips: record.has_ships === true,
-          hasStations: record.has_stations === true,
+          hasShips: record.has_ships === true && legendFilters.ships,
+          hasStations: record.has_stations === true && legendFilters.stations,
         };
       })
+      .filter((marker) => marker.hasShips || marker.hasStations)
       .filter(
         (marker) =>
           marker.left >= -marker.size &&
@@ -1225,7 +1355,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
           marker.top >= -marker.size &&
           marker.top <= viewportSize.height + marker.size
       );
-  }, [offset, searchRecords, viewportSize.height, viewportSize.width, worldBounds, zoom]);
+  }, [legendFilters, offset, searchRecords, viewportSize.height, viewportSize.width, worldBounds, zoom]);
 
   const scanBadgeMarkers = useMemo<ScanBadgeMarker[]>(() => {
     if (!worldBounds || zoom < 1.25) {
@@ -1255,12 +1385,18 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
         const left = screenX + badgeInset;
         const top = screenY + badgeInset;
 
+        const kind = daysSince >= 365 ? "rescan" : "scanned";
+
+        if (!legendFilters[kind]) {
+          return null;
+        }
+
         return {
           key: `${record.id}:${record.galx}:${record.galy}`,
           left,
           top,
           size: markerSize,
-          kind: daysSince >= 365 ? "rescan" : "scanned",
+          kind,
         };
       })
       .filter((marker): marker is ScanBadgeMarker => !!marker)
@@ -1271,7 +1407,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
           marker.top >= -marker.size &&
           marker.top <= viewportSize.height + marker.size
       );
-  }, [offset, searchRecords, viewportSize.height, viewportSize.width, worldBounds, zoom]);
+  }, [legendFilters, offset, searchRecords, viewportSize.height, viewportSize.width, worldBounds, zoom]);
 
   const hideSecondaryIcons = zoom >= 0.3 && zoom <= 1.2;
 
@@ -1863,7 +1999,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
       drawCenteredMapMarkers(
         context,
         systemIcon,
-        systemMarkers,
+        visibleSystemMarkers,
         worldBounds,
         offset,
         zoom,
@@ -1963,7 +2099,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
     worldBounds,
     asteroidFieldIcon,
     systemIcon,
-    systemMarkers,
+    visibleSystemMarkers,
     zoom,
   ]);
 
@@ -2126,70 +2262,48 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
               className="members-universe-map__legend-body"
               onMouseDown={(event) => event.stopPropagation()}
               onClick={(event) => event.stopPropagation()}
+              onWheelCapture={(event) => event.stopPropagation()}
             >
-              <div className="members-universe-map__legend-section-label small">Map Markers</div>
-              <div className="members-universe-map__legend-item">
-                <img src={systemIconUrl} alt="" className="members-universe-map__legend-icon" />
-                <span className="small">System</span>
-              </div>
-              {canViewCellIntel ? (
-                <>
-                  <div className="members-universe-map__legend-section-label small">Asteroid Types</div>
-                  <div className="members-universe-map__legend-item">
-                    <img src={asteroidFieldIconUnknownUrl} alt="" className="members-universe-map__legend-icon" />
-                    <span className="small">Asteroid Field, Unsearched</span>
-                  </div>
-                  <div className="members-universe-map__legend-item">
-                    <img src={asteroidFieldIconUrl} alt="" className="members-universe-map__legend-icon" />
-                    <span className="small">Asteroid Field, No Planetoids</span>
-                  </div>
-                  <div className="members-universe-map__legend-item">
-                    <img src={asteroidFieldIcon1x1Url} alt="" className="members-universe-map__legend-icon" />
-                    <span className="small">Asteroid Field, 1x1 Planetoid</span>
-                  </div>
-                  <div className="members-universe-map__legend-item">
-                    <img src={asteroidFieldIcon1x1DoubleUrl} alt="" className="members-universe-map__legend-icon" />
-                    <span className="small">Asteroid Field, 2 1x1 Planetoids</span>
-                  </div>
-                  <div className="members-universe-map__legend-item">
-                    <img src={asteroidFieldIcon2x2Url} alt="" className="members-universe-map__legend-icon" />
-                    <span className="small">Asteroid Field, 2x2 Planetoid</span>
-                  </div>
-                  <div className="members-universe-map__legend-item">
-                    <img src={asteroidFieldIcon1x1And2x2Url} alt="" className="members-universe-map__legend-icon" />
-                    <span className="small">Asteroid Field, 1x1 And 2x2 Planetoids</span>
-                  </div>
-                  <div className="members-universe-map__legend-section-label small">Intel Flags</div>
-                  <div className="members-universe-map__legend-item">
-                    <img src={shipsDuelconUrl} alt="" className="members-universe-map__legend-icon" />
-                    <span className="small">Ships Present</span>
-                  </div>
-                  <div className="members-universe-map__legend-item">
-                    <img src={stationsDuelconUrl} alt="" className="members-universe-map__legend-icon" />
-                    <span className="small">Stations Present</span>
-                  </div>
-                  <div className="members-universe-map__legend-item">
-                    <img src={scannedDuelconUrl} alt="" className="members-universe-map__legend-icon" />
-                    <span className="small">Recently Scanned (&lt;1 yr)</span>
-                  </div>
-                  <div className="members-universe-map__legend-item">
-                    <img src={rescanDueIconUrl} alt="" className="members-universe-map__legend-icon" />
-                    <span className="small">Rescan Due (&gt;1 yr)</span>
-                  </div>
-                </>
-              ) : canViewScanWindow ? (
-                <>
-                  <div className="members-universe-map__legend-section-label small">Scan Flags</div>
-                  <div className="members-universe-map__legend-item">
-                    <img src={scannedDuelconUrl} alt="" className="members-universe-map__legend-icon" />
-                    <span className="small">Recently Scanned (&lt;1 yr)</span>
-                  </div>
-                  <div className="members-universe-map__legend-item">
-                    <img src={rescanDueIconUrl} alt="" className="members-universe-map__legend-icon" />
-                    <span className="small">Rescan Due (&gt;1 yr)</span>
-                  </div>
-                </>
+              {showLegendBulkToggle ? (
+                <div className="members-universe-map__legend-actions">
+                  <button
+                    type="button"
+                    className="btn btn--small members-universe-map__legend-action"
+                    onClick={() =>
+                      setLegendFilters((current) => {
+                        const nextValue = !hasAnyLegendFilterEnabled;
+                        const updates = Object.fromEntries(
+                          availableLegendKeys.map((key) => [key, nextValue])
+                        ) as Partial<LegendFilters>;
+
+                        return {
+                          ...current,
+                          ...updates,
+                        };
+                      })
+                    }
+                  >
+                    {hasAnyLegendFilterEnabled ? "Unselect All" : "Select All"}
+                  </button>
+                </div>
               ) : null}
+              {legendSections.map((section) => (
+                <React.Fragment key={section.label}>
+                  <div className="members-universe-map__legend-section-label small">{section.label}</div>
+                  {section.items.map((item) => (
+                    <button
+                      key={item.key}
+                      type="button"
+                      className={`members-universe-map__legend-item${legendFilters[item.key] ? " is-active" : ""}`}
+                      aria-pressed={legendFilters[item.key]}
+                      onClick={() => setLegendFilters((current) => ({ ...current, [item.key]: !current[item.key] }))}
+                    >
+                      <img src={item.icon} alt="" className="members-universe-map__legend-icon" />
+                      <span className="small">{item.label}</span>
+                    </button>
+                  ))}
+                </React.Fragment>
+              ))}
             </div>
           ) : null}
         </div>

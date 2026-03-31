@@ -961,18 +961,48 @@
 .members-universe-map__legend-body
   display: grid
   gap: 0.45rem
+  max-height: min(72vh, calc(100% - 2.4rem))
   padding: 0.7rem 0.8rem
   border-radius: 12px
   border: 1px solid rgba(246,163,0,0.24)
   background: rgba(12,16,20,0.94)
   box-shadow: 0 12px 28px rgba(0,0,0,0.3)
   backdrop-filter: blur(2px)
+  overflow-y: auto
+
+.members-universe-map__legend-actions
+  display: flex
+  justify-content: flex-end
+
+.members-universe-map__legend-action
+  border: 1px solid rgba(246,163,0,0.24)
+  background: rgba(255,255,255,0.03)
 
 .members-universe-map__legend-item
   display: grid
   grid-template-columns: 22px minmax(0, 1fr)
   align-items: center
   gap: 0.55rem
+  width: 100%
+  padding: 0.45rem 0.55rem
+  border: 1px solid rgba(255,255,255,0.08)
+  border-radius: 10px
+  background: rgba(255,255,255,0.02)
+  color: inherit
+  text-align: left
+  cursor: pointer
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease
+
+  &:hover,
+  &:focus-visible
+    border-color: rgba(246,163,0,0.42)
+    background: rgba(246,163,0,0.08)
+    transform: translateY(-1px)
+
+  &.is-active
+    border-color: rgba(246,163,0,0.72)
+    background: rgba(246,163,0,0.16)
+    box-shadow: inset 0 0 0 1px rgba(246,163,0,0.18)
 
 .members-universe-map__legend-icon
   display: block
