@@ -140,6 +140,30 @@ class DebugController extends Controller
         ];
     }
 
+    public function runtime(Request $request): JsonResponse
+    {
+        $pullServicePath = app_path('Support/Swc/UniversePullService.php');
+        $pullServiceContents = is_file($pullServicePath)
+            ? file_get_contents($pullServicePath)
+            : null;
+
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'app_env' => config('app.env'),
+                'app_debug' => (bool) config('app.debug'),
+                'app_url' => config('app.url'),
+                'request_host' => $request->getHost(),
+                'request_scheme' => $request->getScheme(),
+                'pull_service_guard_present' => is_string($pullServiceContents)
+                    && str_contains($pullServiceContents, 'System refresh refused non-system identifier'),
+                'pull_service_hash' => is_string($pullServiceContents)
+                    ? md5($pullServiceContents)
+                    : null,
+            ],
+        ]);
+    }
+
     protected function buildEventsHistoryResponse(
         Request $request,
         User $user,

@@ -147,6 +147,13 @@
   display: grid
   gap: 1rem
 
+.members-hyperplanner__section-head
+  display: flex
+  justify-content: space-between
+  align-items: flex-start
+  gap: 0.9rem
+  flex-wrap: wrap
+
 .members-hyperplanner__summary-grid
   display: grid
   grid-template-columns: repeat(4, minmax(0, 1fr))
@@ -174,9 +181,19 @@
     border-color: rgba(246,163,0,0.55)
 
 .members-hyperplanner__chain-arrow
+  display: inline-flex
+  align-items: center
+  justify-content: center
+  width: 1.9rem
+  height: 1.9rem
+  border-radius: 999px
+  border: 1px solid rgba(246,163,0,0.28)
+  background: rgba(246,163,0,0.1)
   color: rgba(246,163,0,0.9)
   font-size: 1.1rem
   font-weight: 700
+  line-height: 1
+  flex: 0 0 auto
 
 .members-hyperplanner__hop-list
   display: grid

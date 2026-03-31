@@ -5,8 +5,10 @@ import {
   getHyperPlans,
   getStoredMapSystems,
   getStoredShipTypes,
+  refreshStoredSystem,
   saveHyperPlan,
   type HyperPlan,
+  type HyperPlannerRoute,
   type HyperPlannerResult,
   type StoredMapSystem,
   type StoredShipTypeSummary,
@@ -30,6 +32,14 @@ function formatSystemDisplay(system: Pick<StoredMapSystem, "name" | "identifier"
 
 function systemIdentifier(system: { identifier: string | null; uid: string | null }) {
   return system.identifier ?? system.uid ?? "";
+}
+
+function systemRefreshIdentifier(system: Pick<StoredMapSystem, "identifier" | "name">) {
+  if (system.identifier && !system.identifier.includes(":")) {
+    return system.identifier;
+  }
+
+  return system.name ?? system.identifier ?? "";
 }
 
 function formatRoundedNumber(value: number | null | undefined, digits = 2, fallback = "Unknown") {
@@ -116,6 +126,9 @@ const HyperPlannerPanel: React.FC<HyperPlannerPanelProps> = ({ onBack }) => {
   const [savedPlansError, setSavedPlansError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [showPlannerInputs, setShowPlannerInputs] = useState(false);
+  const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
+  const [routesExpanded, setRoutesExpanded] = useState(false);
+  const [planningLabel, setPlanningLabel] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -332,6 +345,8 @@ const HyperPlannerPanel: React.FC<HyperPlannerPanelProps> = ({ onBack }) => {
     setPilotingSkill(planToLoad.piloting_skill);
     setPlanName(planToLoad.name);
     setPlan(null);
+    setSelectedRouteIndex(0);
+    setRoutesExpanded(false);
     setPlanError(null);
     setSaveMessage(`Loaded saved plan: ${planToLoad.name}`);
   }
@@ -414,19 +429,68 @@ const HyperPlannerPanel: React.FC<HyperPlannerPanelProps> = ({ onBack }) => {
 
     try {
       setPlanning(true);
+      setPlanningLabel("Refreshing Hyperlanes...");
       setPlanError(null);
+
+      const refreshIdentifiers = Array.from(
+        new Set(
+          [
+            fromSystem ? systemRefreshIdentifier(fromSystem) : null,
+            toSystem ? systemRefreshIdentifier(toSystem) : null,
+          ].filter((value): value is string => Boolean(value && value.trim()))
+        )
+      );
+
+      for (const identifier of refreshIdentifiers) {
+        await refreshStoredSystem(identifier);
+      }
+
+      setPlanningLabel("Plotting Fastest Route...");
       const response = await getHyperPlannerRoute(fromInput, toInput, {
         pilotingSkill,
         hyperspeed: resolvedHyperspeed,
       });
       setPlan(response.data ?? null);
+      setSelectedRouteIndex(0);
+      setRoutesExpanded(false);
     } catch (error: any) {
       setPlan(null);
       setPlanError(error?.message ?? "Failed to calculate a stored hyperlane route.");
     } finally {
+      setPlanningLabel(null);
       setPlanning(false);
     }
   }
+
+  const availableRoutes = useMemo<HyperPlannerRoute[]>(() => {
+    if (!plan) {
+      return [];
+    }
+
+    if (Array.isArray(plan.routes) && plan.routes.length > 0) {
+      return plan.routes.slice(0, 3);
+    }
+
+    return [
+      {
+        route_index: 0,
+        route_label: "Route 1",
+        from: plan.from,
+        to: plan.to,
+        summary: plan.summary,
+        systems: plan.systems,
+        hops: plan.hops,
+      },
+    ];
+  }, [plan]);
+
+  const selectedRoute = useMemo<HyperPlannerRoute | null>(() => {
+    if (availableRoutes.length === 0) {
+      return null;
+    }
+
+    return availableRoutes.find((route) => route.route_index === selectedRouteIndex) ?? availableRoutes[0];
+  }, [availableRoutes, selectedRouteIndex]);
 
   return (
     <section className="members-hyperplanner">
@@ -584,7 +648,7 @@ const HyperPlannerPanel: React.FC<HyperPlannerPanelProps> = ({ onBack }) => {
 
       <div className="members-hyperplanner__actions">
         <button className="btn" type="button" onClick={handlePlan} disabled={planning || loadingSystems}>
-          {planning ? "Plotting Fastest Route..." : "Plot Fastest Route"}
+          {planning ? (planningLabel ?? "Plotting Fastest Route...") : "Plot Fastest Route"}
         </button>
       </div>
 
@@ -670,40 +734,78 @@ const HyperPlannerPanel: React.FC<HyperPlannerPanelProps> = ({ onBack }) => {
         </p>
       ) : null}
 
-      {plan ? (
+      {plan && selectedRoute ? (
         <section className="members-hyperplanner__results">
-          {buildSwcDirectedTravelUrl(plan.to ?? null) ? (
-            <div className="members-hyperplanner__actions">
+          <div className="members-hyperplanner__actions">
+            {buildSwcDirectedTravelUrl(selectedRoute.to ?? null) ? (
               <a
                 className="btn"
-                href={buildSwcDirectedTravelUrl(plan.to ?? null) ?? "#"}
+                href={buildSwcDirectedTravelUrl(selectedRoute.to ?? null) ?? "#"}
                 target="_blank"
                 rel="noreferrer"
               >
                 Open SWC Directed Travel
               </a>
+            ) : null}
+          </div>
+
+          <article className="panel admin-card">
+            <div className="members-hyperplanner__section-head">
+              <div>
+                <h3 className="admin-card__title">Routes Faster Than Direct</h3>
+                <p className="small">
+                  Showing every stored route that beats a direct A to B jump, ordered fastest to slowest.
+                </p>
+              </div>
+              <button
+                className="btn"
+                type="button"
+                onClick={() => setRoutesExpanded((current) => !current)}
+                aria-expanded={routesExpanded}
+              >
+                {routesExpanded ? "Hide Routes" : `Show Routes (${availableRoutes.length})`}
+              </button>
             </div>
-          ) : null}
+            {routesExpanded ? (
+              <div className="members-hyperplanner__suggestions">
+                {availableRoutes.map((route) => (
+                  <button
+                    key={route.route_index}
+                    type="button"
+                    className={`members-hyperplanner__suggestion${route.route_index === selectedRoute.route_index ? " members-hyperplanner__suggestion--active" : ""}`}
+                    onClick={() => setSelectedRouteIndex(route.route_index)}
+                  >
+                    <strong>
+                      {route.route_label} · {route.summary.formatted_time}
+                    </strong>
+                    <span className="small">
+                      Saves {route.summary.time_saved_formatted} · {route.summary.hop_count} hop{route.summary.hop_count === 1 ? "" : "s"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </article>
 
           <div className="members-hyperplanner__summary-grid">
             <article className="panel admin-card">
               <h3 className="admin-card__title">Route</h3>
               <p className="small">
-                {(plan.from?.name ?? plan.from?.identifier ?? plan.from?.uid ?? "Unknown")} to{" "}
-                {(plan.to?.name ?? plan.to?.identifier ?? plan.to?.uid ?? "Unknown")}
+                {(selectedRoute.from?.name ?? selectedRoute.from?.identifier ?? selectedRoute.from?.uid ?? "Unknown")} to{" "}
+                {(selectedRoute.to?.name ?? selectedRoute.to?.identifier ?? selectedRoute.to?.uid ?? "Unknown")}
               </p>
             </article>
             <article className="panel admin-card">
               <h3 className="admin-card__title">Fastest Time</h3>
-              <p className="small">{plan.summary.formatted_time}</p>
+              <p className="small">{selectedRoute.summary.formatted_time}</p>
             </article>
             <article className="panel admin-card">
               <h3 className="admin-card__title">Time Saved</h3>
-              <p className="small">{plan.summary.time_saved_formatted}</p>
+              <p className="small">{selectedRoute.summary.time_saved_formatted}</p>
             </article>
             <article className="panel admin-card">
               <h3 className="admin-card__title">Hops</h3>
-              <p className="small">{plan.summary.hop_count}</p>
+              <p className="small">{selectedRoute.summary.hop_count}</p>
             </article>
           </div>
 
@@ -712,11 +814,11 @@ const HyperPlannerPanel: React.FC<HyperPlannerPanelProps> = ({ onBack }) => {
             <div className="members-hyperplanner__system-chain">
               <span className="members-hyperplanner__system-pill">
                 <strong>Piloting</strong>
-                <span className="small">{plan.summary.piloting_skill}</span>
+                <span className="small">{selectedRoute.summary.piloting_skill}</span>
               </span>
               <span className="members-hyperplanner__system-pill">
                 <strong>Ship Hyper</strong>
-                <span className="small">{formatRoundedNumber(plan.summary.hyperspeed, 0)}</span>
+                <span className="small">{formatRoundedNumber(selectedRoute.summary.hyperspeed, 0)}</span>
               </span>
             </div>
           </article>
@@ -724,9 +826,9 @@ const HyperPlannerPanel: React.FC<HyperPlannerPanelProps> = ({ onBack }) => {
           <article className="panel admin-card">
             <h3 className="admin-card__title">Route Systems</h3>
             <div className="members-hyperplanner__system-chain">
-              {plan.systems.map((system, index) => {
+              {selectedRoute.systems.map((system, index) => {
                 const identifier = system.identifier ?? system.uid ?? "";
-                const incomingHop = index > 0 ? plan.hops[index - 1] : null;
+                const incomingHop = index > 0 ? selectedRoute.hops[index - 1] : null;
                 return (
                   <React.Fragment key={`${identifier}-${index}`}>
                     <a
@@ -739,7 +841,7 @@ const HyperPlannerPanel: React.FC<HyperPlannerPanelProps> = ({ onBack }) => {
                       <strong>{system.name ?? identifier}</strong>
                       <span className="small">{formatCoords(system.galx, system.galy)}</span>
                     </a>
-                    {index < plan.systems.length - 1 ? (
+                    {index < selectedRoute.systems.length - 1 ? (
                       <span className="members-hyperplanner__chain-arrow" aria-hidden="true">
                         →
                       </span>

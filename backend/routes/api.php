@@ -274,6 +274,7 @@ Route::middleware(['auth:sanctum', 'require_any:is_admin'])->group(function () {
 });
 
 Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('sys/debug')->group(function () {
+    Route::get('/runtime', [DebugController::class, 'runtime']);
     Route::get('/swc-auth', [DebugController::class, 'swcAuth']);
     Route::get('/payments', [DebugController::class, 'payments']);
     Route::get('/factions', [DebugController::class, 'factions']);

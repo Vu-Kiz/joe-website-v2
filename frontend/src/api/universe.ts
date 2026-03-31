@@ -85,6 +85,17 @@ export type HyperPlannerResult = {
     from: HyperPlannerSystem | null;
     to: HyperPlannerSystem | null;
   }>;
+  routes?: HyperPlannerRoute[];
+};
+
+export type HyperPlannerRoute = {
+  route_index: number;
+  route_label: string;
+  from: HyperPlannerSystem | null;
+  to: HyperPlannerSystem | null;
+  summary: HyperPlannerResult["summary"];
+  systems: HyperPlannerSystem[];
+  hops: HyperPlannerResult["hops"];
 };
 
 export type HyperPlan = {
@@ -101,6 +112,13 @@ export type HyperPlan = {
   piloting_skill: number;
   created_at: string | null;
   updated_at: string | null;
+};
+
+export type UniversePullResponse = {
+  ok: boolean;
+  message: string;
+  data: any;
+  persistence?: any;
 };
 
 export type StoredSectorDetail = {
@@ -663,6 +681,19 @@ export function getStoredSector(sector: string) {
 
 export function getStoredMapSystems() {
   return apiFetch<{ ok: boolean; data: StoredMapSystem[] }>("/universe/map-systems");
+}
+
+export function refreshStoredSystem(identifier: string) {
+  return apiFetch<UniversePullResponse>("/sys/universe/pull", {
+    method: "POST",
+    body: JSON.stringify({
+      resource: "system",
+      identifier,
+      persist: true,
+      deep: false,
+      hyperlanes_only: true,
+    }),
+  });
 }
 
 export function getHyperPlannerRoute(

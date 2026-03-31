@@ -47,6 +47,14 @@ function formatCoords(x: number | null | undefined, y: number | null | undefined
   return `${x}, ${y}`;
 }
 
+function formatHyperlanePercent(modifier: number | null | undefined, fallback = "Unknown") {
+  if (modifier === null || modifier === undefined || Number.isNaN(modifier)) {
+    return fallback;
+  }
+
+  return `${((1 - modifier) * 100).toFixed(1).replace(/\.0$/, "")}%`;
+}
+
 function bestPlanetImage(planet: StoredSystemDetail["planets"][number]): string | null {
   return (
     planet.image_small_url ??
@@ -878,7 +886,7 @@ const MembersUniverseSystemPage: React.FC = () => {
                       </span>
                       <span className="small">Destination {formatCoords(hyperlane.destination_galx, hyperlane.destination_galy)}</span>
                       <span className="small">Owner {formatValue(hyperlane.owner_name, "Unknown")}</span>
-                      <span className="small">Modifier {formatValue(hyperlane.modifier, "?")}</span>
+                      <span className="small">Speed Modifier {formatHyperlanePercent(hyperlane.modifier, "?")}</span>
                       <span className="small">Blocks {formatValue(hyperlane.blocks, "Unknown")}</span>
                     </div>
                   ))

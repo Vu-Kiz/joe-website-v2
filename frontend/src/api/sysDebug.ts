@@ -250,6 +250,19 @@ export type DebugUniversePullResponse = {
   persistence?: any;
 };
 
+export type DebugRuntimeResponse = {
+  ok: boolean;
+  data: {
+    app_env: string | null;
+    app_debug: boolean;
+    app_url: string | null;
+    request_host: string | null;
+    request_scheme: string | null;
+    pull_service_guard_present: boolean;
+    pull_service_hash: string | null;
+  };
+};
+
 export type SectorCellAnnotation = {
   id?: number;
   sector_uid: string;
@@ -273,6 +286,10 @@ export function getDebugSwcAuth(userId?: number) {
   const params = withOptionalUserId(new URLSearchParams(), userId);
   const qs = params.toString();
   return apiFetch<DebugSwcAuthResponse>(`/sys/debug/swc-auth${qs ? `?${qs}` : ""}`);
+}
+
+export function getDebugRuntime() {
+  return apiFetch<DebugRuntimeResponse>(`/sys/debug/runtime`);
 }
 
 export function getDebugPayments(userId?: number) {

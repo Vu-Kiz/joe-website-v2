@@ -29,12 +29,12 @@ class UniversePersistenceService
     ) {
     }
 
-    public function persist(array $payload, bool $deep = false, ?callable $progress = null): array
+    public function persist(array $payload, bool $deep = false, ?callable $progress = null, array $options = []): array
     {
         return match ($payload['resource'] ?? null) {
             'sector_index' => $this->persistSectorIndexPayload($payload),
             'sector' => $this->persistSectorPayload($payload, $deep, $progress),
-            'system' => $this->persistSystemPayload($payload, $deep, $progress),
+            'system' => $this->persistSystemPayload($payload, $deep, $progress, $options),
             'planet' => $this->persistPlanetPayload($payload),
             'planet_type_index' => $this->persistPlanetTypeIndexPayload($payload),
             'planet_type' => $this->persistPlanetTypePayload($payload),
@@ -235,11 +235,12 @@ class UniversePersistenceService
         ];
     }
 
-    protected function persistSystemPayload(array $payload, bool $deep = false, ?callable $progress = null): array
+    protected function persistSystemPayload(array $payload, bool $deep = false, ?callable $progress = null, array $options = []): array
     {
         $systemData = (array) ($payload['system'] ?? []);
         $sector = $this->findOrCreateSectorShell($systemData);
         $system = $this->upsertSystem($systemData, $sector, (string) ($payload['identifier'] ?? ''));
+        $hyperlanesOnly = (bool) ($options['hyperlanes_only'] ?? false);
 
         if (!$system) {
             throw new \RuntimeException('System payload could not be persisted without a UID.');
@@ -247,63 +248,65 @@ class UniversePersistenceService
 
         $planetUids = [];
         $deepPlanetCount = 0;
-        foreach ((array) ($payload['planet_stubs'] ?? []) as $planetData) {
-            if (!is_array($planetData)) {
-                continue;
-            }
+        if (!$hyperlanesOnly) {
+            foreach ((array) ($payload['planet_stubs'] ?? []) as $planetData) {
+                if (!is_array($planetData)) {
+                    continue;
+                }
 
-            $planet = $this->upsertPlanet($planetData, $sector, $system);
-            if ($planet) {
-                $planetUids[] = $planet->uid;
-            }
+                $planet = $this->upsertPlanet($planetData, $sector, $system);
+                if ($planet) {
+                    $planetUids[] = $planet->uid;
+                }
 
-            if ($progress) {
-                $progress('planet_upserted', [
-                    'system_uid' => $system->uid,
-                    'uid' => $planetData['uid'] ?? null,
-                    'name' => $planetData['name'] ?? null,
-                    'identifier' => $planetData['identifier'] ?? null,
-                    'deep' => $deep,
-                ]);
-            }
-
-            if ($deep && !empty($planetData['identifier'])) {
                 if ($progress) {
-                    $progress('planet_pull_started', [
+                    $progress('planet_upserted', [
                         'system_uid' => $system->uid,
                         'uid' => $planetData['uid'] ?? null,
                         'name' => $planetData['name'] ?? null,
                         'identifier' => $planetData['identifier'] ?? null,
+                        'deep' => $deep,
                     ]);
                 }
 
-                try {
-                    $fullPlanetPayload = $this->universePullService->pull('planet', (string) $planetData['identifier']);
-                    $this->persistPlanetPayload($fullPlanetPayload);
-                    $deepPlanetCount += 1;
-
+                if ($deep && !empty($planetData['identifier'])) {
                     if ($progress) {
-                        $progress('planet_pull_completed', [
+                        $progress('planet_pull_started', [
                             'system_uid' => $system->uid,
                             'uid' => $planetData['uid'] ?? null,
                             'name' => $planetData['name'] ?? null,
                             'identifier' => $planetData['identifier'] ?? null,
-                            'deep_synced' => $deepPlanetCount,
                         ]);
-                    }
-                } catch (\Throwable $exception) {
-                    if (!$this->isSkippableSwcNotFoundException($exception)) {
-                        throw $exception;
                     }
 
-                    if ($progress) {
-                        $progress('planet_pull_skipped', [
-                            'system_uid' => $system->uid,
-                            'uid' => $planetData['uid'] ?? null,
-                            'name' => $planetData['name'] ?? null,
-                            'identifier' => $planetData['identifier'] ?? null,
-                            'reason' => $exception->getMessage(),
-                        ]);
+                    try {
+                        $fullPlanetPayload = $this->universePullService->pull('planet', (string) $planetData['identifier']);
+                        $this->persistPlanetPayload($fullPlanetPayload);
+                        $deepPlanetCount += 1;
+
+                        if ($progress) {
+                            $progress('planet_pull_completed', [
+                                'system_uid' => $system->uid,
+                                'uid' => $planetData['uid'] ?? null,
+                                'name' => $planetData['name'] ?? null,
+                                'identifier' => $planetData['identifier'] ?? null,
+                                'deep_synced' => $deepPlanetCount,
+                            ]);
+                        }
+                    } catch (\Throwable $exception) {
+                        if (!$this->isSkippableSwcNotFoundException($exception)) {
+                            throw $exception;
+                        }
+
+                        if ($progress) {
+                            $progress('planet_pull_skipped', [
+                                'system_uid' => $system->uid,
+                                'uid' => $planetData['uid'] ?? null,
+                                'name' => $planetData['name'] ?? null,
+                                'identifier' => $planetData['identifier'] ?? null,
+                                'reason' => $exception->getMessage(),
+                            ]);
+                        }
                     }
                 }
             }
@@ -311,63 +314,65 @@ class UniversePersistenceService
 
         $stationUids = [];
         $deepStationCount = 0;
-        foreach ((array) ($payload['station_stubs'] ?? []) as $stationData) {
-            if (!is_array($stationData)) {
-                continue;
-            }
+        if (!$hyperlanesOnly) {
+            foreach ((array) ($payload['station_stubs'] ?? []) as $stationData) {
+                if (!is_array($stationData)) {
+                    continue;
+                }
 
-            $station = $this->upsertStation($stationData, $sector, $system);
-            if ($station) {
-                $stationUids[] = $station->uid;
-            }
+                $station = $this->upsertStation($stationData, $sector, $system);
+                if ($station) {
+                    $stationUids[] = $station->uid;
+                }
 
-            if ($progress) {
-                $progress('station_upserted', [
-                    'system_uid' => $system->uid,
-                    'uid' => $stationData['uid'] ?? null,
-                    'name' => $stationData['name'] ?? null,
-                    'identifier' => $stationData['identifier'] ?? null,
-                    'deep' => $deep,
-                ]);
-            }
-
-            if ($deep && !empty($stationData['identifier'])) {
                 if ($progress) {
-                    $progress('station_pull_started', [
+                    $progress('station_upserted', [
                         'system_uid' => $system->uid,
                         'uid' => $stationData['uid'] ?? null,
                         'name' => $stationData['name'] ?? null,
                         'identifier' => $stationData['identifier'] ?? null,
+                        'deep' => $deep,
                     ]);
                 }
 
-                try {
-                    $fullStationPayload = $this->universePullService->pull('station', (string) $stationData['identifier']);
-                    $this->persistStationPayload($fullStationPayload);
-                    $deepStationCount += 1;
-
+                if ($deep && !empty($stationData['identifier'])) {
                     if ($progress) {
-                        $progress('station_pull_completed', [
+                        $progress('station_pull_started', [
                             'system_uid' => $system->uid,
                             'uid' => $stationData['uid'] ?? null,
                             'name' => $stationData['name'] ?? null,
                             'identifier' => $stationData['identifier'] ?? null,
-                            'deep_synced' => $deepStationCount,
                         ]);
-                    }
-                } catch (\Throwable $exception) {
-                    if (!$this->isSkippableSwcNotFoundException($exception)) {
-                        throw $exception;
                     }
 
-                    if ($progress) {
-                        $progress('station_pull_skipped', [
-                            'system_uid' => $system->uid,
-                            'uid' => $stationData['uid'] ?? null,
-                            'name' => $stationData['name'] ?? null,
-                            'identifier' => $stationData['identifier'] ?? null,
-                            'reason' => $exception->getMessage(),
-                        ]);
+                    try {
+                        $fullStationPayload = $this->universePullService->pull('station', (string) $stationData['identifier']);
+                        $this->persistStationPayload($fullStationPayload);
+                        $deepStationCount += 1;
+
+                        if ($progress) {
+                            $progress('station_pull_completed', [
+                                'system_uid' => $system->uid,
+                                'uid' => $stationData['uid'] ?? null,
+                                'name' => $stationData['name'] ?? null,
+                                'identifier' => $stationData['identifier'] ?? null,
+                                'deep_synced' => $deepStationCount,
+                            ]);
+                        }
+                    } catch (\Throwable $exception) {
+                        if (!$this->isSkippableSwcNotFoundException($exception)) {
+                            throw $exception;
+                        }
+
+                        if ($progress) {
+                            $progress('station_pull_skipped', [
+                                'system_uid' => $system->uid,
+                                'uid' => $stationData['uid'] ?? null,
+                                'name' => $stationData['name'] ?? null,
+                                'identifier' => $stationData['identifier'] ?? null,
+                                'reason' => $exception->getMessage(),
+                            ]);
+                        }
                     }
                 }
             }
@@ -394,13 +399,13 @@ class UniversePersistenceService
             }
         }
 
-        if ($planetUids !== []) {
+        if (!$hyperlanesOnly && $planetUids !== []) {
             SwcPlanet::where('system_id', $system->id)
                 ->whereNotIn('uid', $planetUids)
                 ->delete();
         }
 
-        if ($stationUids !== []) {
+        if (!$hyperlanesOnly && $stationUids !== []) {
             SwcStation::where('system_id', $system->id)
                 ->whereNotIn('uid', $stationUids)
                 ->delete();

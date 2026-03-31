@@ -9,6 +9,7 @@ import {
   getDebugFactions,
   getDebugPayments,
   getDebugRawSwc,
+  getDebugRuntime,
   getDebugSwcAuth,
   importDebugEventsHistory,
   pullDebugCreditLog,
@@ -31,6 +32,7 @@ type DebugPanelState = {
 };
 
 type PanelKey =
+  | "runtime"
   | "swcAuth"
   | "eventsTest"
   | "payments"
@@ -83,6 +85,7 @@ const emptyPanel = (): DebugPanelState => ({
 });
 
 const initialPanels: Record<PanelKey, DebugPanelState> = {
+  runtime: emptyPanel(),
   swcAuth: emptyPanel(),
   eventsTest: emptyPanel(),
   payments: emptyPanel(),
@@ -346,6 +349,10 @@ const SysDebugPage: React.FC = () => {
     await runPanel("swcAuth", () => getDebugSwcAuth(userId), (res) => res.data);
   }
 
+  async function loadRuntime() {
+    await runPanel("runtime", () => getDebugRuntime(), (res) => res.data);
+  }
+
   async function loadPayments(userId?: number) {
     await runPanel("payments", () => getDebugPayments(userId), (res) => res.data);
   }
@@ -366,6 +373,7 @@ const SysDebugPage: React.FC = () => {
 
     await loadAdminUsers();
     await Promise.all([
+      loadRuntime(),
       loadSwcAuth(undefined),
       loadPayments(undefined),
       loadFactions(),
@@ -890,6 +898,28 @@ const SysDebugPage: React.FC = () => {
 
           {activeTab === "debug" ? (
             <>
+              <div className="panel">
+                <h2>Runtime Check</h2>
+                <p className="small">
+                  Confirms which backend answered this page and whether the Hyper Planner system-refresh guard is present.
+                </p>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <button className="btn" type="button" onClick={() => loadRuntime()} disabled={panels.runtime.loading}>
+                    {panels.runtime.loading ? "Checking Runtime..." : "Check Runtime"}
+                  </button>
+                </div>
+                {panels.runtime.error ? (
+                  <p className="small" style={{ color: "var(--color-danger, #ff8f8f)" }}>
+                    {panels.runtime.error}
+                  </p>
+                ) : null}
+                {panels.runtime.result ? (
+                  <pre className="small" style={{ whiteSpace: "pre-wrap", overflowX: "auto" }}>
+                    {pretty(panels.runtime.result)}
+                  </pre>
+                ) : null}
+              </div>
+
               <div className="panel">
                 <h2>SWC Debug Auth</h2>
                 <p className="small">

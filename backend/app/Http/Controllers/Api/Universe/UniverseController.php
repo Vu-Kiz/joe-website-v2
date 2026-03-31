@@ -381,8 +381,11 @@ class UniverseController extends Controller
             $existingLaneBlocks = $this->toPlannerInt($hyperlane->blocks);
             $blocksUsed = $existingLaneBlocks;
             $storedModifier = $hyperlane->modifier !== null ? (float) $hyperlane->modifier : null;
-            $timeModifier = $storedModifier && $storedModifier > 0
-                ? $storedModifier
+            $normalizedStoredModifier = $storedModifier !== null
+                ? $this->normalizePlannerStoredModifier($storedModifier)
+                : null;
+            $timeModifier = $normalizedStoredModifier !== null
+                ? $normalizedStoredModifier
                 : $this->calculatePlannerTimeModifier(
                     $hyperlaneSpeedLimit,
                     $journeyLength,
@@ -535,69 +538,194 @@ class UniverseController extends Controller
             ];
         }
 
-        $distances = [$startNode => 0.0];
-        $parents = [];
-        $visitedSystems = 0;
-        $settled = [];
+        $fastestHopEdges = $this->findPlannerShortestPathEdges(
+            $adjacency,
+            $systemsById,
+            $startNode,
+            $endNode,
+            $toEndpoint,
+            $pilotingSkill,
+            $hyperspeed,
+            $directTripSeconds
+        );
 
-        while (true) {
-            $systemId = null;
-            $bestDistance = null;
-
-            foreach ($distances as $candidateId => $distance) {
-                if (isset($settled[$candidateId])) {
-                    continue;
-                }
-
-                if ($bestDistance === null || $distance < $bestDistance) {
-                $systemId = (string) $candidateId;
-                $bestDistance = (float) $distance;
-            }
-            }
-
-            if ($systemId === null) {
-                break;
-            }
-
-            $settled[$systemId] = true;
-            $visitedSystems++;
-
-            if ($systemId === $endNode) {
-                break;
-            }
-
-            foreach ($adjacency[$systemId] ?? [] as $edge) {
-                $destinationId = (string) ($edge['destination_node'] ?? $edge['destination_system_id']);
-                if (isset($settled[$destinationId])) {
-                    continue;
-                }
-
-                $candidateDistance = ((float) ($distances[$systemId] ?? INF)) + (float) $edge['lane_seconds'];
-                if (!isset($distances[$destinationId]) || $candidateDistance < $distances[$destinationId]) {
-                    $distances[$destinationId] = $candidateDistance;
-                    $parents[$destinationId] = [
-                        'system_id' => $systemId,
-                        'edge' => $edge,
-                    ];
-                }
-            }
-        }
-
-        if (!isset($parents[$endNode])) {
+        if (empty($fastestHopEdges)) {
             return response()->json([
                 'ok' => false,
-                'message' => 'No stored hyperlane route could be found between those systems.',
+                'message' => 'No stored hyperlane routes were found that beat direct travel between those systems.',
             ], 404);
         }
 
-        $hopEdges = [];
-        $walkId = $endNode;
+        $routeOptions = [];
+        $routeSignatures = [];
+        $visitedSystems = 0;
+        $exploredStates = 0;
+        $maxRoutes = 3;
+        $maxExploredStates = 15000;
 
-        while (isset($parents[$walkId])) {
-            $parent = $parents[$walkId];
-            array_unshift($hopEdges, $parent['edge']);
-            $walkId = $parent['system_id'];
+        $fastestRoutePayload = $this->buildPlannerRoutePayload(
+            $fromEndpoint,
+            $toEndpoint,
+            $fastestHopEdges,
+            $systemsById,
+            $pilotingSkill,
+            $hyperspeed,
+            $visitedSystems
+        );
+        $fastestRouteSignature = $this->buildPlannerRouteSignature($fastestHopEdges);
+        $routeOptions[] = $fastestRoutePayload;
+        $routeSignatures[$fastestRouteSignature] = true;
+        $stateQueue = new \SplPriorityQueue();
+        $stateQueue->setExtractFlags(\SplPriorityQueue::EXTR_DATA);
+        $stateQueue->insert([
+            'node' => $startNode,
+            'seconds' => 0,
+            'edges' => [],
+            'visited' => [$startNode => true],
+        ], 0);
+
+        while (!$stateQueue->isEmpty() && $exploredStates < $maxExploredStates) {
+            $state = $stateQueue->extract();
+            $systemId = (string) ($state['node'] ?? '');
+            $elapsedSeconds = (int) ($state['seconds'] ?? 0);
+            $currentEdges = is_array($state['edges'] ?? null) ? $state['edges'] : [];
+            $visitedNodes = is_array($state['visited'] ?? null) ? $state['visited'] : [];
+
+            $exploredStates++;
+            $visitedSystems++;
+
+            $candidateEdges = $this->buildPlannerCandidateEdgesForNode(
+                $adjacency,
+                $systemsById,
+                $systemId,
+                $endNode,
+                $toEndpoint,
+                $pilotingSkill,
+                $hyperspeed
+            );
+
+            foreach ($candidateEdges as $edge) {
+                $destinationId = (string) ($edge['destination_node'] ?? $edge['destination_system_id']);
+
+                if ($destinationId !== $endNode && isset($visitedNodes[$destinationId])) {
+                    continue;
+                }
+
+                $candidateSeconds = $elapsedSeconds + (int) ($edge['lane_seconds'] ?? 0);
+                if ($candidateSeconds >= $directTripSeconds) {
+                    continue;
+                }
+
+                $destinationEndpoint = $edge['to_endpoint']
+                    ?? $this->buildPlannerSystemEndpoint($systemsById->get($edge['destination_system_id']));
+
+                if (
+                    $destinationId !== $endNode
+                    && $destinationEndpoint
+                    && isset($destinationEndpoint['galx'], $destinationEndpoint['galy'])
+                ) {
+                    $remainingDirectSeconds = $this->calculatePlannerDirectTravelSeconds(
+                        $this->calculatePlannerJourneyLength(
+                            $destinationEndpoint['galx'],
+                            $destinationEndpoint['galy'],
+                            $toEndpoint['galx'],
+                            $toEndpoint['galy']
+                        ),
+                        $pilotingSkill,
+                        $hyperspeed
+                    );
+
+                    if (($candidateSeconds + $remainingDirectSeconds) >= $directTripSeconds) {
+                        continue;
+                    }
+                }
+
+                $nextEdges = [...$currentEdges, $edge];
+
+                if ($destinationId === $endNode) {
+                    if (!$this->plannerRouteUsesStoredHyperlane($nextEdges)) {
+                        continue;
+                    }
+
+                    $routePayload = $this->buildPlannerRoutePayload(
+                        $fromEndpoint,
+                        $toEndpoint,
+                        $nextEdges,
+                        $systemsById,
+                        $pilotingSkill,
+                        $hyperspeed,
+                        $visitedSystems
+                    );
+
+                    $routeSignature = $this->buildPlannerRouteSignature($nextEdges);
+                    if (isset($routeSignatures[$routeSignature])) {
+                        continue;
+                    }
+
+                    $routeSignatures[$routeSignature] = true;
+                    $routeOptions[] = $routePayload;
+
+                    usort($routeOptions, fn (array $left, array $right) => ($left['summary']['total_seconds'] ?? PHP_INT_MAX) <=> ($right['summary']['total_seconds'] ?? PHP_INT_MAX));
+                    if (count($routeOptions) > $maxRoutes) {
+                        $routeOptions = array_slice($routeOptions, 0, $maxRoutes);
+                    }
+                    continue;
+                }
+
+                $nextVisited = $visitedNodes;
+                $nextVisited[$destinationId] = true;
+
+                $nextState = [
+                    'node' => $destinationId,
+                    'seconds' => $candidateSeconds,
+                    'edges' => $nextEdges,
+                    'visited' => $nextVisited,
+                ];
+
+                $stateQueue->insert($nextState, -$candidateSeconds);
+            }
         }
+
+        usort($routeOptions, fn (array $left, array $right) => ($left['summary']['total_seconds'] ?? PHP_INT_MAX) <=> ($right['summary']['total_seconds'] ?? PHP_INT_MAX));
+        $routeOptions = array_values(array_map(
+            fn (array $route, int $index) => [
+                ...$route,
+                'route_index' => $index,
+                'route_label' => sprintf('Route %d', $index + 1),
+            ],
+            $routeOptions,
+            array_keys($routeOptions)
+        ));
+        $fastestRoute = $routeOptions[0];
+
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                ...$fastestRoute,
+                'routes' => $routeOptions,
+            ],
+        ]);
+    }
+
+    protected function buildPlannerRoutePayload(
+        array $fromEndpoint,
+        array $toEndpoint,
+        array $hopEdges,
+        $systemsById,
+        int $pilotingSkill,
+        int $hyperspeed,
+        int $visitedSystems
+    ): array {
+        $directTripSeconds = $this->calculatePlannerDirectTravelSeconds(
+            $this->calculatePlannerJourneyLength(
+                $fromEndpoint['galx'],
+                $fromEndpoint['galy'],
+                $toEndpoint['galx'],
+                $toEndpoint['galy']
+            ),
+            $pilotingSkill,
+            $hyperspeed
+        );
 
         $routeSystems = [$this->serializePlannerEndpoint($fromEndpoint)];
         $totalModifier = 0.0;
@@ -611,6 +739,7 @@ class UniverseController extends Controller
                 $totalModifier += $modifier;
                 $modifierCount++;
             }
+
             $timeModifier = (float) ($edge['time_modifier'] ?? 1.0);
             $directSeconds = (int) ($edge['direct_seconds'] ?? 0);
             $laneSeconds = (int) ($edge['lane_seconds'] ?? 0);
@@ -643,35 +772,218 @@ class UniverseController extends Controller
                         ?? $this->buildPlannerSystemEndpoint($systemsById->get($edge['destination_system_id']))
                 ),
             ];
+
             $routeSystems[] = $this->serializePlannerEndpoint(
                 $edge['to_endpoint']
                     ?? $this->buildPlannerSystemEndpoint($systemsById->get($edge['destination_system_id']))
             );
         }
 
-        return response()->json([
-            'ok' => true,
-            'data' => [
-                'from' => $this->serializePlannerEndpoint($fromEndpoint),
-                'to' => $this->serializePlannerEndpoint($toEndpoint),
-                'summary' => [
-                    'hop_count' => count($hops),
-                    'visited_systems' => $visitedSystems,
-                    'total_modifier' => $modifierCount > 0 ? round($totalModifier, 2) : null,
-                    'average_modifier' => $modifierCount > 0 ? round($totalModifier / $modifierCount, 2) : null,
-                    'direct_seconds' => $directTripSeconds,
-                    'direct_formatted_time' => $this->formatPlannerTime($directTripSeconds),
-                    'time_saved_seconds' => max(0, $directTripSeconds - $totalSeconds),
-                    'time_saved_formatted' => $this->formatPlannerTime(max(0, $directTripSeconds - $totalSeconds)),
-                    'total_seconds' => $totalSeconds,
-                    'formatted_time' => $this->formatPlannerTime($totalSeconds),
-                    'piloting_skill' => $pilotingSkill,
-                    'hyperspeed' => $hyperspeed,
-                ],
-                'systems' => $routeSystems,
-                'hops' => $hops,
+        $timeSavedSeconds = max(0, $directTripSeconds - $totalSeconds);
+
+        return [
+            'from' => $this->serializePlannerEndpoint($fromEndpoint),
+            'to' => $this->serializePlannerEndpoint($toEndpoint),
+            'summary' => [
+                'hop_count' => count($hops),
+                'visited_systems' => $visitedSystems,
+                'total_modifier' => $modifierCount > 0 ? round($totalModifier, 2) : null,
+                'average_modifier' => $modifierCount > 0 ? round($totalModifier / $modifierCount, 2) : null,
+                'direct_seconds' => $directTripSeconds,
+                'direct_formatted_time' => $this->formatPlannerTime($directTripSeconds),
+                'time_saved_seconds' => $timeSavedSeconds,
+                'time_saved_formatted' => $this->formatPlannerTime($timeSavedSeconds),
+                'total_seconds' => $totalSeconds,
+                'formatted_time' => $this->formatPlannerTime($totalSeconds),
+                'piloting_skill' => $pilotingSkill,
+                'hyperspeed' => $hyperspeed,
             ],
-        ]);
+            'systems' => $routeSystems,
+            'hops' => $hops,
+        ];
+    }
+
+    protected function buildPlannerDirectEdgeToEndpoint(
+        SwcSystem $sourceSystem,
+        array $toEndpoint,
+        string $endNode,
+        int $pilotingSkill,
+        int $hyperspeed
+    ): array {
+        $journeyLength = $this->calculatePlannerJourneyLength(
+            $sourceSystem->galx,
+            $sourceSystem->galy,
+            $toEndpoint['galx'],
+            $toEndpoint['galy']
+        );
+        $directSeconds = $this->calculatePlannerDirectTravelSeconds(
+            $journeyLength,
+            $pilotingSkill,
+            $hyperspeed
+        );
+
+        return [
+            'hop_type' => 'direct',
+            'lane_uid' => null,
+            'lane_name' => 'Direct jump to destination',
+            'source_system_id' => (int) $sourceSystem->id,
+            'destination_system_id' => null,
+            'destination_uid' => $toEndpoint['system']->uid ?? null,
+            'destination_name' => $toEndpoint['name'] ?? ($toEndpoint['system']->name ?? null),
+            'destination_galx' => $toEndpoint['galx'],
+            'destination_galy' => $toEndpoint['galy'],
+            'owner_name' => null,
+            'blocks' => null,
+            'modifier' => 1.0,
+            'existing_blocks' => 0,
+            'blocks_used' => 0,
+            'journey_length' => $journeyLength,
+            'direct_seconds' => $directSeconds,
+            'time_modifier' => 1.0,
+            'lane_seconds' => $directSeconds,
+            'from_endpoint' => $this->buildPlannerSystemEndpoint($sourceSystem),
+            'to_endpoint' => $toEndpoint,
+            'destination_node' => $endNode,
+        ];
+    }
+
+    protected function buildPlannerCandidateEdgesForNode(
+        array $adjacency,
+        $systemsById,
+        string $systemId,
+        string $endNode,
+        array $toEndpoint,
+        int $pilotingSkill,
+        int $hyperspeed
+    ): array {
+        $candidateEdges = $adjacency[$systemId] ?? [];
+
+        if ($endNode !== '__end__' && $systemId !== $endNode && ctype_digit($systemId)) {
+            $currentSystem = $systemsById->get((int) $systemId);
+            if ($currentSystem) {
+                $candidateEdges[] = $this->buildPlannerDirectEdgeToEndpoint(
+                    $currentSystem,
+                    $toEndpoint,
+                    $endNode,
+                    $pilotingSkill,
+                    $hyperspeed
+                );
+            }
+        }
+
+        return $candidateEdges;
+    }
+
+    protected function findPlannerShortestPathEdges(
+        array $adjacency,
+        $systemsById,
+        string $startNode,
+        string $endNode,
+        array $toEndpoint,
+        int $pilotingSkill,
+        int $hyperspeed,
+        int $directTripSeconds
+    ): array {
+        $distances = [$startNode => 0];
+        $previousEdges = [];
+        $previousNodes = [];
+
+        $queue = new \SplPriorityQueue();
+        $queue->setExtractFlags(\SplPriorityQueue::EXTR_DATA);
+        $queue->insert([
+            'node' => $startNode,
+            'seconds' => 0,
+        ], 0);
+
+        while (!$queue->isEmpty()) {
+            $state = $queue->extract();
+            $systemId = (string) ($state['node'] ?? '');
+            $elapsedSeconds = (int) ($state['seconds'] ?? 0);
+
+            if ($elapsedSeconds > ($distances[$systemId] ?? PHP_INT_MAX)) {
+                continue;
+            }
+
+            if ($systemId === $endNode) {
+                break;
+            }
+
+            $candidateEdges = $this->buildPlannerCandidateEdgesForNode(
+                $adjacency,
+                $systemsById,
+                $systemId,
+                $endNode,
+                $toEndpoint,
+                $pilotingSkill,
+                $hyperspeed
+            );
+
+            foreach ($candidateEdges as $edge) {
+                $destinationId = (string) ($edge['destination_node'] ?? $edge['destination_system_id']);
+                $candidateSeconds = $elapsedSeconds + (int) ($edge['lane_seconds'] ?? 0);
+
+                if ($candidateSeconds >= $directTripSeconds) {
+                    continue;
+                }
+
+                if ($candidateSeconds >= ($distances[$destinationId] ?? PHP_INT_MAX)) {
+                    continue;
+                }
+
+                $distances[$destinationId] = $candidateSeconds;
+                $previousNodes[$destinationId] = $systemId;
+                $previousEdges[$destinationId] = $edge;
+                $queue->insert([
+                    'node' => $destinationId,
+                    'seconds' => $candidateSeconds,
+                ], -$candidateSeconds);
+            }
+        }
+
+        if (!isset($previousEdges[$endNode])) {
+            return [];
+        }
+
+        $edges = [];
+        $cursor = $endNode;
+
+        while ($cursor !== $startNode && isset($previousEdges[$cursor])) {
+            array_unshift($edges, $previousEdges[$cursor]);
+            $cursor = (string) ($previousNodes[$cursor] ?? $startNode);
+        }
+
+        return $this->plannerRouteUsesStoredHyperlane($edges) ? $edges : [];
+    }
+
+    protected function plannerRouteUsesStoredHyperlane(array $hopEdges): bool
+    {
+        foreach ($hopEdges as $edge) {
+            if (($edge['hop_type'] ?? 'hyperlane') !== 'direct') {
+                return true;
+            }
+
+            if (!empty($edge['lane_uid'])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function buildPlannerRouteSignature(array $hopEdges): string
+    {
+        $parts = [];
+
+        foreach ($hopEdges as $edge) {
+            $parts[] = implode(':', [
+                (string) ($edge['hop_type'] ?? 'hyperlane'),
+                (string) ($edge['lane_uid'] ?? ''),
+                (string) ($edge['source_system_id'] ?? ''),
+                (string) ($edge['destination_system_id'] ?? $edge['destination_node'] ?? ''),
+            ]);
+        }
+
+        return implode('|', $parts);
     }
 
     public function searchRecords(Request $request): JsonResponse
@@ -934,6 +1246,19 @@ class UniverseController extends Controller
         $k = (-0.00023 * log($safeLength)) + 0.0017;
 
         return $y0 - ($l / (1 + exp(-$k * $blocksUsed)));
+    }
+
+    protected function normalizePlannerStoredModifier(float $storedModifier): float
+    {
+        if ($storedModifier <= -1.0 || $storedModifier >= 2.0) {
+            return max(0.01, 1 + ($storedModifier / 100));
+        }
+
+        if ($storedModifier < 0) {
+            return max(0.01, 1 + $storedModifier);
+        }
+
+        return max(0.01, $storedModifier);
     }
 
     protected function formatPlannerTime(int|float $totalSeconds): string

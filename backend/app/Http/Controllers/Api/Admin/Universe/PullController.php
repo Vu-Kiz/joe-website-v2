@@ -38,6 +38,7 @@ class PullController extends Controller
             'identifier' => ['required', 'string', 'max:255'],
             'persist' => ['sometimes', 'boolean'],
             'deep' => ['sometimes', 'boolean'],
+            'hyperlanes_only' => ['sometimes', 'boolean'],
         ]);
 
         if ((string) $data['resource'] === 'sector') {
@@ -58,10 +59,16 @@ class PullController extends Controller
         );
         $persist = (bool) ($data['persist'] ?? false);
         $deep = (bool) ($data['deep'] ?? false);
+        $hyperlanesOnly = (bool) ($data['hyperlanes_only'] ?? false);
         $persistence = null;
 
         if ($persist) {
-            $persistence = $this->universePersistenceService->persist($result, $deep);
+            $persistence = $this->universePersistenceService->persist(
+                $result,
+                $deep,
+                null,
+                ['hyperlanes_only' => $hyperlanesOnly]
+            );
         }
 
         AdminActionLogger::log(
@@ -77,6 +84,7 @@ class PullController extends Controller
                 'identifier' => (string) $data['identifier'],
                 'persist' => $persist,
                 'deep' => $deep,
+                'hyperlanes_only' => $hyperlanesOnly,
                 'persistence' => $persistence,
             ]
         );

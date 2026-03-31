@@ -2,6 +2,7 @@
 
 namespace App\Support\Swc;
 
+use App\Models\SwcSystem;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
@@ -13,7 +14,7 @@ class UniversePullService
         $identifier = $this->normalizeIdentifier($identifier);
 
         return match ($resource) {
-            'system' => $this->pullSystem($identifier, true),
+            'system' => $this->pullSystem($this->resolveSystemPullIdentifier($identifier), true),
             'sector' => $this->pullSector($identifier),
             'planet' => $this->pullPlanet($identifier),
             'planet_type' => $this->pullPlanetType($identifier),
@@ -32,6 +33,55 @@ class UniversePullService
             'material_type' => $this->pullMaterialType($identifier),
             default => throw new \InvalidArgumentException('Unsupported resource type.'),
         };
+    }
+
+    protected function resolveSystemPullIdentifier(string $identifier): string
+    {
+        $trimmed = $this->normalizeIdentifier($identifier);
+
+        if ($trimmed === '') {
+            return $trimmed;
+        }
+
+        $system = SwcSystem::query()
+            ->where('identifier', $trimmed)
+            ->orWhere('uid', $trimmed)
+            ->first(['identifier', 'name']);
+
+        if (!$system) {
+            if (str_contains($trimmed, ':')) {
+                throw new \RuntimeException(sprintf(
+                    'System refresh refused non-system identifier "%s" before contacting SWC.',
+                    $trimmed
+                ));
+            }
+
+            return $trimmed;
+        }
+
+        $candidateIdentifier = $this->normalizeIdentifier((string) ($system->identifier ?? ''));
+        $candidateName = $this->normalizeIdentifier((string) ($system->name ?? ''));
+
+        if ($candidateIdentifier !== '' && !str_contains($candidateIdentifier, ':')) {
+            return $candidateIdentifier;
+        }
+
+        if ($candidateName !== '') {
+            return $candidateName;
+        }
+
+        if ($candidateIdentifier !== '') {
+            throw new \RuntimeException(sprintf(
+                'System refresh refused colon-style system identifier "%s" for "%s".',
+                $candidateIdentifier,
+                $trimmed
+            ));
+        }
+
+        throw new \RuntimeException(sprintf(
+            'System refresh could not resolve a SWC-safe identifier for "%s".',
+            $trimmed
+        ));
     }
 
     public function pullAllFacilityTypesIndex(): array
