@@ -108,7 +108,7 @@ const BlogEditorPanel: React.FC<Props> = ({
       const formData = new FormData();
       formData.append("file", imageFile);
 
-      const res = await apiFetch<UploadResponse>("/upload?type=blog", {
+      const res = await apiFetch<UploadResponse>("/upload?type=jen", {
         method: "POST",
         body: formData,
       });
@@ -220,7 +220,7 @@ const BlogEditorPanel: React.FC<Props> = ({
           <div className="jen-poster__file-controls">
             <input
               type="file"
-              accept="image/*"
+              accept="image/png,image/jpeg,image/webp,image/gif"
               onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
             />
 

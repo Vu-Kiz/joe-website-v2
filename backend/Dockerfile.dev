@@ -16,6 +16,7 @@ RUN a2enmod rewrite
 
 # Use our Laravel vhost config
 COPY apache/000-default.conf /etc/apache2/sites-available/000-default.conf
+COPY php/uploads.ini /usr/local/etc/php/conf.d/uploads.ini
 
 # Work in Laravel app root
 WORKDIR /var/www/html

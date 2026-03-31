@@ -13,11 +13,11 @@ class UploadController extends Controller
      * Expandable type → directory mapping.
      */
     private const TYPES = [
-        'blog'     => ['dir' => 'uploads/blog',     'max_kb' => 5120],
-        'employee' => ['dir' => 'uploads/employee', 'max_kb' => 5120],
-        'banner'   => ['dir' => 'uploads/banners',  'max_kb' => 8192],
-        'jen'      => ['dir' => 'uploads/jen',      'max_kb' => 5120],
-        'misc'     => ['dir' => 'uploads/misc',     'max_kb' => 5120],
+        'blog'     => ['dir' => 'uploads/blog',     'max_kb' => 5120, 'mimes' => 'jpg,jpeg,png,webp'],
+        'employee' => ['dir' => 'uploads/employee', 'max_kb' => 5120, 'mimes' => 'jpg,jpeg,png,webp'],
+        'banner'   => ['dir' => 'uploads/banners',  'max_kb' => 8192, 'mimes' => 'jpg,jpeg,png,webp'],
+        'jen'      => ['dir' => 'uploads/jen',      'max_kb' => 20480, 'mimes' => 'jpg,jpeg,png,gif,webp'],
+        'misc'     => ['dir' => 'uploads/misc',     'max_kb' => 5120, 'mimes' => 'jpg,jpeg,png,webp'],
     ];
 
     public function store(Request $request)
@@ -33,7 +33,7 @@ class UploadController extends Controller
         $cfg = self::TYPES[$type];
 
         $request->validate([
-            'file' => ['required', 'file', 'image', 'max:' . $cfg['max_kb']],
+            'file' => ['required', 'file', 'image', 'mimes:' . $cfg['mimes'], 'max:' . $cfg['max_kb']],
         ]);
 
         // Store on "public" disk → served via /storage symlink
