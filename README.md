@@ -19,10 +19,10 @@ Jawa Offworld Enterprises website and member tools.
 
 ## v2.0.1 Status
 
-- `v2.0.1` is the next planned patch release
-- changes are being prepared on `dev`
+- `v2.0.1` is complete on `dev`
+- this section reflects the completed patch scope
 
-Planned patch items:
+Included updates:
 
 - Members tools
   Small auth/access and UI cleanup around members tools, plus Entity Stats relationship linking and per-tab compare tools.
