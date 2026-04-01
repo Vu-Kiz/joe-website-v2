@@ -14,7 +14,7 @@ class CellAnnotationController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        if (!Permissions::hasAny($request->user(), ['can_view_asteroid_intel', 'is_admin'])) {
+        if (!Permissions::hasAny($request->user(), ['can_view_asteroid_intel', 'is_admin', 'is_sysadmin'])) {
             return response()->json([
                 'ok' => true,
                 'data' => [],

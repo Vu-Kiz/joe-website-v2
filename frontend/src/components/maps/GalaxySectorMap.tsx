@@ -10,6 +10,7 @@ import scannedDuelconUrl from "../../assets/map/ScannedDuelcon.png";
 import rescanDueIconUrl from "../../assets/map/RescanDueIcon.png";
 import shipsDuelconUrl from "../../assets/map/ShipsDuelcon.png";
 import stationsDuelconUrl from "../../assets/map/StationsDuelcon.png";
+import hasNotesIconUrl from "../../assets/map/HasNotesIcon.png";
 import type {
   SectorCellAnnotation,
   SectorSearchRecord,
@@ -157,6 +158,7 @@ type IntelFlagMarker = {
   size: number;
   hasShips: boolean;
   hasStations: boolean;
+  hasNotes: boolean;
 };
 
 type LegendFilterKey =
@@ -169,6 +171,7 @@ type LegendFilterKey =
   | "asteroid_1x1_2x2"
   | "ships"
   | "stations"
+  | "notes"
   | "scanned"
   | "rescan";
 
@@ -184,6 +187,7 @@ const DEFAULT_LEGEND_FILTERS: LegendFilters = {
   asteroid_1x1_2x2: true,
   ships: true,
   stations: true,
+  notes: true,
   scanned: true,
   rescan: true,
 };
@@ -434,6 +438,14 @@ function getAsteroidLegendKey(
 function getSearchRecordSquareName(record: SectorSearchRecord | null | undefined) {
   const value = record?.square_name?.trim();
   return value ? value : null;
+}
+
+function formatAsteroidUid(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  return value.replace(/^5:/, "");
 }
 
 function getPrimaryCellName(
@@ -1140,6 +1152,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
           items: [
             { key: "ships", label: "Ships Present", icon: shipsDuelconUrl },
             { key: "stations", label: "Stations Present", icon: stationsDuelconUrl },
+            { key: "notes", label: "Notes Present", icon: hasNotesIconUrl },
             { key: "scanned", label: "Recently Scanned (<1 yr)", icon: scannedDuelconUrl },
             { key: "rescan", label: "Rescan Due (>1 yr)", icon: rescanDueIconUrl },
           ],
@@ -1371,18 +1384,44 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
     }
 
     const markerSize = Math.max(5, CELL_SIZE * zoom * 0.72);
+    const annotationKeysWithNotes = new Set(
+      annotations
+        .filter((annotation) => {
+          const notes = annotation.notes?.trim();
+          return Boolean(notes);
+        })
+        .map((annotation) => `${annotation.galx}:${annotation.galy}`)
+    );
+    const keyedRecords = new Map<string, SectorSearchRecord | null>();
 
-    return searchRecords
-      .filter(
-        (record) =>
-          !record.has_asteroids &&
-          ((record.has_ships === true && legendFilters.ships) ||
-            (record.has_stations === true && legendFilters.stations))
-      )
-      .map((record) => {
+    for (const record of searchRecords) {
+      keyedRecords.set(`${record.galx}:${record.galy}`, record);
+    }
+
+    for (const key of annotationKeysWithNotes) {
+      if (!keyedRecords.has(key)) {
+        keyedRecords.set(key, null);
+      }
+    }
+
+    return Array.from(keyedRecords.entries())
+      .filter(([key, record]) => {
+        if (record?.has_asteroids) {
+          return false;
+        }
+
+        const hasNotes = annotationKeysWithNotes.has(key) && legendFilters.notes;
+        return (
+          (record?.has_ships === true && legendFilters.ships) ||
+          (record?.has_stations === true && legendFilters.stations) ||
+          hasNotes
+        );
+      })
+      .map(([key, record]) => {
+        const [galxValue, galyValue] = key.split(":").map(Number);
         const center = worldCellCenter(
-          Number(record.galx),
-          Number(record.galy),
+          galxValue,
+          galyValue,
           worldBounds.minX,
           worldBounds.maxY
         );
@@ -1390,15 +1429,16 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
         const top = offset.y + center.y * zoom - markerSize / 2;
 
         return {
-          key: `${record.id}:${record.galx}:${record.galy}:intel`,
+          key: `${key}:intel`,
           left,
           top,
           size: markerSize,
-          hasShips: record.has_ships === true && legendFilters.ships,
-          hasStations: record.has_stations === true && legendFilters.stations,
+          hasShips: record?.has_ships === true && legendFilters.ships,
+          hasStations: record?.has_stations === true && legendFilters.stations,
+          hasNotes: annotationKeysWithNotes.has(key),
         };
       })
-      .filter((marker) => marker.hasShips || marker.hasStations)
+      .filter((marker) => marker.hasShips || marker.hasStations || marker.hasNotes)
       .filter(
         (marker) =>
           marker.left >= -marker.size &&
@@ -1406,7 +1446,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
           marker.top >= -marker.size &&
           marker.top <= viewportSize.height + marker.size
       );
-  }, [legendFilters, offset, searchRecords, viewportSize.height, viewportSize.width, worldBounds, zoom]);
+  }, [annotations, legendFilters, offset, searchRecords, viewportSize.height, viewportSize.width, worldBounds, zoom]);
 
   const scanBadgeMarkers = useMemo<ScanBadgeMarker[]>(() => {
     if (!worldBounds || zoom < 1.25) {
@@ -2013,11 +2053,11 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
           alignCanvasStroke(offset.y + end.y * zoom)
         );
       }
-      context.lineWidth = activeSectorUid === sector.uid ? 1.5 : 1;
+      context.lineWidth = activeSectorUid === sector.uid ? 2.5 : 2;
       context.strokeStyle =
         activeSectorUid === sector.uid
-          ? "rgba(246,163,0,0.48)"
-          : "rgba(246,163,0,0.24)";
+          ? "rgba(255,186,64,0.72)"
+          : "rgba(255,176,40,0.4)";
       context.stroke();
     }
 
@@ -2434,6 +2474,13 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
                   className="members-universe-map__asteroid-flag members-universe-map__asteroid-flag--stations"
                 />
               ) : null}
+              {!hideSecondaryIcons && legendFilters.notes && marker.record.galx != null && marker.record.galy != null && ((annotationsByCoordinate.get(`${marker.record.galx}:${marker.record.galy}`) ?? [])[0]?.notes?.trim()) ? (
+                <img
+                  src={hasNotesIconUrl}
+                  alt=""
+                  className="members-universe-map__asteroid-flag members-universe-map__asteroid-flag--notes"
+                />
+              ) : null}
             </div>
           )) : null}
           {canViewCellIntel && !hideSecondaryIcons ? intelFlagMarkers.map((marker) => (
@@ -2459,6 +2506,13 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
                   src={stationsDuelconUrl}
                   alt=""
                   className="members-universe-map__asteroid-flag members-universe-map__asteroid-flag--stations"
+                />
+              ) : null}
+              {marker.hasNotes ? (
+                <img
+                  src={hasNotesIconUrl}
+                  alt=""
+                  className="members-universe-map__asteroid-flag members-universe-map__asteroid-flag--notes"
                 />
               ) : null}
             </div>
@@ -2573,6 +2627,11 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
                 {isEventImportedSearchRecord(selectedCell.searchRecord)
                   ? `Searched by: ${selectedCell.searchRecord.handle}`
                   : `Searched by: ${selectedCell.searchRecord.handle}`}
+              </span>
+            ) : null}
+            {selectedCell.searchRecord?.has_asteroids && selectedCell.searchRecord?.asteroid_uid ? (
+              <span className="small">
+                Asteroid UID: {formatAsteroidUid(selectedCell.searchRecord.asteroid_uid)}
               </span>
             ) : null}
             {selectedCell.searchRecord?.legacy_recorded_at ? (

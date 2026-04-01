@@ -26,5 +26,6 @@ Jawa Offworld Enterprises website and member tools.
 - current `dev` updates include DroidBrain fixes and polish
 - current `dev` updates include GIF upload support for JEN images
 - current `dev` updates include Astrogation map legend usability improvements
+- current `dev` updates include Astrogation asteroid UID backfill and map note marker improvements
 - current `dev` updates include Hyper Planner route-finding improvements
 - release notes should be added here once `v2.0.1` work is finalized

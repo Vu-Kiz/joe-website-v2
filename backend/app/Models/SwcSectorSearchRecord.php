@@ -10,6 +10,7 @@ class SwcSectorSearchRecord extends Model
     protected $fillable = [
         'sector_id',
         'sector_uid',
+        'asteroid_uid',
         'galx',
         'galy',
         'square_name',

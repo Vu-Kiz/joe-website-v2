@@ -36,7 +36,7 @@ class UniverseController extends Controller
     {
         return Permissions::hasAny(
             $request->user(),
-            ['can_view_asteroid_intel', 'is_admin']
+            ['can_view_asteroid_intel', 'is_admin', 'is_sysadmin']
         );
     }
 
@@ -78,6 +78,7 @@ class UniverseController extends Controller
         return [
             'id' => $record->id,
             'sector_uid' => $record->sector_uid,
+            'asteroid_uid' => $record->asteroid_uid,
             'galx' => $record->galx,
             'galy' => $record->galy,
             'square_name' => $record->square_name,
@@ -1013,6 +1014,7 @@ class UniverseController extends Controller
                 ->select([
                     'id',
                     'sector_uid',
+                    'asteroid_uid',
                     'galx',
                     'galy',
                     'square_name',
@@ -1047,6 +1049,7 @@ class UniverseController extends Controller
             $records[] = [
                 'id' => (int) $record->id,
                 'sector_uid' => $record->sector_uid,
+                'asteroid_uid' => $canViewAsteroidIntel ? $record->asteroid_uid : null,
                 'galx' => (int) $record->galx,
                 'galy' => (int) $record->galy,
                 'square_name' => $record->square_name,
@@ -1391,8 +1394,10 @@ class UniverseController extends Controller
                 ->get([
                     'id',
                     'sector_uid',
+                    'asteroid_uid',
                     'galx',
                     'galy',
+                    'square_name',
                     'is_system_searched',
                     'has_asteroids',
                     'planetoids_checked',

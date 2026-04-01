@@ -76,7 +76,7 @@ class SearchRecordController extends Controller
             'type' => data_get($event, 'attributes.type'),
             'timestamp' => data_get($event, 'time.timestamp'),
             'square_name' => $squareName,
-            'system_id' => $systemMatches[1] ?? null,
+            'asteroid_uid' => isset($systemMatches[1]) ? sprintf('5:%s', $systemMatches[1]) : null,
             'galx' => isset($coordMatches[1]) ? (int) $coordMatches[1] : null,
             'galy' => isset($coordMatches[2]) ? (int) $coordMatches[2] : null,
             'has_asteroids' => $hasAsteroids,
@@ -235,9 +235,15 @@ class SearchRecordController extends Controller
                 $nextSquareName = trim((string) $match['square_name']) ?: $nextSquareName;
             }
 
+            $nextAsteroidUid = $record?->asteroid_uid;
+            if (($match['has_asteroids'] ?? false) && !empty($match['asteroid_uid'])) {
+                $nextAsteroidUid = trim((string) $match['asteroid_uid']) ?: $nextAsteroidUid;
+            }
+
             $payload = [
                 'sector_id' => $record?->sector_id ?? $resolvedSector['sector_id'],
                 'sector_uid' => $record?->sector_uid ?? $resolvedSector['sector_uid'],
+                'asteroid_uid' => $nextAsteroidUid,
                 'square_name' => $nextSquareName,
                 'has_asteroids' => (bool) ($record?->has_asteroids ?? false) || (bool) ($match['has_asteroids'] ?? false),
                 'legacy_recorded_at' => $nextLegacyRecordedAt,
@@ -249,6 +255,7 @@ class SearchRecordController extends Controller
                 $isChanged =
                     $record->sector_id !== $payload['sector_id'] ||
                     $record->sector_uid !== $payload['sector_uid'] ||
+                    $record->asteroid_uid !== $payload['asteroid_uid'] ||
                     $record->square_name !== $payload['square_name'] ||
                     (bool) $record->has_asteroids !== (bool) $payload['has_asteroids'] ||
                     $record->legacy_player !== $payload['legacy_player'] ||
@@ -289,6 +296,7 @@ class SearchRecordController extends Controller
             'galx' => ['required', 'integer'],
             'galy' => ['required', 'integer'],
             'sector_uid' => ['nullable', 'string', 'max:255'],
+            'asteroid_uid' => ['nullable', 'string', 'max:255'],
             'square_name' => ['nullable', 'string', 'max:255'],
             'planetoids_checked' => ['nullable', 'boolean'],
             'planetoid_1_size' => ['nullable', 'in:1x1,2x2'],
@@ -332,6 +340,7 @@ class SearchRecordController extends Controller
         $before = $record?->only([
             'id',
             'sector_uid',
+            'asteroid_uid',
             'galx',
             'galy',
             'square_name',
@@ -352,6 +361,9 @@ class SearchRecordController extends Controller
             [
                 'sector_id' => $sector?->id ?? $record?->sector_id,
                 'sector_uid' => $sector?->uid ?? ($data['sector_uid'] ?? $record?->sector_uid),
+                'asteroid_uid' => array_key_exists('asteroid_uid', $data)
+                    ? (trim((string) ($data['asteroid_uid'] ?? '')) ?: null)
+                    : $record?->asteroid_uid,
                 'square_name' => array_key_exists('square_name', $data)
                     ? (trim((string) ($data['square_name'] ?? '')) ?: null)
                     : $record?->square_name,
@@ -368,6 +380,7 @@ class SearchRecordController extends Controller
         $after = $record->only([
             'id',
             'sector_uid',
+            'asteroid_uid',
             'galx',
             'galy',
             'square_name',

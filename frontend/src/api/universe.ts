@@ -188,6 +188,7 @@ export type SectorCellAnnotation = {
 export type SectorSearchRecord = {
   id: number;
   sector_uid: string | null;
+  asteroid_uid: string | null;
   galx: number;
   galy: number;
   square_name: string | null;
