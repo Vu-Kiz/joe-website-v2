@@ -32,14 +32,27 @@ import {
   updateAdminEntityStats,
 } from "../../api/universe";
 
-type EntitySummary = {
+type EntityRecordSummary = {
   uid: string;
   name: string | null;
+  sourceKind: EntityStatsKind;
   code?: string | null;
   classUid?: string | null;
   className?: string | null;
   imageUrl?: string | null;
   last_pulled_at: string | null;
+};
+
+type EntityBrowseItem = {
+  key: string;
+  name: string | null;
+  imageUrl?: string | null;
+  code?: string | null;
+  className?: string | null;
+  last_pulled_at: string | null;
+  primaryRecord: EntityRecordSummary;
+  itemRecord?: EntityRecordSummary | null;
+  weaponRecord?: EntityRecordSummary | null;
 };
 
 const kindOptions: Array<{ key: EntityStatsKind; label: string }> = [
@@ -58,10 +71,11 @@ const kindOptions: Array<{ key: EntityStatsKind; label: string }> = [
   { key: "material", label: "Material Types" },
 ];
 
-function summarizeEntity(item: any): EntitySummary {
+function summarizeEntity(item: any, sourceKind: EntityStatsKind): EntityRecordSummary {
   return {
     uid: String(item.uid ?? ""),
     name: item.name ?? null,
+    sourceKind,
     code: item.code ?? null,
     classUid: item.class_uid ?? null,
     className: item.class_name ?? null,
@@ -75,10 +89,67 @@ function summarizeEntity(item: any): EntitySummary {
   };
 }
 
+function normalizeEntityName(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function buildOverlayBrowseItems(
+  primaryItems: EntityRecordSummary[],
+  relatedItems: EntityRecordSummary[]
+): EntityBrowseItem[] {
+  const relatedByName = new Map(
+    relatedItems.map((item) => [normalizeEntityName(item.name), item])
+  );
+
+  return primaryItems.map((item) => {
+    const related = relatedByName.get(normalizeEntityName(item.name)) ?? null;
+    const itemRecord =
+      item.sourceKind === "item"
+        ? item
+        : related?.sourceKind === "item"
+          ? related
+          : null;
+    const weaponRecord =
+      item.sourceKind === "weapon"
+        ? item
+        : related?.sourceKind === "weapon"
+          ? related
+          : null;
+
+    return {
+      key: item.uid,
+      name: item.name,
+      imageUrl: item.imageUrl ?? related?.imageUrl ?? null,
+      code: item.code ?? related?.code ?? null,
+      className: item.className ?? related?.className ?? null,
+      last_pulled_at: item.last_pulled_at ?? related?.last_pulled_at ?? null,
+      primaryRecord: item,
+      itemRecord,
+      weaponRecord,
+    };
+  });
+}
+
+function getBrowseRecordForKind(
+  item: EntityBrowseItem,
+  sourceKind: EntityStatsKind
+) {
+  if (sourceKind === "item") {
+    return item.itemRecord ?? item.primaryRecord;
+  }
+
+  if (sourceKind === "weapon") {
+    return item.weaponRecord ?? item.primaryRecord;
+  }
+
+  return item.primaryRecord;
+}
+
 const AdminEntityStatsPanel: React.FC = () => {
   const [kind, setKind] = useState<EntityStatsKind>("station");
-  const [items, setItems] = useState<EntitySummary[]>([]);
+  const [items, setItems] = useState<EntityBrowseItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedSourceKind, setSelectedSourceKind] = useState<EntityStatsKind | null>(null);
   const [search, setSearch] = useState("");
   const [itemClassFilter, setItemClassFilter] = useState<string>("all");
   const [editorValue, setEditorValue] = useState("");
@@ -128,10 +199,35 @@ const AdminEntityStatsPanel: React.FC = () => {
 
         if (cancelled) return;
 
-        const mapped = (response.data ?? []).map(summarizeEntity);
+        const mapped =
+          kind === "item"
+            ? buildOverlayBrowseItems(
+                (response.data ?? []).map((item: any) => summarizeEntity(item, "item")),
+                (await getStoredWeaponTypes()).data?.map((weapon: any) => summarizeEntity(weapon, "weapon")) ?? []
+              )
+            : kind === "weapon"
+              ? buildOverlayBrowseItems(
+                  (response.data ?? []).map((weapon: any) => summarizeEntity(weapon, "weapon")),
+                  (await getStoredItemTypes()).data?.map((item: any) => summarizeEntity(item, "item")) ?? []
+                )
+              : (response.data ?? []).map((item: any) => {
+                  const record = summarizeEntity(item, kind);
+                  return {
+                    key: record.uid,
+                    name: record.name,
+                    imageUrl: record.imageUrl ?? null,
+                    code: record.code ?? null,
+                    className: record.className ?? null,
+                    last_pulled_at: record.last_pulled_at,
+                    primaryRecord: record,
+                    itemRecord: null,
+                    weaponRecord: null,
+                  } satisfies EntityBrowseItem;
+                });
         setItems(mapped);
         setItemClassFilter("all");
-        setSelectedId(mapped[0]?.uid ?? null);
+        setSelectedId(mapped[0]?.key ?? null);
+        setSelectedSourceKind(kind === "item" || kind === "weapon" ? kind : null);
       } catch (e: any) {
         if (!cancelled) {
           setItems([]);
@@ -151,8 +247,13 @@ const AdminEntityStatsPanel: React.FC = () => {
     };
   }, [kind]);
 
+  const selectedItem = useMemo(
+    () => items.find((item) => item.key === selectedId) ?? null,
+    [items, selectedId]
+  );
+
   useEffect(() => {
-    if (!selectedId) {
+    if (!selectedItem) {
       setEditorValue("");
       return;
     }
@@ -164,32 +265,44 @@ const AdminEntityStatsPanel: React.FC = () => {
         setDetailLoading(true);
         setError(null);
 
+        const detailKind =
+          kind === "item" || kind === "weapon"
+            ? (selectedSourceKind ?? kind)
+            : kind;
+        const selectedRecord = getBrowseRecordForKind(selectedItem, detailKind);
+        const selectedUid = selectedRecord?.uid ?? null;
+
+        if (!selectedUid) {
+          setEditorValue("");
+          return;
+        }
+
         const response =
-          kind === "station"
-            ? await getStoredStationType(selectedId)
-            : kind === "facility"
-            ? await getStoredFacilityType(selectedId)
-            : kind === "item"
-              ? await getStoredItemType(selectedId)
-            : kind === "planet"
-              ? await getStoredPlanetType(selectedId)
-            : kind === "ship"
-              ? await getStoredShipType(selectedId)
-            : kind === "vehicle"
-              ? await getStoredVehicleType(selectedId)
-            : kind === "droid"
-              ? await getStoredDroidType(selectedId)
-            : kind === "creature"
-              ? await getStoredCreatureType(selectedId)
-            : kind === "npc"
-              ? await getStoredNpcType(selectedId)
-            : kind === "race"
-              ? await getStoredRace(selectedId)
-            : kind === "weapon"
-              ? await getStoredWeaponType(selectedId)
-            : kind === "terrain"
-              ? await getStoredTerrainType(selectedId)
-              : await getStoredMaterialType(selectedId);
+          detailKind === "station"
+            ? await getStoredStationType(selectedUid)
+            : detailKind === "facility"
+              ? await getStoredFacilityType(selectedUid)
+            : detailKind === "item"
+              ? await getStoredItemType(selectedUid)
+            : detailKind === "planet"
+              ? await getStoredPlanetType(selectedUid)
+            : detailKind === "ship"
+              ? await getStoredShipType(selectedUid)
+            : detailKind === "vehicle"
+              ? await getStoredVehicleType(selectedUid)
+            : detailKind === "droid"
+              ? await getStoredDroidType(selectedUid)
+            : detailKind === "creature"
+              ? await getStoredCreatureType(selectedUid)
+            : detailKind === "npc"
+              ? await getStoredNpcType(selectedUid)
+            : detailKind === "race"
+              ? await getStoredRace(selectedUid)
+            : detailKind === "weapon"
+              ? await getStoredWeaponType(selectedUid)
+            : detailKind === "terrain"
+              ? await getStoredTerrainType(selectedUid)
+              : await getStoredMaterialType(selectedUid);
 
         if (cancelled) return;
 
@@ -216,7 +329,7 @@ const AdminEntityStatsPanel: React.FC = () => {
     let scopedItems = items;
 
     if (kind === "item" && itemClassFilter !== "all") {
-      scopedItems = scopedItems.filter((item) => (item.className ?? "Unknown").toLowerCase() === itemClassFilter);
+      scopedItems = scopedItems.filter((item) => (item.primaryRecord.className ?? "Unknown").toLowerCase() === itemClassFilter);
     }
 
     if (!query) {
@@ -224,7 +337,14 @@ const AdminEntityStatsPanel: React.FC = () => {
     }
 
     return scopedItems.filter((item) =>
-      [item.name ?? "", item.uid, item.code ?? "", item.className ?? ""].some((value) =>
+      [
+        item.name ?? "",
+        item.primaryRecord.uid,
+        item.itemRecord?.uid ?? "",
+        item.weaponRecord?.uid ?? "",
+        item.code ?? "",
+        item.className ?? "",
+      ].some((value) =>
         value.toLowerCase().includes(query)
       )
     );
@@ -236,12 +356,12 @@ const AdminEntityStatsPanel: React.FC = () => {
     }
 
     return Array.from(
-      new Set(items.map((item) => (item.className ?? "Unknown").trim() || "Unknown"))
+      new Set(items.map((item) => (item.primaryRecord.className ?? "Unknown").trim() || "Unknown"))
     ).sort((a, b) => a.localeCompare(b));
   }, [items, kind]);
 
   async function onSave() {
-    if (!selectedId) {
+    if (!selectedItem) {
       setError("Select an entity first.");
       return;
     }
@@ -252,14 +372,52 @@ const AdminEntityStatsPanel: React.FC = () => {
       setMessage(null);
 
       const parsed = JSON.parse(editorValue) as Record<string, unknown>;
-      const response = await updateAdminEntityStats(kind, selectedId, parsed);
+      const detailKind =
+        kind === "item" || kind === "weapon"
+          ? (selectedSourceKind ?? kind)
+          : kind;
+      const selectedRecord = getBrowseRecordForKind(selectedItem, detailKind);
+      const selectedUid = selectedRecord?.uid ?? null;
+
+      if (!selectedUid) {
+        throw new Error("No editable source record was found for this entry.");
+      }
+
+      const response = await updateAdminEntityStats(detailKind, selectedUid, parsed);
 
       setMessage(response.message ?? "Entity stats updated.");
       setEditorValue(JSON.stringify(response.data ?? parsed, null, 2));
       setItems((current) =>
         current.map((item) =>
-          item.uid === selectedId
-            ? summarizeEntity(response.data ?? { ...item, uid: selectedId })
+          item.key === selectedItem.key
+            ? (() => {
+                const refreshedRecord = summarizeEntity(
+                  response.data ?? { ...selectedRecord, uid: selectedUid },
+                  detailKind
+                );
+
+                return {
+                  ...item,
+                  name: detailKind === item.primaryRecord.sourceKind ? refreshedRecord.name : item.name,
+                  imageUrl:
+                    detailKind === item.primaryRecord.sourceKind
+                      ? refreshedRecord.imageUrl ?? item.imageUrl ?? null
+                      : item.imageUrl ?? null,
+                  code: detailKind === item.primaryRecord.sourceKind ? refreshedRecord.code ?? item.code ?? null : item.code ?? null,
+                  className:
+                    detailKind === item.primaryRecord.sourceKind
+                      ? refreshedRecord.className ?? item.className ?? null
+                      : item.className ?? null,
+                  last_pulled_at:
+                    detailKind === item.primaryRecord.sourceKind
+                      ? refreshedRecord.last_pulled_at
+                      : item.last_pulled_at,
+                  primaryRecord:
+                    item.primaryRecord.sourceKind === detailKind ? refreshedRecord : item.primaryRecord,
+                  itemRecord: detailKind === "item" ? refreshedRecord : item.itemRecord,
+                  weaponRecord: detailKind === "weapon" ? refreshedRecord : item.weaponRecord,
+                };
+              })()
             : item
         )
       );
@@ -282,7 +440,20 @@ const AdminEntityStatsPanel: React.FC = () => {
       );
 
       const refreshed = await getStoredStationTypes();
-      const mapped = (refreshed.data ?? []).map(summarizeEntity);
+      const mapped = (refreshed.data ?? []).map((item: any) => {
+        const record = summarizeEntity(item, "station");
+        return {
+          key: record.uid,
+          name: record.name,
+          imageUrl: record.imageUrl ?? null,
+          code: record.code ?? null,
+          className: record.className ?? null,
+          last_pulled_at: record.last_pulled_at,
+          primaryRecord: record,
+          itemRecord: null,
+          weaponRecord: null,
+        } satisfies EntityBrowseItem;
+      });
       setItems(mapped);
 
       if (selectedId) {
@@ -308,7 +479,20 @@ const AdminEntityStatsPanel: React.FC = () => {
       );
 
       const refreshed = await getStoredMaterialTypes();
-      const mapped = (refreshed.data ?? []).map(summarizeEntity);
+      const mapped = (refreshed.data ?? []).map((item: any) => {
+        const record = summarizeEntity(item, "material");
+        return {
+          key: record.uid,
+          name: record.name,
+          imageUrl: record.imageUrl ?? null,
+          code: record.code ?? null,
+          className: record.className ?? null,
+          last_pulled_at: record.last_pulled_at,
+          primaryRecord: record,
+          itemRecord: null,
+          weaponRecord: null,
+        } satisfies EntityBrowseItem;
+      });
       setItems(mapped);
 
       if (selectedId) {
@@ -409,16 +593,19 @@ const AdminEntityStatsPanel: React.FC = () => {
           <div className="admin-entity-stats__list">
             {filteredItems.map((item) => (
               <button
-                key={item.uid}
+                key={item.key}
                 type="button"
-                className={`admin-entity-stats__item${selectedId === item.uid ? " is-active" : ""}`}
-                onClick={() => setSelectedId(item.uid)}
+                className={`admin-entity-stats__item${selectedId === item.key ? " is-active" : ""}`}
+                onClick={() => {
+                  setSelectedId(item.key);
+                  setSelectedSourceKind(item.primaryRecord.sourceKind);
+                }}
               >
                 <div className="admin-entity-stats__item-top">
                   {item.imageUrl ? (
                     <img
                       src={item.imageUrl}
-                      alt={item.name ?? item.uid}
+                      alt={item.name ?? item.primaryRecord.uid}
                       className="admin-entity-stats__item-icon"
                     />
                   ) : (
@@ -427,11 +614,15 @@ const AdminEntityStatsPanel: React.FC = () => {
                     </span>
                   )}
                   <div className="admin-entity-stats__item-copy">
-                    <strong>{item.name ?? item.uid}</strong>
-                    <span className="small">{item.uid}</span>
+                    <strong>{item.name ?? item.primaryRecord.uid}</strong>
+                    <span className="small">
+                      {item.primaryRecord.uid}
+                      {item.itemRecord && item.weaponRecord ? ` · ${item.itemRecord.uid} / ${item.weaponRecord.uid}` : ""}
+                    </span>
                   </div>
                 </div>
                 <div className="admin-entity-stats__item-meta">
+                  {item.itemRecord && item.weaponRecord ? <span className="small">Item + Weapon</span> : null}
                   {item.className ? <span className="small">{item.className}</span> : null}
                   {item.code ? <span className="small">Code {item.code}</span> : null}
                   {item.last_pulled_at ? <span className="small">Pulled {item.last_pulled_at}</span> : null}
@@ -451,6 +642,29 @@ const AdminEntityStatsPanel: React.FC = () => {
               Edit the stored detail record as JSON. UID and last-pulled are preserved automatically.
             </p>
           </div>
+
+          {selectedItem && (selectedItem.itemRecord || selectedItem.weaponRecord) && (kind === "item" || kind === "weapon") ? (
+            <div className="admin-card__actions">
+              {selectedItem.itemRecord ? (
+                <button
+                  type="button"
+                  className={`btn${selectedSourceKind === "item" ? " admin-nav__btn--active" : ""}`}
+                  onClick={() => setSelectedSourceKind("item")}
+                >
+                  Item Record
+                </button>
+              ) : null}
+              {selectedItem.weaponRecord ? (
+                <button
+                  type="button"
+                  className={`btn${selectedSourceKind === "weapon" ? " admin-nav__btn--active" : ""}`}
+                  onClick={() => setSelectedSourceKind("weapon")}
+                >
+                  Weapon Record
+                </button>
+              ) : null}
+            </div>
+          ) : null}
 
           <textarea
             className="admin-entity-stats__textarea"

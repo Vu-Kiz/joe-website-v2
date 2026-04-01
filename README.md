@@ -25,7 +25,7 @@ Jawa Offworld Enterprises website and member tools.
 Planned patch items:
 
 - Members tools
-  Small auth/access and UI cleanup around members tools.
+  Small auth/access and UI cleanup around members tools, plus Entity Stats relationship linking and per-tab compare tools.
 - Payments and content
   Payment transfer builder cleanup and GIF upload support for JEN images.
 - DroidBrain

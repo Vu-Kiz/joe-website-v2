@@ -1722,24 +1722,94 @@ class UniversePullService
         $payload = $this->simpleXmlToArray($typeNode);
         $uid = trim((string) ($typeNode->uid ?? $typeNode['uid'] ?? $fallbackIdentifier ?? '')) ?: null;
         $name = trim((string) ($typeNode->name ?? $typeNode['name'] ?? $typeNode)) ?: null;
-        $images = isset($typeNode->images) ? [
-            'small' => $this->firstStringValue($typeNode->images, ['small']),
-            'large' => $this->firstStringValue($typeNode->images, ['large']),
-            'icon' => $this->firstStringValue($typeNode->images, ['icon']),
+        $classUid = isset($typeNode->class) ? trim((string) ($typeNode->class['uid'] ?? '')) ?: null : null;
+        $className = isset($typeNode->class)
+            ? trim((string) ($typeNode->class['value'] ?? $typeNode->class)) ?: null
+            : null;
+
+        $weapons = [];
+        if (isset($typeNode->weapons) && isset($typeNode->weapons->weapon)) {
+            foreach ($typeNode->weapons->weapon as $weapon) {
+                $weapons[] = [
+                    'uid' => trim((string) ($weapon['uid'] ?? '')) ?: null,
+                    'href' => trim((string) ($weapon['href'] ?? '')) ?: null,
+                    'name' => trim((string) $weapon) ?: null,
+                    'quantity' => $this->toIntOrNull($weapon['quantity'] ?? null),
+                    'arc' => trim((string) ($weapon['arc'] ?? '')) ?: null,
+                    'arc_from' => $this->toIntOrNull($weapon['arcFrom'] ?? null),
+                    'arc_to' => $this->toIntOrNull($weapon['arcTo'] ?? null),
+                ];
+            }
+        }
+
+        $materials = [];
+        if (isset($typeNode->materials) && isset($typeNode->materials->material)) {
+            foreach ($typeNode->materials->material as $material) {
+                $materials[] = [
+                    'uid' => trim((string) ($material['uid'] ?? '')) ?: null,
+                    'href' => trim((string) ($material['href'] ?? '')) ?: null,
+                    'name' => trim((string) $material) ?: null,
+                    'quantity' => $this->toIntOrNull($material['quantity'] ?? null),
+                ];
+            }
+        }
+
+        $imageSetsNode = isset($typeNode->imagesets->images) ? $typeNode->imagesets->images : null;
+        $images = $imageSetsNode instanceof \SimpleXMLElement ? [
+            'small' => $this->firstStringValue($imageSetsNode, ['small']),
+            'large_vertical' => $this->firstStringValue($imageSetsNode, ['largevertical']),
+            'large_horizontal' => $this->firstStringValue($imageSetsNode, ['largehorizontal']),
+            'icon' => $this->firstStringValue($imageSetsNode, ['icon']),
         ] : [];
 
         return [
             'uid' => $uid,
             'name' => $name,
-            'class_name' => $this->firstStringValue($typeNode, ['class', 'classname', 'class_name']),
-            'size' => $this->firstStringValue($typeNode, ['size']),
+            'class_uid' => $classUid,
+            'class_name' => $className ?? $this->firstStringValue($typeNode, ['class', 'classname', 'class_name']),
+            'size' => $this->firstStringValue($typeNode, ['size']) ?? (
+                $this->firstIntValue($typeNode, ['sizex']) !== null && $this->firstIntValue($typeNode, ['sizey']) !== null
+                    ? sprintf('%dx%d', $this->firstIntValue($typeNode, ['sizex']), $this->firstIntValue($typeNode, ['sizey']))
+                    : null
+            ),
+            'sensors' => $this->firstIntValue($typeNode, ['sensors']),
+            'weight_tonnes' => $this->firstFloatValue($typeNode, ['weight']),
+            'volume_m3' => $this->firstFloatValue($typeNode, ['volume']),
+            'volume_capacity_m3' => $this->firstFloatValue($typeNode, ['volumecapacity']),
+            'max_passengers' => $this->firstIntValue($typeNode, ['maxpassengers']),
+            'flat_count' => $this->firstIntValue($typeNode, ['flats']),
+            'job_count' => $this->firstIntValue($typeNode, ['jobs']),
+            'size_x' => $this->firstIntValue($typeNode, ['sizex']),
+            'size_y' => $this->firstIntValue($typeNode, ['sizey']),
             'length' => $this->firstFloatValue($typeNode, ['length']),
             'width' => $this->firstFloatValue($typeNode, ['width']),
             'height' => $this->firstFloatValue($typeNode, ['height']),
+            'hull' => $this->firstIntValue($typeNode, ['hull']),
+            'shield' => $this->firstIntValue($typeNode, ['shield']),
+            'ionic_capacity' => $this->firstIntValue($typeNode, ['ioniccapacity']),
+            'energy' => $this->firstIntValue($typeNode, ['energy']),
+            'can_load_materials' => $this->toBoolOrNull($typeNode->canloadmaterials ?? null),
+            'can_earn_income' => $this->toBoolOrNull($typeNode->canearnincome ?? null),
+            'medical_rooms' => $this->firstIntValue($typeNode, ['medicalrooms']),
+            'has_hangar_bay' => $this->toBoolOrNull($typeNode->hangarbay ?? null),
+            'has_docking_bay' => $this->toBoolOrNull($typeNode->dockingbay ?? null),
+            'can_recycle' => $this->toBoolOrNull($typeNode->canrecycle ?? null),
+            'can_produce' => $this->toBoolOrNull($typeNode->canproduce ?? null),
+            'can_mine' => $this->toBoolOrNull($typeNode->canmine ?? null),
+            'can_refine_alazhi' => $this->toBoolOrNull($typeNode->canrefinealazhi ?? null),
+            'can_farm_alazhi' => $this->toBoolOrNull($typeNode->canfarmalazhi ?? null),
+            'can_research' => $this->toBoolOrNull($typeNode->canresearch ?? null),
             'description' => $this->firstStringValue($typeNode, ['description', 'desc']),
             'price_credits' => isset($typeNode->price) ? $this->firstIntValue($typeNode->price, ['credits']) : null,
+            'production_modifier' => isset($typeNode->production) ? $this->firstIntValue($typeNode->production, ['modifier']) : null,
+            'recommended_workers' => isset($typeNode->production) ? $this->firstIntValue($typeNode->production, ['recommendedWorkers']) : null,
+            'recycling_xp' => isset($typeNode->production) ? $this->firstIntValue($typeNode->production, ['recyclingXP']) : null,
+            'generic_slots' => isset($typeNode->production) ? $this->firstIntValue($typeNode->production, ['genericSlots']) : null,
+            'weapons' => $weapons !== [] ? $weapons : null,
+            'materials' => $materials !== [] ? $materials : null,
             'images' => $images !== [] ? $images : null,
-            'image_url' => $images['large'] ?? $images['small'] ?? $images['icon'] ?? $this->firstStringValue($typeNode, ['image', 'image_url', 'imageurl']),
+            'image_url' => $images['large_horizontal'] ?? $images['large_vertical'] ?? $images['small'] ?? $images['icon'] ?? $this->firstStringValue($typeNode, ['image', 'image_url', 'imageurl']),
+            'icon_url' => $images['icon'] ?? $images['small'] ?? null,
             'payload' => $payload,
         ];
     }

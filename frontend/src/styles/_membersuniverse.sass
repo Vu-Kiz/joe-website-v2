@@ -446,8 +446,19 @@
 
 .members-entity-stats__toolbar
   display: grid
-  grid-template-columns: minmax(0, 320px)
+  grid-template-columns: minmax(0, 320px) minmax(0, 1fr)
   gap: 1rem
+
+.members-entity-stats__compare-toolbar
+  display: grid
+  grid-template-columns: repeat(2, minmax(0, 1fr))
+  align-items: end
+  gap: 0.75rem
+
+.members-entity-stats__compare-toggle
+  display: inline-flex
+  align-items: center
+  gap: 0.4rem
 
 .members-entity-stats__layout
   display: grid
@@ -505,6 +516,56 @@
   border-radius: 14px
   background: rgba(255,255,255,0.03)
 
+.members-entity-stats__compare-view
+  display: grid
+  gap: 1rem
+
+.members-entity-stats__compare-hero
+  display: grid
+  grid-template-columns: repeat(2, minmax(0, 1fr))
+  gap: 0.85rem
+
+.members-entity-stats__compare-card
+  display: grid
+  gap: 0.35rem
+  padding: 0.9rem
+  border: 1px solid rgba(255,255,255,0.08)
+  border-radius: 10px
+  background: rgba(255,255,255,0.025)
+
+  h3, p
+    margin: 0
+
+.members-entity-stats__compare-grid
+  display: grid
+  grid-template-columns: minmax(140px, 0.9fr) minmax(0, 1fr) minmax(0, 1fr)
+  border: 1px solid rgba(255,255,255,0.08)
+  border-radius: 12px
+  overflow: hidden
+
+.members-entity-stats__compare-head
+  padding: 0.8rem
+  background: rgba(255,255,255,0.06)
+  border-bottom: 1px solid rgba(255,255,255,0.08)
+  font-weight: 700
+
+.members-entity-stats__compare-cell
+  padding: 0.8rem
+  border-top: 1px solid rgba(255,255,255,0.06)
+  background: rgba(255,255,255,0.02)
+  word-break: break-word
+
+  &.is-different
+    background: rgba(246,163,0,0.10)
+
+.members-entity-stats__compare-cell--label
+  font-weight: 700
+
+.members-entity-stats__source-toggle
+  display: flex
+  flex-wrap: wrap
+  gap: 0.65rem
+
 .members-entity-stats__hero
   display: grid
   grid-template-columns: auto minmax(0, 1fr)
@@ -545,6 +606,27 @@
   h4
     margin: 0
 
+.members-entity-stats__section-heading
+  display: flex
+  flex-wrap: wrap
+  justify-content: space-between
+  align-items: center
+  gap: 0.75rem
+
+.members-entity-stats__related-card
+  display: grid
+  grid-template-columns: auto minmax(0, 1fr)
+  gap: 0.85rem
+  align-items: center
+  padding: 0.85rem
+  border: 1px solid rgba(255,255,255,0.08)
+  border-radius: 10px
+  background: rgba(255,255,255,0.025)
+
+.members-entity-stats__related-copy
+  display: grid
+  gap: 0.25rem
+
 .members-entity-stats__chip-list
   display: flex
   flex-wrap: wrap
@@ -568,6 +650,21 @@
 
   p
     margin: 0
+
+.members-entity-stats__collection-card--interactive
+  color: inherit
+  text-align: left
+  cursor: pointer
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease
+
+  &:hover
+    border-color: rgba(246,163,0,0.26)
+    background: rgba(246,163,0,0.08)
+    transform: translateY(-1px)
+
+  &.is-active
+    border-color: rgba(246,163,0,0.44)
+    background: rgba(246,163,0,0.12)
 
 .members-entity-stats__collection-image
   width: 100%
@@ -660,6 +757,15 @@
 
   .members-entity-stats__toolbar
     grid-template-columns: 1fr
+
+  .members-entity-stats__compare-toolbar
+    grid-template-columns: 1fr
+
+  .members-entity-stats__compare-hero
+    grid-template-columns: 1fr
+
+  .members-entity-stats__compare-grid
+    grid-template-columns: minmax(120px, 0.85fr) minmax(0, 1fr) minmax(0, 1fr)
 
 .members-universe__entity-row
   display: grid

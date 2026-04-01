@@ -17,7 +17,8 @@ const AppLayout: React.FC = () => {
         <div className="page-shell">
           <div className="page-footer__copy">
             <p className="page-footer__brand">&copy; 2026 Jawa Offworld Enterprises</p>
-            <p className="page-footer__credit">Designed and Developed by Anarchy Industries</p>
+            <p className="page-footer__credit">Developed by Anarchy Industries</p>
+            <p className="page-footer__credit">Designed by Sarlacc Integrated Design</p>
           </div>
         </div>
       </footer>
