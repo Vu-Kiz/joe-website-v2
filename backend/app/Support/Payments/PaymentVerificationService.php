@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 
 class PaymentVerificationService
 {
-    protected const SINGLE_VERIFY_TAIL_PAGES = 5;
+    protected const SINGLE_VERIFY_TAIL_PAGES = 6;
 
     public function __construct(
         protected SwcCreditLogService $creditLogService
@@ -285,6 +285,11 @@ class PaymentVerificationService
         int $payerSubjectId,
         int $itemCount = 100
     ): array {
+        $pageCount = max(
+            self::SINGLE_VERIFY_TAIL_PAGES,
+            (int) ceil(max(1, $itemCount) / 50) + 1
+        );
+
         if ($payerSubjectType === 'user') {
             $payerUser = User::find($payerSubjectId);
 
@@ -292,10 +297,10 @@ class PaymentVerificationService
                 return [];
             }
 
-            return $this->creditLogService->getCharacterTransactions(
+            return $this->creditLogService->getCharacterTransactionsFromTail(
                 $actingUser,
                 (int) $payerUser->swc_character_id,
-                $itemCount
+                $pageCount
             );
         }
 
@@ -306,10 +311,10 @@ class PaymentVerificationService
                 return [];
             }
 
-            return $this->creditLogService->getFactionTransactions(
+            return $this->creditLogService->getFactionTransactionsFromTail(
                 $actingUser,
                 $faction,
-                $itemCount
+                $pageCount
             );
         }
 
@@ -394,8 +399,6 @@ class PaymentVerificationService
 
                 return $transaction;
             }
-
-            return null;
         }
 
         foreach ($transactions as $transaction) {
@@ -432,16 +435,12 @@ class PaymentVerificationService
         $expectedCommunication = trim($expectedCommunication);
         $transferReference = $this->normalizeTransferReference($transferReference);
 
-        if ($transferReference !== '') {
-            return [];
-        }
-
         return collect($transactions)
             ->map(function (array $tx) use ($expectedAmount, $expectedReceiverUid, $expectedCommunication, $transferReference) {
                 $amount = (int) data_get($tx, 'amount', 0);
                 $receiverUid = trim((string) data_get($tx, 'receiver.attributes.uid', ''));
                 $communication = trim((string) data_get($tx, 'communication', ''));
-                $transactionReference = $this->extractTransferReference($communication);
+                $transactionReference = $this->extractTransferReferenceFromTransaction($tx);
 
                 $score = 0;
 

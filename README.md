@@ -27,7 +27,7 @@ Included updates:
 - Members tools
   Small auth/access and UI cleanup around members tools, plus Entity Stats relationship linking and per-tab compare tools.
 - Payments and content
-  Payment transfer builder cleanup and GIF upload support for JEN images.
+  Payment transfer builder cleanup, SWC credit-log sync fixes for recent transfers, and GIF upload support for JEN images.
 - DroidBrain
   Import fixes, duplicate reprocessing support, and general polish.
 - Astrogation
