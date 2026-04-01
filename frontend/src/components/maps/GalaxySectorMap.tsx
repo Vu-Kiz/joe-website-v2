@@ -1279,10 +1279,38 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
     return map;
   }, [outlinedSectors]);
 
+  const visibleCellKeySet = useMemo(
+    () => new Set(sectorUidByCoordinate.keys()),
+    [sectorUidByCoordinate]
+  );
+
+  const visibleSystemRecords = useMemo(
+    () =>
+      systemMarkers.filter(
+        (system) =>
+          system.galx != null &&
+          system.galy != null &&
+          visibleCellKeySet.has(`${system.galx}:${system.galy}`)
+      ),
+    [systemMarkers, visibleCellKeySet]
+  );
+
+  const visibleAnnotations = useMemo(
+    () =>
+      annotations.filter((annotation) => visibleCellKeySet.has(`${annotation.galx}:${annotation.galy}`)),
+    [annotations, visibleCellKeySet]
+  );
+
+  const visibleSearchRecords = useMemo(
+    () =>
+      searchRecords.filter((record) => visibleCellKeySet.has(`${record.galx}:${record.galy}`)),
+    [searchRecords, visibleCellKeySet]
+  );
+
   const systemsByCoordinate = useMemo(() => {
     const map = new Map<string, StoredMapSystem[]>();
 
-    for (const system of systemMarkers) {
+    for (const system of visibleSystemRecords) {
       if (system.galx == null || system.galy == null) {
         continue;
       }
@@ -1297,12 +1325,12 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
     }
 
     return map;
-  }, [systemMarkers]);
+  }, [visibleSystemRecords]);
 
   const annotationsByCoordinate = useMemo(() => {
     const map = new Map<string, Array<(typeof annotations)[number]>>();
 
-    for (const annotation of annotations) {
+    for (const annotation of visibleAnnotations) {
       const key = `${annotation.galx}:${annotation.galy}`;
       const existing = map.get(key);
       if (existing) {
@@ -1313,7 +1341,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
     }
 
     return map;
-  }, [annotations]);
+  }, [visibleAnnotations]);
 
   const loadedAnnotationSectorUidSet = useMemo(
     () => new Set(loadedAnnotationSectorUids),
@@ -1323,7 +1351,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
   const searchRecordsByCoordinate = useMemo(() => {
     const map = new Map<string, Array<(typeof searchRecords)[number]>>();
 
-    for (const searchRecord of searchRecords) {
+    for (const searchRecord of visibleSearchRecords) {
       const key = `${searchRecord.galx}:${searchRecord.galy}`;
       const existing = map.get(key) ?? [];
       existing.push(searchRecord);
@@ -1331,7 +1359,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
     }
 
     return map;
-  }, [searchRecords]);
+  }, [visibleSearchRecords]);
 
   const asteroidMarkers = useMemo<AsteroidMarker[]>(() => {
     if (!worldBounds) {
@@ -1340,7 +1368,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
 
     const markerSize = Math.max(5, CELL_SIZE * zoom * 0.72);
 
-    return searchRecords
+    return visibleSearchRecords
       .filter((record) => {
         if (!record.has_asteroids) {
           return false;
@@ -1376,7 +1404,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
           marker.top >= -marker.size &&
           marker.top <= viewportSize.height + marker.size
       );
-  }, [legendFilters, offset, searchRecords, viewportSize.height, viewportSize.width, worldBounds, zoom]);
+  }, [legendFilters, offset, viewportSize.height, viewportSize.width, visibleSearchRecords, worldBounds, zoom]);
 
   const intelFlagMarkers = useMemo<IntelFlagMarker[]>(() => {
     if (!worldBounds) {
@@ -1385,7 +1413,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
 
     const markerSize = Math.max(5, CELL_SIZE * zoom * 0.72);
     const annotationKeysWithNotes = new Set(
-      annotations
+      visibleAnnotations
         .filter((annotation) => {
           const notes = annotation.notes?.trim();
           return Boolean(notes);
@@ -1394,7 +1422,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
     );
     const keyedRecords = new Map<string, SectorSearchRecord | null>();
 
-    for (const record of searchRecords) {
+    for (const record of visibleSearchRecords) {
       keyedRecords.set(`${record.galx}:${record.galy}`, record);
     }
 
@@ -1446,7 +1474,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
           marker.top >= -marker.size &&
           marker.top <= viewportSize.height + marker.size
       );
-  }, [annotations, legendFilters, offset, searchRecords, viewportSize.height, viewportSize.width, worldBounds, zoom]);
+  }, [legendFilters, offset, viewportSize.height, viewportSize.width, visibleAnnotations, visibleSearchRecords, worldBounds, zoom]);
 
   const scanBadgeMarkers = useMemo<ScanBadgeMarker[]>(() => {
     if (!worldBounds || zoom < 1.25) {
@@ -1457,7 +1485,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
     const markerSize = Math.max(6, systemMarkerSize * 0.4);
     const badgeInset = Math.max(1.5, markerSize * 0.12);
 
-    return searchRecords
+    return visibleSearchRecords
       .filter((record) => !!record.legacy_recorded_at)
       .map((record) => {
         const daysSince = getDaysSince(record.legacy_recorded_at);
@@ -1498,7 +1526,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
           marker.top >= -marker.size &&
           marker.top <= viewportSize.height + marker.size
       );
-  }, [legendFilters, offset, searchRecords, viewportSize.height, viewportSize.width, worldBounds, zoom]);
+  }, [legendFilters, offset, viewportSize.height, viewportSize.width, visibleSearchRecords, worldBounds, zoom]);
 
   const hideSecondaryIcons = zoom >= 0.3 && zoom <= 1.2;
 

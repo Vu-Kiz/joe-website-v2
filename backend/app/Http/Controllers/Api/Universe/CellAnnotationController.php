@@ -22,11 +22,41 @@ class CellAnnotationController extends Controller
         }
 
         $data = $request->validate([
-            'sector_uid' => ['required', 'string', 'max:255'],
+            'sector_uid' => ['nullable', 'string', 'max:255'],
+            'min_galx' => ['nullable', 'integer'],
+            'max_galx' => ['nullable', 'integer'],
+            'min_galy' => ['nullable', 'integer'],
+            'max_galy' => ['nullable', 'integer'],
         ]);
 
+        $hasSectorUid = !empty($data['sector_uid']);
+        $hasBounds = isset($data['min_galx'], $data['max_galx'], $data['min_galy'], $data['max_galy']);
+
+        if (!$hasSectorUid && !$hasBounds) {
+            return response()->json([
+                'ok' => true,
+                'data' => [],
+            ]);
+        }
+
+        $bounds = $hasBounds
+            ? [
+                'min_galx' => min((int) $data['min_galx'], (int) $data['max_galx']),
+                'max_galx' => max((int) $data['min_galx'], (int) $data['max_galx']),
+                'min_galy' => min((int) $data['min_galy'], (int) $data['max_galy']),
+                'max_galy' => max((int) $data['min_galy'], (int) $data['max_galy']),
+            ]
+            : null;
+
         $annotations = SwcSectorCellAnnotation::query()
-            ->where('sector_uid', (string) $data['sector_uid'])
+            ->when($hasSectorUid, function ($query) use ($data) {
+                $query->where('sector_uid', (string) $data['sector_uid']);
+            })
+            ->when($bounds !== null, function ($query) use ($bounds) {
+                $query
+                    ->whereBetween('galx', [$bounds['min_galx'], $bounds['max_galx']])
+                    ->whereBetween('galy', [$bounds['min_galy'], $bounds['max_galy']]);
+            })
             ->orderBy('galy')
             ->orderBy('galx')
             ->get([

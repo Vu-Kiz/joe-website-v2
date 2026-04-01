@@ -32,6 +32,124 @@ use Illuminate\Support\Facades\DB;
 
 class UniverseController extends Controller
 {
+    private function normalizeSectorCoordinates(array $coordinates): array
+    {
+        return collect($coordinates)
+            ->filter(fn ($coordinate) => is_array($coordinate))
+            ->map(function (array $coordinate) {
+                $galx = isset($coordinate['galx']) && is_numeric($coordinate['galx'])
+                    ? (int) $coordinate['galx']
+                    : null;
+                $galy = isset($coordinate['galy']) && is_numeric($coordinate['galy'])
+                    ? (int) $coordinate['galy']
+                    : null;
+
+                if ($galx === null || $galy === null) {
+                    return null;
+                }
+
+                return [
+                    'galx' => $galx,
+                    'galy' => $galy,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function pointInPolygon(float $x, float $y, array $polygon): bool
+    {
+        $inside = false;
+        $count = count($polygon);
+
+        if ($count < 3) {
+            return false;
+        }
+
+        for ($i = 0, $j = $count - 1; $i < $count; $j = $i++) {
+            $xi = $polygon[$i]['galx'];
+            $yi = $polygon[$i]['galy'];
+            $xj = $polygon[$j]['galx'];
+            $yj = $polygon[$j]['galy'];
+
+            $intersects = (($yi > $y) !== ($yj > $y))
+                && ($x < (($xj - $xi) * ($y - $yi)) / (($yj - $yi) ?: 1e-9) + $xi);
+
+            if ($intersects) {
+                $inside = !$inside;
+            }
+        }
+
+        return $inside;
+    }
+
+    private function cellOverlapsPolygon(int $galx, int $galy, array $polygon): bool
+    {
+        $samples = [
+            [$galx + 0.5, $galy + 0.5],
+            [$galx + 0.15, $galy + 0.15],
+            [$galx + 0.85, $galy + 0.15],
+            [$galx + 0.15, $galy + 0.85],
+            [$galx + 0.85, $galy + 0.85],
+        ];
+
+        foreach ($samples as [$sampleX, $sampleY]) {
+            if ($this->pointInPolygon($sampleX, $sampleY, $polygon)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function buildSectorCellKeys(array $polygon, ?array $bounds): array
+    {
+        $areaKeys = [];
+
+        if (
+            $bounds &&
+            isset($bounds['min_galx'], $bounds['max_galx'], $bounds['min_galy'], $bounds['max_galy']) &&
+            is_numeric($bounds['min_galx']) &&
+            is_numeric($bounds['max_galx']) &&
+            is_numeric($bounds['min_galy']) &&
+            is_numeric($bounds['max_galy'])
+        ) {
+            for ($galx = (int) $bounds['min_galx']; $galx <= (int) $bounds['max_galx']; $galx += 1) {
+                for ($galy = (int) $bounds['min_galy']; $galy <= (int) $bounds['max_galy']; $galy += 1) {
+                    if ($this->cellOverlapsPolygon($galx, $galy, $polygon)) {
+                        $areaKeys[sprintf('%d:%d', $galx, $galy)] = true;
+                    }
+                }
+            }
+        }
+
+        foreach ($polygon as $point) {
+            $areaKeys[sprintf('%d:%d', $point['galx'], $point['galy'])] = true;
+        }
+
+        return $areaKeys;
+    }
+
+    private function sectorCellCoordinatesFromKeys(array $keys): array
+    {
+        return collect(array_keys($keys))
+            ->map(function (string $key) {
+                [$galx, $galy] = array_map('intval', explode(':', $key, 2));
+
+                return [
+                    'galx' => $galx,
+                    'galy' => $galy,
+                ];
+            })
+            ->sortBy([
+                ['galy', 'asc'],
+                ['galx', 'asc'],
+            ])
+            ->values()
+            ->all();
+    }
+
     protected function canViewAsteroidIntel(Request $request): bool
     {
         return Permissions::hasAny(
@@ -70,6 +188,36 @@ class UniverseController extends Controller
             'max_galx' => max($leftX, $rightX),
             'min_galy' => min($bottomY, $topY),
             'max_galy' => max($bottomY, $topY),
+        ];
+    }
+
+    protected function resolveRequestedBounds(Request $request): ?array
+    {
+        $validated = $request->validate([
+            'min_galx' => ['nullable', 'integer'],
+            'max_galx' => ['nullable', 'integer'],
+            'min_galy' => ['nullable', 'integer'],
+            'max_galy' => ['nullable', 'integer'],
+        ]);
+
+        if (
+            !array_key_exists('min_galx', $validated) ||
+            !array_key_exists('max_galx', $validated) ||
+            !array_key_exists('min_galy', $validated) ||
+            !array_key_exists('max_galy', $validated) ||
+            $validated['min_galx'] === null ||
+            $validated['max_galx'] === null ||
+            $validated['min_galy'] === null ||
+            $validated['max_galy'] === null
+        ) {
+            return null;
+        }
+
+        return [
+            'min_galx' => min((int) $validated['min_galx'], (int) $validated['max_galx']),
+            'max_galx' => max((int) $validated['min_galx'], (int) $validated['max_galx']),
+            'min_galy' => min((int) $validated['min_galy'], (int) $validated['max_galy']),
+            'max_galy' => max((int) $validated['min_galy'], (int) $validated['max_galy']),
         ];
     }
 
@@ -137,9 +285,16 @@ class UniverseController extends Controller
 
     public function mapSystems(): JsonResponse
     {
+        $requestedBounds = $this->resolveRequestedBounds(request());
+
         $systems = SwcSystem::query()
             ->whereNotNull('galx')
             ->whereNotNull('galy')
+            ->when($requestedBounds !== null, function ($query) use ($requestedBounds) {
+                $query
+                    ->whereBetween('galx', [$requestedBounds['min_galx'], $requestedBounds['max_galx']])
+                    ->whereBetween('galy', [$requestedBounds['min_galy'], $requestedBounds['max_galy']]);
+            })
             ->orderBy('name')
             ->get([
                 'uid',
@@ -991,6 +1146,7 @@ class UniverseController extends Controller
     {
         $canViewAsteroidIntel = $this->canViewAsteroidIntel($request);
         $scanWindow = $this->resolveScanWindow($request);
+        $requestedBounds = $this->resolveRequestedBounds($request);
 
         if (!$canViewAsteroidIntel && !$scanWindow) {
             return response()->json([
@@ -1008,6 +1164,11 @@ class UniverseController extends Controller
                     $query
                         ->whereBetween('galx', [$scanWindow['min_galx'], $scanWindow['max_galx']])
                         ->whereBetween('galy', [$scanWindow['min_galy'], $scanWindow['max_galy']]);
+                })
+                ->when($requestedBounds !== null, function ($query) use ($requestedBounds) {
+                    $query
+                        ->whereBetween('galx', [$requestedBounds['min_galx'], $requestedBounds['max_galx']])
+                        ->whereBetween('galy', [$requestedBounds['min_galy'], $requestedBounds['max_galy']]);
                 })
                 ->orderBy('galy')
                 ->orderBy('galx')
@@ -1330,9 +1491,31 @@ class UniverseController extends Controller
                 'last_pulled_at',
             ]);
 
+        $outlineCoordinates = $this->normalizeSectorCoordinates($sectorRecord->outline_coordinates ?? []);
+        $sectorCellKeys = $this->buildSectorCellKeys($outlineCoordinates, is_array($sectorRecord->bounds) ? $sectorRecord->bounds : null);
+        $sectorCoordinates = $this->sectorCellCoordinatesFromKeys($sectorCellKeys);
+
+        $annotationsQuery = SwcSectorCellAnnotation::query();
+        if (is_array($sectorRecord->bounds)) {
+            $bounds = $sectorRecord->bounds;
+            if (
+                isset($bounds['min_galx'], $bounds['max_galx'], $bounds['min_galy'], $bounds['max_galy']) &&
+                is_numeric($bounds['min_galx']) &&
+                is_numeric($bounds['max_galx']) &&
+                is_numeric($bounds['min_galy']) &&
+                is_numeric($bounds['max_galy'])
+            ) {
+                $annotationsQuery->whereBetween('galx', [(int) $bounds['min_galx'], (int) $bounds['max_galx']])
+                    ->whereBetween('galy', [(int) $bounds['min_galy'], (int) $bounds['max_galy']]);
+            } else {
+                $annotationsQuery->where('sector_uid', $sectorRecord->uid);
+            }
+        } else {
+            $annotationsQuery->where('sector_uid', $sectorRecord->uid);
+        }
+
         $annotations = $canViewAsteroidIntel
-            ? SwcSectorCellAnnotation::query()
-                ->where('sector_uid', $sectorRecord->uid)
+            ? $annotationsQuery
                 ->orderBy('galy')
                 ->orderBy('galx')
                 ->get([
@@ -1345,28 +1528,15 @@ class UniverseController extends Controller
                     'notes',
                     'updated_at',
                 ])
+                ->filter(function (SwcSectorCellAnnotation $annotation) use ($sectorCellKeys, $sectorRecord) {
+                    if ($annotation->sector_uid === $sectorRecord->uid) {
+                        return true;
+                    }
+
+                    return isset($sectorCellKeys[sprintf('%d:%d', $annotation->galx, $annotation->galy)]);
+                })
+                ->values()
             : collect();
-
-        $outlineCoordinates = collect($sectorRecord->outline_coordinates ?? [])
-            ->filter(fn ($coordinate) => is_array($coordinate))
-            ->values();
-
-        $outlineKeys = $outlineCoordinates
-            ->mapWithKeys(function (array $coordinate) {
-                $galx = isset($coordinate['galx']) && is_numeric($coordinate['galx'])
-                    ? (int) $coordinate['galx']
-                    : null;
-                $galy = isset($coordinate['galy']) && is_numeric($coordinate['galy'])
-                    ? (int) $coordinate['galy']
-                    : null;
-
-                if ($galx === null || $galy === null) {
-                    return [];
-                }
-
-                return [sprintf('%d:%d', $galx, $galy) => true];
-            })
-            ->all();
 
         $searchRecordsQuery = SwcSectorSearchRecord::query();
         if (is_array($sectorRecord->bounds)) {
@@ -1418,12 +1588,12 @@ class UniverseController extends Controller
                     'updated_at',
                 ])
                 ->map(fn (SwcSectorSearchRecord $record) => $this->mapSearchRecord($record))
-                ->filter(function (array $record) use ($outlineKeys, $sectorRecord) {
+                ->filter(function (array $record) use ($sectorCellKeys, $sectorRecord) {
                     if ($record['sector_uid'] === $sectorRecord->uid) {
                         return true;
                     }
 
-                    return isset($outlineKeys[sprintf('%d:%d', $record['galx'], $record['galy'])]);
+                    return isset($sectorCellKeys[sprintf('%d:%d', $record['galx'], $record['galy'])]);
                 })
                 ->values()
             : collect();
@@ -1447,8 +1617,8 @@ class UniverseController extends Controller
                     'color_b' => $sectorRecord->color_b,
                     'color_hex' => $sectorRecord->color_hex,
                 ],
-                'outline_coordinates' => $sectorRecord->outline_coordinates ?? [],
-                'coordinates' => $sectorRecord->outline_coordinates ?? [],
+                'outline_coordinates' => $outlineCoordinates,
+                'coordinates' => $sectorCoordinates,
                 'bounds' => $sectorRecord->bounds,
                 'systems' => $systems,
                 'annotations' => $annotations,

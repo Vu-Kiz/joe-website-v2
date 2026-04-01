@@ -684,6 +684,34 @@ export function getStoredMapSystems() {
   return apiFetch<{ ok: boolean; data: StoredMapSystem[] }>("/universe/map-systems");
 }
 
+export type GalaxyBounds = {
+  min_galx: number;
+  max_galx: number;
+  min_galy: number;
+  max_galy: number;
+};
+
+function buildBoundsParams(bounds?: GalaxyBounds | null) {
+  if (!bounds) {
+    return "";
+  }
+
+  const params = new URLSearchParams({
+    min_galx: String(bounds.min_galx),
+    max_galx: String(bounds.max_galx),
+    min_galy: String(bounds.min_galy),
+    max_galy: String(bounds.max_galy),
+  });
+
+  return `?${params.toString()}`;
+}
+
+export function getStoredMapSystemsInBounds(bounds?: GalaxyBounds | null) {
+  return apiFetch<{ ok: boolean; data: StoredMapSystem[] }>(
+    `/universe/map-systems${buildBoundsParams(bounds)}`
+  );
+}
+
 export function refreshStoredSystem(identifier: string) {
   return apiFetch<UniversePullResponse>("/sys/universe/pull", {
     method: "POST",
@@ -748,6 +776,12 @@ export function getStoredSearchRecords() {
   return apiFetch<{ ok: boolean; data: SectorSearchRecord[] }>("/universe/search-records");
 }
 
+export function getStoredSearchRecordsInBounds(bounds?: GalaxyBounds | null) {
+  return apiFetch<{ ok: boolean; data: SectorSearchRecord[] }>(
+    `/universe/search-records${buildBoundsParams(bounds)}`
+  );
+}
+
 export function saveStoredSearchRecord(payload: {
   sector_uid?: string | null;
   galx: number;
@@ -776,8 +810,20 @@ export function getStoredSystem(system: string) {
   );
 }
 
-export function getStoredCellAnnotations(sectorUid: string) {
-  const params = new URLSearchParams({ sector_uid: sectorUid });
+export function getStoredCellAnnotations(options: { sectorUid?: string | null; bounds?: GalaxyBounds | null }) {
+  const params = new URLSearchParams();
+
+  if (options.sectorUid) {
+    params.set("sector_uid", options.sectorUid);
+  }
+
+  if (options.bounds) {
+    params.set("min_galx", String(options.bounds.min_galx));
+    params.set("max_galx", String(options.bounds.max_galx));
+    params.set("min_galy", String(options.bounds.min_galy));
+    params.set("max_galy", String(options.bounds.max_galy));
+  }
+
   return apiFetch<{ ok: boolean; data: SectorCellAnnotation[] }>(
     `/universe/cell-annotations?${params.toString()}`
   );
