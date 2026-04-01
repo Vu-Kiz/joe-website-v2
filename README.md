@@ -21,12 +21,16 @@ Jawa Offworld Enterprises website and member tools.
 
 - `v2.0.1` is the next planned patch release
 - changes are being prepared on `dev`
-- current `dev` updates include small auth/access and UI cleanup around members tools
-- current `dev` updates include payment transfer builder cleanup
-- current `dev` updates include DroidBrain fixes and polish
-- current `dev` updates include GIF upload support for JEN images
-- current `dev` updates include Astrogation map legend usability improvements
-- current `dev` updates include Astrogation asteroid UID backfill and map note marker improvements
-- current `dev` updates include Astrogation sector view loading map data by grid coordinates instead of sector ownership
-- current `dev` updates include Hyper Planner route-finding improvements
-- release notes should be added here once `v2.0.1` work is finalized
+
+Planned patch items:
+
+- Members tools
+  Small auth/access and UI cleanup around members tools.
+- Payments and content
+  Payment transfer builder cleanup and GIF upload support for JEN images.
+- DroidBrain
+  Import fixes, duplicate reprocessing support, and general polish.
+- Astrogation
+  Map legend usability improvements, asteroid UID backfill, map note marker improvements, and sector-view loading by grid coordinates instead of sector ownership.
+- Hyper Planner
+  Route-finding improvements and faster-route selection polish.

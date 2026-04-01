@@ -1284,17 +1284,6 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
     [sectorUidByCoordinate]
   );
 
-  const visibleSystemRecords = useMemo(
-    () =>
-      systemMarkers.filter(
-        (system) =>
-          system.galx != null &&
-          system.galy != null &&
-          visibleCellKeySet.has(`${system.galx}:${system.galy}`)
-      ),
-    [systemMarkers, visibleCellKeySet]
-  );
-
   const visibleAnnotations = useMemo(
     () =>
       annotations.filter((annotation) => visibleCellKeySet.has(`${annotation.galx}:${annotation.galy}`)),
@@ -1310,7 +1299,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
   const systemsByCoordinate = useMemo(() => {
     const map = new Map<string, StoredMapSystem[]>();
 
-    for (const system of visibleSystemRecords) {
+    for (const system of systemMarkers) {
       if (system.galx == null || system.galy == null) {
         continue;
       }
@@ -1325,7 +1314,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
     }
 
     return map;
-  }, [visibleSystemRecords]);
+  }, [systemMarkers]);
 
   const annotationsByCoordinate = useMemo(() => {
     const map = new Map<string, Array<(typeof annotations)[number]>>();
