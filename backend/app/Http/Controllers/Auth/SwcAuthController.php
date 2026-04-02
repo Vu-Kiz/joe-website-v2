@@ -178,6 +178,7 @@ class SwcAuthController extends Controller
 
                 Auth::login($oauthUser);
                 $request->session()->regenerate();
+                $request->session()->put('auth_version', (int) ($oauthUser->auth_version ?? 1));
 
                 $grantedScopes = $this->swcAuthorizationService->normalizeScopeValue($tokenData['scope'] ?? null);
 
@@ -211,6 +212,7 @@ class SwcAuthController extends Controller
 
                 Auth::login($oauthUser);
                 $request->session()->regenerate();
+                $request->session()->put('auth_version', (int) ($oauthUser->auth_version ?? 1));
 
                 $grantedScopes = $this->swcAuthorizationService->normalizeScopeValue($tokenData['scope'] ?? null);
 
@@ -249,6 +251,7 @@ class SwcAuthController extends Controller
 
                 Auth::login($oauthUser);
                 $request->session()->regenerate();
+                $request->session()->put('auth_version', (int) ($oauthUser->auth_version ?? 1));
 
                 $grantedScopes = $this->swcAuthorizationService->normalizeScopeValue($tokenData['scope'] ?? null);
 
@@ -284,6 +287,7 @@ class SwcAuthController extends Controller
 
             Auth::login($user);
             $request->session()->regenerate();
+            $request->session()->put('auth_version', (int) ($user->auth_version ?? 1));
 
             return redirect()->away($frontend . '/aboutme?swc_linked=1');
         } catch (\Throwable $e) {

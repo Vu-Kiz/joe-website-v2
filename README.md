@@ -36,7 +36,20 @@ Included updates:
 - Hyper Planner
   Route-finding improvements and faster-route selection polish.
 
-## v2.0.2 Planning
+## v2.0.2 Release Notes
 
-- `v2.0.2` is now the active development target
-- use this cycle to scope and land the next round of larger updates after the `v2.0.1` production release
+- `v2.0.2` is the current active release/update cycle
+- this section reflects the shipped and release-facing scope for the update
+
+Included updates:
+
+- Discord bot
+  New Discord bot app built with Sapphire + TypeScript, backend bot auth and outbox delivery, Discord channel setup commands, guild sync, admin bot visibility, JEN/Jobs announcement delivery through the site instead of standalone webhook logic, and cleaned example env/ignore rules so the bot setup is safer to ship and document.
+- Admin and access control
+  Forced logout support, realtime session invalidation, friendlier permission error messaging, sysadmin controls for bot management, and frontend tools to boot active users when access changes.
+- Backend resilience
+  Higher API throttle headroom, cached heavy read endpoints, restored dev worker support, queue retry timing fixes for long-running sync jobs, and dev worker permission fixes to keep background refreshes stable.
+- Universe and hyperlane tooling
+  Stored system refresh fixes, safer system UID fallback handling, corrected system ownership persistence so child entities do not overwrite system owners, continued Hyper Planner / system pull reliability work, and a fix so JOE members can use Hyper Planner without hitting sysadmin-only refresh endpoints.
+- Members and content
+  Galactic Archive first pass remains sysadmin-gated while it is refined, and JEN Discord delivery now supports richer formatting, image handling, and update-in-place behavior.

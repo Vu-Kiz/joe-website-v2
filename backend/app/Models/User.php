@@ -25,6 +25,7 @@ class User extends Authenticatable
         'swc_handle',
         'swc_avatar_url',
         'member_tool_preferences',
+        'auth_version',
         'is_joe_member',
         'is_admin',
         'is_sysadmin',
@@ -41,6 +42,7 @@ class User extends Authenticatable
     protected $casts = [
         'discord_linked_at' => 'datetime',
         'swc_character_id' => 'integer',
+        'auth_version' => 'integer',
         'member_tool_preferences' => 'array',
         'is_joe_member' => 'boolean',
         'is_admin' => 'boolean',
@@ -99,5 +101,12 @@ class User extends Authenticatable
     public function hyperPlans()
     {
         return $this->hasMany(\App\Models\HyperPlan::class);
+    }
+
+    public function invalidateActiveSessions(): void
+    {
+        $this->forceFill([
+            'auth_version' => ((int) $this->auth_version) + 1,
+        ])->save();
     }
 }

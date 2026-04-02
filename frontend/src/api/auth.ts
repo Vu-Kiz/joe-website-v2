@@ -41,6 +41,38 @@ export type AuthMeResponse = {
 
 export const AUTH_STATE_CHANGED_EVENT = "joe:auth-state-changed";
 
+const PERMISSION_FLAG_LABELS: Record<string, string> = {
+  is_joe_member: "JOE member access",
+  is_admin: "admin access",
+  is_sysadmin: "sysadmin access",
+  is_intel: "intel access",
+  can_view_asteroid_intel: "asteroid intel access",
+  can_manage_blog: "blog management access",
+  can_manage_tips: "loading tip management access",
+  can_manage_eotm: "employee spotlight management access",
+  member_tool_access: "member tools access",
+};
+
+function formatPermissionFlag(flag: unknown): string {
+  const value = String(flag ?? "").trim();
+  if (!value) {
+    return "unknown access";
+  }
+
+  if (PERMISSION_FLAG_LABELS[value]) {
+    return PERMISSION_FLAG_LABELS[value];
+  }
+
+  return value
+    .replace(/^can_/, "")
+    .replace(/^is_/, "")
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
+    .toLowerCase() + " access";
+}
+
 export function emitAuthStateChanged(): void {
   if (typeof window === "undefined") {
     return;
@@ -84,6 +116,12 @@ export function getBackendOrigin(): string {
   const api = getApiBaseUrl();
   if (!api) return "";
   return api.replace(/\/api\/?$/, "");
+}
+
+export function getSessionStreamUrl(): string {
+  const base = getApiBaseUrl();
+  if (!base) return "";
+  return `${base}/auth/session-stream`;
 }
 
 /** Hit Sanctum to ensure Laravel issues XSRF-TOKEN cookie */
@@ -167,7 +205,15 @@ export async function apiFetch<T>(
   }
 
   if (!res.ok) {
+    const requiredFlags = Array.isArray(json?.required_flags)
+      ? json.required_flags.filter(Boolean).map(formatPermissionFlag).join(", ")
+      : null;
+    const permissionHint =
+      res.status === 403 && requiredFlags
+        ? `${json?.message || "Forbidden"} Required access: ${requiredFlags}.`
+        : null;
     const msg =
+      permissionHint ||
       json?.message ||
       json?.data?.message ||
       json?.error ||

@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Support\Members\MemberToolAccessLogger;
+use App\Support\Swc\Auth\Permissions;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -11,6 +12,19 @@ class LogMemberToolAccess
 {
     public function handle(Request $request, Closure $next): Response
     {
+        $user = $request->user();
+
+        if ($user && !Permissions::hasAny($user, ['is_joe_member', 'is_admin', 'is_sysadmin'])) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'You do not have the required access for member tools.',
+                'error_code' => 'permission_denied',
+                'required_mode' => 'any',
+                'required_flags' => ['is_joe_member', 'is_admin', 'is_sysadmin'],
+                'sysadmin_override' => true,
+            ], 403);
+        }
+
         /** @var Response $response */
         $response = $next($request);
 

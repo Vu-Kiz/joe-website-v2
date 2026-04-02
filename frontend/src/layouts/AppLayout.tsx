@@ -1,8 +1,56 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import { emitAuthStateChanged, fetchAuthMe, getSessionStreamUrl } from "../api/auth";
 
 const AppLayout: React.FC = () => {
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("session_invalidated")) {
+      return;
+    }
+
+    url.searchParams.delete("session_invalidated");
+    const nextSearch = url.searchParams.toString();
+    const nextUrl = `${url.pathname}${nextSearch ? `?${nextSearch}` : ""}${url.hash}`;
+    window.history.replaceState({}, "", nextUrl);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let eventSource: EventSource | null = null;
+
+    const start = async () => {
+      try {
+        const auth = await fetchAuthMe();
+        if (cancelled || !auth?.user) {
+          return;
+        }
+
+        const streamUrl = getSessionStreamUrl();
+        if (!streamUrl) {
+          return;
+        }
+
+        eventSource = new EventSource(streamUrl, { withCredentials: true });
+
+        eventSource.addEventListener("session_invalidated", () => {
+          emitAuthStateChanged();
+          window.location.href = "/home?session_invalidated=1";
+        });
+      } catch {
+        // Ignore startup failures here; normal auth checks still handle signed-out states.
+      }
+    };
+
+    void start();
+
+    return () => {
+      cancelled = true;
+      eventSource?.close();
+    };
+  }, []);
+
   return (
     <>
       <div className="page-shell">

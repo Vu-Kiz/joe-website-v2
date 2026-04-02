@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\Admin\ActionLogController;
 use App\Http\Controllers\Api\Admin\MemberAccessLogController;
 use App\Http\Controllers\Api\Admin\SiteLockController;
 use App\Http\Controllers\Api\Admin\EntityStatsController;
+use App\Http\Controllers\Api\Admin\DiscordBotAdminController;
 use App\Http\Controllers\Api\SiteLockStatusController;
 use App\Http\Controllers\Api\SwcAuthorizationController;
 use App\Http\Controllers\Api\TenetOfSalvageController;
@@ -34,6 +35,7 @@ use App\Http\Controllers\Api\FactionController;
 use App\Http\Controllers\Api\FactionPrivilegeController;
 use App\Http\Controllers\Api\ManualPaymentTemplateController;
 use App\Http\Controllers\Api\DroidBrainController;
+use App\Http\Controllers\Api\DiscordBotController;
 
 
 
@@ -47,6 +49,17 @@ Route::get('/time', [TimeController::class, 'show']);
 Route::prefix('auth')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::middleware(['auth:sanctum'])->get('/session-stream', [AuthController::class, 'sessionStream']);
+});
+
+Route::prefix('discord-bot')->middleware(['discord_bot'])->group(function () {
+    Route::post('/channels/{notificationKey}', [DiscordBotController::class, 'setChannel']);
+    Route::post('/sync-state', [DiscordBotController::class, 'syncState']);
+    Route::get('/outbox/claim', [DiscordBotController::class, 'claimOutbox']);
+    Route::post('/outbox/{messageId}/delivered', [DiscordBotController::class, 'markDelivered']);
+    Route::post('/outbox/{messageId}/failed', [DiscordBotController::class, 'markFailed']);
+    Route::post('/jobs', [DiscordBotController::class, 'createJob']);
+    Route::post('/jen', [DiscordBotController::class, 'createJen']);
 });
 
 // Blog (public read)
@@ -69,6 +82,7 @@ Route::middleware(['auth:sanctum', 'require_any:is_admin'])->group(function () {
 Route::middleware(['auth:sanctum', 'require_any:is_admin'])->prefix('admin')->group(function () {
     Route::get('/users', [UserController::class, 'index']);
     Route::patch('/users/{user}/permissions', [UserController::class, 'updatePermissions']);
+    Route::post('/users/{user}/force-logout', [UserController::class, 'forceLogout']);
 });
 
 // Jobs
@@ -238,6 +252,7 @@ Route::get('/site-lock-status', [SiteLockStatusController::class, 'show']);
 
 Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('admin')->group(function () {
     Route::get('/member-access-logs', [MemberAccessLogController::class, 'index']);
+    Route::get('/discord-bot', [DiscordBotAdminController::class, 'show']);
     Route::get('/site-lock', [SiteLockController::class, 'show']);
     Route::post('/site-lock', [SiteLockController::class, 'update']);
     Route::post('/entity-stats/station-icons/populate', [EntityStatsController::class, 'populateStationIcons']);

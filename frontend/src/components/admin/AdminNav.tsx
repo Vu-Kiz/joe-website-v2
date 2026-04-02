@@ -9,6 +9,7 @@ export type AdminView =
   | "users"
   | "siteLock"
   | "system"
+  | "discordBot"
   | "entityStats"
   | "logs"
   | "memberAccessLogs";
@@ -39,6 +40,7 @@ const AdminNav: React.FC<Props> = ({
     { key: "eotm", label: "EoTM" },
     { key: "weather", label: "Weather" },
     { key: "users", label: "Users" },
+    { key: "discordBot", label: "Discord Bot", hidden: !showSystemTools },
     { key: "siteLock", label: "Site Lock", hidden: !showSystemTools },
     { key: "system", label: "System", hidden: !showSystemTools },
     { key: "entityStats", label: "Entity Stats", hidden: !showSystemTools },

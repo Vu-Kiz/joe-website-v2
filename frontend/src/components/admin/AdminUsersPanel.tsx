@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  forceAdminUserLogout,
   listAdminUsers,
   updateAdminUserPermissions,
   type AdminManageableUser,
@@ -62,6 +63,7 @@ function mapUser(user: AdminManageableUser): EditableUserState {
 const AdminUsersPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<number | null>(null);
+  const [forcingLogoutId, setForcingLogoutId] = useState<number | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
   const [openScanWindowId, setOpenScanWindowId] = useState<number | null>(null);
   const [users, setUsers] = useState<EditableUserState[]>([]);
@@ -161,6 +163,21 @@ const AdminUsersPanel: React.FC = () => {
       setError(e?.message ?? "Failed to save permissions");
     } finally {
       setSavingId(null);
+    }
+  };
+
+  const handleForceLogout = async (user: EditableUserState) => {
+    try {
+      setForcingLogoutId(user.id);
+      setError(null);
+      setNotice(null);
+
+      const res = await forceAdminUserLogout(user.id);
+      setNotice(res.message || `Forced logout for ${user.handle}.`);
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to force logout.");
+    } finally {
+      setForcingLogoutId(null);
     }
   };
 
@@ -425,6 +442,14 @@ const AdminUsersPanel: React.FC = () => {
                     </div>
 
                     <div className="admin-users-card__actions">
+                      <button
+                        type="button"
+                        className="btn btn--small btn--ghost"
+                        onClick={() => handleForceLogout(user)}
+                        disabled={forcingLogoutId === user.id || savingId === user.id}
+                      >
+                        {forcingLogoutId === user.id ? "Forcing Logout…" : "Force Logout"}
+                      </button>
                       <button
                         type="button"
                         className="btn btn--small"

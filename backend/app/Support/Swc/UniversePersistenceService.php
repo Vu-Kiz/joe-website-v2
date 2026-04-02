@@ -1713,23 +1713,17 @@ class UniversePersistenceService
             return null;
         }
 
-        return SwcSystem::updateOrCreate(
-            ['uid' => $uid],
-            [
-                'identifier' => $uid,
-                'name' => $data['system_name'] ?? null,
-                'sector_id' => $sector?->id,
-                'sector_uid' => $data['sector_uid'] ?? $sector?->uid,
-                'sector_name' => $data['sector_name'] ?? $sector?->name,
-                'owner_uid' => $data['owner_uid'] ?? null,
-                'owner_name' => $data['owner_name'] ?? null,
-                'galx' => $data['galx'] ?? null,
-                'galy' => $data['galy'] ?? null,
-                'sysx' => null,
-                'sysy' => null,
-                'last_pulled_at' => now(),
-            ]
-        );
+        $system = SwcSystem::firstOrNew(['uid' => $uid]);
+        $system->identifier = $system->identifier ?: $uid;
+        $system->name = $data['system_name'] ?? $system->name;
+        $system->sector_id = $sector?->id ?? $system->sector_id;
+        $system->sector_uid = $data['sector_uid'] ?? $sector?->uid ?? $system->sector_uid;
+        $system->sector_name = $data['sector_name'] ?? $sector?->name ?? $system->sector_name;
+        $system->galx = $data['galx'] ?? $system->galx;
+        $system->galy = $data['galy'] ?? $system->galy;
+        $system->save();
+
+        return $system;
     }
 
     protected function upsertSystem(array $data, ?SwcSector $sector, ?string $fallbackIdentifier = null): ?SwcSystem

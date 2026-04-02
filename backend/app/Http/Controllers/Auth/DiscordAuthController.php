@@ -80,6 +80,7 @@ class DiscordAuthController extends Controller
 
             Auth::login($user);
             $request->session()->regenerate();
+            $request->session()->put('auth_version', (int) ($user->auth_version ?? 1));
 
             $target = $this->normalizeReturnTo($returnTo);
 

@@ -17,6 +17,7 @@ import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import AdminSiteLockPanel from "../components/admin/AdminSiteLockPanel";
 import AdminEntityStatsPanel from "../components/admin/AdminEntityStatsPanel";
+import AdminDiscordBotPanel from "../components/admin/AdminDiscordBotPanel";
 
 import "../styles/main.sass";
 import "../styles/_admin.sass";
@@ -69,7 +70,7 @@ const AdminPage: React.FC = () => {
   const canSeeLogs = useMemo(() => canAccessSysadmin(user), [user]);
 
   useEffect(() => {
-    if (!showSystemTools && (activeView === "system" || activeView === "logs" || activeView === "entityStats" || activeView === "memberAccessLogs")) {
+    if (!showSystemTools && (activeView === "system" || activeView === "discordBot" || activeView === "logs" || activeView === "entityStats" || activeView === "memberAccessLogs")) {
       setActiveView("home");
     }
   }, [showSystemTools, canSeeLogs, activeView]);
@@ -153,6 +154,7 @@ const AdminPage: React.FC = () => {
           {activeView === "memberAccessLogs" && canSeeLogs && <AdminMemberAccessLogPanel />}
           {activeView === "weather" && <AdminWeatherPanel />}
           {activeView === "system" && showSystemTools && <AdminSystemPanel />}
+          {activeView === "discordBot" && showSystemTools && <AdminDiscordBotPanel />}
           {activeView === "entityStats" && showSystemTools && <AdminEntityStatsPanel />}
           {activeView === "siteLock" && showSystemTools && <AdminSiteLockPanel />}
         </main>

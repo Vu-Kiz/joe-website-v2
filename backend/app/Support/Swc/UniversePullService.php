@@ -43,6 +43,10 @@ class UniversePullService
             return $trimmed;
         }
 
+        if ($this->isSwcSystemUid($trimmed)) {
+            return $trimmed;
+        }
+
         $system = SwcSystem::query()
             ->where('identifier', $trimmed)
             ->orWhere('uid', $trimmed)
@@ -61,6 +65,10 @@ class UniversePullService
 
         $candidateIdentifier = $this->normalizeIdentifier((string) ($system->identifier ?? ''));
         $candidateName = $this->normalizeIdentifier((string) ($system->name ?? ''));
+
+        if ($this->isSwcSystemUid($candidateIdentifier)) {
+            return $candidateIdentifier;
+        }
 
         if ($candidateIdentifier !== '' && !str_contains($candidateIdentifier, ':')) {
             return $candidateIdentifier;
@@ -82,6 +90,13 @@ class UniversePullService
             'System refresh could not resolve a SWC-safe identifier for "%s".',
             $trimmed
         ));
+    }
+
+    protected function isSwcSystemUid(?string $value): bool
+    {
+        $trimmed = $this->normalizeIdentifier((string) $value);
+
+        return $trimmed !== '' && preg_match('/^9:\d+$/', $trimmed) === 1;
     }
 
     public function pullAllFacilityTypesIndex(): array

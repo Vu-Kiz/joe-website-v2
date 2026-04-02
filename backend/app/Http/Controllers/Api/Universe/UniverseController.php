@@ -29,6 +29,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Support\Swc\Auth\Permissions;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class UniverseController extends Controller
@@ -37,73 +38,76 @@ class UniverseController extends Controller
     {
         $query = trim((string) $request->query('q', ''));
 
-        $planets = SwcPlanet::query()
-            ->when($query !== '', function ($builder) use ($query) {
-                $builder->where(function ($inner) use ($query) {
-                    $inner
-                        ->where('name', 'like', '%' . $query . '%')
-                        ->orWhere('uid', $query)
-                        ->orWhere('identifier', $query)
-                        ->orWhere('system_name', 'like', '%' . $query . '%')
-                        ->orWhere('sector_name', 'like', '%' . $query . '%')
-                        ->orWhere('owner_name', 'like', '%' . $query . '%')
-                        ->orWhere('planet_type_name', 'like', '%' . $query . '%');
-                });
-            })
-            ->orderBy('name')
-            ->limit(500)
-            ->get([
-                'uid',
-                'identifier',
-                'name',
-                'sector_uid',
-                'sector_name',
-                'system_uid',
-                'system_name',
-                'owner_uid',
-                'owner_name',
-                'planet_type_uid',
-                'planet_type_name',
-                'size',
-                'population',
-                'previous_population',
-                'previous_population_recorded_at',
-                'galx',
-                'galy',
-                'sysx',
-                'sysy',
-                'image_small_url',
-                'image_large_url',
-                'last_pulled_at',
-            ]);
+        return $this->cachedListResponse(
+            sprintf('universe:archive:planets:%s', md5(strtolower($query))),
+            300,
+            function () use ($query) {
+                $planets = SwcPlanet::query()
+                    ->when($query !== '', function ($builder) use ($query) {
+                        $builder->where(function ($inner) use ($query) {
+                            $inner
+                                ->where('name', 'like', '%' . $query . '%')
+                                ->orWhere('uid', $query)
+                                ->orWhere('identifier', $query)
+                                ->orWhere('system_name', 'like', '%' . $query . '%')
+                                ->orWhere('sector_name', 'like', '%' . $query . '%')
+                                ->orWhere('owner_name', 'like', '%' . $query . '%')
+                                ->orWhere('planet_type_name', 'like', '%' . $query . '%');
+                        });
+                    })
+                    ->orderBy('name')
+                    ->limit(500)
+                    ->get([
+                        'uid',
+                        'identifier',
+                        'name',
+                        'sector_uid',
+                        'sector_name',
+                        'system_uid',
+                        'system_name',
+                        'owner_uid',
+                        'owner_name',
+                        'planet_type_uid',
+                        'planet_type_name',
+                        'size',
+                        'population',
+                        'previous_population',
+                        'previous_population_recorded_at',
+                        'galx',
+                        'galy',
+                        'sysx',
+                        'sysy',
+                        'image_small_url',
+                        'image_large_url',
+                        'last_pulled_at',
+                    ]);
 
-        return response()->json([
-            'ok' => true,
-            'data' => $planets->map(fn (SwcPlanet $planet) => [
-                'uid' => $planet->uid,
-                'identifier' => $planet->identifier,
-                'name' => $planet->name,
-                'sector_uid' => $planet->sector_uid,
-                'sector_name' => $planet->sector_name,
-                'system_uid' => $planet->system_uid,
-                'system_name' => $planet->system_name,
-                'owner_uid' => $planet->owner_uid,
-                'owner_name' => $planet->owner_name,
-                'planet_type_uid' => $planet->planet_type_uid,
-                'planet_type_name' => $planet->planet_type_name,
-                'size' => $planet->size,
-                'population' => $planet->population,
-                'previous_population' => $planet->previous_population,
-                'previous_population_recorded_at' => $planet->previous_population_recorded_at,
-                'galx' => $planet->galx,
-                'galy' => $planet->galy,
-                'sysx' => $planet->sysx,
-                'sysy' => $planet->sysy,
-                'image_small_url' => $planet->image_small_url,
-                'image_large_url' => $planet->image_large_url,
-                'last_pulled_at' => $planet->last_pulled_at,
-            ])->values(),
-        ]);
+                return $planets->map(fn (SwcPlanet $planet) => [
+                    'uid' => $planet->uid,
+                    'identifier' => $planet->identifier,
+                    'name' => $planet->name,
+                    'sector_uid' => $planet->sector_uid,
+                    'sector_name' => $planet->sector_name,
+                    'system_uid' => $planet->system_uid,
+                    'system_name' => $planet->system_name,
+                    'owner_uid' => $planet->owner_uid,
+                    'owner_name' => $planet->owner_name,
+                    'planet_type_uid' => $planet->planet_type_uid,
+                    'planet_type_name' => $planet->planet_type_name,
+                    'size' => $planet->size,
+                    'population' => $planet->population,
+                    'previous_population' => $planet->previous_population,
+                    'previous_population_recorded_at' => $planet->previous_population_recorded_at,
+                    'galx' => $planet->galx,
+                    'galy' => $planet->galy,
+                    'sysx' => $planet->sysx,
+                    'sysy' => $planet->sysy,
+                    'image_small_url' => $planet->image_small_url,
+                    'image_large_url' => $planet->image_large_url,
+                    'last_pulled_at' => $planet->last_pulled_at,
+                ])->values()->all();
+            }
+        );
     }
 
     public function archivePlanet(Request $request, string $planet): JsonResponse
@@ -154,15 +158,16 @@ class UniverseController extends Controller
     public function archiveFactions(Request $request): JsonResponse
     {
         $query = trim((string) $request->query('q', ''));
-
-        $systemsOwned = SwcPlanet::query()
+        return $this->cachedListResponse(
+            sprintf('universe:archive:factions:%s', md5(strtolower($query))),
+            300,
+            function () use ($query) {
+        $systemsOwned = SwcSystem::query()
             ->whereNotNull('owner_uid')
             ->where('owner_uid', '!=', '')
-            ->whereNotNull('system_uid')
-            ->where('system_uid', '!=', '')
             ->whereNotNull('owner_name')
             ->where('owner_name', '!=', '')
-            ->selectRaw('owner_uid, owner_name, COUNT(DISTINCT system_uid) as total')
+            ->selectRaw('owner_uid, owner_name, COUNT(*) as total')
             ->groupBy('owner_uid', 'owner_name')
             ->get();
 
@@ -358,11 +363,21 @@ class UniverseController extends Controller
                 return str_contains(strtolower($haystack), strtolower($query));
             })
             ->sortBy(fn (array $faction) => strtolower((string) ($faction['name'] ?? '')))
-            ->values();
+            ->values()
+            ->all();
+
+                return $results;
+            }
+        );
+    }
+
+    private function cachedListResponse(string $cacheKey, int $seconds, callable $resolver): JsonResponse
+    {
+        $data = Cache::remember($cacheKey, $seconds, $resolver);
 
         return response()->json([
             'ok' => true,
-            'data' => $results,
+            'data' => $data,
         ]);
     }
 
@@ -601,61 +616,58 @@ class UniverseController extends Controller
 
     public function sectors(): JsonResponse
     {
-        $sectors = SwcSector::query()
-            ->orderBy('name')
-            ->get([
-                'id',
-                'uid',
-                'name',
-                'owner_uid',
-                'owner_name',
-                'population',
-                'known_systems',
-                'coordinate_count',
-                'system_count',
-                'color_r',
-                'color_g',
-                'color_b',
-                'color_hex',
-                'outline_coordinates',
-                'bounds',
-                'last_pulled_at',
-            ]);
-
-        return response()->json([
-            'ok' => true,
-            'data' => $sectors,
-        ]);
+        return $this->cachedListResponse('universe:sectors:index', 300, function () {
+            return SwcSector::query()
+                ->orderBy('name')
+                ->get([
+                    'id',
+                    'uid',
+                    'name',
+                    'owner_uid',
+                    'owner_name',
+                    'population',
+                    'known_systems',
+                    'coordinate_count',
+                    'system_count',
+                    'color_r',
+                    'color_g',
+                    'color_b',
+                    'color_hex',
+                    'outline_coordinates',
+                    'bounds',
+                    'last_pulled_at',
+                ])
+                ->toArray();
+        });
     }
 
     public function mapSystems(): JsonResponse
     {
         $requestedBounds = $this->resolveRequestedBounds(request());
+        $cacheKey = 'universe:map-systems:' . md5(json_encode($requestedBounds));
 
-        $systems = SwcSystem::query()
-            ->whereNotNull('galx')
-            ->whereNotNull('galy')
-            ->when($requestedBounds !== null, function ($query) use ($requestedBounds) {
-                $query
-                    ->whereBetween('galx', [$requestedBounds['min_galx'], $requestedBounds['max_galx']])
-                    ->whereBetween('galy', [$requestedBounds['min_galy'], $requestedBounds['max_galy']]);
-            })
-            ->orderBy('name')
-            ->get([
-                'uid',
-                'identifier',
-                'name',
-                'sector_uid',
-                'sector_name',
-                'galx',
-                'galy',
-                'last_pulled_at',
-            ]);
-
-        return response()->json([
-            'ok' => true,
-            'data' => $systems,
-        ]);
+        return $this->cachedListResponse($cacheKey, 300, function () use ($requestedBounds) {
+            return SwcSystem::query()
+                ->whereNotNull('galx')
+                ->whereNotNull('galy')
+                ->when($requestedBounds !== null, function ($query) use ($requestedBounds) {
+                    $query
+                        ->whereBetween('galx', [$requestedBounds['min_galx'], $requestedBounds['max_galx']])
+                        ->whereBetween('galy', [$requestedBounds['min_galy'], $requestedBounds['max_galy']]);
+                })
+                ->orderBy('name')
+                ->get([
+                    'uid',
+                    'identifier',
+                    'name',
+                    'sector_uid',
+                    'sector_name',
+                    'galx',
+                    'galy',
+                    'last_pulled_at',
+                ])
+                ->toArray();
+        });
     }
 
     public function hyperPlans(Request $request): JsonResponse
@@ -2193,7 +2205,7 @@ class UniverseController extends Controller
 
     public function stationTypes(): JsonResponse
     {
-        $types = SwcStationType::query()
+        return $this->cachedListResponse('universe:types:station', 300, fn () => SwcStationType::query()
             ->orderBy('name')
             ->get([
                 'uid',
@@ -2231,17 +2243,12 @@ class UniverseController extends Controller
                 'image_url',
                 'icon_url',
                 'last_pulled_at',
-            ]);
-
-        return response()->json([
-            'ok' => true,
-            'data' => $types,
-        ]);
+            ])->toArray());
     }
 
     public function shipTypes(): JsonResponse
     {
-        $types = SwcShipType::query()
+        return $this->cachedListResponse('universe:types:ship', 300, fn () => SwcShipType::query()
             ->orderBy('name')
             ->get([
                 'uid',
@@ -2282,12 +2289,7 @@ class UniverseController extends Controller
                 'image_url',
                 'icon_url',
                 'last_pulled_at',
-            ]);
-
-        return response()->json([
-            'ok' => true,
-            'data' => $types,
-        ]);
+            ])->toArray());
     }
 
     public function vehicleTypes(): JsonResponse
@@ -2466,7 +2468,7 @@ class UniverseController extends Controller
 
     public function weaponTypes(): JsonResponse
     {
-        $types = SwcWeaponType::query()
+        return $this->cachedListResponse('universe:types:weapon', 300, fn () => SwcWeaponType::query()
             ->orderBy('name')
             ->get([
                 'uid',
@@ -2488,17 +2490,12 @@ class UniverseController extends Controller
                 'image_url',
                 'icon_url',
                 'last_pulled_at',
-            ]);
-
-        return response()->json([
-            'ok' => true,
-            'data' => $types,
-        ]);
+            ])->toArray());
     }
 
     public function facilityTypes(): JsonResponse
     {
-        $types = SwcFacilityType::query()
+        return $this->cachedListResponse('universe:types:facility', 300, fn () => SwcFacilityType::query()
             ->orderBy('name')
             ->get([
                 'uid',
@@ -2514,12 +2511,7 @@ class UniverseController extends Controller
                 'image_url',
                 'icon_url',
                 'last_pulled_at',
-            ]);
-
-        return response()->json([
-            'ok' => true,
-            'data' => $types,
-        ]);
+            ])->toArray());
     }
 
     public function facilityType(string $facilityType): JsonResponse
@@ -2583,7 +2575,7 @@ class UniverseController extends Controller
 
     public function itemTypes(): JsonResponse
     {
-        $types = SwcItemType::query()
+        return $this->cachedListResponse('universe:types:item', 300, fn () => SwcItemType::query()
             ->orderBy('name')
             ->get([
                 'uid',
@@ -2598,12 +2590,7 @@ class UniverseController extends Controller
                 'image_url',
                 'icon_url',
                 'last_pulled_at',
-            ]);
-
-        return response()->json([
-            'ok' => true,
-            'data' => $types,
-        ]);
+            ])->toArray());
     }
 
     public function itemType(string $itemType): JsonResponse

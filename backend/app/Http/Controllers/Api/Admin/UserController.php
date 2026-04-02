@@ -200,6 +200,9 @@ class UserController extends Controller
                 $before,
                 $after
             );
+
+            $user->invalidateActiveSessions();
+            $user->refresh();
         }
 
         return response()->json([
@@ -210,6 +213,7 @@ class UserController extends Controller
                 'swc_handle'       => $user->swc_handle,
                 'swc_character_id' => $user->swc_character_id,
                 'swc_avatar_url'   => $user->swc_avatar_url ?: $user->discord_avatar_url,
+                'auth_version'     => $user->auth_version,
                 'discord_username' => $user->discord_username,
                 'discord_global_name' => $user->discord_global_name,
                 'is_joe_member'    => (bool) $user->is_joe_member,
@@ -226,6 +230,35 @@ class UserController extends Controller
                 'can_manage_blog'  => (bool) $user->can_manage_blog,
                 'can_manage_tips'  => (bool) $user->can_manage_tips,
                 'can_manage_eotm'  => (bool) $user->can_manage_eotm,
+            ],
+        ]);
+    }
+
+    public function forceLogout(Request $request, User $user): JsonResponse
+    {
+        $user->invalidateActiveSessions();
+        $user->refresh();
+
+        AdminActionLogger::log(
+            $request,
+            'users',
+            'force_logout',
+            'Forced logout for ' . $this->resolveDisplayHandle($user),
+            'user',
+            $user->id,
+            null,
+            [
+                'auth_version' => $user->auth_version,
+            ]
+        );
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'User sessions have been invalidated. They will need to log in again.',
+            'user' => [
+                'id' => $user->id,
+                'handle' => $this->resolveDisplayHandle($user),
+                'auth_version' => $user->auth_version,
             ],
         ]);
     }

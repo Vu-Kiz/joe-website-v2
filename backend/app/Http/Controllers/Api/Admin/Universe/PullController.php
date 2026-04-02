@@ -1443,7 +1443,7 @@ class PullController extends Controller
 
         $existing = SwcUniverseSyncRun::query()
             ->where('mode', 'refresh_systems')
-            ->whereIn('status', ['queued', 'running', 'waiting_db_lock', 'cancel_requested'])
+            ->whereIn('status', ['queued', 'running', 'waiting_db_lock'])
             ->latest('id')
             ->first();
 

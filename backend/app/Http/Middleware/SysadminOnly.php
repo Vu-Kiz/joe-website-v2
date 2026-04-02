@@ -17,13 +17,18 @@ class SysadminOnly
             return response()->json([
                 'ok' => false,
                 'message' => 'Unauthenticated',
+                'error_code' => 'unauthenticated',
             ], 401);
         }
 
         if (!Permissions::isSysadmin($user)) {
             return response()->json([
                 'ok' => false,
-                'message' => 'Forbidden',
+                'message' => 'This action is restricted to sysadmins.',
+                'error_code' => 'permission_denied',
+                'required_mode' => 'all',
+                'required_flags' => ['is_sysadmin'],
+                'sysadmin_override' => false,
             ], 403);
         }
 

@@ -50,6 +50,17 @@ const AdminHomePanel: React.FC<Props> = ({ showSystemTools }) => {
       {showSystemTools && (
         <section className="panel admin-card">
           <div className="admin-card__header">
+            <h3 className="admin-card__title">Discord Bot</h3>
+            <p className="admin-card__desc">
+              Review bot server presence, invite it to new guilds, and check announcement routing.
+            </p>
+          </div>
+        </section>
+      )}
+
+      {showSystemTools && (
+        <section className="panel admin-card">
+          <div className="admin-card__header">
             <h3 className="admin-card__title">Action Log</h3>
             <p className="admin-card__desc">
               Review admin and JEN activity with expandable audit details.

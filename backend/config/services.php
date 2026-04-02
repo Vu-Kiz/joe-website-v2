@@ -39,6 +39,14 @@ return [
     'jobs_discord' => [
         'webhook_url' => env('JOBS_DISCORD_WEBHOOK_URL', ''),
         'frontend_url' => env('JOBS_DISCORD_FRONTEND_URL', env('DISCORD_FRONTEND_URL', env('SWC_FRONTEND_URL'))),
+        'asset_url' => env('JOBS_DISCORD_ASSET_URL', env('APP_URL')),
+    ],
+
+    'discord_bot' => [
+        'shared_token' => env('DISCORD_BOT_SHARED_TOKEN', ''),
+        'client_id' => env('DISCORD_BOT_CLIENT_ID', ''),
+        'invite_permissions' => env('DISCORD_BOT_INVITE_PERMISSIONS', '277025801280'),
+        'invite_scopes' => env('DISCORD_BOT_INVITE_SCOPES', 'bot applications.commands'),
     ],
 
 ];

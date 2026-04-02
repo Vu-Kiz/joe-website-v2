@@ -84,6 +84,20 @@ services:
       - joe_prod_net
       - nginx_proxy
 
+  discord-bot:
+    build:
+      context: ./discord-bot
+      dockerfile: Dockerfile
+    image: joe-discord-bot-v2:prod
+    container_name: joe_discord_bot_v2_prod
+    restart: unless-stopped
+    depends_on:
+      - backend
+    env_file:
+      - ./discord-bot/.env
+    networks:
+      - joe_prod_net
+
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
     container_name: joe_phpmyadmin_v2_prod

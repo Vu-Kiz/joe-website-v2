@@ -32,10 +32,43 @@ services:
       DB_DATABASE: ${DB_DATABASE}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
+      QUEUE_CONNECTION: database
     volumes:
       - ./backend:/var/www/html
     ports:
       - "9011:80"
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: joe_worker_v2_dev
+    restart: unless-stopped
+    depends_on:
+      - db
+      - backend
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: ${APP_URL}
+
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      QUEUE_CONNECTION: database
+    volumes:
+      - ./backend:/var/www/html
+    command: >
+      sh -c "chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+      && su -s /bin/sh www-data -c 'php artisan queue:work database
+      --queue=swc-sync,default
+      --sleep=3
+      --tries=1
+      --timeout=3600
+      --max-time=3600'"
 
   composer:
     image: composer:2
@@ -59,6 +92,19 @@ services:
       sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
     ports:
       - "9010:5173"
+
+  discord-bot:
+    image: node:22
+    container_name: joe_discord_bot_v2_dev
+    working_dir: /app
+    depends_on:
+      - backend
+    env_file:
+      - ./discord-bot/.env
+    volumes:
+      - ./discord-bot:/app
+    command: >
+      sh -c "npm install && npm start"
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest

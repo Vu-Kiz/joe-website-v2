@@ -14,7 +14,7 @@ import {
 } from "../api/jobs";
 import { getPayments } from "../api/payments";
 import { getMyPayableFactions, type PayableFaction } from "../api/factions";
-import { canAccessDroidBrain, canAccessIntel, canAccessMembers, canAccessPayments } from "../auth/permissions";
+import { canAccessDroidBrain, canAccessIntel, canAccessMembers, canAccessPayments, canAccessSysadmin } from "../auth/permissions";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import OpenJobsPanel from "../components/members/jobs/OpenJobsPanel";
@@ -212,6 +212,7 @@ const MembersPage: React.FC = () => {
   const isLoggedIn = !!user;
   const canSeeMembers = canAccessMembers(user) || canAccessIntel(user);
   const canSeeMemberOnlyTools = canAccessMembers(user);
+  const canSeeGalacticArchive = canAccessSysadmin(user);
 
   const openJobs = useMemo(() => jobs.filter((j) => j.status === "open"), [jobs]);
 
@@ -381,6 +382,7 @@ const MembersPage: React.FC = () => {
               onClick: () => setMembersView("universe"),
             } satisfies MembersToolCard,
           ]
+            .filter((tool) => tool.key !== "archive" || canSeeGalacticArchive)
         : []),
     ],
     [
@@ -681,7 +683,12 @@ const MembersPage: React.FC = () => {
         </>
       )}
 
-      {membersView === "hyperplanner" && <HyperPlannerPanel onBack={() => setMembersView("overview")} />}
+      {membersView === "hyperplanner" && (
+        <HyperPlannerPanel
+          onBack={() => setMembersView("overview")}
+          canRefreshStoredHyperlanes={canAccessSysadmin(user)}
+        />
+      )}
 
       {membersView === "stats" && (
         <>
@@ -694,7 +701,7 @@ const MembersPage: React.FC = () => {
         </>
       )}
 
-      {membersView === "archive" && (
+      {membersView === "archive" && canSeeGalacticArchive && (
         <MemberGalacticArchivePanel onBack={() => setMembersView("overview")} />
       )}
     </main>

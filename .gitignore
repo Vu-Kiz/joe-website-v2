@@ -1,6 +1,7 @@
 # Global envs
 .env
 .env.*        # if you ever create env.production, env.test, etc.
+!.env.example
 
 # Backend (Laravel)
 backend/.env
@@ -16,6 +17,11 @@ frontend/node_modules/
 frontend/dist/
 frontend/.env
 frontend/.env.*   # env.local, env.production, etc.
+!frontend/.env.example
+discord-bot/node_modules/
+discord-bot/.env
+discord-bot/.env.*
+!discord-bot/.env.example
 
 # Docker DB volume data
 db/data/

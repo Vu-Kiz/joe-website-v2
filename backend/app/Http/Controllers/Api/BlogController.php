@@ -3,18 +3,26 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\BlogPost;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
-use App\Support\Swc\CombineTime;
 use App\Support\Swc\Auth\Permissions;
 use App\Support\Admin\AdminActionLogger;
+use App\Support\Discord\JenPostService;
+use App\Support\Discord\DiscordNotifier;
 
 class BlogController extends Controller
 {
     private const USERS_TABLE = 'swc_users';
     private const HANDLE_COL  = 'swc_handle';
     private const SWC_ID_COL  = 'swc_character_id';
+
+    public function __construct(
+        protected JenPostService $jenPostService,
+        protected DiscordNotifier $discordNotifier
+    ) {
+    }
 
     public function index(): JsonResponse
     {
@@ -60,26 +68,8 @@ class BlogController extends Controller
             return response()->json(['ok' => false, 'message' => 'Unauthenticated'], 401);
         }
 
-        $cgtCreated = CombineTime::currentCgtString();
-        if (!$cgtCreated || !is_string($cgtCreated)) {
-            $cgtCreated = 'CGT unavailable';
-        }
-
-        $authorUid = $this->resolveAuthorUid($user);
-        $authorHandle = $this->resolveAuthorHandle($user, $authorUid);
-
-        $id = DB::table('blog_posts')->insertGetId([
-            'title'         => $data['title'],
-            'body'          => $data['body'],
-            'image_path'    => $data['image_path'] ?? null,
-            'image_url'     => $data['image_url'] ?? null,
-            'author_uid'    => $authorUid,
-            'author_handle' => $authorHandle,
-            'cgt_created'   => $cgtCreated,
-            'created_at'    => now(),
-        ]);
-
-        $post = DB::table('blog_posts')->where('id', $id)->first();
+        $postModel = $this->jenPostService->createPost($user, $data);
+        $post = DB::table('blog_posts')->where('id', $postModel->id)->first();
 
         if ($post) {
             AdminActionLogger::log(
@@ -154,6 +144,11 @@ class BlogController extends Controller
                 $before,
                 $this->loggablePostState($fresh)
             );
+
+            $freshModel = BlogPost::query()->find($id);
+            if ($freshModel) {
+                $this->discordNotifier->postJenUpdated($freshModel);
+            }
         }
 
         return response()->json([

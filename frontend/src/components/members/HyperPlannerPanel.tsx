@@ -101,9 +101,13 @@ function formatHopTooltip(
 
 type HyperPlannerPanelProps = {
   onBack: () => void;
+  canRefreshStoredHyperlanes?: boolean;
 };
 
-const HyperPlannerPanel: React.FC<HyperPlannerPanelProps> = ({ onBack }) => {
+const HyperPlannerPanel: React.FC<HyperPlannerPanelProps> = ({
+  onBack,
+  canRefreshStoredHyperlanes = false,
+}) => {
   const [systems, setSystems] = useState<StoredMapSystem[]>([]);
   const [loadingSystems, setLoadingSystems] = useState(true);
   const [systemsError, setSystemsError] = useState<string | null>(null);
@@ -429,20 +433,23 @@ const HyperPlannerPanel: React.FC<HyperPlannerPanelProps> = ({ onBack }) => {
 
     try {
       setPlanning(true);
-      setPlanningLabel("Refreshing Hyperlanes...");
       setPlanError(null);
 
-      const refreshIdentifiers = Array.from(
-        new Set(
-          [
-            fromSystem ? systemRefreshIdentifier(fromSystem) : null,
-            toSystem ? systemRefreshIdentifier(toSystem) : null,
-          ].filter((value): value is string => Boolean(value && value.trim()))
-        )
-      );
+      if (canRefreshStoredHyperlanes) {
+        setPlanningLabel("Refreshing Hyperlanes...");
 
-      for (const identifier of refreshIdentifiers) {
-        await refreshStoredSystem(identifier);
+        const refreshIdentifiers = Array.from(
+          new Set(
+            [
+              fromSystem ? systemRefreshIdentifier(fromSystem) : null,
+              toSystem ? systemRefreshIdentifier(toSystem) : null,
+            ].filter((value): value is string => Boolean(value && value.trim()))
+          )
+        );
+
+        for (const identifier of refreshIdentifiers) {
+          await refreshStoredSystem(identifier);
+        }
       }
 
       setPlanningLabel("Plotting Fastest Route...");

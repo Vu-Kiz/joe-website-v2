@@ -46,6 +46,16 @@ export type UpdateAdminUserPermissionsResponse = {
   user: AdminManageableUser;
 };
 
+export type ForceAdminUserLogoutResponse = {
+  ok: boolean;
+  message: string;
+  user: {
+    id: number;
+    handle: string | null;
+    auth_version: number;
+  };
+};
+
 export async function listAdminUsers(): Promise<ListAdminUsersResponse> {
   return apiFetch<ListAdminUsersResponse>("/admin/users", {
     method: "GET",
@@ -61,6 +71,17 @@ export async function updateAdminUserPermissions(
     {
       method: "PATCH",
       body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function forceAdminUserLogout(
+  userId: number
+): Promise<ForceAdminUserLogoutResponse> {
+  return apiFetch<ForceAdminUserLogoutResponse>(
+    `/admin/users/${userId}/force-logout`,
+    {
+      method: "POST",
     }
   );
 }

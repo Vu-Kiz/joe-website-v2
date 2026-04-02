@@ -17,6 +17,7 @@ class RequireAnyFlag
             return response()->json([
                 'ok' => false,
                 'message' => 'Unauthenticated',
+                'error_code' => 'unauthenticated',
             ], 401);
         }
 
@@ -26,7 +27,11 @@ class RequireAnyFlag
         if (!Permissions::hasAny($user, $flags, $sysOk)) {
             return response()->json([
                 'ok' => false,
-                'message' => 'Forbidden',
+                'message' => 'You do not have the required access for this tool.',
+                'error_code' => 'permission_denied',
+                'required_mode' => 'any',
+                'required_flags' => $flags,
+                'sysadmin_override' => $sysOk,
             ], 403);
         }
 

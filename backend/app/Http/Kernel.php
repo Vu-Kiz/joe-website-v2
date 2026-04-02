@@ -41,6 +41,7 @@ class Kernel extends HttpKernel
 
         'api' => [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            \App\Http\Middleware\EnsureFreshUserSession::class,
             'throttle:api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
@@ -70,5 +71,7 @@ class Kernel extends HttpKernel
         'require_all'    => \App\Http\Middleware\RequireAllFlags::class,
         'sysadmin_only'  => \App\Http\Middleware\SysadminOnly::class,
         'member_tool_access' => \App\Http\Middleware\LogMemberToolAccess::class,
+        'fresh_user_session' => \App\Http\Middleware\EnsureFreshUserSession::class,
+        'discord_bot' => \App\Http\Middleware\AuthenticateDiscordBot::class,
     ];
 }
