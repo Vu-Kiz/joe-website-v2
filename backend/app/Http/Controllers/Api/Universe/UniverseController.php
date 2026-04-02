@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Universe;
 
 use App\Http\Controllers\Controller;
+use App\Models\Faction;
 use App\Models\SwcFacilityType;
 use App\Models\SwcCreatureType;
 use App\Models\SwcDroidType;
@@ -32,6 +33,350 @@ use Illuminate\Support\Facades\DB;
 
 class UniverseController extends Controller
 {
+    public function archivePlanets(Request $request): JsonResponse
+    {
+        $query = trim((string) $request->query('q', ''));
+
+        $planets = SwcPlanet::query()
+            ->when($query !== '', function ($builder) use ($query) {
+                $builder->where(function ($inner) use ($query) {
+                    $inner
+                        ->where('name', 'like', '%' . $query . '%')
+                        ->orWhere('uid', $query)
+                        ->orWhere('identifier', $query)
+                        ->orWhere('system_name', 'like', '%' . $query . '%')
+                        ->orWhere('sector_name', 'like', '%' . $query . '%')
+                        ->orWhere('owner_name', 'like', '%' . $query . '%')
+                        ->orWhere('planet_type_name', 'like', '%' . $query . '%');
+                });
+            })
+            ->orderBy('name')
+            ->limit(500)
+            ->get([
+                'uid',
+                'identifier',
+                'name',
+                'sector_uid',
+                'sector_name',
+                'system_uid',
+                'system_name',
+                'owner_uid',
+                'owner_name',
+                'planet_type_uid',
+                'planet_type_name',
+                'size',
+                'population',
+                'previous_population',
+                'previous_population_recorded_at',
+                'galx',
+                'galy',
+                'sysx',
+                'sysy',
+                'image_small_url',
+                'image_large_url',
+                'last_pulled_at',
+            ]);
+
+        return response()->json([
+            'ok' => true,
+            'data' => $planets->map(fn (SwcPlanet $planet) => [
+                'uid' => $planet->uid,
+                'identifier' => $planet->identifier,
+                'name' => $planet->name,
+                'sector_uid' => $planet->sector_uid,
+                'sector_name' => $planet->sector_name,
+                'system_uid' => $planet->system_uid,
+                'system_name' => $planet->system_name,
+                'owner_uid' => $planet->owner_uid,
+                'owner_name' => $planet->owner_name,
+                'planet_type_uid' => $planet->planet_type_uid,
+                'planet_type_name' => $planet->planet_type_name,
+                'size' => $planet->size,
+                'population' => $planet->population,
+                'previous_population' => $planet->previous_population,
+                'previous_population_recorded_at' => $planet->previous_population_recorded_at,
+                'galx' => $planet->galx,
+                'galy' => $planet->galy,
+                'sysx' => $planet->sysx,
+                'sysy' => $planet->sysy,
+                'image_small_url' => $planet->image_small_url,
+                'image_large_url' => $planet->image_large_url,
+                'last_pulled_at' => $planet->last_pulled_at,
+            ])->values(),
+        ]);
+    }
+
+    public function archivePlanet(Request $request, string $planet): JsonResponse
+    {
+        $planetRecord = SwcPlanet::query()
+            ->where('uid', $planet)
+            ->orWhere('identifier', $planet)
+            ->orWhere('name', $planet)
+            ->firstOrFail();
+
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'uid' => $planetRecord->uid,
+                'identifier' => $planetRecord->identifier,
+                'name' => $planetRecord->name,
+                'sector_uid' => $planetRecord->sector_uid,
+                'sector_name' => $planetRecord->sector_name,
+                'system_uid' => $planetRecord->system_uid,
+                'system_name' => $planetRecord->system_name,
+                'owner_uid' => $planetRecord->owner_uid,
+                'owner_name' => $planetRecord->owner_name,
+                'planet_type_uid' => $planetRecord->planet_type_uid,
+                'planet_type_name' => $planetRecord->planet_type_name,
+                'planet_type_href' => $planetRecord->planet_type_href,
+                'size' => $planetRecord->size,
+                'population' => $planetRecord->population,
+                'previous_population' => $planetRecord->previous_population,
+                'previous_population_recorded_at' => $planetRecord->previous_population_recorded_at,
+                'galx' => $planetRecord->galx,
+                'galy' => $planetRecord->galy,
+                'sysx' => $planetRecord->sysx,
+                'sysy' => $planetRecord->sysy,
+                'terrain_map' => $planetRecord->terrain_map,
+                'surface_bounds' => $planetRecord->surface_bounds,
+                'terrain_grid' => $planetRecord->terrain_grid,
+                'cities' => $planetRecord->cities,
+                'image_small_url' => $planetRecord->image_small_url,
+                'image_large_url' => $planetRecord->image_large_url,
+                'image_atmosphere_url' => $planetRecord->image_atmosphere_url,
+                'image_stratosphere_url' => $planetRecord->image_stratosphere_url,
+                'image_loworbit_url' => $planetRecord->image_loworbit_url,
+                'last_pulled_at' => $planetRecord->last_pulled_at,
+            ],
+        ]);
+    }
+
+    public function archiveFactions(Request $request): JsonResponse
+    {
+        $query = trim((string) $request->query('q', ''));
+
+        $systemsOwned = SwcPlanet::query()
+            ->whereNotNull('owner_uid')
+            ->where('owner_uid', '!=', '')
+            ->whereNotNull('system_uid')
+            ->where('system_uid', '!=', '')
+            ->whereNotNull('owner_name')
+            ->where('owner_name', '!=', '')
+            ->selectRaw('owner_uid, owner_name, COUNT(DISTINCT system_uid) as total')
+            ->groupBy('owner_uid', 'owner_name')
+            ->get();
+
+        $planetsOwned = SwcPlanet::query()
+            ->whereNotNull('owner_uid')
+            ->where('owner_uid', '!=', '')
+            ->whereNotNull('owner_name')
+            ->where('owner_name', '!=', '')
+            ->selectRaw('owner_uid, owner_name, COUNT(*) as total')
+            ->groupBy('owner_uid', 'owner_name')
+            ->get();
+
+        $populationOwned = SwcPlanet::query()
+            ->whereNotNull('owner_uid')
+            ->where('owner_uid', '!=', '')
+            ->whereNotNull('owner_name')
+            ->where('owner_name', '!=', '')
+            ->selectRaw('owner_uid, owner_name, COALESCE(SUM(population), 0) as total_population')
+            ->groupBy('owner_uid', 'owner_name')
+            ->get();
+
+        $populationChangeOwned = SwcPlanet::query()
+            ->whereNotNull('owner_uid')
+            ->where('owner_uid', '!=', '')
+            ->whereNotNull('owner_name')
+            ->where('owner_name', '!=', '')
+            ->selectRaw('owner_uid, owner_name, COALESCE(SUM(CASE WHEN previous_population IS NOT NULL THEN CAST(population AS SIGNED) - CAST(previous_population AS SIGNED) ELSE 0 END), 0) as total_population_change, SUM(CASE WHEN previous_population IS NOT NULL THEN 1 ELSE 0 END) as tracked_planets')
+            ->groupBy('owner_uid', 'owner_name')
+            ->get();
+
+        $stationsOwned = SwcStation::query()
+            ->whereNotNull('owner_uid')
+            ->where('owner_uid', '!=', '')
+            ->whereNotNull('owner_name')
+            ->where('owner_name', '!=', '')
+            ->selectRaw('owner_uid, owner_name, COUNT(*) as total')
+            ->groupBy('owner_uid', 'owner_name')
+            ->get();
+
+        $factions = collect();
+
+        foreach ($systemsOwned as $row) {
+            $key = trim((string) $row->owner_uid);
+            if (!str_starts_with($key, '20:')) {
+                continue;
+            }
+            $factions[$key] = array_merge($factions[$key] ?? [
+                'id' => null,
+                'name' => trim((string) $row->owner_name),
+                'abbreviation' => null,
+                'owner_uid' => $key,
+                'swc_uid' => $this->extractFactionSwcUid($key),
+                'member_count' => null,
+                'systems_owned' => 0,
+                'planets_owned' => 0,
+                'stations_owned' => 0,
+                'population' => null,
+                'population_change' => null,
+            ], [
+                'systems_owned' => (int) $row->total,
+            ]);
+        }
+
+        foreach ($planetsOwned as $row) {
+            $key = trim((string) $row->owner_uid);
+            if (!str_starts_with($key, '20:')) {
+                continue;
+            }
+            $factions[$key] = array_merge($factions[$key] ?? [
+                'id' => null,
+                'name' => trim((string) $row->owner_name),
+                'abbreviation' => null,
+                'owner_uid' => $key,
+                'swc_uid' => $this->extractFactionSwcUid($key),
+                'member_count' => null,
+                'systems_owned' => 0,
+                'planets_owned' => 0,
+                'stations_owned' => 0,
+                'population' => null,
+                'population_change' => null,
+            ], [
+                'planets_owned' => (int) $row->total,
+            ]);
+        }
+
+        foreach ($stationsOwned as $row) {
+            $key = trim((string) $row->owner_uid);
+            if (!str_starts_with($key, '20:')) {
+                continue;
+            }
+            $factions[$key] = array_merge($factions[$key] ?? [
+                'id' => null,
+                'name' => trim((string) $row->owner_name),
+                'abbreviation' => null,
+                'owner_uid' => $key,
+                'swc_uid' => $this->extractFactionSwcUid($key),
+                'member_count' => null,
+                'systems_owned' => 0,
+                'planets_owned' => 0,
+                'stations_owned' => 0,
+                'population' => null,
+                'population_change' => null,
+            ], [
+                'stations_owned' => (int) $row->total,
+            ]);
+        }
+
+        foreach ($populationOwned as $row) {
+            $key = trim((string) $row->owner_uid);
+            if (!str_starts_with($key, '20:')) {
+                continue;
+            }
+            $factions[$key] = array_merge($factions[$key] ?? [
+                'id' => null,
+                'name' => trim((string) $row->owner_name),
+                'abbreviation' => null,
+                'owner_uid' => $key,
+                'swc_uid' => $this->extractFactionSwcUid($key),
+                'member_count' => null,
+                'systems_owned' => 0,
+                'planets_owned' => 0,
+                'stations_owned' => 0,
+                'population' => null,
+                'population_change' => null,
+            ], [
+                'population' => $row->total_population !== null ? (int) $row->total_population : null,
+            ]);
+        }
+
+        foreach ($populationChangeOwned as $row) {
+            $key = trim((string) $row->owner_uid);
+            if (!str_starts_with($key, '20:')) {
+                continue;
+            }
+            $factions[$key] = array_merge($factions[$key] ?? [
+                'id' => null,
+                'name' => trim((string) $row->owner_name),
+                'abbreviation' => null,
+                'owner_uid' => $key,
+                'swc_uid' => $this->extractFactionSwcUid($key),
+                'member_count' => null,
+                'systems_owned' => 0,
+                'planets_owned' => 0,
+                'stations_owned' => 0,
+                'population' => null,
+                'population_change' => null,
+            ], [
+                'population_change' => (int) ($row->tracked_planets ?? 0) > 0
+                    ? (int) $row->total_population_change
+                    : null,
+            ]);
+        }
+
+        $localFactions = Faction::query()->get();
+
+        foreach ($localFactions as $faction) {
+            $ownerUid = $faction->swc_uid ? ('20:' . $faction->swc_uid) : null;
+            if (!$ownerUid) {
+                continue;
+            }
+
+            if (!isset($factions[$ownerUid])) {
+                continue;
+            }
+
+            $existing = $factions[$ownerUid];
+
+            $existing['id'] = $faction->id;
+            $existing['name'] = $existing['name'] ?: $faction->name;
+            $existing['abbreviation'] = $faction->abbreviation;
+            $existing['member_count'] = $faction->users()->count();
+
+            $factions[$ownerUid] = $existing;
+        }
+
+        $results = collect($factions)
+            ->values()
+            ->filter(function (array $faction) {
+                return (int) ($faction['planets_owned'] ?? 0) > 0;
+            })
+            ->filter(function (array $faction) use ($query) {
+                if ($query === '') {
+                    return true;
+                }
+
+                $haystack = implode(' ', array_filter([
+                    $faction['name'] ?? null,
+                    $faction['abbreviation'] ?? null,
+                    $faction['owner_uid'] ?? null,
+                    isset($faction['swc_uid']) ? (string) $faction['swc_uid'] : null,
+                ]));
+
+                return str_contains(strtolower($haystack), strtolower($query));
+            })
+            ->sortBy(fn (array $faction) => strtolower((string) ($faction['name'] ?? '')))
+            ->values();
+
+        return response()->json([
+            'ok' => true,
+            'data' => $results,
+        ]);
+    }
+
+    private function extractFactionSwcUid(?string $ownerUid): ?int
+    {
+        $ownerUid = trim((string) $ownerUid);
+
+        if (preg_match('/^20:(\d+)$/', $ownerUid, $matches) === 1) {
+            return (int) $matches[1];
+        }
+
+        return null;
+    }
+
     private function normalizeSectorCoordinates(array $coordinates): array
     {
         return collect($coordinates)

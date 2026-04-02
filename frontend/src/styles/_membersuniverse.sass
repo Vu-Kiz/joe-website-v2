@@ -1494,6 +1494,66 @@
   stroke-width: 1.25
   vector-effect: non-scaling-stroke
 
+.members-archive
+  display: grid
+  gap: 16px
+
+.members-archive__head
+  display: flex
+  gap: 16px
+  justify-content: space-between
+  align-items: flex-start
+  flex-wrap: wrap
+
+.members-archive__toolbar
+  display: flex
+  gap: 12px
+  align-items: center
+  flex-wrap: wrap
+
+.members-archive__toolbar .input
+  min-width: min(100%, 320px)
+
+.members-archive__layout
+  display: grid
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr)
+  gap: 16px
+
+.members-archive__list
+  display: grid
+  gap: 10px
+  max-height: 70vh
+  overflow-y: auto
+  padding-right: 4px
+
+.members-archive__item
+  display: grid
+  gap: 4px
+  text-align: left
+  border: 1px solid rgba(255, 176, 0, 0.28)
+  border-radius: 14px
+  background: rgba(255, 176, 0, 0.06)
+  color: inherit
+  padding: 12px 14px
+  cursor: pointer
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease
+
+.members-archive__item:hover
+  border-color: rgba(255, 176, 0, 0.6)
+  background: rgba(255, 176, 0, 0.11)
+  transform: translateY(-1px)
+
+.members-archive__item.is-active
+  border-color: rgba(255, 176, 0, 0.92)
+  background: rgba(255, 176, 0, 0.14)
+  box-shadow: 0 0 0 1px rgba(255, 176, 0, 0.2) inset
+
+.members-archive__detail
+  display: grid
+  gap: 16px
+  align-content: start
+  min-height: 280px
+
 @media (max-width: 768px)
   .members-tool-grid
     grid-template-columns: repeat(2, minmax(0, 1fr))
@@ -1515,6 +1575,12 @@
 
   .members-universe-map
     min-height: 68vh
+
+  .members-archive__layout
+    grid-template-columns: 1fr
+
+  .members-archive__list
+    max-height: 32vh
 
 @media (max-width: 640px)
   .members-tool-grid

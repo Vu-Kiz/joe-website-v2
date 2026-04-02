@@ -25,6 +25,7 @@ import JobsSubnav from "../components/members/jobs/JobsSubnav";
 import MembersUniversePanel from "../components/members/MembersUniversePanel";
 import MemberEntityStatsPanel from "../components/members/MemberEntityStatsPanel";
 import HyperPlannerPanel from "../components/members/HyperPlannerPanel";
+import MemberGalacticArchivePanel from "../components/members/MemberGalacticArchivePanel";
 import jawaLogo from "../assets/branding/jawalogo.png";
 import astrogationIcon from "../assets/members/AstrogationIcon.png";
 import chainCodeIcon from "../assets/members/ChainCodeIcon.png";
@@ -42,7 +43,7 @@ import "../styles/main.sass";
 import "../styles/_admin.sass";
 import "../styles/_membersuniverse.sass";
 
-type MembersView = "overview" | "jobs" | "universe" | "stats" | "hyperplanner";
+type MembersView = "overview" | "jobs" | "universe" | "stats" | "hyperplanner" | "archive";
 type JobsView = "open" | "posted" | "taken" | "create";
 type MembersToolCard = {
   key: string;
@@ -349,6 +350,14 @@ const MembersPage: React.FC = () => {
               onClick: () => setMembersView("jobs"),
             } satisfies MembersToolCard,
             {
+              key: "archive",
+              title: "Galactic Archive",
+              description:
+                "Browse pulled SWC reference data for sectors, systems, planets, and faction ownership in one archive view.",
+              actionLabel: "Open Galactic Archive",
+              onClick: () => setMembersView("archive"),
+            } satisfies MembersToolCard,
+            {
               key: "stats",
               title: "Entity Stats",
               description:
@@ -491,6 +500,8 @@ const MembersPage: React.FC = () => {
                       ? astrogationIcon
                       : tool.key === "hyperplanner"
                         ? hyperIcon
+                        : tool.key === "archive"
+                          ? jawaLogo
                         : tool.key === "stats"
                           ? statsIcon
                       : tool.key === "jobs"
@@ -508,6 +519,8 @@ const MembersPage: React.FC = () => {
                       ? "Astrogation"
                       : tool.key === "hyperplanner"
                         ? "Hyper Planner"
+                      : tool.key === "archive"
+                        ? "Galactic Archive"
                       : tool.key === "stats"
                         ? "Entity Stats"
                       : tool.key === "jobs"
@@ -679,6 +692,10 @@ const MembersPage: React.FC = () => {
           </div>
           <MemberEntityStatsPanel />
         </>
+      )}
+
+      {membersView === "archive" && (
+        <MemberGalacticArchivePanel onBack={() => setMembersView("overview")} />
       )}
     </main>
   );

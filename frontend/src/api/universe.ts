@@ -37,6 +37,58 @@ export type StoredMapSystem = {
   last_pulled_at: string | null;
 };
 
+export type ArchivePlanetSummary = {
+  uid: string | null;
+  identifier: string | null;
+  name: string | null;
+  sector_uid: string | null;
+  sector_name: string | null;
+  system_uid: string | null;
+  system_name: string | null;
+  owner_uid: string | null;
+  owner_name: string | null;
+  planet_type_uid: string | null;
+  planet_type_name: string | null;
+  size: number | null;
+  population: number | null;
+  previous_population: number | null;
+  previous_population_recorded_at: string | null;
+  galx: number | null;
+  galy: number | null;
+  sysx: number | null;
+  sysy: number | null;
+  image_small_url: string | null;
+  image_large_url: string | null;
+  last_pulled_at: string | null;
+};
+
+export type ArchivePlanetDetail = ArchivePlanetSummary & {
+  planet_type_href: string | null;
+  previous_population: number | null;
+  previous_population_recorded_at: string | null;
+  terrain_map: string | null;
+  surface_bounds: Record<string, unknown> | null;
+  terrain_grid: Array<Record<string, unknown>> | null;
+  cities: Array<Record<string, unknown>> | null;
+  image_atmosphere_url: string | null;
+  image_stratosphere_url: string | null;
+  image_loworbit_url: string | null;
+};
+
+export type ArchiveFactionSummary = {
+  id: number | null;
+  name: string | null;
+  abbreviation: string | null;
+  owner_uid: string | null;
+  swc_uid: number | null;
+  member_count: number | null;
+  systems_owned: number;
+  planets_owned: number;
+  stations_owned: number;
+  population: number | null;
+  population_change: number | null;
+};
+
 export type HyperPlannerSystem = {
   uid: string | null;
   identifier: string | null;
@@ -807,6 +859,34 @@ export function saveStoredSearchRecord(payload: {
 export function getStoredSystem(system: string) {
   return apiFetch<{ ok: boolean; data: StoredSystemDetail }>(
     `/universe/systems/${encodeURIComponent(system)}`
+  );
+}
+
+export function getArchivePlanets(query?: string) {
+  const params = new URLSearchParams();
+  if (query?.trim()) {
+    params.set("q", query.trim());
+  }
+
+  return apiFetch<{ ok: boolean; data: ArchivePlanetSummary[] }>(
+    `/universe/archive/planets${params.toString() ? `?${params.toString()}` : ""}`
+  );
+}
+
+export function getArchivePlanet(planet: string) {
+  return apiFetch<{ ok: boolean; data: ArchivePlanetDetail }>(
+    `/universe/archive/planets/${encodeURIComponent(planet)}`
+  );
+}
+
+export function getArchiveFactions(query?: string) {
+  const params = new URLSearchParams();
+  if (query?.trim()) {
+    params.set("q", query.trim());
+  }
+
+  return apiFetch<{ ok: boolean; data: ArchiveFactionSummary[] }>(
+    `/universe/archive/factions${params.toString() ? `?${params.toString()}` : ""}`
   );
 }
 

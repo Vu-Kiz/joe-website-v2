@@ -107,6 +107,9 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
     Route::post('/payment-transfers/{paymentTransfer}/manual-verify', [\App\Http\Controllers\Api\PaymentController::class, 'manualVerify']);
     Route::get('/universe/sectors', [UniverseController::class, 'sectors']);
     Route::get('/universe/map-systems', [UniverseController::class, 'mapSystems']);
+    Route::get('/universe/archive/planets', [UniverseController::class, 'archivePlanets']);
+    Route::get('/universe/archive/planets/{planet}', [UniverseController::class, 'archivePlanet']);
+    Route::get('/universe/archive/factions', [UniverseController::class, 'archiveFactions']);
     Route::get('/universe/hyper-planner', [UniverseController::class, 'hyperPlanner']);
     Route::get('/universe/hyper-plans', [UniverseController::class, 'hyperPlans']);
     Route::post('/universe/hyper-plans', [UniverseController::class, 'storeHyperPlan']);
