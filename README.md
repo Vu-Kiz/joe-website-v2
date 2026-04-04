@@ -4,7 +4,7 @@ Jawa Offworld Enterprises website and member tools.
 
 ## Current Version
 
-- Production release: `v2.0.1`
+- Production release: `v2.0.2`
 - Active development branch: `v2.0.3`
 
 ## Branch Status
@@ -14,8 +14,7 @@ Jawa Offworld Enterprises website and member tools.
 
 ## Notes
 
-- `v2.0.1` is now the live production patch release
-- `v2.0.2` is the completed release/update cycle
+- `v2.0.2` is now the live production patch release
 - `v2.0.3` is the next active update cycle
 - larger new work should be planned deliberately instead of being folded into patch updates
 
