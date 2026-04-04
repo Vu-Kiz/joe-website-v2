@@ -15,6 +15,19 @@ class SwcAuthorizationService
             ->first();
     }
 
+    public function isAuthorizationActive(?SwcAuthorization $auth): bool
+    {
+        if (!$auth || empty($auth->access_token_encrypted) || $auth->revoked_at) {
+            return false;
+        }
+
+        if ($auth->token_expires_at && $auth->token_expires_at->isPast()) {
+            return false;
+        }
+
+        return true;
+    }
+
     protected function firstForContexts(User $user, array $contexts): ?SwcAuthorization
     {
         foreach ($contexts as $context) {
@@ -27,9 +40,21 @@ class SwcAuthorizationService
         return null;
     }
 
+    protected function firstActiveForContexts(User $user, array $contexts): ?SwcAuthorization
+    {
+        foreach ($contexts as $context) {
+            $auth = $this->forUser($user, $context);
+            if ($this->isAuthorizationActive($auth)) {
+                return $auth;
+            }
+        }
+
+        return null;
+    }
+
     public function hasPersonalCreditLogAccess(User $user): bool
     {
-        return (bool) $this->firstForContexts($user, [
+        return (bool) $this->firstActiveForContexts($user, [
             SwcAuthorization::CONTEXT_MEMBER_TOOLS,
             SwcAuthorization::CONTEXT_PAYMENTS,
         ])?->has_personal_credit_log_access;
@@ -37,7 +62,7 @@ class SwcAuthorizationService
 
     public function hasPersonalEventsAccess(User $user): bool
     {
-        return (bool) $this->firstForContexts($user, [
+        return (bool) $this->firstActiveForContexts($user, [
             SwcAuthorization::CONTEXT_MEMBER_TOOLS,
             SwcAuthorization::CONTEXT_EVENTS,
         ])?->has_personal_events_access;
@@ -50,7 +75,7 @@ class SwcAuthorizationService
 
     public function hasFactionCreditLogAccess(User $user): bool
     {
-        return (bool) $this->firstForContexts($user, [
+        return (bool) $this->firstActiveForContexts($user, [
             SwcAuthorization::CONTEXT_MEMBER_TOOLS,
             SwcAuthorization::CONTEXT_PAYMENTS,
         ])?->has_faction_credit_log_access;
@@ -58,7 +83,7 @@ class SwcAuthorizationService
 
     public function hasCharacterPrivilegesAccess(User $user): bool
     {
-        return (bool) $this->firstForContexts($user, [
+        return (bool) $this->firstActiveForContexts($user, [
             SwcAuthorization::CONTEXT_MEMBER_TOOLS,
             SwcAuthorization::CONTEXT_PAYMENTS,
         ])?->has_character_privileges_access;
@@ -67,16 +92,20 @@ class SwcAuthorizationService
     public function getAccessToken(User $user, string $context = SwcAuthorization::CONTEXT_MEMBER_TOOLS): ?string
     {
         $auth = match ($context) {
-            SwcAuthorization::CONTEXT_EVENTS => $this->firstForContexts($user, [
+            SwcAuthorization::CONTEXT_EVENTS => $this->firstActiveForContexts($user, [
                 SwcAuthorization::CONTEXT_MEMBER_TOOLS,
                 SwcAuthorization::CONTEXT_EVENTS,
             ]),
-            SwcAuthorization::CONTEXT_PAYMENTS => $this->firstForContexts($user, [
+            SwcAuthorization::CONTEXT_PAYMENTS => $this->firstActiveForContexts($user, [
                 SwcAuthorization::CONTEXT_MEMBER_TOOLS,
                 SwcAuthorization::CONTEXT_PAYMENTS,
             ]),
-            SwcAuthorization::CONTEXT_MEMBER_TOOLS => $this->forUser($user, SwcAuthorization::CONTEXT_MEMBER_TOOLS),
-            default => $this->forUser($user, $context),
+            SwcAuthorization::CONTEXT_MEMBER_TOOLS => $this->isAuthorizationActive($this->forUser($user, SwcAuthorization::CONTEXT_MEMBER_TOOLS))
+                ? $this->forUser($user, SwcAuthorization::CONTEXT_MEMBER_TOOLS)
+                : null,
+            default => $this->isAuthorizationActive($this->forUser($user, $context))
+                ? $this->forUser($user, $context)
+                : null,
         };
 
         $encrypted = $auth?->access_token_encrypted;

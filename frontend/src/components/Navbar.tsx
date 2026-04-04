@@ -4,7 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import jawaLogo from "../assets/branding/joe-banner.png";
 import { fetchAuthMe, apiLogout, getBackendOrigin, subscribeToAuthStateChange } from "../api/auth";
 import type { SwcUser } from "../api/auth";
-import { getPayments } from "../api/payments";
+import { getPendingPaymentsCount } from "../api/payments";
 import CgtPill from "./CgtPill";
 import { canAccessAdmin, canAccessMembers } from "../auth/permissions";
 
@@ -63,9 +63,9 @@ const Navbar: React.FC = () => {
 
     const refreshPendingPayments = async () => {
       try {
-        const res = await getPayments();
+        const res = await getPendingPaymentsCount();
         if (!cancelled) {
-          setHasPendingPayments((res.data?.length ?? 0) > 0);
+          setHasPendingPayments(Boolean(res.data?.has_pending));
         }
       } catch {
         if (!cancelled) {

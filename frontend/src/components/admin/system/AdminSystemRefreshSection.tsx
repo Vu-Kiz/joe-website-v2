@@ -92,6 +92,18 @@ const AdminSystemRefreshSection: React.FC<Props> = ({
   systemPersistence,
   storedSystemDetail,
 }) => {
+  const pulledOwnerName = systemResult?.system?.owner_name ?? null;
+  const pulledOwnerUid = systemResult?.system?.owner_uid ?? null;
+  const storedOwnerName = storedSystemDetail?.system.owner_name ?? null;
+  const storedOwnerUid = storedSystemDetail?.system.owner_uid ?? null;
+  const formatOwner = (name: string | null, uid: string | null): string => {
+    if (name && uid) {
+      return `${name} (${uid})`;
+    }
+
+    return name ?? uid ?? "Unowned";
+  };
+
   return (
     <>
       <section className="admin-card">
@@ -281,6 +293,7 @@ const AdminSystemRefreshSection: React.FC<Props> = ({
         {systemResult?.system ? (
           <div className="admin-grid">
             <div className="admin-card"><h3 className="admin-card__title">System</h3><p className="small">{systemName}</p></div>
+            <div className="admin-card"><h3 className="admin-card__title">Pulled Owner</h3><p className="small">{formatOwner(pulledOwnerName, pulledOwnerUid)}</p></div>
             <div className="admin-card"><h3 className="admin-card__title">Planets Found</h3><p className="small">{planetsPulled}</p></div>
             <div className="admin-card"><h3 className="admin-card__title">Stations Found</h3><p className="small">{stationsPulled}</p></div>
             <div className="admin-card"><h3 className="admin-card__title">Hyperlanes Found</h3><p className="small">{hyperlanesPulled}</p></div>
@@ -293,6 +306,7 @@ const AdminSystemRefreshSection: React.FC<Props> = ({
           <div className="admin-grid">
             <div className="admin-card"><h3 className="admin-card__title">Stored UID</h3><p className="small">{storedSystemDetail.system.uid ?? "Unknown"}</p></div>
             <div className="admin-card"><h3 className="admin-card__title">Sector</h3><p className="small">{storedSystemDetail.system.sector_name ?? storedSystemDetail.system.sector_uid ?? "Unknown"}</p></div>
+            <div className="admin-card"><h3 className="admin-card__title">Stored Owner</h3><p className="small">{formatOwner(storedOwnerName, storedOwnerUid)}</p></div>
             <div className="admin-card"><h3 className="admin-card__title">Stored Planets</h3><p className="small">{storedSystemDetail.planets.length}</p></div>
             <div className="admin-card"><h3 className="admin-card__title">Stored Stations</h3><p className="small">{storedSystemDetail.stations.length}</p></div>
             <div className="admin-card"><h3 className="admin-card__title">Stored Hyperlanes</h3><p className="small">{storedSystemDetail.hyperlanes.length}</p></div>

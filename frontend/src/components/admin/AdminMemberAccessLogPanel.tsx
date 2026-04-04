@@ -5,6 +5,36 @@ import {
 } from "../../api/memberAccessLogs";
 import Pagination from "../common/Pagination";
 
+const AREA_LABELS: Record<string, string> = {
+  astrogation: "Astrogation",
+  chain_code_verification: "Chain Code Verification",
+  droidbrain: "DroidBrain",
+  entity_stats: "Entity Stats",
+  factions: "Factions",
+  galactic_archive: "Galactic Archive",
+  hyper_planner: "Hyper Planner",
+  jobs: "Jobs",
+  member_tools: "Member Tools",
+  payments: "Payments",
+};
+
+function formatLabel(value: string | null | undefined): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) {
+    return "Unknown";
+  }
+
+  if (AREA_LABELS[raw]) {
+    return AREA_LABELS[raw];
+  }
+
+  return raw
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 const AdminMemberAccessLogPanel: React.FC = () => {
   const [logs, setLogs] = useState<MemberAccessLogItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -179,7 +209,7 @@ const AdminMemberAccessLogPanel: React.FC = () => {
                 <option value="">All areas</option>
                 {areaOptions.map((value) => (
                   <option key={value} value={value}>
-                    {value}
+                    {formatLabel(value)}
                   </option>
                 ))}
               </select>
@@ -198,7 +228,7 @@ const AdminMemberAccessLogPanel: React.FC = () => {
                 <option value="">All actions</option>
                 {actionOptions.map((value) => (
                   <option key={value} value={value}>
-                    {value}
+                    {formatLabel(value)}
                   </option>
                 ))}
               </select>
@@ -280,9 +310,9 @@ const AdminMemberAccessLogPanel: React.FC = () => {
                             (log.actor_user_id ? `User #${log.actor_user_id}` : "Unknown user")}
                         </div>
 
-                        <div className="admin-action-log-table__cell">{log.area}</div>
+                        <div className="admin-action-log-table__cell">{formatLabel(log.area)}</div>
 
-                        <div className="admin-action-log-table__cell">{log.action}</div>
+                        <div className="admin-action-log-table__cell">{formatLabel(log.action)}</div>
 
                         <div className="admin-action-log-table__cell admin-action-log-table__summary">
                           {log.summary}

@@ -37,6 +37,7 @@ use App\Http\Controllers\Api\FactionPrivilegeController;
 use App\Http\Controllers\Api\ManualPaymentTemplateController;
 use App\Http\Controllers\Api\DroidBrainController;
 use App\Http\Controllers\Api\DiscordBotController;
+use App\Http\Controllers\Api\MemberToolAccessController;
 
 // Public utility
 Route::get('/health', [HealthController::class, 'index']);
@@ -108,6 +109,7 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->prefix('job-assignmen
 
 Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
     Route::get('/payments', [\App\Http\Controllers\Api\PaymentController::class, 'index']);
+    Route::get('/payments/pending-count', [\App\Http\Controllers\Api\PaymentController::class, 'pendingCount']);
     Route::get('/payments/owed-to-me', [\App\Http\Controllers\Api\PaymentController::class, 'owedToMe']);
     Route::get('/payment-transfers', [\App\Http\Controllers\Api\PaymentController::class, 'transfers']);
     Route::get('/payment-transfers/unverified-support', [\App\Http\Controllers\Api\PaymentController::class, 'unverifiedSupportQueue']);
@@ -263,6 +265,10 @@ Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('admin')->group(fun
 Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
     Route::get('/swc/authorization', [SwcAuthorizationController::class, 'show']);
     Route::put('/swc/authorization/preferences', [SwcAuthorizationController::class, 'updatePreferences']);
+});
+
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::post('/member-tools/access', [MemberToolAccessController::class, 'store']);
 });
 
 Route::middleware(['auth:sanctum', 'require_any:is_joe_member,is_intel,is_sysadmin'])->group(function () {

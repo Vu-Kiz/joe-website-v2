@@ -38,6 +38,7 @@ import {
   getSwcAuthorizationStatus,
   type SwcAuthorizationStatus,
 } from "../api/swcAuthorization";
+import { logMemberToolOpen, type MemberToolArea } from "../api/memberTools";
 
 import "../styles/main.sass";
 import "../styles/_admin.sass";
@@ -135,6 +136,27 @@ const MembersPage: React.FC = () => {
       setAuthRefreshNonce((value) => value + 1);
     });
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    const areaByView: Partial<Record<MembersView, MemberToolArea>> = {
+      jobs: "jobs",
+      universe: "astrogation",
+      stats: "entity_stats",
+      hyperplanner: "hyper_planner",
+      archive: "galactic_archive",
+    };
+
+    const area = areaByView[membersView];
+    if (!area) {
+      return;
+    }
+
+    void logMemberToolOpen(area, "/members").catch(() => {});
+  }, [membersView, user]);
 
   useEffect(() => {
     let cancelled = false;

@@ -63,6 +63,8 @@ Included updates:
 
 - Admin health and ops visibility
   Added a sysadmin-only Website Health panel with backend runtime checks, queue freshness reporting, Discord bot health visibility, browser-side frontend path checks, and clearer release/version display using the webapp package version.
+- Admin tools and overview
+  Added a clearer admin tools overview with per-tool description panels, a direct return path back to the members tools overview, and cleaner sysadmin/admin gating so the overview only shows tools the current user can actually access.
 - Members navigation and overview flow
   Simplified the main navbar so `Tools` opens the members tools area directly, kept payment alert styling on the button, and added an admin-first members overview card so admin and sysadmin users can jump straight into admin controls from the tools page.
 - DroidBrain browsing
@@ -70,4 +72,10 @@ Included updates:
 - Discord bot presence
   Added an explicit Discord bot presence/status on startup so the bot shows a deliberate activity in Discord instead of the default connection state.
 - Frontend polish and auth responsiveness
-  Improved navbar logout responsiveness so auth-dependent navigation clears immediately when the user signs out or their session changes.
+  Improved navbar logout responsiveness so auth-dependent navigation clears immediately when the user signs out or their session changes, and corrected SWC connection status so member-tools verification shows `Not connected` once the stored SWC token is expired or revoked instead of treating any old authorization row as active.
+- Payments and access logging
+  Added a lightweight pending-payments count endpoint for the navbar alert state so background polling no longer hits the full payments list or spams the member access log with repeated automatic `GET /api/payments` entries, trimmed member access logging so members-tools bootstrap reads do not flood the access log with routine support requests on every page load, and added explicit member-tool open logging so tools like Jobs, Payments, DroidBrain, Astrogation, Hyper Planner, Entity Stats, and Galactic Archive record a clear access event when opened.
+- Action logs and tool labeling
+  Expanded member-access classification for newer tools like DroidBrain, Galactic Archive, Hyper Planner, Entity Stats, Astrogation, Payments, Jobs, and Factions, added missing admin action logging around Site Lock and DroidBrain payment actions, and cleaned the admin log UI so areas and actions render with readable tool names instead of raw internal keys.
+- Universe system ownership and pull verification
+  Hardened stored system ownership so systems only persist faction-style owners from the SWC `controlledby` source, preventing invalid player ownership from sticking on `swc_systems`, and updated the admin system pull summary to show both the pulled owner and the stored owner so refresh results can be verified immediately after a sync.

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Support\Admin\AdminActionLogger;
 use App\Support\DroidBrain\DroidBrainBrowserService;
 use App\Support\DroidBrain\DroidBrainRewardService;
 use App\Support\DroidBrain\DroidBrainUploadService;
@@ -213,6 +214,21 @@ class DroidBrainController extends Controller
         if (!$summary) {
             return response()->json(['message' => 'No DroidBrain reward summary could be built for that upload.'], 404);
         }
+
+        AdminActionLogger::log(
+            $request,
+            'droidbrain',
+            'create_reward_payment',
+            'Created or refreshed a DroidBrain reward payment item.',
+            'droidbrain_file',
+            $fileId,
+            null,
+            [
+                'payer_faction_id' => (int) $validated['payer_faction_id'],
+                'payment_item_id' => $summary['payment_item_id'] ?? null,
+                'total_amount' => $summary['total_amount'] ?? null,
+            ]
+        );
 
         return response()->json([
             'ok' => true,

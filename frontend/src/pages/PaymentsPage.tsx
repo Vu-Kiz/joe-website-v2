@@ -36,6 +36,7 @@ import {
   getMyFactionPrivileges,
   type FactionPrivilegeCheckResult,
 } from "../api/factionPrivileges";
+import { logMemberToolOpen } from "../api/memberTools";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import PaymentsNav from "../components/payments/PaymentsNav";
@@ -46,6 +47,7 @@ import PaymentHistoryPanel from "../components/payments/PaymentHistoryPanel";
 import PaymentsTemplatesPanel from "../components/payments/PaymentsTemplatesPanel";
 import DroidBrainPaymentsPanel from "../components/payments/DroidBrainPaymentsPanel";
 import type { PaymentGroup, PaymentsActionState, PaymentsView } from "../components/payments/types";
+import { canAccessPayments } from "../auth/permissions";
 
 import "../styles/main.sass";
 import "../styles/_admin.sass";
@@ -162,6 +164,14 @@ const PaymentsPage: React.FC = () => {
       setAuthRefreshNonce((value) => value + 1);
     });
   }, []);
+
+  useEffect(() => {
+    if (!user || !canAccessPayments(user)) {
+      return;
+    }
+
+    void logMemberToolOpen("payments", "/payments").catch(() => {});
+  }, [user]);
 
   useEffect(() => {
     let cancelled = false;

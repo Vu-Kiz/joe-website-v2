@@ -1733,14 +1733,21 @@ class UniversePersistenceService
             return null;
         }
 
+        [$ownerUid, $ownerName] = $this->normalizeSystemOwner(
+            $data['owner_uid'] ?? null,
+            $data['owner_name'] ?? null
+        );
+
         $system = SwcSystem::firstOrNew(['uid' => $uid]);
         $system->identifier = $data['identifier'] ?? $fallbackIdentifier ?: $uid;
         $system->name = $data['name'] ?? $system->name;
         $system->sector_id = $sector?->id ?? $system->sector_id;
         $system->sector_uid = $data['sector_uid'] ?? $sector?->uid ?? $system->sector_uid;
         $system->sector_name = $data['sector_name'] ?? $sector?->name ?? $system->sector_name;
-        $system->owner_uid = $data['owner_uid'] ?? $system->owner_uid;
-        $system->owner_name = $data['owner_name'] ?? $system->owner_name;
+        if (array_key_exists('owner_uid', $data) || array_key_exists('owner_name', $data)) {
+            $system->owner_uid = $ownerUid;
+            $system->owner_name = $ownerName;
+        }
         $system->galx = $data['galx'] ?? $system->galx;
         $system->galy = $data['galy'] ?? $system->galy;
         $system->sysx = $data['sysx'] ?? $system->sysx;
@@ -1749,6 +1756,19 @@ class UniversePersistenceService
         $system->save();
 
         return $system;
+    }
+
+    protected function normalizeSystemOwner(mixed $ownerUid, mixed $ownerName): array
+    {
+        $uid = is_string($ownerUid) ? trim($ownerUid) : '';
+        $name = is_string($ownerName) ? trim($ownerName) : '';
+
+        // Systems should only ever be owned by factions, never individual characters.
+        if ($uid !== '' && str_starts_with($uid, '20:')) {
+            return [$uid, $name !== '' ? $name : null];
+        }
+
+        return [null, null];
     }
 
     protected function upsertPlanet(

@@ -33,6 +33,10 @@ class LogMemberToolAccess
             return $response;
         }
 
+        if ($this->shouldSkipLogging($request)) {
+            return $response;
+        }
+
         [$area, $action] = $this->classify($request);
 
         MemberToolAccessLogger::log(
@@ -46,20 +50,53 @@ class LogMemberToolAccess
         return $response;
     }
 
+    private function shouldSkipLogging(Request $request): bool
+    {
+        $path = ltrim($request->path(), '/');
+        $apiPath = preg_replace('/^api\//', '', $path) ?? $path;
+
+        if ($apiPath === 'payments/pending-count') {
+            return true;
+        }
+
+        if (strtoupper($request->method()) !== 'GET') {
+            return false;
+        }
+
+        return in_array($apiPath, [
+            'swc/authorization',
+            'factions/mine',
+            'factions/mine/payable',
+            'factions/mine/privileges',
+            'payments',
+            'payments/owed-to-me',
+            'payment-transfers',
+            'payment-transfers/unverified-support',
+            'manual-payment-templates',
+            'manual-payment-templates/options',
+        ], true);
+    }
+
     private function classify(Request $request): array
     {
         $path = ltrim($request->path(), '/');
         $apiPath = preg_replace('/^api\//', '', $path) ?? $path;
 
         $area = match (true) {
-            str_starts_with($apiPath, 'universe/') => 'galaxy',
+            str_starts_with($apiPath, 'droidbrain') => 'droidbrain',
+            str_starts_with($apiPath, 'payments/droidbrain-settings') => 'droidbrain',
+            str_starts_with($apiPath, 'universe/archive/') => 'galactic_archive',
+            str_starts_with($apiPath, 'universe/hyper-planner'),
+            str_starts_with($apiPath, 'universe/hyper-plans') => 'hyper_planner',
+            preg_match('#^universe/(station-types|facility-types|item-types|planet-types|ship-types|vehicle-types|droid-types|creature-types|npc-types|races|weapon-types|terrain-types|material-types)(/|$)#', $apiPath) === 1 => 'entity_stats',
+            str_starts_with($apiPath, 'universe/') => 'astrogation',
             str_starts_with($apiPath, 'payments'),
             str_starts_with($apiPath, 'payment-transfers'),
             str_starts_with($apiPath, 'manual-payment-templates') => 'payments',
             str_starts_with($apiPath, 'jobs'),
             str_starts_with($apiPath, 'job-assignments') => 'jobs',
             str_starts_with($apiPath, 'factions') => 'factions',
-            str_starts_with($apiPath, 'swc/authorization') => 'swc_authorization',
+            str_starts_with($apiPath, 'swc/authorization') => 'chain_code_verification',
             default => 'member_tools',
         };
 
@@ -93,7 +130,7 @@ class LogMemberToolAccess
             default => 'access',
         };
 
-        if ($area === 'galaxy' && $method === 'POST' && str_contains($apiPath, 'cell-annotations')) {
+        if ($area === 'astrogation' && $method === 'POST' && str_contains($apiPath, 'cell-annotations')) {
             $action = 'annotate';
         }
 

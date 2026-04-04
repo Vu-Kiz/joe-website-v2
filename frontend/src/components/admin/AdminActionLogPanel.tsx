@@ -5,6 +5,31 @@ import {
 } from "../../api/adminActionLogs";
 import Pagination from "../common/Pagination";
 
+const AREA_LABELS: Record<string, string> = {
+  droidbrain: "DroidBrain",
+  site_lock: "Site Lock",
+  universe_entity_stats: "Entity Stats Admin",
+  website_health: "Website Health",
+  discord_bot: "Discord Bot",
+};
+
+function formatLabel(value: string | null | undefined): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) {
+    return "Unknown";
+  }
+
+  if (AREA_LABELS[raw]) {
+    return AREA_LABELS[raw];
+  }
+
+  return raw
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 const AdminActionLogPanel: React.FC = () => {
   const [logs, setLogs] = useState<AdminActionLogItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -179,7 +204,7 @@ const AdminActionLogPanel: React.FC = () => {
                 <option value="">All areas</option>
                 {areaOptions.map((value) => (
                   <option key={value} value={value}>
-                    {value}
+                    {formatLabel(value)}
                   </option>
                 ))}
               </select>
@@ -198,7 +223,7 @@ const AdminActionLogPanel: React.FC = () => {
                 <option value="">All actions</option>
                 {actionOptions.map((value) => (
                   <option key={value} value={value}>
-                    {value}
+                    {formatLabel(value)}
                   </option>
                 ))}
               </select>
@@ -217,7 +242,7 @@ const AdminActionLogPanel: React.FC = () => {
                 <option value="">All target types</option>
                 {targetTypeOptions.map((value) => (
                   <option key={value} value={value}>
-                    {value}
+                    {formatLabel(value)}
                   </option>
                 ))}
               </select>
@@ -292,11 +317,11 @@ const AdminActionLogPanel: React.FC = () => {
                         </div>
 
                         <div className="admin-action-log-table__cell">
-                          {log.area}
+                          {formatLabel(log.area)}
                         </div>
 
                         <div className="admin-action-log-table__cell">
-                          {log.action}
+                          {formatLabel(log.action)}
                         </div>
 
                         <div className="admin-action-log-table__cell admin-action-log-table__summary">
@@ -305,7 +330,7 @@ const AdminActionLogPanel: React.FC = () => {
 
                         <div className="admin-action-log-table__cell">
                           {log.target_type
-                            ? `${log.target_type}${
+                            ? `${formatLabel(log.target_type)}${
                                 log.target_id !== null ? ` #${log.target_id}` : ""
                               }`
                             : "—"}

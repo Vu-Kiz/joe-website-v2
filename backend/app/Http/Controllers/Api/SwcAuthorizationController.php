@@ -38,14 +38,18 @@ class SwcAuthorizationController extends Controller
             ->where('auth_context', SwcAuthorization::CONTEXT_EVENTS)
             ->first();
 
+        $memberToolsConnected = $this->swcAuthorizationService->isAuthorizationActive($memberToolsAuth);
+        $paymentsConnected = $memberToolsConnected || $this->swcAuthorizationService->isAuthorizationActive($paymentsAuth);
+        $eventsConnected = $memberToolsConnected || $this->swcAuthorizationService->isAuthorizationActive($eventsAuth);
+
         return response()->json([
             'ok' => true,
             'data' => [
                 'member_tool_preferences' => $this->normalizeMemberToolPreferences($user->member_tool_preferences),
-                'connected' => (bool) $memberToolsAuth || (bool) $paymentsAuth || (bool) $eventsAuth,
-                'member_tools_connected' => (bool) $memberToolsAuth,
-                'payments_connected' => (bool) $memberToolsAuth || (bool) $paymentsAuth,
-                'events_connected' => (bool) $memberToolsAuth || (bool) $eventsAuth,
+                'connected' => $memberToolsConnected || $paymentsConnected || $eventsConnected,
+                'member_tools_connected' => $memberToolsConnected,
+                'payments_connected' => $paymentsConnected,
+                'events_connected' => $eventsConnected,
                 'has_personal_events_access' => $this->swcAuthorizationService->hasPersonalEventsAccess($user),
                 'has_faction_events_access' => false,
                 'has_personal_credit_log_access' => $this->swcAuthorizationService->hasPersonalCreditLogAccess($user),

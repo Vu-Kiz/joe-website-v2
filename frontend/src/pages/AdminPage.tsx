@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../api/auth";
 import { canAccessAdmin, canAccessSysadmin } from "../auth/permissions";
 
@@ -24,6 +25,7 @@ import "../styles/main.sass";
 import "../styles/_admin.sass";
 
 const AdminPage: React.FC = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<SwcUser | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -137,6 +139,12 @@ const AdminPage: React.FC = () => {
         <main className="board admin-board">
           <AdminHeader user={user} />
 
+          <div className="members-tool-back">
+            <button className="btn" type="button" onClick={() => navigate("/members")}>
+              Back to Tools Overview
+            </button>
+          </div>
+
           <AdminNav
             activeView={activeView}
             onChange={setActiveView}
@@ -145,7 +153,10 @@ const AdminPage: React.FC = () => {
           />
 
           {activeView === "home" && (
-            <AdminHomePanel showSystemTools={showSystemTools} />
+            <AdminHomePanel
+              showSystemTools={showSystemTools}
+              canSeeLogs={canSeeLogs}
+            />
           )}
           {activeView === "websiteHealth" && showSystemTools && <AdminWebsiteHealthPanel />}
           {activeView === "tips" && <AdminTipsPanel />}

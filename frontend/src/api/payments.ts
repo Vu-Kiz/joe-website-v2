@@ -51,6 +51,14 @@ export type PaymentsResponse = {
   data: PaymentItem[];
 };
 
+export type PendingPaymentsCountResponse = {
+  ok: true;
+  data: {
+    count: number;
+    has_pending: boolean;
+  };
+};
+
 export type PaymentTransfersResponse = {
   ok: true;
   data: PaymentTransfer[];
@@ -131,6 +139,10 @@ export type DroidBrainPaymentSettingsResponse = {
 
 export async function getPayments() {
   return apiFetch<PaymentsResponse>("/payments");
+}
+
+export async function getPendingPaymentsCount() {
+  return apiFetch<PendingPaymentsCountResponse>("/payments/pending-count");
 }
 
 export async function getPaymentsOwedToMe() {

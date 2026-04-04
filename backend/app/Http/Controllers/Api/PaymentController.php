@@ -7,6 +7,7 @@ use App\Models\DroidBrainPaymentSetting;
 use App\Models\Faction;
 use App\Models\PaymentItem;
 use App\Models\PaymentTransfer;
+use App\Support\Admin\AdminActionLogger;
 use App\Support\Factions\FactionPermissionService;
 use App\Support\Payments\BulkPaymentExportService;
 use App\Support\Payments\PaymentTransferBuilder;
@@ -80,6 +81,40 @@ class PaymentController extends Controller
         return response()->json([
             'ok' => true,
             'data' => $items,
+        ]);
+    }
+
+    public function pendingCount(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $factionIds = $this->factionPermissionService
+            ->getPayableFactions($user)
+            ->pluck('id');
+
+        $count = PaymentItem::query()
+            ->where('status', 'pending')
+            ->where(function ($q) use ($user, $factionIds) {
+                $q->where(function ($q2) use ($user) {
+                    $q2->where('payer_subject_type', 'user')
+                        ->where('payer_subject_id', $user->id);
+                })->orWhere(function ($q2) use ($factionIds) {
+                    $q2->where('payer_subject_type', 'faction')
+                        ->whereIn('payer_subject_id', $factionIds);
+                });
+            })
+            ->count();
+
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'count' => $count,
+                'has_pending' => $count > 0,
+            ],
         ]);
     }
 
@@ -334,8 +369,25 @@ class PaymentController extends Controller
             $settings = new DroidBrainPaymentSetting();
         }
 
+        $before = [
+            'default_payer_faction_id' => $settings->default_payer_faction_id,
+        ];
+
         $settings->default_payer_faction_id = $validated['default_payer_faction_id'] ?? null;
         $settings->save();
+
+        AdminActionLogger::log(
+            $request,
+            'droidbrain',
+            'update_payment_settings',
+            'Updated DroidBrain payment settings.',
+            'droidbrain_payment_settings',
+            $settings->id,
+            $before,
+            [
+                'default_payer_faction_id' => $settings->default_payer_faction_id,
+            ]
+        );
 
         return response()->json([
             'ok' => true,
