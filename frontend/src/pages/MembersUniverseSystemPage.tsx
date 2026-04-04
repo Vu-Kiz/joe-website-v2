@@ -100,7 +100,7 @@ function formatPopulationChange(
   previous: number | null | undefined
 ) {
   if (current === null || current === undefined) {
-    return "Unknown";
+    return "0";
   }
 
   if (previous === null || previous === undefined) {
