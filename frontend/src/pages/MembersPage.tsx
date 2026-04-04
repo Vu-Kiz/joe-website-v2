@@ -27,6 +27,7 @@ import MemberEntityStatsPanel from "../components/members/MemberEntityStatsPanel
 import HyperPlannerPanel from "../components/members/HyperPlannerPanel";
 import MemberGalacticArchivePanel from "../components/members/MemberGalacticArchivePanel";
 import jawaLogo from "../assets/branding/jawalogo.png";
+import archiveIcon from "../assets/members/ArchiveIcon.png";
 import astrogationIcon from "../assets/members/AstrogationIcon.png";
 import chainCodeIcon from "../assets/members/ChainCodeIcon.png";
 import droidBrainIcon from "../assets/members/DroidBrainIcon.png";
@@ -537,7 +538,7 @@ const MembersPage: React.FC = () => {
                       : tool.key === "hyperplanner"
                         ? hyperIcon
                         : tool.key === "archive"
-                          ? jawaLogo
+                          ? archiveIcon
                         : tool.key === "stats"
                           ? statsIcon
                       : tool.key === "jobs"
