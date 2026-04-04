@@ -70,6 +70,7 @@ Route::get('/blog/{id}', [BlogController::class, 'show']);
 Route::middleware(['auth:sanctum', 'require_any:can_manage_blog,is_admin'])->group(function () {
     Route::post('/blog', [BlogController::class, 'store']);
     Route::put('/blog/{id}', [BlogController::class, 'update']);
+    Route::post('/blog/spellcheck', [BlogController::class, 'spellcheck']);
     Route::post('/upload', [UploadController::class, 'store']);
 });
 

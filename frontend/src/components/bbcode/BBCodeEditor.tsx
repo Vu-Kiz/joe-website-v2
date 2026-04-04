@@ -9,6 +9,8 @@ type Props = {
   rows?: number;
   showPreview?: boolean;
   toolbarMode?: ToolbarMode;
+  spellCheck?: boolean;
+  lang?: string;
 };
 
 const SIZE_OPTIONS = ["12px", "14px", "16px", "18px", "24px", "32px"];
@@ -19,6 +21,8 @@ const BBCodeEditor: React.FC<Props> = ({
   rows = 12,
   showPreview = true,
   toolbarMode = "full",
+  spellCheck = false,
+  lang,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -122,6 +126,20 @@ const BBCodeEditor: React.FC<Props> = ({
   const applySize = () => {
     wrapSelection(`[size=${sizeValue}]`, "[/size]");
   };
+
+  const textarea = (
+    <textarea
+      ref={textareaRef}
+      className="input bbcode-editor__textarea"
+      rows={rows}
+      value={value}
+      spellCheck={spellCheck}
+      lang={lang}
+      autoCorrect={spellCheck ? "on" : "off"}
+      autoCapitalize={spellCheck ? "sentences" : "off"}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
 
   return (
     <div className="bbcode-editor">
@@ -374,13 +392,7 @@ const BBCodeEditor: React.FC<Props> = ({
         </div>
       )}
 
-      <textarea
-        ref={textareaRef}
-        className="input bbcode-editor__textarea"
-        rows={rows}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      />
+      {textarea}
 
       {showPreview && (
         <div className="bbcode-editor__preview panel">

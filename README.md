@@ -72,7 +72,7 @@ Included updates:
 - Discord bot presence
   Added an explicit Discord bot presence/status on startup so the bot shows a deliberate activity in Discord instead of the default connection state.
 - Frontend polish and auth responsiveness
-  Improved navbar logout responsiveness so auth-dependent navigation clears immediately when the user signs out or their session changes, and corrected SWC connection status so member-tools verification shows `Not connected` once the stored SWC token is expired or revoked instead of treating any old authorization row as active.
+  Improved navbar logout responsiveness so auth-dependent navigation clears immediately when the user signs out or their session changes, corrected SWC connection status so member-tools verification shows `Not connected` once the stored SWC token is expired or revoked instead of treating any old authorization row as active, and added a JEN `Check Spelling` workflow with website-style spellcheck results and clickable suggestions for title and body fixes.
 - Payments and access logging
   Added a lightweight pending-payments count endpoint for the navbar alert state so background polling no longer hits the full payments list or spams the member access log with repeated automatic `GET /api/payments` entries, trimmed member access logging so members-tools bootstrap reads do not flood the access log with routine support requests on every page load, and added explicit member-tool open logging so tools like Jobs, Payments, DroidBrain, Astrogation, Hyper Planner, Entity Stats, and Galactic Archive record a clear access event when opened.
 - Action logs and tool labeling

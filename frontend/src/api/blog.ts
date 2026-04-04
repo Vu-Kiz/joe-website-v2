@@ -12,6 +12,32 @@ export type BlogPost = {
   created_at: string;
 };
 
+export type SpellcheckMatch = {
+  message: string;
+  short_message: string | null;
+  offset: number | null;
+  length: number | null;
+  raw_offset?: number | null;
+  raw_length?: number | null;
+  context_text: string | null;
+  context_offset: number | null;
+  context_length: number | null;
+  sentence: string | null;
+  rule_id: string | null;
+  rule_category: string | null;
+  replacements: string[];
+};
+
+export type JenSpellcheckResult = {
+  language: string;
+  title_matches: SpellcheckMatch[];
+  body_matches: SpellcheckMatch[];
+  title_count: number;
+  body_count: number;
+  total_count: number;
+  body_text: string;
+};
+
 export function listBlog(): Promise<{ ok: true; posts: BlogPost[] }> {
   return apiFetch<{ ok: true; posts: BlogPost[] }>("/blog");
 }
@@ -50,5 +76,16 @@ export function updateBlog(
 export function deleteBlog(id: number): Promise<{ ok: true }> {
   return apiFetch<{ ok: true }>(`/blog/${id}`, {
     method: "DELETE",
+  });
+}
+
+export function spellcheckBlog(payload: {
+  title?: string;
+  body?: string;
+  language?: string;
+}): Promise<{ ok: true; data: JenSpellcheckResult }> {
+  return apiFetch<{ ok: true; data: JenSpellcheckResult }>(`/blog/spellcheck`, {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }

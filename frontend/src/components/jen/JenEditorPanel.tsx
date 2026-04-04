@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { apiFetch, getBackendOrigin } from "../../api/auth";
-import { createBlog, updateBlog, type BlogPost } from "../../api/blog";
+import { createBlog, spellcheckBlog, updateBlog, type BlogPost, type JenSpellcheckResult, type SpellcheckMatch } from "../../api/blog";
 import BBCodeEditor from "../bbcode/BBCodeEditor";
 import BBCodeView from "../bbcode/BBCodeView";
 
@@ -39,6 +39,25 @@ const resolveEditorImageUrl = (imageUrl: string | null, imagePath: string | null
   return null;
 };
 
+const describeMatchSnippet = (match: SpellcheckMatch): string | null => {
+  if (!match.context_text) {
+    return null;
+  }
+
+  if (
+    typeof match.context_offset === "number" &&
+    typeof match.context_length === "number" &&
+    match.context_length > 0
+  ) {
+    const snippet = match.context_text.slice(match.context_offset, match.context_offset + match.context_length).trim();
+    if (snippet) {
+      return snippet;
+    }
+  }
+
+  return match.context_text.trim() || null;
+};
+
 const BlogEditorPanel: React.FC<Props> = ({
   mode,
   post = null,
@@ -54,6 +73,10 @@ const BlogEditorPanel: React.FC<Props> = ({
 
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [spellchecking, setSpellchecking] = useState(false);
+  const [spellcheckResult, setSpellcheckResult] = useState<JenSpellcheckResult | null>(null);
+  const [spellcheckMessage, setSpellcheckMessage] = useState<string | null>(null);
+  const [spellcheckTone, setSpellcheckTone] = useState<"ok" | "warn" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -71,6 +94,9 @@ const BlogEditorPanel: React.FC<Props> = ({
 
     setImageFile(null);
     setError(null);
+    setSpellcheckResult(null);
+    setSpellcheckMessage(null);
+    setSpellcheckTone(null);
     setUploading(false);
     setSaving(false);
   }, [mode, post]);
@@ -175,6 +201,64 @@ const BlogEditorPanel: React.FC<Props> = ({
     }
   };
 
+  const handleSpellcheck = async () => {
+    await runSpellcheck(title, body);
+  };
+
+  const runSpellcheck = async (nextTitle: string, nextBody: string) => {
+    try {
+      setSpellchecking(true);
+      setError(null);
+
+      const response = await spellcheckBlog({
+        title: nextTitle,
+        body: nextBody,
+        language: "en-US",
+      });
+
+      setSpellcheckResult(response.data);
+      setSpellcheckMessage(
+        response.data.total_count > 0
+          ? `${response.data.total_count} possible issue${response.data.total_count === 1 ? "" : "s"} found.`
+          : "No spelling issues found."
+      );
+      setSpellcheckTone(response.data.total_count > 0 ? "warn" : "ok");
+      requestAnimationFrame(() => {
+        const target = document.getElementById("jen-spellcheck-results");
+        target?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+    } catch (e: any) {
+      setError(e?.message ?? "Spellcheck failed.");
+    } finally {
+      setSpellchecking(false);
+    }
+  };
+
+  const applySuggestion = (section: "title" | "body", match: SpellcheckMatch, suggestion: string) => {
+    if (!suggestion.trim()) {
+      return;
+    }
+
+    if (section === "title") {
+      if (typeof match.offset !== "number" || typeof match.length !== "number") {
+        return;
+      }
+
+      const nextTitle = title.slice(0, match.offset) + suggestion + title.slice(match.offset + match.length);
+      setTitle(nextTitle);
+      void runSpellcheck(nextTitle, body);
+      return;
+    }
+
+    if (typeof match.raw_offset !== "number" || typeof match.raw_length !== "number") {
+      return;
+    }
+
+    const nextBody = body.slice(0, match.raw_offset) + suggestion + body.slice(match.raw_offset + match.raw_length);
+    setBody(nextBody);
+    void runSpellcheck(title, nextBody);
+  };
+
   return (
     <div className="jen-editor-layout">
       <form className="panel jen-poster" onSubmit={handleSubmit}>
@@ -187,6 +271,14 @@ const BlogEditorPanel: React.FC<Props> = ({
             <button
               type="button"
               className="btn btn--small"
+              onClick={handleSpellcheck}
+              disabled={spellchecking || saving || uploading}
+            >
+              {spellchecking ? "Checking…" : "Check Spelling"}
+            </button>
+            <button
+              type="button"
+              className="btn btn--small"
               onClick={onCancel}
               disabled={saving || uploading}
             >
@@ -194,6 +286,14 @@ const BlogEditorPanel: React.FC<Props> = ({
             </button>
           </div>
         </div>
+        {spellcheckMessage ? (
+          <p
+            className="small"
+            style={{ color: spellcheckTone === "ok" ? "#7CFFB2" : "#FFD166", marginTop: "-0.35rem" }}
+          >
+            {spellcheckMessage}
+          </p>
+        ) : null}
 
         <div className="jen-poster__row">
           <label className="small" htmlFor="editor-title">
@@ -204,6 +304,10 @@ const BlogEditorPanel: React.FC<Props> = ({
             type="text"
             className="input"
             value={title}
+            spellCheck
+            lang="en"
+            autoCorrect="on"
+            autoCapitalize="sentences"
             onChange={(e) => setTitle(e.target.value)}
             maxLength={255}
           />
@@ -211,7 +315,7 @@ const BlogEditorPanel: React.FC<Props> = ({
 
         <div className="jen-poster__row">
           <label className="small">Body (BBCode)</label>
-          <BBCodeEditor value={body} onChange={setBody} rows={14} />
+          <BBCodeEditor value={body} onChange={setBody} rows={14} spellCheck lang="en" />
         </div>
 
         <div className="jen-poster__row">
@@ -277,6 +381,89 @@ const BlogEditorPanel: React.FC<Props> = ({
             {error}
           </p>
         )}
+
+        {spellcheckResult ? (
+          <section id="jen-spellcheck-results" className="panel" style={{ padding: "0.85rem" }}>
+            <div className="jen-header-row">
+              <strong>Spellcheck Results</strong>
+              <span className={`admin-badge admin-badge--soft${spellcheckResult.total_count > 0 ? " admin-badge--warn" : ""}`}>
+                {spellcheckResult.total_count > 0
+                  ? `${spellcheckResult.total_count} issue${spellcheckResult.total_count === 1 ? "" : "s"} found`
+                  : "No issues found"}
+              </span>
+            </div>
+
+            <div className="jen-spellcheck__section">
+              <div className="jen-header-row">
+                <strong className="small">Title</strong>
+                <span className={`admin-badge admin-badge--soft${spellcheckResult.title_matches.length > 0 ? " admin-badge--warn" : ""}`}>
+                  {spellcheckResult.title_matches.length} issue{spellcheckResult.title_matches.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              {spellcheckResult.title_matches.length > 0 ? (
+                <div className="jen-spellcheck__list">
+                  {spellcheckResult.title_matches.map((match, index) => (
+                    <div key={`title-${index}`} className="jen-spellcheck__item small">
+                      <div className="jen-spellcheck__headline"><strong>{match.short_message ?? match.message}</strong></div>
+                      {describeMatchSnippet(match) ? <div className="jen-spellcheck__context">Problem: {describeMatchSnippet(match)}</div> : null}
+                      {match.replacements.length > 0 ? (
+                        <div className="jen-spellcheck__suggestions">
+                          {match.replacements.map((replacement) => (
+                            <button
+                              key={`title-${index}-${replacement}`}
+                              type="button"
+                              className="btn btn--tiny jen-spellcheck__replace-btn"
+                              onClick={() => applySuggestion("title", match, replacement)}
+                            >
+                              {replacement}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="small" style={{ marginTop: "0.5rem" }}>No title issues.</p>
+              )}
+            </div>
+
+            <div className="jen-spellcheck__section">
+              <div className="jen-header-row">
+                <strong className="small">Body</strong>
+                <span className={`admin-badge admin-badge--soft${spellcheckResult.body_matches.length > 0 ? " admin-badge--warn" : ""}`}>
+                  {spellcheckResult.body_matches.length} issue{spellcheckResult.body_matches.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              {spellcheckResult.body_matches.length > 0 ? (
+                <div className="jen-spellcheck__list">
+                  {spellcheckResult.body_matches.map((match, index) => (
+                    <div key={`body-${index}`} className="jen-spellcheck__item small">
+                      <div className="jen-spellcheck__headline"><strong>{match.short_message ?? match.message}</strong></div>
+                      {describeMatchSnippet(match) ? <div className="jen-spellcheck__context">Problem: {describeMatchSnippet(match)}</div> : null}
+                      {match.replacements.length > 0 ? (
+                        <div className="jen-spellcheck__suggestions">
+                          {match.replacements.map((replacement) => (
+                            <button
+                              key={`body-${index}-${replacement}`}
+                              type="button"
+                              className="btn btn--tiny jen-spellcheck__replace-btn"
+                              onClick={() => applySuggestion("body", match, replacement)}
+                            >
+                              {replacement}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="small" style={{ marginTop: "0.5rem" }}>No body issues.</p>
+              )}
+            </div>
+          </section>
+        ) : null}
       </form>
 
       <aside className="panel jen-editor-preview">

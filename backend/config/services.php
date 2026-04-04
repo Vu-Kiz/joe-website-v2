@@ -49,4 +49,9 @@ return [
         'invite_scopes' => env('DISCORD_BOT_INVITE_SCOPES', 'bot applications.commands'),
     ],
 
+    'languagetool' => [
+        'url' => env('LANGUAGETOOL_API_URL', 'https://api.languagetool.org/v2/check'),
+        'language' => env('LANGUAGETOOL_DEFAULT_LANGUAGE', 'en-US'),
+    ],
+
 ];

@@ -16,7 +16,7 @@ export class ReadyListener extends Listener<typeof Events.ClientReady> {
       status: 'online',
       activities: [
         {
-          name: 'Watching sand get everywhere',
+          name: 'Utto nye usabia atoonyoba?',
           type: ActivityType.Watching,
         },
       ],

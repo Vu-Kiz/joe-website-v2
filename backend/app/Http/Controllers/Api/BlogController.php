@@ -11,6 +11,7 @@ use App\Support\Swc\Auth\Permissions;
 use App\Support\Admin\AdminActionLogger;
 use App\Support\Discord\JenPostService;
 use App\Support\Discord\DiscordNotifier;
+use App\Support\Writing\SpellcheckService;
 
 class BlogController extends Controller
 {
@@ -20,7 +21,8 @@ class BlogController extends Controller
 
     public function __construct(
         protected JenPostService $jenPostService,
-        protected DiscordNotifier $discordNotifier
+        protected DiscordNotifier $discordNotifier,
+        protected SpellcheckService $spellcheckService
     ) {
     }
 
@@ -155,6 +157,68 @@ class BlogController extends Controller
             'ok' => true,
             'post' => $fresh,
         ]);
+    }
+
+    public function spellcheck(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'title' => ['nullable', 'string', 'max:255'],
+            'body' => ['nullable', 'string'],
+            'language' => ['nullable', 'string', 'max:32'],
+        ]);
+
+        try {
+            $title = trim((string) ($data['title'] ?? ''));
+            $body = (string) ($data['body'] ?? '');
+            $language = trim((string) ($data['language'] ?? '')) ?: null;
+            $bodyData = $this->spellcheckService->normalizeJenBodyData($body);
+            $bodyText = (string) ($bodyData['text'] ?? '');
+            $bodyOffsetMap = is_array($bodyData['offset_map'] ?? null) ? $bodyData['offset_map'] : [];
+
+            $titleMatches = $title !== ''
+                ? $this->spellcheckService->check($title, $language)
+                : [];
+            $bodyMatches = $bodyText !== ''
+                ? $this->spellcheckService->check($bodyText, $language, function (array $entry) use ($bodyOffsetMap) {
+                    $offset = $entry['offset'] ?? null;
+                    $length = $entry['length'] ?? null;
+
+                    if (!is_int($offset) || !is_int($length) || $length <= 0) {
+                        $entry['raw_offset'] = null;
+                        $entry['raw_length'] = null;
+                        return $entry;
+                    }
+
+                    $rawStart = $bodyOffsetMap[$offset] ?? null;
+                    $rawEnd = $bodyOffsetMap[$offset + $length - 1] ?? null;
+
+                    $entry['raw_offset'] = is_int($rawStart) ? $rawStart : null;
+                    $entry['raw_length'] = is_int($rawStart) && is_int($rawEnd)
+                        ? max(1, ($rawEnd - $rawStart) + 1)
+                        : null;
+
+                    return $entry;
+                })
+                : [];
+
+            return response()->json([
+                'ok' => true,
+                'data' => [
+                    'language' => $language ?: (string) config('services.languagetool.language', 'en-US'),
+                    'title_matches' => $titleMatches,
+                    'body_matches' => $bodyMatches,
+                    'title_count' => count($titleMatches),
+                    'body_count' => count($bodyMatches),
+                    'total_count' => count($titleMatches) + count($bodyMatches),
+                    'body_text' => $bodyText,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => $e->getMessage() ?: 'Spellcheck failed.',
+            ], 502);
+        }
     }
 
     public function destroy(int $id, Request $request): JsonResponse
