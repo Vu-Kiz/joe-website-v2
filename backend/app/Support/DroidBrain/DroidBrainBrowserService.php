@@ -186,16 +186,42 @@ class DroidBrainBrowserService
 
         if ($filters['q'] !== '') {
             $needle = $filters['q'];
-            $query->where(function ($inner) use ($needle) {
+            $uidFilter = $this->normalizeEntityUidFilter($needle);
+
+            $query->where(function ($inner) use ($needle, $uidFilter) {
                 $inner
                     ->where('name', 'like', '%' . $needle . '%')
                     ->orWhere('entity_uid', $needle)
                     ->orWhere('identifier', $needle);
+
+                if ($uidFilter['exact'] !== null || $uidFilter['numeric'] !== null) {
+                    $inner->orWhere(function ($uidInner) use ($uidFilter) {
+                    if ($uidFilter['exact'] !== null) {
+                            $uidInner->where('entity_uid', $uidFilter['exact']);
+                    }
+
+                    if ($uidFilter['numeric'] !== null) {
+                        $method = $uidFilter['exact'] !== null ? 'orWhere' : 'where';
+                            $uidInner->{$method}('entity_uid', 'like', '%:' . $uidFilter['numeric']);
+                        }
+                    });
+                }
             });
         }
 
         if ($filters['uid'] !== '') {
-            $query->where('entity_uid', $filters['uid']);
+            $uidFilter = $this->normalizeEntityUidFilter($filters['uid']);
+
+            $query->where(function ($inner) use ($uidFilter) {
+                if ($uidFilter['exact'] !== null) {
+                    $inner->where('entity_uid', $uidFilter['exact']);
+                }
+
+                if ($uidFilter['numeric'] !== null) {
+                    $method = $uidFilter['exact'] !== null ? 'orWhere' : 'where';
+                    $inner->{$method}('entity_uid', 'like', '%:' . $uidFilter['numeric']);
+                }
+            });
         }
 
         $this->applyTabSpecificFilters($query, $tab, $filters);
@@ -211,6 +237,37 @@ class DroidBrainBrowserService
         return [
             'rows' => $rows,
             'total' => $total,
+        ];
+    }
+
+    protected function normalizeEntityUidFilter(string $value): array
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            return [
+                'exact' => null,
+                'numeric' => null,
+            ];
+        }
+
+        if (preg_match('/^\d+:\d+$/', $value) === 1) {
+            return [
+                'exact' => $value,
+                'numeric' => preg_replace('/^\d+:/', '', $value),
+            ];
+        }
+
+        if (preg_match('/^\d+$/', $value) === 1) {
+            return [
+                'exact' => null,
+                'numeric' => $value,
+            ];
+        }
+
+        return [
+            'exact' => $value,
+            'numeric' => null,
         ];
     }
 

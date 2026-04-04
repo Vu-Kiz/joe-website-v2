@@ -13,16 +13,18 @@ type Props = {
     planet_options: string[];
     owner_options: string[];
   };
-  onChange: (patch: Record<string, string | null>) => void;
+  onSubmit: (filters: DroidBrainFilters) => void;
+  onReset: () => void;
 };
 
-const DroidBrainFiltersPanel: React.FC<Props> = ({ activeTab, filters, isRestrictedView, options, onChange }) => (
+const DroidBrainFiltersPanel: React.FC<Props> = ({ activeTab, filters, isRestrictedView, options, onSubmit, onReset }) => (
   <DroidBrainFiltersPanelInner
     activeTab={activeTab}
     filters={filters}
     isRestrictedView={isRestrictedView}
     options={options}
-    onChange={onChange}
+    onSubmit={onSubmit}
+    onReset={onReset}
   />
 );
 
@@ -31,8 +33,11 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
   filters,
   isRestrictedView,
   options,
-  onChange,
+  onSubmit,
+  onReset,
 }) => {
+  const [searchQuery, setSearchQuery] = useState(filters.q);
+  const [uidQuery, setUidQuery] = useState(filters.uid);
   const [typeQuery, setTypeQuery] = useState(filters.type);
   const [showTypeMatches, setShowTypeMatches] = useState(false);
   const [systemQuery, setSystemQuery] = useState(filters.system);
@@ -43,6 +48,14 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
   const [showPlanetMatches, setShowPlanetMatches] = useState(false);
   const [ownerQuery, setOwnerQuery] = useState(filters.owner);
   const [showOwnerMatches, setShowOwnerMatches] = useState(false);
+
+  useEffect(() => {
+    setSearchQuery(filters.q);
+  }, [filters.q]);
+
+  useEffect(() => {
+    setUidQuery(filters.uid);
+  }, [filters.uid]);
 
   useEffect(() => {
     setTypeQuery(filters.type);
@@ -123,8 +136,30 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
       .slice(0, 12);
   }, [options.owner_options, ownerQuery]);
 
+  const applyFilters = () => {
+    onSubmit({
+      q: searchQuery.trim(),
+      uid: uidQuery.trim(),
+      uploader: filters.uploader,
+      type: typeQuery.trim(),
+      class: classQuery.trim(),
+      system: systemQuery.trim(),
+      planet: planetQuery.trim(),
+      owner: ownerQuery.trim(),
+    });
+  };
+
   return (
-    <div className="panel" style={{ marginBottom: 12 }}>
+    <div
+      className="panel"
+      style={{ marginBottom: 12 }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          applyFilters();
+        }
+      }}
+    >
       <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
         {activeTab !== "summary" && (
           <>
@@ -133,8 +168,8 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
                 Search
                 <input
                   className="input"
-                  value={filters.q}
-                  onChange={(e) => onChange({ q: e.target.value, page: null })}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Name, free text, or UID"
                 />
               </label>
@@ -144,9 +179,9 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
               Exact ID
               <input
                 className="input"
-                value={filters.uid}
-                onChange={(e) => onChange({ uid: e.target.value, page: null })}
-                placeholder="123456"
+                value={uidQuery}
+                onChange={(e) => setUidQuery(e.target.value)}
+                placeholder="Exact UID match"
               />
             </label>
 
@@ -168,19 +203,11 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
                 value={typeQuery}
                 onChange={(event) => {
                   setTypeQuery(event.target.value);
-                  onChange({ type: event.target.value, page: null });
                   setShowTypeMatches(true);
                 }}
                 onFocus={() => setShowTypeMatches(true)}
                 onBlur={() => {
                   window.setTimeout(() => setShowTypeMatches(false), 120);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    onChange({ type: typeQuery.trim(), page: null });
-                    setShowTypeMatches(false);
-                  }
                 }}
                 placeholder={activeTab === "npcs" ? "Type a race or type" : "Type a type name"}
                 autoComplete="off"
@@ -197,7 +224,6 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
                       onMouseDown={(event) => {
                         event.preventDefault();
                         setTypeQuery(option);
-                        onChange({ type: option, page: null });
                         setShowTypeMatches(false);
                       }}
                     >
@@ -225,19 +251,11 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
                 value={classQuery}
                 onChange={(event) => {
                   setClassQuery(event.target.value);
-                  onChange({ class: event.target.value, page: null });
                   setShowClassMatches(true);
                 }}
                 onFocus={() => setShowClassMatches(true)}
                 onBlur={() => {
                   window.setTimeout(() => setShowClassMatches(false), 120);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    onChange({ class: classQuery.trim(), page: null });
-                    setShowClassMatches(false);
-                  }
                 }}
                 placeholder="Type a class name"
                 autoComplete="off"
@@ -254,7 +272,6 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
                       onMouseDown={(event) => {
                         event.preventDefault();
                         setClassQuery(option);
-                        onChange({ class: option, page: null });
                         setShowClassMatches(false);
                       }}
                     >
@@ -282,19 +299,11 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
                 value={systemQuery}
                 onChange={(event) => {
                   setSystemQuery(event.target.value);
-                  onChange({ system: event.target.value, page: null });
                   setShowSystemMatches(true);
                 }}
                 onFocus={() => setShowSystemMatches(true)}
                 onBlur={() => {
                   window.setTimeout(() => setShowSystemMatches(false), 120);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    onChange({ system: systemQuery.trim(), page: null });
-                    setShowSystemMatches(false);
-                  }
                 }}
                 placeholder="Type a system name"
                 autoComplete="off"
@@ -311,7 +320,6 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
                       onMouseDown={(event) => {
                         event.preventDefault();
                         setSystemQuery(option);
-                        onChange({ system: option, page: null });
                         setShowSystemMatches(false);
                       }}
                     >
@@ -339,19 +347,11 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
                 value={planetQuery}
                 onChange={(event) => {
                   setPlanetQuery(event.target.value);
-                  onChange({ planet: event.target.value, page: null });
                   setShowPlanetMatches(true);
                 }}
                 onFocus={() => setShowPlanetMatches(true)}
                 onBlur={() => {
                   window.setTimeout(() => setShowPlanetMatches(false), 120);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    onChange({ planet: planetQuery.trim(), page: null });
-                    setShowPlanetMatches(false);
-                  }
                 }}
                 placeholder="Type a planet name"
                 autoComplete="off"
@@ -368,7 +368,6 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
                       onMouseDown={(event) => {
                         event.preventDefault();
                         setPlanetQuery(option);
-                        onChange({ planet: option, page: null });
                         setShowPlanetMatches(false);
                       }}
                     >
@@ -396,19 +395,11 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
               value={ownerQuery}
               onChange={(event) => {
                 setOwnerQuery(event.target.value);
-                onChange({ owner: event.target.value, page: null });
                 setShowOwnerMatches(true);
               }}
               onFocus={() => setShowOwnerMatches(true)}
               onBlur={() => {
                 window.setTimeout(() => setShowOwnerMatches(false), 120);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  onChange({ owner: ownerQuery.trim(), page: null });
-                  setShowOwnerMatches(false);
-                }
               }}
               placeholder="Type an owner name"
               autoComplete="off"
@@ -425,7 +416,6 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
                     onMouseDown={(event) => {
                       event.preventDefault();
                       setOwnerQuery(option);
-                      onChange({ owner: option, page: null });
                       setShowOwnerMatches(false);
                     }}
                   >
@@ -438,6 +428,16 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
         </div>
         ) : null}
       </div>
+      {activeTab !== "summary" ? (
+        <div className="payments-actions" style={{ marginTop: 12 }}>
+          <button className="btn" type="button" onClick={applyFilters}>
+            Search
+          </button>
+          <button className="btn btn-secondary" type="button" onClick={onReset}>
+            Clear
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 };

@@ -5,6 +5,7 @@ import { canAccessAdmin, canAccessSysadmin } from "../auth/permissions";
 import AdminHeader from "../components/admin/AdminHeader";
 import AdminNav, { type AdminView } from "../components/admin/AdminNav";
 import AdminHomePanel from "../components/admin/AdminHomePanel";
+import AdminWebsiteHealthPanel from "../components/admin/AdminWebsiteHealthPanel";
 import AdminTipsPanel from "../components/admin/AdminTipsPanel";
 import AdminTenetsPanel from "../components/admin/AdminTenetsPanel";
 import AdminEotmPanel from "../components/admin/AdminEotmPanel";
@@ -70,7 +71,7 @@ const AdminPage: React.FC = () => {
   const canSeeLogs = useMemo(() => canAccessSysadmin(user), [user]);
 
   useEffect(() => {
-    if (!showSystemTools && (activeView === "system" || activeView === "discordBot" || activeView === "logs" || activeView === "entityStats" || activeView === "memberAccessLogs")) {
+    if (!showSystemTools && (activeView === "websiteHealth" || activeView === "system" || activeView === "discordBot" || activeView === "logs" || activeView === "entityStats" || activeView === "memberAccessLogs")) {
       setActiveView("home");
     }
   }, [showSystemTools, canSeeLogs, activeView]);
@@ -146,6 +147,7 @@ const AdminPage: React.FC = () => {
           {activeView === "home" && (
             <AdminHomePanel showSystemTools={showSystemTools} />
           )}
+          {activeView === "websiteHealth" && showSystemTools && <AdminWebsiteHealthPanel />}
           {activeView === "tips" && <AdminTipsPanel />}
           {activeView === "tenets" && <AdminTenetsPanel />}
           {activeView === "eotm" && <AdminEotmPanel />}

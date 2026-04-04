@@ -14,7 +14,7 @@ import {
 } from "../api/jobs";
 import { getPayments } from "../api/payments";
 import { getMyPayableFactions, type PayableFaction } from "../api/factions";
-import { canAccessDroidBrain, canAccessIntel, canAccessMembers, canAccessPayments, canAccessSysadmin } from "../auth/permissions";
+import { canAccessAdmin, canAccessDroidBrain, canAccessIntel, canAccessMembers, canAccessPayments, canAccessSysadmin } from "../auth/permissions";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import OpenJobsPanel from "../components/members/jobs/OpenJobsPanel";
@@ -288,6 +288,18 @@ const MembersPage: React.FC = () => {
 
   const memberTools = useMemo<MembersToolCard[]>(
     () => [
+      ...(canAccessAdmin(user)
+        ? [
+            {
+              key: "admin",
+              title: "Admin",
+              description:
+                "Open the admin control area for site operations, health checks, moderation, and system tooling.",
+              actionLabel: "Open Admin",
+              onClick: () => navigate("/admin"),
+            } satisfies MembersToolCard,
+          ]
+        : []),
       ...(canSeeMemberOnlyTools
         ? [
             {

@@ -5,17 +5,18 @@ Jawa Offworld Enterprises website and member tools.
 ## Current Version
 
 - Production release: `v2.0.1`
-- Active development branch: `v2.0.2`
+- Active development branch: `v2.0.3`
 
 ## Branch Status
 
-- `dev` is the working branch for `v2.0.2` updates
+- `dev` is the working branch for `v2.0.3` updates
 - production should only receive pulled, tested changes from `dev`
 
 ## Notes
 
 - `v2.0.1` is now the live production patch release
-- `v2.0.2` is the next active update cycle
+- `v2.0.2` is the completed release/update cycle
+- `v2.0.3` is the next active update cycle
 - larger new work should be planned deliberately instead of being folded into patch updates
 
 ## v2.0.1 Status
@@ -53,3 +54,21 @@ Included updates:
   Stored system refresh fixes, safer system UID fallback handling, corrected system ownership persistence so child entities do not overwrite system owners, continued Hyper Planner / system pull reliability work, and a fix so JOE members can use Hyper Planner without hitting sysadmin-only refresh endpoints.
 - Members and content
   Galactic Archive first pass remains sysadmin-gated while it is refined, and JEN Discord delivery now supports richer formatting, image handling, and update-in-place behavior.
+
+## v2.0.3 Patch Notes
+
+- `v2.0.3` is the current active release/update cycle
+- this section tracks current patch-facing changes being prepared for release
+
+Included updates:
+
+- Admin health and ops visibility
+  Added a sysadmin-only Website Health panel with backend runtime checks, queue freshness reporting, Discord bot health visibility, browser-side frontend path checks, and clearer release/version display using the webapp package version.
+- Members navigation and overview flow
+  Simplified the main navbar so `Tools` opens the members tools area directly, kept payment alert styling on the button, and added an admin-first members overview card so admin and sysadmin users can jump straight into admin controls from the tools page.
+- DroidBrain browsing
+  Changed DroidBrain search to explicit submit instead of live refetching on every keystroke, allowed bare numeric UID matching without requiring the stored SWC prefix form, and hid per-entity history from regular JOE member view while keeping full history for intel/sysadmin access.
+- Discord bot presence
+  Added an explicit Discord bot presence/status on startup so the bot shows a deliberate activity in Discord instead of the default connection state.
+- Frontend polish and auth responsiveness
+  Improved navbar logout responsiveness so auth-dependent navigation clears immediately when the user signs out or their session changes.

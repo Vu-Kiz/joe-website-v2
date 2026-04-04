@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 import jawaLogo from "../assets/branding/joe-banner.png";
@@ -12,12 +12,9 @@ const Navbar: React.FC = () => {
   const location = useLocation();
 
   const [navOpen, setNavOpen] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<SwcUser | null>(null);
   const [hasPendingPayments, setHasPendingPayments] = useState(false);
-
-  const dropdownRef = useRef<HTMLLIElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,6 +38,12 @@ const Navbar: React.FC = () => {
 
     void refreshUser();
     const unsubscribe = subscribeToAuthStateChange(() => {
+      if (!cancelled) {
+        setLoading(true);
+        setUser(null);
+        setHasPendingPayments(false);
+        setNavOpen(false);
+      }
       void refreshUser();
     });
 
@@ -81,39 +84,8 @@ const Navbar: React.FC = () => {
   }, [user, location.pathname, location.search, location.hash]);
 
   useEffect(() => {
-    setDropdownOpen(false);
     setNavOpen(false);
   }, [location.pathname, location.search, location.hash]);
-
-  useEffect(() => {
-    if (!dropdownOpen) return;
-
-    const onPointerDown = (e: PointerEvent) => {
-      const el = dropdownRef.current;
-      if (!el) return;
-
-      const path = (e.composedPath?.() ?? []) as EventTarget[];
-      const inside = path.includes(el) || el.contains(e.target as Node);
-
-      if (!inside) {
-        setDropdownOpen(false);
-      }
-    };
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener("pointerdown", onPointerDown, true);
-    document.addEventListener("keydown", onKeyDown);
-
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown, true);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [dropdownOpen]);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -129,15 +101,17 @@ const Navbar: React.FC = () => {
     try {
       await apiLogout();
       setUser(null);
+      setHasPendingPayments(false);
+      setNavOpen(false);
+      setLoading(false);
     } catch (e) {
       console.error(e);
     }
   };
 
   const displayName = user?.handle || "Guest";
-  const showAdminTools = canAccessAdmin(user);
   const showMembersTools = canAccessMembers(user);
-  const showToolsDropdown = showAdminTools || showMembersTools;
+  const showToolsButton = canAccessAdmin(user) || showMembersTools;
 
   return (
     <nav className="main-nav">
@@ -170,52 +144,14 @@ const Navbar: React.FC = () => {
               </Link>
             </li>
 
-            {showToolsDropdown && (
-              <li
-                ref={dropdownRef}
-                className={`dropdown ${dropdownOpen ? "is-open" : ""}`}
-              >
-                <button
-                  type="button"
-                  className={`btn dropdown__toggle${hasPendingPayments && showMembersTools ? " btn--payments-alert dropdown__toggle--alert" : ""}`}
-                  aria-haspopup="menu"
-                  aria-expanded={dropdownOpen}
-                  onPointerDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setDropdownOpen((open) => !open);
-                  }}
+            {showToolsButton && (
+              <li>
+                <Link
+                  to="/members"
+                  className={`btn${hasPendingPayments && showMembersTools ? " btn--payments-alert" : ""}`}
                 >
-                  Tools ▾
-                </button>
-
-                <ul className="dropdown__menu" role="menu">
-                  {showAdminTools && (
-                    <li role="none">
-                      <Link
-                        to="/admin"
-                        className="dropdown__item"
-                        role="menuitem"
-                        onClick={() => setDropdownOpen(false)}
-                      >
-                        Admin
-                      </Link>
-                    </li>
-                  )}
-
-                  {showMembersTools && (
-                    <li role="none">
-                      <Link
-                        to="/members"
-                        className={`dropdown__item${hasPendingPayments ? " dropdown__item--alert" : ""}`}
-                        role="menuitem"
-                        onClick={() => setDropdownOpen(false)}
-                      >
-                        Members
-                      </Link>
-                    </li>
-                  )}
-                </ul>
+                  Tools
+                </Link>
               </li>
             )}
           </ul>

@@ -142,7 +142,7 @@ const DroidBrainResultsPanel: React.FC<Props> = ({
                   </p>
                 </div>
 
-                {uid ? (
+                {uid && !isRestrictedView ? (
                   <button
                     type="button"
                     className="ui-btn ui-btn--small"
@@ -198,7 +198,7 @@ const DroidBrainResultsPanel: React.FC<Props> = ({
               </div>
             </div>
 
-            {isHistoryOpen ? (
+            {isHistoryOpen && !isRestrictedView ? (
               <div className="panel" style={{ marginTop: 12, display: "grid", gap: 8 }}>
                 <p className="small" style={{ margin: 0 }}>
                   <strong>History</strong>

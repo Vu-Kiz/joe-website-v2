@@ -1,5 +1,5 @@
 import { Listener, container } from '@sapphire/framework';
-import { Events, type Client } from 'discord.js';
+import { ActivityType, Events, type Client } from 'discord.js';
 
 export class ReadyListener extends Listener<typeof Events.ClientReady> {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -12,6 +12,15 @@ export class ReadyListener extends Listener<typeof Events.ClientReady> {
 
   public override run(client: Client<true>): void {
     console.log(`Discord bot logged in as ${client.user?.tag || 'unknown user'}.`);
+    client.user.setPresence({
+      status: 'online',
+      activities: [
+        {
+          name: 'Watching sand get everywhere',
+          type: ActivityType.Watching,
+        },
+      ],
+    });
     void container.guildSyncService.sync(client);
     container.outboxWorker.start(client);
   }

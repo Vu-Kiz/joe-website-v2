@@ -2,6 +2,7 @@ import React from "react";
 
 export type AdminView =
   | "home"
+  | "websiteHealth"
   | "tips"
   | "tenets"
   | "eotm"
@@ -35,6 +36,7 @@ const AdminNav: React.FC<Props> = ({
 }) => {
   const items: NavItem[] = [
     { key: "home", label: "Overview" },
+    { key: "websiteHealth", label: "Website Health", hidden: !showSystemTools },
     { key: "tips", label: "Tips" },
     { key: "tenets", label: "Tenets" },
     { key: "eotm", label: "EoTM" },

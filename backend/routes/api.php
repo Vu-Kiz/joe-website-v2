@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\Admin\MemberAccessLogController;
 use App\Http\Controllers\Api\Admin\SiteLockController;
 use App\Http\Controllers\Api\Admin\EntityStatsController;
 use App\Http\Controllers\Api\Admin\DiscordBotAdminController;
+use App\Http\Controllers\Api\Admin\WebsiteHealthController;
 use App\Http\Controllers\Api\SiteLockStatusController;
 use App\Http\Controllers\Api\SwcAuthorizationController;
 use App\Http\Controllers\Api\TenetOfSalvageController;
@@ -36,8 +37,6 @@ use App\Http\Controllers\Api\FactionPrivilegeController;
 use App\Http\Controllers\Api\ManualPaymentTemplateController;
 use App\Http\Controllers\Api\DroidBrainController;
 use App\Http\Controllers\Api\DiscordBotController;
-
-
 
 // Public utility
 Route::get('/health', [HealthController::class, 'index']);
@@ -253,6 +252,7 @@ Route::get('/site-lock-status', [SiteLockStatusController::class, 'show']);
 Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('admin')->group(function () {
     Route::get('/member-access-logs', [MemberAccessLogController::class, 'index']);
     Route::get('/discord-bot', [DiscordBotAdminController::class, 'show']);
+    Route::get('/website-health', [WebsiteHealthController::class, 'show']);
     Route::get('/site-lock', [SiteLockController::class, 'show']);
     Route::post('/site-lock', [SiteLockController::class, 'update']);
     Route::post('/entity-stats/station-icons/populate', [EntityStatsController::class, 'populateStationIcons']);

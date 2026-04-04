@@ -215,6 +215,34 @@ const MemberDroidBrainPanel: React.FC = () => {
     setSearchParams(next);
   };
 
+  const applyFilters = (nextFilters: DroidBrainContext["filters"]) => {
+    updateParams({
+      q: nextFilters.q,
+      uid: nextFilters.uid,
+      uploader: nextFilters.uploader,
+      type: nextFilters.type,
+      class: nextFilters.class,
+      system: nextFilters.system,
+      planet: nextFilters.planet,
+      owner: nextFilters.owner,
+      page: null,
+    });
+  };
+
+  const resetFilters = () => {
+    updateParams({
+      q: null,
+      uid: null,
+      uploader: null,
+      type: null,
+      class: null,
+      system: null,
+      planet: null,
+      owner: null,
+      page: null,
+    });
+  };
+
   if (loading) {
     return (
       <div className="site-scale">
@@ -343,7 +371,8 @@ const MemberDroidBrainPanel: React.FC = () => {
             filters={filters}
             isRestrictedView={isRestrictedView}
             options={context?.options ?? emptyContext(effectiveTab).options}
-            onChange={(patch) => updateParams(patch)}
+            onSubmit={applyFilters}
+            onReset={resetFilters}
           />
 
           {isTabLoading && (
