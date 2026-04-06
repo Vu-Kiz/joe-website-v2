@@ -26,8 +26,32 @@ export type AdminDiscordBotState = {
   invite_url: string | null;
   known_guilds: AdminDiscordBotGuild[];
   channel_configs: AdminDiscordChannelConfig[];
+  default_recipient: AdminDiscordRecipient | null;
+  candidate_recipients: AdminDiscordRecipient[];
 };
 
 export async function getAdminDiscordBotState() {
   return apiFetch<{ ok: true; data: AdminDiscordBotState }>("/admin/discord-bot");
+}
+
+export type AdminDiscordRecipient = {
+  id: number;
+  swc_handle: string | null;
+  discord_user_id: string | null;
+  discord_username: string | null;
+  discord_global_name: string | null;
+  is_admin: boolean;
+  is_sysadmin: boolean;
+};
+
+export async function updateAdminDiscordContactRecipient(defaultRecipientUserId: number | null) {
+  return apiFetch<{ ok: true; message: string; data: Pick<AdminDiscordBotState, "default_recipient" | "candidate_recipients"> }>(
+    "/admin/discord-bot/contact-recipient",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        default_recipient_user_id: defaultRecipientUserId,
+      }),
+    }
+  );
 }

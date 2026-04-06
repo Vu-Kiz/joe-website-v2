@@ -3,6 +3,8 @@ import {
   getAdminDiscordBotState,
   type AdminDiscordBotGuild,
   type AdminDiscordChannelConfig,
+  type AdminDiscordRecipient,
+  updateAdminDiscordContactRecipient,
 } from "../../api/adminDiscordBot";
 
 const AdminDiscordBotPanel: React.FC = () => {
@@ -10,8 +12,13 @@ const AdminDiscordBotPanel: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [guilds, setGuilds] = useState<AdminDiscordBotGuild[]>([]);
   const [configs, setConfigs] = useState<AdminDiscordChannelConfig[]>([]);
+  const [recipients, setRecipients] = useState<AdminDiscordRecipient[]>([]);
+  const [selectedRecipientId, setSelectedRecipientId] = useState<string>("");
+  const [recipientQuery, setRecipientQuery] = useState("");
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string | null>(null);
+  const [savingRecipient, setSavingRecipient] = useState(false);
+  const [recipientMessage, setRecipientMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -24,6 +31,13 @@ const AdminDiscordBotPanel: React.FC = () => {
 
         setGuilds(response.data.known_guilds ?? []);
         setConfigs(response.data.channel_configs ?? []);
+        setRecipients(response.data.candidate_recipients ?? []);
+        setSelectedRecipientId(response.data.default_recipient?.id ? String(response.data.default_recipient.id) : "");
+        setRecipientQuery(
+          response.data.default_recipient
+            ? formatRecipient(response.data.default_recipient)
+            : ""
+        );
         setInviteUrl(response.data.invite_url ?? null);
         setClientId(response.data.client_id ?? null);
         setError(null);
@@ -49,6 +63,70 @@ const AdminDiscordBotPanel: React.FC = () => {
       return acc;
     }, {});
   }, [configs]);
+
+  const selectedRecipient = useMemo(() => {
+    return recipients.find((recipient) => String(recipient.id) === selectedRecipientId) ?? null;
+  }, [recipients, selectedRecipientId]);
+
+  const filteredRecipients = useMemo(() => {
+    const query = recipientQuery.trim().toLowerCase();
+    if (query === "") {
+      return recipients.slice(0, 8);
+    }
+
+    return recipients
+      .filter((recipient) => {
+        const haystack = [
+          recipient.swc_handle,
+          recipient.discord_global_name,
+          recipient.discord_username,
+          recipient.discord_user_id,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        return haystack.includes(query);
+      })
+      .slice(0, 8);
+  }, [recipients, recipientQuery]);
+
+  const formatRecipient = (recipient: AdminDiscordRecipient) => {
+    const swc = recipient.swc_handle?.trim() || "Unknown handle";
+    const discord =
+      recipient.discord_global_name?.trim()
+      || recipient.discord_username?.trim()
+      || recipient.discord_user_id?.trim()
+      || "Unknown Discord";
+    const role = recipient.is_sysadmin ? "Sysadmin" : recipient.is_admin ? "Admin" : "Linked user";
+
+    return `${swc} · ${discord} · ${role}`;
+  };
+
+  const handleSaveRecipient = async () => {
+    try {
+      setSavingRecipient(true);
+      setRecipientMessage(null);
+      const recipientId = selectedRecipientId.trim() === "" ? null : Number(selectedRecipientId);
+      const response = await updateAdminDiscordContactRecipient(
+        Number.isFinite(recipientId as number) ? (recipientId as number) : null
+      );
+
+      setRecipients(response.data.candidate_recipients ?? []);
+      setSelectedRecipientId(response.data.default_recipient?.id ? String(response.data.default_recipient.id) : "");
+      setRecipientQuery(
+        response.data.default_recipient
+          ? formatRecipient(response.data.default_recipient)
+          : ""
+      );
+      setRecipientMessage(response.message ?? "Recipient updated.");
+      setError(null);
+    } catch (e: any) {
+      setRecipientMessage(e?.message ?? "Failed to update the contact recipient.");
+    } finally {
+      setSavingRecipient(false);
+    }
+  };
 
   return (
     <div className="panel">
@@ -101,6 +179,102 @@ const AdminDiscordBotPanel: React.FC = () => {
                     : "Not configured"}
                 </p>
               </div>
+            </section>
+
+            <section className="panel admin-card">
+              <div className="admin-card__header">
+                <h3 className="admin-card__title">Contact Request Recipient</h3>
+                <p className="admin-card__desc">
+                  Default Discord DM recipient for website contact and diplomacy requests.
+                </p>
+              </div>
+
+              <label className="members-universe__field" htmlFor="discord-contact-recipient">
+                <span className="small">Default recipient</span>
+              <input
+                id="discord-contact-recipient"
+                type="text"
+                value={recipientQuery}
+                onChange={(event) => {
+                  setRecipientQuery(event.target.value);
+                  if (event.target.value.trim() === "") {
+                    setSelectedRecipientId("");
+                  }
+                }}
+                className="input"
+                disabled={savingRecipient}
+                placeholder="Type a handle or Discord name…"
+                autoComplete="off"
+              />
+              </label>
+
+              <div className="members-hyperplanner__suggestions">
+                <button
+                  type="button"
+                  className={`members-hyperplanner__suggestion${selectedRecipientId === "" ? " members-hyperplanner__suggestion--active" : ""}`}
+                  onClick={() => {
+                    setSelectedRecipientId("");
+                    setRecipientQuery("");
+                  }}
+                  disabled={savingRecipient}
+                >
+                  <strong>No default recipient</strong>
+                  <span className="small">Clear the contact and diplomacy DM target.</span>
+                </button>
+
+                {filteredRecipients.map((recipient) => (
+                  <button
+                    key={recipient.id}
+                    type="button"
+                    className={`members-hyperplanner__suggestion${selectedRecipientId === String(recipient.id) ? " members-hyperplanner__suggestion--active" : ""}`}
+                    onClick={() => {
+                      setSelectedRecipientId(String(recipient.id));
+                      setRecipientQuery(formatRecipient(recipient));
+                    }}
+                    disabled={savingRecipient}
+                  >
+                    <strong>{recipient.swc_handle?.trim() || "Unknown handle"}</strong>
+                    <span className="small">
+                      {recipient.discord_global_name?.trim()
+                        || recipient.discord_username?.trim()
+                        || recipient.discord_user_id?.trim()
+                        || "Unknown Discord"}
+                      {" · "}
+                      {recipient.is_sysadmin ? "Sysadmin" : recipient.is_admin ? "Admin" : "Linked user"}
+                    </span>
+                  </button>
+                ))}
+
+                {filteredRecipients.length === 0 && (
+                  <p className="small">No matching recipients.</p>
+                )}
+              </div>
+
+              {selectedRecipient && (
+                <p className="small">
+                  Selected: {formatRecipient(selectedRecipient)}
+                </p>
+              )}
+
+              <div className="admin-card__actions">
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={handleSaveRecipient}
+                  disabled={savingRecipient}
+                >
+                  {savingRecipient ? "Saving…" : "Save Recipient"}
+                </button>
+              </div>
+
+              {recipientMessage && (
+                <p
+                  className="small"
+                  style={{ color: recipientMessage.toLowerCase().includes("failed") ? "salmon" : undefined }}
+                >
+                  {recipientMessage}
+                </p>
+              )}
             </section>
           </div>
 

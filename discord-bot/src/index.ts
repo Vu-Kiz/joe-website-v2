@@ -16,8 +16,9 @@ ApplicationCommandRegistries.setDefaultBehaviorWhenNotIdentical(RegisterBehavior
 const config = BotConfig.fromEnv(process.env);
 container.botConfig = config;
 container.backendApi = new BackendApi(config);
+const dmBackendApi = new BackendApi(config, config.dmBackendUrl);
 container.guildSyncService = new GuildSyncService(container.backendApi);
-container.outboxWorker = new OutboxWorker(container.backendApi, config);
+container.outboxWorker = new OutboxWorker(container.backendApi, dmBackendApi, config);
 
 const client = new SapphireClient({
   intents: [GatewayIntentBits.Guilds],

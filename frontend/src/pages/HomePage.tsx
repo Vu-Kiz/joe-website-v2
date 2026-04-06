@@ -3,6 +3,7 @@ import JenTicker from "../components/jen/JenTicker";
 import EotmPanel from "../components/home/EotmPanel";
 import WeatherPanel from "../components/home/WatherPanel";
 import TenetsOfSalvagePanel from "../components/home/TenetsOfSalvagePanel";
+import ContactRequestOverlay from "../components/home/ContactRequestOverlay";
 import styles from "../styles/home.module.sass";
 import jawaLogo from "../assets/branding/jawalogo.png";
 import vertBanner from "../assets/home/VertBanner.png";
@@ -13,12 +14,20 @@ type TabKey = "overview" | "territories";
 
 const HomePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
+  const [contactOverlay, setContactOverlay] = useState<"contact" | "diplomacy" | null>(null);
   const showOverview = activeTab === "overview";
   const showTerritories = activeTab === "territories";
 
   return (
     <>
       <JenTicker />
+
+      {contactOverlay && (
+        <ContactRequestOverlay
+          requestType={contactOverlay}
+          onClose={() => setContactOverlay(null)}
+        />
+      )}
 
       <div className="app app--three faction-page">
         {/* MAIN (50%) */}
@@ -143,15 +152,16 @@ const HomePage: React.FC = () => {
               </p>
             </div>
 
-            <a
-              href="https://www.swcombine.com/members/messages/"
-              className="btn contact-btn"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ marginTop: 10, display: "inline-block" }}
-            >
-              Contact Grand Commodore Kolo Seph
-            </a>
+            <div className={styles.contactActions}>
+              <button
+                type="button"
+                className="btn contact-btn"
+                style={{ marginTop: 10 }}
+                onClick={() => setContactOverlay("contact")}
+              >
+                Contact Grand Commodore Kolo Seph
+              </button>
+            </div>
           </section>
 
           <TenetsOfSalvagePanel />

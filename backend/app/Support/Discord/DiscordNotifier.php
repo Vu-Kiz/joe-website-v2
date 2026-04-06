@@ -11,6 +11,7 @@ class DiscordNotifier
 {
     public const KEY_JOBS = 'jobs';
     public const KEY_JEN = 'jen';
+    public const KEY_CONTACT_REQUESTS = 'contact_requests';
 
     public function postJobCreated(Job $job): bool
     {
@@ -45,6 +46,38 @@ class DiscordNotifier
             'action' => 'update',
             'messages' => $payload['messages'],
         ]);
+    }
+
+    public function queueContactRequest(string $targetDiscordUserId, array $payload): bool
+    {
+        $requestType = strtolower(trim((string) ($payload['request_type'] ?? 'contact')));
+        $requestType = $requestType === 'diplomacy' ? 'Diplomacy' : 'Contact';
+
+        $discordName = trim((string) ($payload['discord_name'] ?? 'Unknown'));
+        $starWarsHandle = trim((string) ($payload['star_wars_handle'] ?? 'Unknown'));
+        $message = trim((string) ($payload['message'] ?? ''));
+
+        $content = implode("\n", array_filter([
+            "**New {$requestType} Request**",
+            "Discord: {$discordName}",
+            "Star Wars Handle: {$starWarsHandle}",
+            $message !== '' ? "Message:\n{$message}" : null,
+        ]));
+
+        DiscordOutboxMessage::create([
+            'notification_key' => self::KEY_CONTACT_REQUESTS,
+            'status' => DiscordOutboxMessage::STATUS_PENDING,
+            'content' => $content,
+            'meta' => [
+                'delivery_type' => 'dm',
+                'request_type' => strtolower($requestType),
+                'target_discord_user_id' => $targetDiscordUserId,
+                'discord_name' => $discordName,
+                'star_wars_handle' => $starWarsHandle,
+            ],
+        ]);
+
+        return true;
     }
 
     public function buildJobCreatedContent(Job $job): string

@@ -64,6 +64,7 @@ const PaymentsPage: React.FC = () => {
   const [owedItems, setOwedItems] = useState<PaymentItem[]>([]);
   const [transfers, setTransfers] = useState<PaymentTransfer[]>([]);
   const [supportTransfers, setSupportTransfers] = useState<PaymentTransfer[]>([]);
+  const [supportTransfersError, setSupportTransfersError] = useState<string | null>(null);
   const [swcAuth, setSwcAuth] = useState<SwcAuthorizationStatus | null>(null);
   const [privileges, setPrivileges] = useState<FactionPrivilegeCheckResult[]>([]);
   const [templates, setTemplates] = useState<ManualPaymentTemplate[]>([]);
@@ -194,6 +195,7 @@ const PaymentsPage: React.FC = () => {
           setOwedItems([]);
           setTransfers([]);
           setSupportTransfers([]);
+          setSupportTransfersError(null);
           setPrivileges([]);
           setTemplates([]);
           setTemplateOptions(null);
@@ -207,6 +209,7 @@ const PaymentsPage: React.FC = () => {
           setOwedItems([]);
           setTransfers([]);
           setSupportTransfers([]);
+          setSupportTransfersError(null);
           setPrivileges([]);
           setTemplates([]);
           setTemplateOptions(null);
@@ -233,7 +236,11 @@ const PaymentsPage: React.FC = () => {
           getManualPaymentTemplates(),
           getManualPaymentTemplateOptions(),
           currentUser?.is_sysadmin
-            ? getUnverifiedSupportTransfers()
+            ? getUnverifiedSupportTransfers().catch((e: any) => ({
+                ok: false as const,
+                data: [] as PaymentTransfer[],
+                message: String(e?.message ?? "Failed to load the unverified support queue."),
+              }))
             : Promise.resolve({ ok: true as const, data: [] as PaymentTransfer[] }),
           currentUser?.is_sysadmin ? getDroidBrainPaymentSettings() : Promise.resolve(null),
         ]);
@@ -245,6 +252,7 @@ const PaymentsPage: React.FC = () => {
         setOwedItems(owedRes?.data ?? []);
         setTransfers(transferRes?.data ?? []);
         setSupportTransfers(supportTransferRes?.data ?? []);
+        setSupportTransfersError("message" in supportTransferRes ? supportTransferRes.message : null);
         setPrivileges(privilegeRes?.data ?? []);
         setTemplates(templatesRes?.data ?? []);
         setTemplateOptions(templateOptionsRes?.data ?? null);
@@ -266,6 +274,7 @@ const PaymentsPage: React.FC = () => {
         setOwedItems([]);
         setTransfers([]);
         setSupportTransfers([]);
+        setSupportTransfersError(null);
         setPrivileges([]);
         setTemplates([]);
         setTemplateOptions(null);
@@ -326,7 +335,11 @@ const PaymentsPage: React.FC = () => {
         getManualPaymentTemplates(),
         getManualPaymentTemplateOptions(),
         user?.is_sysadmin
-          ? getUnverifiedSupportTransfers()
+          ? getUnverifiedSupportTransfers().catch((e: any) => ({
+              ok: false as const,
+              data: [] as PaymentTransfer[],
+              message: String(e?.message ?? "Failed to load the unverified support queue."),
+            }))
           : Promise.resolve({ ok: true as const, data: [] as PaymentTransfer[] }),
       ]);
 
@@ -335,6 +348,7 @@ const PaymentsPage: React.FC = () => {
     setOwedItems(owedRes.data);
     setTransfers(transferRes.data);
     setSupportTransfers(supportTransferRes.data);
+    setSupportTransfersError("message" in supportTransferRes ? supportTransferRes.message : null);
     setPrivileges(privilegeRes.data);
     setTemplates(templatesRes.data);
     setTemplateOptions(templateOptionsRes.data);
@@ -794,17 +808,27 @@ const PaymentsPage: React.FC = () => {
               />
 
               {user?.is_sysadmin && (
-                <PaymentHistoryPanel
-                  title="Unverified Support Queue"
-                  intro="Use this queue to help members when a transfer exists in SWC but normal verification did not complete."
-                  emptyMessage="No unverified transfers need sysadmin attention right now."
-                  allowSwcVerify={false}
-                  canManualVerify={true}
-                  showPayer={true}
-                  transfers={supportTransfers}
-                  onVerifyTransfer={onVerifyTransfer}
-                  onManualVerifyTransfer={onManualVerifyTransfer}
-                />
+                <>
+                  {supportTransfersError ? (
+                    <div className="panel">
+                      <h2>Unverified Support Queue</h2>
+                      <p className="small" style={{ color: "salmon" }}>
+                        Support queue is temporarily unavailable: {supportTransfersError}
+                      </p>
+                    </div>
+                  ) : null}
+                  <PaymentHistoryPanel
+                    title="Unverified Support Queue"
+                    intro="Use this queue to help members when a transfer exists in SWC but normal verification did not complete."
+                    emptyMessage="No unverified transfers need sysadmin attention right now."
+                    allowSwcVerify={false}
+                    canManualVerify={true}
+                    showPayer={true}
+                    transfers={supportTransfers}
+                    onVerifyTransfer={onVerifyTransfer}
+                    onManualVerifyTransfer={onManualVerifyTransfer}
+                  />
+                </>
               )}
             </>
           )}

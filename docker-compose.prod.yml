@@ -95,6 +95,8 @@ services:
       - backend
     env_file:
       - ./discord-bot/.env
+    environment:
+      DISCORD_BOT_BACKEND_URL: http://backend/api
     networks:
       - joe_prod_net
 

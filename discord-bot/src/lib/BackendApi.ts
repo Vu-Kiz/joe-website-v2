@@ -15,10 +15,14 @@ import type { BotConfig } from './BotConfig';
 type FetchOptions = RequestInit;
 
 export class BackendApi {
-  public constructor(private readonly config: BotConfig) {}
+  public constructor(
+    private readonly config: BotConfig,
+    private readonly baseUrl: string = config.backendUrl
+  ) {}
 
   public async fetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
-    const response = await fetch(`${this.config.backendUrl}${path}`, {
+    const url = `${this.baseUrl}${path}`;
+    const response = await fetch(url, {
       ...options,
       headers: {
         Authorization: `Bearer ${this.config.backendToken}`,
@@ -28,10 +32,25 @@ export class BackendApi {
     });
 
     const text = await response.text();
-    const data = text ? JSON.parse(text) : {};
+    let data: unknown = {};
+
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch (error) {
+      const contentType = response.headers.get('content-type') ?? 'unknown';
+      const bodyStart = text.slice(0, 500).replace(/\s+/g, ' ').trim();
+      console.error(
+        `Backend API returned non-JSON response for ${url} ` +
+          `(status ${response.status}, content-type ${contentType}). Body start: ${bodyStart}`
+      );
+      throw error;
+    }
 
     if (!response.ok) {
-      const message = data?.message || `Backend request failed with ${response.status}`;
+      const message =
+        typeof data === 'object' && data !== null && 'message' in data
+          ? String((data as { message?: unknown }).message ?? `Backend request failed with ${response.status}`)
+          : `Backend request failed with ${response.status}`;
       throw new Error(message);
     }
 
@@ -61,6 +80,10 @@ export class BackendApi {
 
   public claimOutbox(limit = 5) {
     return this.fetch<BackendEnvelope<OutboxClaimMessage[]>>(`/discord-bot/outbox/claim?limit=${limit}`);
+  }
+
+  public claimDirectOutbox(limit = 5) {
+    return this.fetch<BackendEnvelope<OutboxClaimMessage[]>>(`/discord-bot/outbox/claim-direct?limit=${limit}`);
   }
 
   public syncState(payload: SyncGuildPayload) {

@@ -39,7 +39,10 @@ export type OutboxClaimMessage = {
     id: string;
     name: string | null;
     guild_id: string | null;
-  };
+  } | null;
+  dm?: {
+    user_id: string;
+  } | null;
   delivery?: {
     id: number;
     guild_id: string | null;

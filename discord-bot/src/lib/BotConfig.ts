@@ -3,6 +3,7 @@ export class BotConfig {
   public readonly clientId: string;
   public readonly guildId: string;
   public readonly backendUrl: string;
+  public readonly dmBackendUrl: string;
   public readonly backendToken: string;
   public readonly outboxPollMs: number;
 
@@ -11,6 +12,7 @@ export class BotConfig {
     clientId,
     guildId,
     backendUrl,
+    dmBackendUrl,
     backendToken,
     outboxPollMs,
   }: {
@@ -18,6 +20,7 @@ export class BotConfig {
     clientId: string;
     guildId: string;
     backendUrl: string;
+    dmBackendUrl: string;
     backendToken: string;
     outboxPollMs: number;
   }) {
@@ -25,6 +28,7 @@ export class BotConfig {
     this.clientId = clientId;
     this.guildId = guildId;
     this.backendUrl = backendUrl;
+    this.dmBackendUrl = dmBackendUrl;
     this.backendToken = backendToken;
     this.outboxPollMs = outboxPollMs;
   }
@@ -34,10 +38,11 @@ export class BotConfig {
     const clientId = env.DISCORD_BOT_CLIENT_ID || '';
     const guildId = env.DISCORD_BOT_GUILD_ID || '';
     const backendUrl = (env.DISCORD_BOT_BACKEND_URL || '').replace(/\/+$/, '');
+    const dmBackendUrl = (env.DISCORD_BOT_DM_BACKEND_URL || backendUrl).replace(/\/+$/, '');
     const backendToken = env.DISCORD_BOT_BACKEND_TOKEN || '';
     const outboxPollMs = Math.max(3000, Number(env.DISCORD_BOT_OUTBOX_POLL_MS || 5000));
 
-    if (!botToken || !clientId || !backendUrl || !backendToken) {
+    if (!botToken || !clientId || !backendUrl || !dmBackendUrl || !backendToken) {
       throw new Error('Missing required Discord bot environment configuration.');
     }
 
@@ -46,6 +51,7 @@ export class BotConfig {
       clientId,
       guildId,
       backendUrl,
+      dmBackendUrl,
       backendToken,
       outboxPollMs,
     });

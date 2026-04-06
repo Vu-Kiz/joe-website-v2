@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useLocation, useParams } from "react-router-dom";
 import { fetchAuthMe, subscribeToAuthStateChange } from "../api/auth";
 import { canAccessMembers } from "../auth/permissions";
@@ -10,6 +10,11 @@ import "../styles/main.sass";
 import "../styles/_admin.sass";
 import "../styles/_membersuniverse.sass";
 import "../styles/_sysuniverse.sass";
+
+const SYSTEM_GRID_SIZE = 20;
+const SYSTEM_CELL_SIZE = 78;
+const SYSTEM_CANVAS_PADDING = 16;
+const SYSTEM_VIEW_PADDING = 48;
 
 type UniverseSystemLocationState = {
   fromUniverseMap?: boolean;
@@ -159,6 +164,28 @@ const MembersUniverseSystemPage: React.FC = () => {
   } | null>(null);
   const systemDragRef = useRef<{ x: number; y: number } | null>(null);
   const systemViewportRef = useRef<HTMLDivElement | null>(null);
+  const systemAutoFitKeyRef = useRef<string | null>(null);
+
+  function fitSystemViewport() {
+    const viewport = systemViewportRef.current;
+    if (!viewport) {
+      return;
+    }
+
+    const worldWidth = SYSTEM_GRID_SIZE * SYSTEM_CELL_SIZE + SYSTEM_CANVAS_PADDING * 2;
+    const worldHeight = SYSTEM_GRID_SIZE * SYSTEM_CELL_SIZE + SYSTEM_CANVAS_PADDING * 2;
+    const viewportWidth = Math.max(1, viewport.clientWidth);
+    const viewportHeight = Math.max(1, viewport.clientHeight);
+    const scaleX = (viewportWidth - SYSTEM_VIEW_PADDING * 2) / worldWidth;
+    const scaleY = (viewportHeight - SYSTEM_VIEW_PADDING * 2) / worldHeight;
+    const nextZoom = Math.min(3.5, Math.max(0.45, Number(Math.min(scaleX, scaleY).toFixed(2))));
+
+    setSystemZoom(nextZoom);
+    setSystemOffset({
+      x: (viewportWidth - worldWidth * nextZoom) / 2,
+      y: (viewportHeight - worldHeight * nextZoom) / 2,
+    });
+  }
 
   useEffect(() => {
     return subscribeToAuthStateChange(() => {
@@ -283,10 +310,45 @@ const MembersUniverseSystemPage: React.FC = () => {
   }, [detail, systemOffset, systemZoom]);
 
   useEffect(() => {
-    setSystemZoom(1);
-    setSystemOffset({ x: 0, y: 0 });
     setSelectedSystemCell(null);
     setHoveredSystemCell(null);
+    systemAutoFitKeyRef.current = null;
+  }, [detail?.system.uid, detail?.system.identifier]);
+
+  useLayoutEffect(() => {
+    const viewport = systemViewportRef.current;
+    const systemKey = detail?.system.uid ?? detail?.system.identifier ?? null;
+
+    if (!viewport || !systemKey) {
+      return;
+    }
+
+    const fitIfNeeded = () => {
+      const viewportWidth = viewport.clientWidth;
+      const viewportHeight = viewport.clientHeight;
+
+      if (viewportWidth <= 0 || viewportHeight <= 0) {
+        return;
+      }
+
+      if (systemAutoFitKeyRef.current === systemKey) {
+        return;
+      }
+
+      fitSystemViewport();
+      systemAutoFitKeyRef.current = systemKey;
+    };
+
+    fitIfNeeded();
+
+    const observer = new ResizeObserver(() => {
+      fitIfNeeded();
+    });
+    observer.observe(viewport);
+
+    return () => {
+      observer.disconnect();
+    };
   }, [detail?.system.uid, detail?.system.identifier]);
 
   const mapCells = useMemo(() => {
@@ -321,6 +383,11 @@ const MembersUniverseSystemPage: React.FC = () => {
         .flat()
         .find((cell) => cell.x === selectedSystemCell.x && cell.y === selectedSystemCell.y) ?? null
     : null;
+
+  const occupiedCellCount = useMemo(
+    () => mapCells.flat().filter((cell) => cell.planets.length > 0 || cell.stations.length > 0).length,
+    [mapCells]
+  );
 
   const systemSummary = useMemo(() => {
     const planets = detail?.planets ?? [];
@@ -367,8 +434,7 @@ const MembersUniverseSystemPage: React.FC = () => {
   }, [detail]);
 
   function resetSystemViewport() {
-    setSystemZoom(1);
-    setSystemOffset({ x: 0, y: 0 });
+    fitSystemViewport();
   }
 
   if (!routeState?.fromUniverseMap) {
@@ -524,7 +590,7 @@ const MembersUniverseSystemPage: React.FC = () => {
 
             <div className="sysuniverse-toolbar">
               <strong>
-                Grid{" "}
+                System Chart{" "}
                 {detail?.system.name ??
                   detail?.system.identifier ??
                   formatSwcDisplayId(detail?.system.uid) ??
@@ -541,6 +607,13 @@ const MembersUniverseSystemPage: React.FC = () => {
             <p className="small sysuniverse-copy-reset">
               Scroll to zoom, drag to move, and click a coordinate cell to inspect the planets and stations placed there.
             </p>
+
+            <div className="members-universe-system__map-meta">
+              <span className="admin-badge admin-badge--soft">20x20 grid</span>
+              <span className="admin-badge admin-badge--soft">Occupied cells {occupiedCellCount}</span>
+              <span className="admin-badge admin-badge--soft">Bodies {systemSummary.totalBodies}</span>
+              <span className="admin-badge admin-badge--soft">Stations {systemSummary.stations}</span>
+            </div>
 
             <div
               ref={systemViewportRef}
@@ -570,6 +643,23 @@ const MembersUniverseSystemPage: React.FC = () => {
               }}
             >
               <div className="sysuniverse-map-viewport__stars" />
+              <div className="members-universe-system__map-chrome">
+                <div className="members-universe-system__map-chrome-block">
+                  <span className="members-universe-system__map-kicker">Local Chart</span>
+                  <strong>
+                    {detail?.system.name ??
+                      detail?.system.identifier ??
+                      formatSwcDisplayId(detail?.system.uid) ??
+                      "Unknown system"}
+                  </strong>
+                </div>
+                <div className="members-universe-system__map-chrome-block members-universe-system__map-chrome-block--right">
+                  <span className="members-universe-system__map-kicker">Selection</span>
+                  <strong>
+                    {selectedSystemCell ? `${selectedSystemCell.x}, ${selectedSystemCell.y}` : "None"}
+                  </strong>
+                </div>
+              </div>
               <div
                 className="sysuniverse-map-canvas"
                 style={{
@@ -618,6 +708,12 @@ const MembersUniverseSystemPage: React.FC = () => {
                             borderWidth: `${Math.max(1, 1.15 / Math.max(systemZoom, 0.45))}px`,
                           }}
                         >
+                          <span className="members-universe-system__grid-cell-coords">
+                            {cell.x},{cell.y}
+                          </span>
+                          {occupancy > 0 ? (
+                            <span className="members-universe-system__grid-cell-count">{occupancy}</span>
+                          ) : null}
                           <div className="members-universe-system__grid-cell-body">
                             {cell.planets.slice(0, 1).map((planet) =>
                               bestPlanetImage(planet) ? (

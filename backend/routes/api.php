@@ -38,12 +38,15 @@ use App\Http\Controllers\Api\ManualPaymentTemplateController;
 use App\Http\Controllers\Api\DroidBrainController;
 use App\Http\Controllers\Api\DiscordBotController;
 use App\Http\Controllers\Api\MemberToolAccessController;
+use App\Http\Controllers\Api\ContactRequestController;
+use App\Http\Controllers\Api\Admin\ContactRequestSettingsController;
 
 // Public utility
 Route::get('/health', [HealthController::class, 'index']);
 Route::get('/meta', [MetaController::class, 'index']);
 Route::get('/loading-tip', [LoadingTipController::class, 'index']);
 Route::get('/time', [TimeController::class, 'show']);
+Route::post('/contact-requests', [ContactRequestController::class, 'store'])->middleware('throttle:5,1');
 
 // Auth
 Route::prefix('auth')->group(function () {
@@ -56,6 +59,7 @@ Route::prefix('discord-bot')->middleware(['discord_bot'])->group(function () {
     Route::post('/channels/{notificationKey}', [DiscordBotController::class, 'setChannel']);
     Route::post('/sync-state', [DiscordBotController::class, 'syncState']);
     Route::get('/outbox/claim', [DiscordBotController::class, 'claimOutbox']);
+    Route::get('/outbox/claim-direct', [DiscordBotController::class, 'claimDirectOutbox']);
     Route::post('/outbox/{messageId}/delivered', [DiscordBotController::class, 'markDelivered']);
     Route::post('/outbox/{messageId}/failed', [DiscordBotController::class, 'markFailed']);
     Route::post('/jobs', [DiscordBotController::class, 'createJob']);
@@ -255,6 +259,7 @@ Route::get('/site-lock-status', [SiteLockStatusController::class, 'show']);
 Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('admin')->group(function () {
     Route::get('/member-access-logs', [MemberAccessLogController::class, 'index']);
     Route::get('/discord-bot', [DiscordBotAdminController::class, 'show']);
+    Route::post('/discord-bot/contact-recipient', [ContactRequestSettingsController::class, 'update']);
     Route::get('/website-health', [WebsiteHealthController::class, 'show']);
     Route::get('/site-lock', [SiteLockController::class, 'show']);
     Route::post('/site-lock', [SiteLockController::class, 'update']);

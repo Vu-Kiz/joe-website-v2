@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\DiscordBotGuild;
 use App\Models\DiscordChannelConfig;
+use App\Support\Contact\ContactRequestSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Config;
 
@@ -52,6 +53,8 @@ class DiscordBotAdminController extends Controller
                         'set_by_discord_user_id',
                         'updated_at',
                     ]),
+                ...ContactRequestSettings::meta(),
+                'candidate_recipients' => ContactRequestSettings::candidateRecipients(),
             ],
         ]);
     }

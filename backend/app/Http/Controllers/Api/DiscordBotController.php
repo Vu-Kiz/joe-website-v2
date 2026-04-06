@@ -112,24 +112,42 @@ class DiscordBotController extends Controller
 
     public function claimOutbox(Request $request): JsonResponse
     {
-        $limit = max(1, min(10, (int) $request->integer('limit', 5)));
-        $staleBefore = Carbon::now()->subMinutes(5);
         $configuredKeys = DiscordChannelConfig::query()
             ->pluck('notification_key')
             ->filter(fn ($value) => is_string($value) && $value !== '')
             ->values()
             ->all();
 
-        if ($configuredKeys === []) {
+        $configuredKeys = array_values(array_filter(
+            $configuredKeys,
+            fn ($value) => $value !== DiscordNotifier::KEY_CONTACT_REQUESTS
+        ));
+
+        return $this->claimOutboxForKeys($request, $configuredKeys);
+    }
+
+    public function claimDirectOutbox(Request $request): JsonResponse
+    {
+        return $this->claimOutboxForKeys($request, [
+            DiscordNotifier::KEY_CONTACT_REQUESTS,
+        ]);
+    }
+
+    protected function claimOutboxForKeys(Request $request, array $notificationKeys): JsonResponse
+    {
+        $limit = max(1, min(10, (int) $request->integer('limit', 5)));
+        $staleBefore = Carbon::now()->subMinutes(5);
+
+        if ($notificationKeys === []) {
             return response()->json([
                 'ok' => true,
                 'data' => [],
             ]);
         }
 
-        $messages = DB::transaction(function () use ($limit, $staleBefore, $configuredKeys) {
+        $messages = DB::transaction(function () use ($limit, $staleBefore, $notificationKeys) {
             $messages = DiscordOutboxMessage::query()
-                ->whereIn('notification_key', $configuredKeys)
+                ->whereIn('notification_key', $notificationKeys)
                 ->where(function ($query) use ($staleBefore) {
                     $query->where('status', DiscordOutboxMessage::STATUS_PENDING)
                         ->orWhere(function ($processing) use ($staleBefore) {
@@ -162,12 +180,20 @@ class DiscordBotController extends Controller
             return DiscordOutboxMessage::query()->whereIn('id', $ids)->orderBy('created_at')->get();
         });
 
+        if ($messages->isEmpty()) {
+            return response()->json([
+                'ok' => true,
+                'data' => [],
+            ]);
+        }
+
         $configs = DiscordChannelConfig::query()
             ->whereIn('notification_key', $messages->pluck('notification_key')->unique()->values())
             ->get()
             ->keyBy('notification_key');
 
-        $payload = $messages
+        $channelPayload = $messages
+            ->filter(fn (DiscordOutboxMessage $message) => $message->notification_key !== DiscordNotifier::KEY_CONTACT_REQUESTS)
             ->filter(fn (DiscordOutboxMessage $message) => isset($configs[$message->notification_key]))
             ->map(function (DiscordOutboxMessage $message) use ($configs) {
                 $config = $configs[$message->notification_key];
@@ -197,6 +223,7 @@ class DiscordBotController extends Controller
                         'name' => $config->channel_name,
                         'guild_id' => $config->guild_id,
                     ],
+                    'dm' => null,
                     'delivery' => $delivery ? [
                         'id' => $delivery->id,
                         'guild_id' => $delivery->guild_id,
@@ -204,8 +231,30 @@ class DiscordBotController extends Controller
                         'message_ids' => $delivery->message_ids,
                     ] : null,
                 ];
-            })
-            ->values();
+            });
+
+        $dmPayload = $messages
+            ->filter(fn (DiscordOutboxMessage $message) => $message->notification_key === DiscordNotifier::KEY_CONTACT_REQUESTS)
+            ->map(function (DiscordOutboxMessage $message) {
+                $meta = is_array($message->meta) ? $message->meta : [];
+
+                return [
+                    'id' => $message->id,
+                    'notification_key' => $message->notification_key,
+                    'content' => $message->content,
+                    'meta' => $meta,
+                    'attempts' => $message->attempts,
+                    'channel' => null,
+                    'dm' => [
+                        'user_id' => is_string($meta['target_discord_user_id'] ?? null)
+                            ? $meta['target_discord_user_id']
+                            : '',
+                    ],
+                    'delivery' => null,
+                ];
+            });
+
+        $payload = collect(array_merge($channelPayload->all(), $dmPayload->all()))->values();
 
         return response()->json([
             'ok' => true,
@@ -356,7 +405,8 @@ class DiscordBotController extends Controller
 
         return match ($notificationKey) {
             DiscordNotifier::KEY_JOBS,
-            DiscordNotifier::KEY_JEN => $notificationKey,
+            DiscordNotifier::KEY_JEN,
+            DiscordNotifier::KEY_CONTACT_REQUESTS => $notificationKey,
             default => null,
         };
     }

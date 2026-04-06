@@ -5,17 +5,17 @@ Jawa Offworld Enterprises website and member tools.
 ## Current Version
 
 - Production release: `v2.0.2`
-- Active development branch: `v2.0.3`
+- Active development branch: `v2.0.4`
 
 ## Branch Status
 
-- `dev` is the working branch for `v2.0.3` updates
+- `dev` is the working branch for `v2.0.4` updates
 - production should only receive pulled, tested changes from `dev`
 
 ## Notes
 
 - `v2.0.2` is now the live production patch release
-- `v2.0.3` is the next active update cycle
+- `v2.0.4` is the next active update cycle
 - larger new work should be planned deliberately instead of being folded into patch updates
 
 ## v2.0.1 Status
@@ -56,7 +56,7 @@ Included updates:
 
 ## v2.0.3 Patch Notes
 
-- `v2.0.3` is the current active release/update cycle
+- `v2.0.3` is a completed patch cycle
 - this section tracks current patch-facing changes being prepared for release
 
 Included updates:
@@ -79,3 +79,17 @@ Included updates:
   Expanded member-access classification for newer tools like DroidBrain, Galactic Archive, Hyper Planner, Entity Stats, Astrogation, Payments, Jobs, and Factions, added missing admin action logging around Site Lock and DroidBrain payment actions, and cleaned the admin log UI so areas and actions render with readable tool names instead of raw internal keys.
 - Universe system ownership and pull verification
   Hardened stored system ownership so systems only persist faction-style owners from the SWC `controlledby` source, preventing invalid player ownership from sticking on `swc_systems`, updated the admin system pull summary to show both the pulled owner and the stored owner so refresh results can be verified immediately after a sync, and cleaned up members-universe population change display so missing delta data shows as `0` instead of `Unknown`.
+
+## v2.0.4 Patch Notes
+
+- `v2.0.4` is the current active release/update cycle
+- this section tracks current patch-facing changes being prepared for release
+
+Included updates:
+
+- Homepage contact workflow and Discord DMs
+  Replaced the old external contact flow with an on-site `Contact Grand Commodore Kolo Seph` overlay that collects Discord name, Star Wars handle, and message content, added a sysadmin-configured default Discord recipient for those requests, and extended the Discord bot outbox flow so contact requests can be delivered as direct messages instead of channel posts.
+- Discord DM outbox reliability
+  Split direct-message polling onto its own claim path so JEN and Jobs can stay on the existing announcement route, added clearer bot-side non-JSON response logging for backend poll failures, and fixed the direct-message outbox claim response so it returns clean JSON instead of crashing on a Laravel collection merge error.
+- Payments page resilience
+  Hardened the Payments page so the optional sysadmin unverified-support queue no longer takes down the full page if that backend request returns a temporary error, allowing the main payments data to keep loading while surfacing the support-queue problem as a smaller warning instead. This is intended to reduce impact from the Firefox-side failure being investigated, but it does not claim to eliminate the underlying backend error by itself.
