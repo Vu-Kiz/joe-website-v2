@@ -1076,11 +1076,7 @@ class UniverseController extends Controller
             }
 
             $routeOptions = [];
-            $routeSignatures = [];
             $visitedSystems = 0;
-            $exploredStates = 0;
-            $maxRoutes = 3;
-            $maxExploredStates = 15000;
 
             $fastestRoutePayload = $this->buildPlannerRoutePayload(
                 $fromEndpoint,
@@ -1091,130 +1087,12 @@ class UniverseController extends Controller
                 $hyperspeed,
                 $visitedSystems
             );
-            $fastestRouteSignature = $this->buildPlannerRouteSignature($fastestHopEdges);
             $routeOptions[] = $fastestRoutePayload;
-            $routeSignatures[$fastestRouteSignature] = true;
-            $stateQueue = new \SplPriorityQueue();
-            $stateQueue->setExtractFlags(\SplPriorityQueue::EXTR_DATA);
-            $stateQueue->insert([
-                'node' => $startNode,
-                'seconds' => 0,
-                'edges' => [],
-                'visited' => [$startNode => true],
-            ], 0);
-
-            while (!$stateQueue->isEmpty() && $exploredStates < $maxExploredStates) {
-            $state = $stateQueue->extract();
-            $systemId = (string) ($state['node'] ?? '');
-            $elapsedSeconds = (int) ($state['seconds'] ?? 0);
-            $currentEdges = is_array($state['edges'] ?? null) ? $state['edges'] : [];
-            $visitedNodes = is_array($state['visited'] ?? null) ? $state['visited'] : [];
-
-            $exploredStates++;
-            $visitedSystems++;
-
-            $candidateEdges = $this->buildPlannerCandidateEdgesForNode(
-                $adjacency,
-                $systemsById,
-                $systemId,
-                $endNode,
-                $toEndpoint,
-                $pilotingSkill,
-                $hyperspeed
-            );
-
-            foreach ($candidateEdges as $edge) {
-                $destinationId = (string) ($edge['destination_node'] ?? $edge['destination_system_id']);
-
-                if ($destinationId !== $endNode && isset($visitedNodes[$destinationId])) {
-                    continue;
-                }
-
-                $candidateSeconds = $elapsedSeconds + (int) ($edge['lane_seconds'] ?? 0);
-                if ($candidateSeconds >= $directTripSeconds) {
-                    continue;
-                }
-
-                $destinationEndpoint = $edge['to_endpoint']
-                    ?? $this->buildPlannerSystemEndpoint($systemsById->get($edge['destination_system_id']));
-
-                if (
-                    $destinationId !== $endNode
-                    && $destinationEndpoint
-                    && isset($destinationEndpoint['galx'], $destinationEndpoint['galy'])
-                ) {
-                    $remainingDirectSeconds = $this->calculatePlannerDirectTravelSeconds(
-                        $this->calculatePlannerJourneyLength(
-                            $destinationEndpoint['galx'],
-                            $destinationEndpoint['galy'],
-                            $toEndpoint['galx'],
-                            $toEndpoint['galy']
-                        ),
-                        $pilotingSkill,
-                        $hyperspeed
-                    );
-
-                    if (($candidateSeconds + $remainingDirectSeconds) >= $directTripSeconds) {
-                        continue;
-                    }
-                }
-
-                $nextEdges = [...$currentEdges, $edge];
-
-                if ($destinationId === $endNode) {
-                    if (!$this->plannerRouteUsesStoredHyperlane($nextEdges)) {
-                        continue;
-                    }
-
-                    $routePayload = $this->buildPlannerRoutePayload(
-                        $fromEndpoint,
-                        $toEndpoint,
-                        $nextEdges,
-                        $systemsById,
-                        $pilotingSkill,
-                        $hyperspeed,
-                        $visitedSystems
-                    );
-
-                    $routeSignature = $this->buildPlannerRouteSignature($nextEdges);
-                    if (isset($routeSignatures[$routeSignature])) {
-                        continue;
-                    }
-
-                    $routeSignatures[$routeSignature] = true;
-                    $routeOptions[] = $routePayload;
-
-                    usort($routeOptions, fn (array $left, array $right) => ($left['summary']['total_seconds'] ?? PHP_INT_MAX) <=> ($right['summary']['total_seconds'] ?? PHP_INT_MAX));
-                    if (count($routeOptions) > $maxRoutes) {
-                        $routeOptions = array_slice($routeOptions, 0, $maxRoutes);
-                    }
-                    continue;
-                }
-
-                $nextVisited = $visitedNodes;
-                $nextVisited[$destinationId] = true;
-
-                $nextState = [
-                    'node' => $destinationId,
-                    'seconds' => $candidateSeconds,
-                    'edges' => $nextEdges,
-                    'visited' => $nextVisited,
-                ];
-
-                $stateQueue->insert($nextState, -$candidateSeconds);
-            }
-            }
-
-            usort($routeOptions, fn (array $left, array $right) => ($left['summary']['total_seconds'] ?? PHP_INT_MAX) <=> ($right['summary']['total_seconds'] ?? PHP_INT_MAX));
-            $routeOptions = array_values(array_map(
-                fn (array $route, int $index) => [
-                    ...$route,
-                    'route_index' => $index,
-                    'route_label' => sprintf('Route %d', $index + 1),
-                ],
-                $routeOptions,
-                array_keys($routeOptions)
-            ));
+            $routeOptions = [[
+                ...$fastestRoutePayload,
+                'route_index' => 0,
+                'route_label' => 'Route 1',
+            ]];
             $fastestRoute = $routeOptions[0];
 
             return response()->json([
