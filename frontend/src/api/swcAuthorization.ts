@@ -4,6 +4,24 @@ export type SwcAuthorizationStatus = {
   member_tool_preferences?: {
     galaxy: boolean;
     payments: boolean;
+    universe?: {
+      map_scope: "sector" | "galaxy";
+      selected_sector_uid: string | null;
+      selected_system_identifier: string | null;
+      focus_request:
+        | {
+            kind: "sector";
+            sectorUid: string;
+            zoom?: number | null;
+          }
+        | {
+            kind: "coords";
+            galx: number;
+            galy: number;
+            zoom?: number | null;
+          }
+        | null;
+    };
   };
   connected: boolean;
   member_tools_connected?: boolean;
@@ -32,6 +50,24 @@ export async function getSwcAuthorizationStatus() {
 export async function updateSwcAuthorizationPreferences(memberToolPreferences: {
   galaxy: boolean;
   payments: boolean;
+  universe?: {
+    map_scope: "sector" | "galaxy";
+    selected_sector_uid: string | null;
+    selected_system_identifier: string | null;
+    focus_request:
+      | {
+          kind: "sector";
+          sectorUid: string;
+          zoom?: number | null;
+        }
+      | {
+          kind: "coords";
+          galx: number;
+          galy: number;
+          zoom?: number | null;
+        }
+      | null;
+  };
 }) {
   return apiFetch<{
     ok: true;
@@ -39,6 +75,24 @@ export async function updateSwcAuthorizationPreferences(memberToolPreferences: {
       member_tool_preferences: {
         galaxy: boolean;
         payments: boolean;
+        universe?: {
+          map_scope: "sector" | "galaxy";
+          selected_sector_uid: string | null;
+          selected_system_identifier: string | null;
+          focus_request:
+            | {
+                kind: "sector";
+                sectorUid: string;
+                zoom?: number | null;
+              }
+            | {
+                kind: "coords";
+                galx: number;
+                galy: number;
+                zoom?: number | null;
+              }
+            | null;
+        };
       };
     };
   }>(`/swc/authorization/preferences`, {

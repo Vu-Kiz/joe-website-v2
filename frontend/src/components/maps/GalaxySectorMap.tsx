@@ -49,6 +49,7 @@ type GalaxySectorMapProps = {
   loadedAnnotationSectorUids?: string[];
   searchRecords?: SectorSearchRecord[];
   onSystemSelect?: (systemIdentifier: string, sectorUid?: string | null) => void;
+  onLocationSelect?: (galx: number, galy: number, sectorUid?: string | null) => void;
   onSaveAnnotation?: (payload: {
     sector_uid: string;
     galx: number;
@@ -897,6 +898,7 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
   loadedAnnotationSectorUids = [],
   searchRecords = [],
   onSystemSelect,
+  onLocationSelect,
   onSaveAnnotation,
   onSaveSearchRecord,
   ensureSectorAnnotationsLoaded,
@@ -3056,6 +3058,25 @@ const GalaxySectorMap: React.FC<GalaxySectorMapProps> = ({
                 }}
               >
                 Open {selectedCell.system.name ?? selectedCell.system.identifier ?? "System"}
+              </button>
+            ) : null}
+            {!selectedCell.system ? (
+              <button
+                className="btn btn--small"
+                type="button"
+                onClick={() => {
+                  if (!onLocationSelect) {
+                    return;
+                  }
+
+                  onLocationSelect(
+                    selectedCell.galx,
+                    selectedCell.galy,
+                    selectedCell.sectorUid
+                  );
+                }}
+              >
+                Open Location
               </button>
             ) : null}
             </div>

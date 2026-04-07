@@ -23,6 +23,7 @@ import { canAccessAdmin, canViewAsteroidIntel, canViewScanWindow } from "../../a
 import {
   getSwcAuthorizationStatus,
   importSwcPersonalEvents,
+  updateSwcAuthorizationPreferences,
   type SwcAuthorizationStatus,
   type SwcPersonalEventsImportResponse,
 } from "../../api/swcAuthorization";
@@ -110,6 +111,69 @@ function sectorsAppearToTouch(
   });
 }
 
+function pointInSectorOutline(
+  galx: number,
+  galy: number,
+  outline: StoredSectorSummary["outline_coordinates"] | null | undefined
+) {
+  if (!outline || outline.length < 3) {
+    return false;
+  }
+
+  const x = galx + 0.5;
+  const y = galy + 0.5;
+  let inside = false;
+
+  for (let i = 0, j = outline.length - 1; i < outline.length; j = i++) {
+    const xi = outline[i]?.galx;
+    const yi = outline[i]?.galy;
+    const xj = outline[j]?.galx;
+    const yj = outline[j]?.galy;
+
+    if (
+      !Number.isFinite(xi) ||
+      !Number.isFinite(yi) ||
+      !Number.isFinite(xj) ||
+      !Number.isFinite(yj)
+    ) {
+      continue;
+    }
+
+    const intersects =
+      yi > y !== yj > y &&
+      x < ((xj - xi) * (y - yi)) / ((yj - yi) || 1e-9) + xi;
+
+    if (intersects) {
+      inside = !inside;
+    }
+  }
+
+  return inside;
+}
+
+function sectorContainsCoordinates(
+  sector: StoredSectorSummary,
+  galx: number,
+  galy: number
+) {
+  const bounds = sector.bounds;
+  if (
+    bounds &&
+    (galx < bounds.min_galx ||
+      galx > bounds.max_galx ||
+      galy < bounds.min_galy ||
+      galy > bounds.max_galy)
+  ) {
+    return false;
+  }
+
+  if (sector.outline_coordinates?.length) {
+    return pointInSectorOutline(galx, galy, sector.outline_coordinates);
+  }
+
+  return Boolean(bounds);
+}
+
 function dedupeByKey<T>(items: T[], keyOf: (item: T) => string) {
   const seen = new Set<string>();
 
@@ -132,6 +196,7 @@ const MembersUniversePanel: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [sectors, setSectors] = useState<StoredSectorSummary[]>([]);
   const [mapSystems, setMapSystems] = useState<StoredMapSystem[]>([]);
+  const [systemSearchOptions, setSystemSearchOptions] = useState<StoredMapSystem[]>([]);
   const [mapScope, setMapScope] = useState<MapScope>("sector");
   const [selectedSectorUid, setSelectedSectorUid] = useState("");
   const [sectorQuery, setSectorQuery] = useState("");
@@ -156,7 +221,10 @@ const MembersUniversePanel: React.FC = () => {
   const [eventsImportLoading, setEventsImportLoading] = useState(false);
   const [eventsImportError, setEventsImportError] = useState<string | null>(null);
   const [eventsImportResult, setEventsImportResult] = useState<SwcPersonalEventsImportResponse | null>(null);
+  const universePreferencesSaveTimerRef = useRef<number | null>(null);
   const annotationLoadPromisesRef = useRef<Record<string, Promise<SectorCellAnnotation[]>>>({});
+  const systemSearchLoadedRef = useRef(false);
+  const systemSearchLoadPromiseRef = useRef<Promise<void> | null>(null);
   const oauthParams = useMemo(() => new URLSearchParams(window.location.search), []);
   const swcOauthError = oauthParams.get("swc_oauth_error");
   const mapAnnotations = useMemo(
@@ -187,14 +255,35 @@ const MembersUniversePanel: React.FC = () => {
         setViewer(authResponse.user ?? null);
         setSwcAuth(swcAuthResponse.data ?? null);
         const nextSectors = sectorsResponse.data ?? [];
-        const firstSectorUid = nextSectors[0]?.uid ?? "";
+        const persistedState = swcAuthResponse.data?.member_tool_preferences?.universe ?? null;
+        const preferredSectorUid =
+          persistedState?.selected_sector_uid &&
+          nextSectors.some((sector) => sector.uid === persistedState.selected_sector_uid)
+            ? persistedState.selected_sector_uid
+            : null;
+        const firstSectorUid = preferredSectorUid ?? nextSectors[0]?.uid ?? "";
 
         setSectors(nextSectors);
         setSelectedSectorUid(firstSectorUid);
         setSectorQuery("");
         setError(null);
 
-        if (firstSectorUid) {
+        if (persistedState?.map_scope) {
+          setMapScope(persistedState.map_scope);
+        }
+
+        if (persistedState?.selected_system_identifier) {
+          setSelectedSystemIdentifier(persistedState.selected_system_identifier);
+        }
+
+        if (persistedState?.focus_request) {
+          const restoredFocus = persistedState.focus_request;
+          setFocusRequest({
+            ...restoredFocus,
+            zoom: restoredFocus.zoom ?? undefined,
+            nonce: Date.now(),
+          });
+        } else if (firstSectorUid) {
           setFocusRequest({
             kind: "sector",
             sectorUid: firstSectorUid,
@@ -218,6 +307,66 @@ const MembersUniversePanel: React.FC = () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!viewer || !swcAuth) {
+      return;
+    }
+
+    const nextUniversePreferences = {
+      map_scope: mapScope,
+      selected_sector_uid: selectedSectorUid || null,
+      selected_system_identifier: selectedSystemIdentifier || null,
+      focus_request: focusRequest
+        ? focusRequest.kind === "sector"
+          ? {
+              kind: "sector" as const,
+              sectorUid: focusRequest.sectorUid,
+              zoom: focusRequest.zoom ?? null,
+            }
+          : {
+              kind: "coords" as const,
+              galx: focusRequest.galx,
+              galy: focusRequest.galy,
+              zoom: focusRequest.zoom ?? null,
+            }
+        : null,
+    };
+
+    const currentUniversePreferences = swcAuth.member_tool_preferences?.universe;
+    if (JSON.stringify(currentUniversePreferences ?? null) === JSON.stringify(nextUniversePreferences)) {
+      return;
+    }
+
+    if (universePreferencesSaveTimerRef.current) {
+      window.clearTimeout(universePreferencesSaveTimerRef.current);
+    }
+
+    universePreferencesSaveTimerRef.current = window.setTimeout(() => {
+      void updateSwcAuthorizationPreferences({
+        galaxy: swcAuth.member_tool_preferences?.galaxy ?? true,
+        payments: swcAuth.member_tool_preferences?.payments ?? true,
+        universe: nextUniversePreferences,
+      })
+        .then((response) => {
+          setSwcAuth((current) =>
+            current
+              ? {
+                  ...current,
+                  member_tool_preferences: response.data.member_tool_preferences,
+                }
+              : current
+          );
+        })
+        .catch(() => {});
+    }, 400);
+
+    return () => {
+      if (universePreferencesSaveTimerRef.current) {
+        window.clearTimeout(universePreferencesSaveTimerRef.current);
+      }
+    };
+  }, [focusRequest, mapScope, selectedSectorUid, selectedSystemIdentifier, swcAuth, viewer]);
 
   const selectedSectorSummary = useMemo(
     () => sectors.find((sector) => sector.uid === selectedSectorUid) ?? null,
@@ -261,6 +410,21 @@ const MembersUniversePanel: React.FC = () => {
           ].join(":")
         : "none",
     [selectedSectorClusterBounds]
+  );
+  const availableSystemSearchOptions = useMemo(
+    () =>
+      dedupeByKey(
+        [
+          ...systemSearchOptions,
+          ...sectorScopeSystemsData,
+          ...mapSystems,
+        ],
+        (system) =>
+          system.uid ??
+          system.identifier ??
+          `${system.sector_uid ?? "unknown"}:${system.galx ?? "?"}:${system.galy ?? "?"}:${system.name ?? ""}`
+      ),
+    [mapSystems, sectorScopeSystemsData, systemSearchOptions]
   );
   const sectorScopeSystems = useMemo(
     () =>
@@ -327,6 +491,29 @@ const MembersUniversePanel: React.FC = () => {
         ...grouped,
       };
     });
+  }
+
+  async function ensureSystemSearchOptionsLoaded() {
+    if (systemSearchLoadedRef.current) {
+      return;
+    }
+
+    if (!systemSearchLoadPromiseRef.current) {
+      systemSearchLoadPromiseRef.current = (async () => {
+        const systemsResponse = await getStoredMapSystems();
+        setSystemSearchOptions(systemsResponse.data ?? []);
+        systemSearchLoadedRef.current = true;
+      })()
+        .catch((loadError) => {
+          systemSearchLoadPromiseRef.current = null;
+          throw loadError;
+        })
+        .finally(() => {
+          systemSearchLoadPromiseRef.current = null;
+        });
+    }
+
+    await systemSearchLoadPromiseRef.current;
   }
 
   useEffect(() => {
@@ -514,16 +701,12 @@ const MembersUniversePanel: React.FC = () => {
   }, [sectorQuery, sectors]);
 
   const filteredSystems = useMemo(() => {
-    const availableSystems =
-      mapScope === "sector"
-        ? sectorScopeSystems
-        : mapSystems;
     const query = systemQuery.trim().toLowerCase();
     if (!query) {
-      return availableSystems.slice(0, 12);
+      return availableSystemSearchOptions.slice(0, 12);
     }
 
-    return availableSystems
+    return availableSystemSearchOptions
       .filter((system: StoredMapSystem) => {
         const name = String(system.name ?? "").toLowerCase();
         const identifier = String(system.identifier ?? "").toLowerCase();
@@ -533,7 +716,7 @@ const MembersUniversePanel: React.FC = () => {
         );
       })
       .slice(0, 12);
-  }, [mapScope, mapSystems, sectorScopeSystems, systemQuery]);
+  }, [availableSystemSearchOptions, systemQuery]);
 
   function commitSectorSelection(nextSector: StoredSectorSummary | null) {
     if (!nextSector) return;
@@ -581,19 +764,22 @@ const MembersUniversePanel: React.FC = () => {
     });
   }
 
-  function handleGoToSystem() {
-    const availableSystems =
-      mapScope === "sector"
-        ? sectorScopeSystems
-        : mapSystems;
+  async function handleGoToSystem() {
+    try {
+      await ensureSystemSearchOptionsLoaded();
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to load stored systems.");
+      return;
+    }
+
     const query = systemQuery.trim().toLowerCase();
     const resolvedSystem =
-      availableSystems.find((system: StoredMapSystem) => {
+      availableSystemSearchOptions.find((system: StoredMapSystem) => {
         const identifier = String(system.identifier ?? "").toLowerCase();
         const uid = String(system.uid ?? "").toLowerCase();
         return identifier === query || uid === query;
       }) ??
-      availableSystems.find((system: StoredMapSystem) => String(system.name ?? "").toLowerCase() === query) ??
+      availableSystemSearchOptions.find((system: StoredMapSystem) => String(system.name ?? "").toLowerCase() === query) ??
       filteredSystems[0] ??
       null;
 
@@ -631,6 +817,14 @@ const MembersUniversePanel: React.FC = () => {
     }
 
     setError(null);
+    const containingSector =
+      sectors.find((sector) => sectorContainsCoordinates(sector, galx, galy)) ?? null;
+
+    if (containingSector) {
+      commitSectorSelection(containingSector);
+      setMapScope("sector");
+    }
+
     setFocusRequest({
       kind: "coords",
       galx,
@@ -657,6 +851,17 @@ const MembersUniversePanel: React.FC = () => {
         sectorUid: sectorUid ?? mapSystem?.sector_uid ?? null,
         galx: mapSystem?.galx ?? null,
         galy: mapSystem?.galy ?? null,
+      },
+    });
+  }
+
+  function handleMapLocationSelect(galx: number, galy: number, sectorUid?: string | null) {
+    navigate(`/members/universe/location/${encodeURIComponent(String(galx))}/${encodeURIComponent(String(galy))}`, {
+      state: {
+        fromUniverseMap: true,
+        sectorUid: sectorUid ?? null,
+        galx,
+        galy,
       },
     });
   }
@@ -822,6 +1027,7 @@ const MembersUniversePanel: React.FC = () => {
       canViewScanWindow={canSeeScanWindow}
       onSelectSector={setSelectedSectorUid}
       onSystemSelect={handleMapSystemSelect}
+      onLocationSelect={handleMapLocationSelect}
       onSaveAnnotation={handleSaveMapAnnotation}
       onSaveSearchRecord={handleSaveSearchRecord}
       ensureSectorAnnotationsLoaded={ensureSectorAnnotationsLoaded}
@@ -997,8 +1203,12 @@ const MembersUniversePanel: React.FC = () => {
                       onChange={(event) => {
                         setSystemQuery(event.target.value);
                         setShowSystemMatches(true);
+                        void ensureSystemSearchOptionsLoaded().catch(() => {});
                       }}
-                      onFocus={() => setShowSystemMatches(true)}
+                      onFocus={() => {
+                        setShowSystemMatches(true);
+                        void ensureSystemSearchOptionsLoaded().catch(() => {});
+                      }}
                       onBlur={() => {
                         window.setTimeout(() => setShowSystemMatches(false), 120);
                       }}

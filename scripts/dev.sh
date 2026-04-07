@@ -8,6 +8,9 @@ DC="docker compose -f ${COMPOSE_FILE}"
 BACKEND="backend"
 FRONTEND="frontend"
 DB="db"
+WORKER="worker"
+DISCORD_BOT="discord-bot"
+PHPMYADMIN="phpmyadmin"
 GIT_BRANCH="dev"
 
 usage() {
@@ -19,6 +22,13 @@ Usage:
   scripts/dev.sh up
   scripts/dev.sh down
   scripts/dev.sh restart
+  scripts/dev.sh backend-restart
+  scripts/dev.sh frontend-restart
+  scripts/dev.sh db-restart
+  scripts/dev.sh worker-restart
+  scripts/dev.sh discord-bot-restart
+  scripts/dev.sh phpmyadmin-restart
+  scripts/dev.sh service-restart <service>
   scripts/dev.sh ps
   scripts/dev.sh logs [service]
 
@@ -72,6 +82,40 @@ case "$cmd" in
   restart)
     ${DC} down
     ${DC} up -d --build
+    ;;
+
+  backend-restart)
+    ${DC} restart "${BACKEND}"
+    ;;
+
+  frontend-restart)
+    ${DC} restart "${FRONTEND}"
+    ;;
+
+  db-restart)
+    ${DC} restart "${DB}"
+    ;;
+
+  worker-restart)
+    ${DC} restart "${WORKER}"
+    ;;
+
+  discord-bot-restart)
+    ${DC} restart "${DISCORD_BOT}"
+    ;;
+
+  phpmyadmin-restart)
+    ${DC} restart "${PHPMYADMIN}"
+    ;;
+
+  service-restart)
+    service="${2:-}"
+    if [[ -z "${service}" ]]; then
+      echo "✖ Provide a service name to restart." >&2
+      echo "  Examples: backend, frontend, db, worker, discord-bot, phpmyadmin" >&2
+      exit 1
+    fi
+    ${DC} restart "${service}"
     ;;
 
   ps)

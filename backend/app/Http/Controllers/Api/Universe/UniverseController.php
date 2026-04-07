@@ -1984,11 +1984,236 @@ class UniverseController extends Controller
         ]);
     }
 
+    public function location(Request $request, int $galx, int $galy): JsonResponse
+    {
+        $canViewAsteroidIntel = $this->canViewAsteroidIntel($request);
+        $scanWindow = $this->resolveScanWindow($request);
+        $canViewDroidBrainShips = Permissions::hasAny(
+            $request->user(),
+            ['is_intel', 'is_sysadmin']
+        );
+
+        $isWithinScanWindow = $scanWindow !== null
+            && $galx >= $scanWindow['min_galx']
+            && $galx <= $scanWindow['max_galx']
+            && $galy >= $scanWindow['min_galy']
+            && $galy <= $scanWindow['max_galy'];
+
+        $canViewSearchRecord = $canViewAsteroidIntel || $isWithinScanWindow;
+
+        $systems = SwcSystem::query()
+            ->where('galx', $galx)
+            ->where('galy', $galy)
+            ->orderBy('name')
+            ->get([
+                'uid',
+                'identifier',
+                'name',
+                'sector_uid',
+                'sector_name',
+                'owner_uid',
+                'owner_name',
+                'galx',
+                'galy',
+                'last_pulled_at',
+            ]);
+
+        $searchRecord = $canViewSearchRecord
+            ? SwcSectorSearchRecord::query()
+                ->where('galx', $galx)
+                ->where('galy', $galy)
+                ->orderByDesc('updated_at')
+                ->first()
+            : null;
+
+        $annotation = $canViewAsteroidIntel
+            ? SwcSectorCellAnnotation::query()
+                ->where('galx', $galx)
+                ->where('galy', $galy)
+                ->orderByDesc('updated_at')
+                ->first([
+                    'id',
+                    'sector_uid',
+                    'galx',
+                    'galy',
+                    'marker_type',
+                    'label',
+                    'notes',
+                    'updated_at',
+                ])
+            : null;
+
+        $ships = $canViewDroidBrainShips
+            ? DB::table('droidbrain_ships_latest')
+                ->where('galx', $galx)
+                ->where('galy', $galy)
+                ->orderBy('sysy')
+                ->orderBy('sysx')
+                ->orderBy('name')
+                ->get([
+                    'entity_uid',
+                    'name',
+                    'owner_uid',
+                    'owner_name',
+                    'class_name',
+                    'type_name',
+                    'system_name',
+                    'planet_name',
+                    'city_name',
+                    'sysx',
+                    'sysy',
+                    'surfx',
+                    'surfy',
+                    'groundx',
+                    'groundy',
+                    'snapshot_unixtime',
+                ])
+                ->map(fn ($ship) => [
+                    'uid' => $ship->entity_uid,
+                    'name' => $ship->name,
+                    'owner_uid' => $ship->owner_uid,
+                    'owner_name' => $ship->owner_name,
+                    'class_name' => $ship->class_name,
+                    'type_name' => $ship->type_name,
+                    'system_name' => $ship->system_name,
+                    'planet_name' => $ship->planet_name,
+                    'city_name' => $ship->city_name,
+                    'sysx' => $ship->sysx,
+                    'sysy' => $ship->sysy,
+                    'surfx' => $ship->surfx,
+                    'surfy' => $ship->surfy,
+                    'groundx' => $ship->groundx,
+                    'groundy' => $ship->groundy,
+                    'snapshot_unixtime' => $ship->snapshot_unixtime,
+                ])
+                ->values()
+            : collect();
+
+        $stations = $canViewDroidBrainShips
+            ? tap(
+                DB::table('droidbrain_stations_latest')
+                ->where('galx', $galx)
+                ->where('galy', $galy)
+                ->orderBy('sysy')
+                ->orderBy('sysx')
+                ->orderBy('name')
+                ->get([
+                    'entity_uid',
+                    'name',
+                    'owner_uid',
+                    'owner_name',
+                    'type_name',
+                    'system_name',
+                    'planet_name',
+                    'sysx',
+                    'sysy',
+                    'surfx',
+                    'surfy',
+                    'snapshot_unixtime',
+                ]),
+                function ($stationRows) {
+                }
+            )
+                ->pipe(function ($stationRows) {
+                    $stationTypesByName = $stationRows->pluck('type_name')
+                        ->filter(fn ($value) => is_string($value) && trim($value) !== '')
+                        ->unique()
+                        ->isEmpty()
+                        ? collect()
+                        : SwcStationType::query()
+                            ->whereIn('name', $stationRows->pluck('type_name')->filter()->unique()->values())
+                            ->get(['name', 'image_url', 'icon_url'])
+                            ->keyBy('name');
+
+                    return $stationRows->map(fn ($station) => [
+                    'uid' => $station->entity_uid,
+                    'name' => $station->name,
+                    'owner_uid' => $station->owner_uid,
+                    'owner_name' => $station->owner_name,
+                    'class_name' => null,
+                    'type_name' => $station->type_name,
+                    'image_url' => optional($stationTypesByName->get($station->type_name))->image_url,
+                    'icon_url' => optional($stationTypesByName->get($station->type_name))->icon_url,
+                    'system_name' => $station->system_name,
+                    'planet_name' => $station->planet_name,
+                    'city_name' => null,
+                    'sysx' => $station->sysx,
+                    'sysy' => $station->sysy,
+                    'surfx' => $station->surfx,
+                    'surfy' => $station->surfy,
+                    'groundx' => null,
+                    'groundy' => null,
+                    'snapshot_unixtime' => $station->snapshot_unixtime,
+                    ])->values();
+                })
+            : collect();
+
+        $primarySystem = $systems->first();
+        $sectorUid = $searchRecord?->sector_uid
+            ?? $annotation?->sector_uid
+            ?? $primarySystem?->sector_uid;
+        $sectorName = $primarySystem?->sector_name
+            ?? ($sectorUid
+                ? SwcSector::query()->where('uid', $sectorUid)->value('name')
+                : null);
+
+        $primaryLabel = $primarySystem?->name
+            ?? $searchRecord?->square_name
+            ?? ($searchRecord?->has_asteroids ? 'Asteroid Cell' : null)
+            ?? 'Deep Space';
+
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'resource' => 'location',
+                'location' => [
+                    'galx' => $galx,
+                    'galy' => $galy,
+                    'primary_label' => $primaryLabel,
+                    'sector_uid' => $sectorUid,
+                    'sector_name' => $sectorName,
+                    'within_scan_window' => $isWithinScanWindow,
+                ],
+                'systems' => $systems->map(fn (SwcSystem $systemRecord) => [
+                    'uid' => $systemRecord->uid,
+                    'identifier' => $systemRecord->identifier,
+                    'name' => $systemRecord->name,
+                    'sector_uid' => $systemRecord->sector_uid,
+                    'sector_name' => $systemRecord->sector_name,
+                    'owner_uid' => $systemRecord->owner_uid,
+                    'owner_name' => $systemRecord->owner_name,
+                    'galx' => $systemRecord->galx,
+                    'galy' => $systemRecord->galy,
+                    'last_pulled_at' => $systemRecord->last_pulled_at,
+                ])->values(),
+                'search_record' => $searchRecord
+                    ? $this->mapSearchRecord($searchRecord)
+                    : null,
+                'annotation' => $annotation ? [
+                    'id' => $annotation->id,
+                    'sector_uid' => $annotation->sector_uid,
+                    'galx' => $annotation->galx,
+                    'galy' => $annotation->galy,
+                    'marker_type' => $annotation->marker_type,
+                    'label' => $annotation->label,
+                    'notes' => $annotation->notes,
+                    'updated_at' => $annotation->updated_at?->toISOString(),
+                ] : null,
+                'ships' => $ships,
+                'stations' => $stations,
+            ],
+        ]);
+    }
+
     public function system(Request $request, string $system): JsonResponse
     {
         $canViewPreviousPopulation = Permissions::hasAny(
             $request->user(),
             ['is_intel', 'is_admin']
+        );
+        $canViewDroidBrainShips = Permissions::hasAny(
+            $request->user(),
+            ['is_intel', 'is_sysadmin']
         );
 
         $systemRecord = SwcSystem::query()
@@ -2090,6 +2315,42 @@ class UniverseController extends Controller
                 'modifier',
                 'last_pulled_at',
             ]);
+
+        $ships = $canViewDroidBrainShips
+            ? DB::table('droidbrain_ships_latest')
+                ->where('galx', $systemRecord->galx)
+                ->where('galy', $systemRecord->galy)
+                ->whereNotNull('sysx')
+                ->whereNotNull('sysy')
+                ->orderBy('name')
+                ->get([
+                    'entity_uid',
+                    'name',
+                    'owner_uid',
+                    'owner_name',
+                    'class_name',
+                    'type_name',
+                    'galx',
+                    'galy',
+                    'sysx',
+                    'sysy',
+                    'snapshot_unixtime',
+                ])
+                ->map(fn ($ship) => [
+                    'uid' => $ship->entity_uid,
+                    'name' => $ship->name,
+                    'owner_uid' => $ship->owner_uid,
+                    'owner_name' => $ship->owner_name,
+                    'class_name' => $ship->class_name,
+                    'type_name' => $ship->type_name,
+                    'galx' => $ship->galx,
+                    'galy' => $ship->galy,
+                    'sysx' => $ship->sysx,
+                    'sysy' => $ship->sysy,
+                    'snapshot_unixtime' => $ship->snapshot_unixtime,
+                ])
+                ->values()
+            : collect();
 
         return response()->json([
             'ok' => true,
@@ -2199,6 +2460,7 @@ class UniverseController extends Controller
                     ];
                 })->values(),
                 'hyperlanes' => $hyperlanes,
+                'ships' => $ships,
             ],
         ]);
     }

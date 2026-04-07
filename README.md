@@ -93,3 +93,11 @@ Included updates:
   Split direct-message polling onto its own claim path so JEN and Jobs can stay on the existing announcement route, added clearer bot-side non-JSON response logging for backend poll failures, and fixed the direct-message outbox claim response so it returns clean JSON instead of crashing on a Laravel collection merge error.
 - Payments page resilience
   Hardened the Payments page so the optional sysadmin unverified-support queue no longer takes down the full page if that backend request returns a temporary error, allowing the main payments data to keep loading while surfacing the support-queue problem as a smaller warning instead. This is intended to reduce impact from the Firefox-side failure being investigated, but it does not claim to eliminate the underlying backend error by itself.
+- Astrogation deep-space and location view
+  Added a dedicated astrogation location page for chart coordinates, fixed negative galaxy-coordinate route matching, and reworked the deep-space/location view so it uses the same shared viewport behavior and visual language as the in-system map.
+- DroidBrain location placement fixes
+  Corrected deep-space/location rendering for DroidBrain RSS scan entities by treating scan item `x/y` as the meaningful displayed placement coordinate, updated future RSS imports to store those coordinates as the primary map position, and cleaned up location-map presentation so stations and ships render in system-style quadrants with better station art and cleaner ship/location intel.
+- Deep-space DroidBrain controls
+  Added a `DroidBrain Intel` toggle to the location view, gated to intel/admin/sysadmin access, so deep-space DroidBrain ships and stations stay hidden until explicitly enabled.
+- Astrogation map state persistence
+  Extended the existing user `member_tool_preferences` record so astrogation now remembers the user’s last selected sector, selected system, map scope, and focus target, allowing the galaxy/sector view to reopen in the same context instead of resetting to the default first sector.

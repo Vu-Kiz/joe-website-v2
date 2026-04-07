@@ -866,108 +866,78 @@
   flex-wrap: wrap
   gap: 0.55rem
 
-.members-universe-system__map-chrome
-  position: absolute
-  inset: 0 auto auto 0
-  z-index: 2
-  display: flex
-  justify-content: space-between
-  gap: 0.75rem
-  width: 100%
-  padding: 0.9rem
-  pointer-events: none
-
-.members-universe-system__map-chrome-block
+.members-universe-system__map-shell
   display: grid
-  gap: 0.15rem
-  padding: 0.7rem 0.85rem
-  border: 1px solid rgba(246,163,0,0.18)
+  grid-template-columns: minmax(0, 1fr) 320px
+  gap: 1rem
+  align-items: start
+
+.members-universe-system__selection-panel
+  display: grid
+  gap: 0.75rem
+  padding: 0.95rem
   border-radius: 12px
-  background: linear-gradient(180deg, rgba(9,12,18,0.84), rgba(7,10,16,0.72))
-  box-shadow: 0 14px 34px rgba(0,0,0,0.28)
-  backdrop-filter: blur(8px)
+  border: 1px solid rgba(255,255,255,0.08)
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.025))
+  min-width: 0
+
+.members-universe-system__selection-head
+  display: grid
+  gap: 0.2rem
 
   strong
-    font-size: 0.95rem
+    font-size: 1.15rem
     color: rgba(255,255,255,0.96)
 
-.members-universe-system__map-chrome-block--right
-  text-align: right
-
-.members-universe-system__map-kicker
-  font-size: 0.68rem
+.members-universe-system__selection-label
+  color: rgba(246,163,0,0.95)
+  font-size: 0.74rem
   font-weight: 700
-  letter-spacing: 0.12em
+  letter-spacing: 0.06em
   text-transform: uppercase
-  color: rgba(246,163,0,0.84)
+
+.members-universe-system__layer-toggle
+  &.is-active
+    border-color: rgba(246,163,0,0.6)
+    background: rgba(246,163,0,0.12)
+    color: rgba(255,255,255,0.96)
 
 .members-universe-system__grid-cell
   position: relative
   display: flex
   align-items: center
   justify-content: center
+  width: 78px
+  height: 78px
   min-width: 78px
-  padding: 0.3rem
-  border-radius: 6px
+  min-height: 78px
+  appearance: none
+  padding: 0
+  border-radius: 0
   border-style: solid
-  border-color: rgba(118,145,201,0.12)
-  background: linear-gradient(180deg, rgba(10,14,24,0.86), rgba(7,10,17,0.82))
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04)
+  border-color: rgba(255,255,255,0.08)
+  background: transparent
+  box-shadow: none
   text-align: left
   pointer-events: auto
   overflow: hidden
-  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease, box-shadow 140ms ease
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease
 
   &::before
     content: ""
     position: absolute
     inset: 0
-    background: linear-gradient(180deg, rgba(112,157,255,0.08), transparent 44%)
-    opacity: 0.55
+    background: transparent
 
   &:hover
-    border-color: rgba(120,170,255,0.32)
-    background: linear-gradient(180deg, rgba(15,22,36,0.92), rgba(9,14,24,0.88))
-    transform: translateY(-1px)
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 18px rgba(0,0,0,0.2)
-
-  &.has-content
-    border-color: rgba(108,168,255,0.28)
-    background: radial-gradient(circle at 50% 50%, rgba(95,155,255,0.14), transparent 62%), linear-gradient(180deg, rgba(12,19,31,0.92), rgba(8,12,21,0.9))
+    border-color: rgba(255,255,255,0.16)
+    background: rgba(255,255,255,0.03)
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04)
 
   &.is-active
     border-color: rgba(246,163,0,0.68)
-    background: radial-gradient(circle at 50% 50%, rgba(246,163,0,0.2), transparent 62%), linear-gradient(180deg, rgba(26,20,10,0.94), rgba(15,11,6,0.92))
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 0 0 1px rgba(246,163,0,0.26), 0 12px 24px rgba(0,0,0,0.24)
-
-.members-universe-system__grid-cell-coords
-  position: absolute
-  left: 7px
-  top: 6px
-  z-index: 1
-  font-size: 0.55rem
-  font-weight: 700
-  letter-spacing: 0.08em
-  text-transform: uppercase
-  color: rgba(197,211,255,0.62)
-
-.members-universe-system__grid-cell-count
-  position: absolute
-  right: 6px
-  bottom: 6px
-  z-index: 1
-  min-width: 18px
-  height: 18px
-  padding: 0 0.3rem
-  border-radius: 999px
-  display: inline-flex
-  align-items: center
-  justify-content: center
-  border: 1px solid rgba(246,163,0,0.28)
-  background: rgba(246,163,0,0.16)
-  color: rgba(255,232,192,0.98)
-  font-size: 0.62rem
-  font-weight: 800
+    background: rgba(246,163,0,0.08)
+    box-shadow: inset 0 0 0 1px rgba(246,163,0,0.2)
 
 .members-universe-system__grid-cell-body
   position: relative
@@ -979,49 +949,65 @@
   z-index: 1
 
 .members-universe-system__grid-cell-thumb
-  width: 34px
-  height: 34px
+  width: 90%
+  height: 90%
+  max-width: 70px
+  max-height: 70px
   border-radius: 50%
   object-fit: cover
-  opacity: 0.88
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 8px 18px rgba(0,0,0,0.25)
+  opacity: 0.96
+  box-shadow: none
 
 .members-universe-system__grid-cell-station-icon
   position: absolute
   right: 6px
   top: 6px
-  width: 18px
-  height: 18px
+  width: 34px
+  height: 34px
   border-radius: 4px
   object-fit: cover
-  opacity: 0.78
+  opacity: 0.72
+  z-index: 2
 
 .members-universe-system__grid-cell-dot
   position: absolute
-  right: 8px
-  top: 8px
-  width: 8px
-  height: 8px
+  right: 10px
+  top: 10px
+  width: 16px
+  height: 16px
   border-radius: 50%
-  background: rgba(246,163,0,0.96)
-  box-shadow: 0 0 0 2px rgba(0,0,0,0.24)
+  background: rgba(246,163,0,0.72)
+  z-index: 2
+
+.members-universe-system__grid-cell-ship-icon
+  position: absolute
+  left: 0
+  bottom: 0
+  width: 39px
+  height: 39px
+  object-fit: contain
+  object-position: left bottom
+  opacity: 1
+  z-index: 3
+  filter: drop-shadow(0 0 4px rgba(0,0,0,0.65))
+  pointer-events: none
 
 .members-universe-system__grid-hover
   position: absolute
   z-index: 3
   display: grid
-  gap: 0.35rem
-  min-width: 150px
-  max-width: 220px
-  padding: 0.65rem 0.8rem
+  gap: 0.18rem
+  min-width: 120px
+  max-width: 200px
+  padding: 0.55rem 0.75rem
   border-radius: 12px
-  border: 1px solid rgba(108,168,255,0.24)
-  background: linear-gradient(180deg, rgba(10,14,22,0.97), rgba(7,10,17,0.95))
-  box-shadow: 0 16px 36px rgba(0,0,0,0.34)
+  border: 1px solid rgba(246,163,0,0.45)
+  background: rgba(14,14,14,0.96)
+  box-shadow: 0 14px 32px rgba(0,0,0,0.34)
   pointer-events: none
 
   strong
-    font-size: 0.84rem
+    font-size: 0.8rem
     color: rgba(255,255,255,0.96)
 
 .members-universe-system__grid-hover-group
@@ -1029,10 +1015,9 @@
   gap: 0.15rem
 
 .members-universe-system__grid-hover-label
-  color: rgba(246,163,0,0.92)
+  color: rgba(246,163,0,0.98)
   font-weight: 700
-  text-transform: uppercase
-  letter-spacing: 0.04em
+  letter-spacing: 0
 
 .members-universe-system__cell-panel
   display: grid
@@ -1064,6 +1049,12 @@
   strong
     display: block
     margin-bottom: 0.2rem
+
+.members-universe-system__selection-ship-icon
+  width: 28px
+  height: 28px
+  object-fit: contain
+  opacity: 0.9
 
 .members-universe-system__panel
   min-width: 0
@@ -1111,6 +1102,75 @@
   font-weight: 700
   letter-spacing: 0.04em
   text-transform: uppercase
+
+.members-universe-location__layout
+  display: grid
+  grid-template-columns: repeat(2, minmax(0, 1fr))
+  gap: 1rem
+  align-items: start
+
+.members-universe-location__column
+  display: grid
+  gap: 1rem
+
+.members-universe-location__panel
+  display: grid
+  gap: 0.9rem
+
+.members-universe-location__chart-shell
+  min-width: 0
+
+.members-universe-location__chart-grid
+  gap: 0
+
+.members-universe-location__stack
+  display: grid
+  gap: 0.6rem
+
+.members-universe-location__line
+  display: grid
+  gap: 0.18rem
+
+.members-universe-location__filter-pill
+  appearance: none
+  cursor: pointer
+
+  &.is-active
+    border-color: rgba(246,163,0,0.65)
+    background: rgba(246,163,0,0.18)
+    color: rgba(255,255,255,0.98)
+
+.members-universe-location__ship-card
+  display: grid
+  gap: 0.35rem
+
+  strong
+    margin-bottom: 0
+
+.members-universe-location__list
+  display: grid
+  gap: 0.75rem
+
+.members-universe-location__item
+  display: grid
+  gap: 0.22rem
+  padding: 0.8rem 0.9rem
+  border: 1px solid rgba(255,255,255,0.1)
+  border-radius: 12px
+  background: rgba(255,255,255,0.03)
+  text-decoration: none
+  color: inherit
+
+  &:hover,
+  &:focus-visible
+    border-color: rgba(246,163,0,0.5)
+    background: rgba(246,163,0,0.08)
+
+.members-universe-location__note
+  display: grid
+  gap: 0.4rem
+  padding-top: 0.2rem
+  border-top: 1px solid rgba(255,255,255,0.08)
 
 .members-universe-map
   position: relative
@@ -1664,6 +1724,12 @@
     justify-content: flex-start
 
   .members-universe-system__layout
+    grid-template-columns: 1fr
+
+  .members-universe-system__map-shell
+    grid-template-columns: 1fr
+
+  .members-universe-location__layout
     grid-template-columns: 1fr
 
   .members-universe-map

@@ -1,0 +1,897 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, Navigate, useLocation, useParams } from "react-router-dom";
+import { fetchAuthMe, subscribeToAuthStateChange } from "../api/auth";
+import { getStoredLocation, type StoredLocationDetail } from "../api/universe";
+import { canAccessAdmin, canAccessDroidBrainFull, canAccessMembers } from "../auth/permissions";
+import ForbiddenState from "../components/common/ForbiddenState";
+import NotLoggedInState from "../components/common/NotLoggedInState";
+import BBCodeView from "../components/bbcode/BBCodeView";
+import UniverseDetailHero from "../components/common/UniverseDetailHero";
+import UniverseDetailImmersive from "../components/common/UniverseDetailImmersive";
+import useUniverseViewport from "../components/common/useUniverseViewport";
+import SystemIcon from "../assets/map/SystemIcon.png";
+import StationsDuelcon from "../assets/map/StationsDuelcon.png";
+import ShipIconBomber from "../assets/map/ships/Bomber.png";
+import ShipIconCapital from "../assets/map/ships/Capital.png";
+import ShipIconCargo from "../assets/map/ships/Cargo.png";
+import ShipIconFighter from "../assets/map/ships/Fighter.png";
+import ShipIconFrigate from "../assets/map/ships/Frigate.png";
+import ShipIconGunboat from "../assets/map/ships/Gunboat.png";
+import ShipIconHFreighter from "../assets/map/ships/HFreighter.png";
+import ShipIconLFreighter from "../assets/map/ships/LFreighter.png";
+import ShipIconSat from "../assets/map/ships/Sat.png";
+import ShipIconSuper from "../assets/map/ships/Super.png";
+import ShipIconVette from "../assets/map/ships/Vette.png";
+import ShipIconWreck from "../assets/map/ships/Wreck.png";
+import "../styles/main.sass";
+import "../styles/_admin.sass";
+import "../styles/_membersuniverse.sass";
+import "../styles/_sysuniverse.sass";
+
+const LOCATION_GRID_SIZE = 20;
+const LOCATION_CELL_SIZE = 78;
+const LOCATION_CANVAS_PADDING = 16;
+const LOCATION_VIEW_PADDING = 24;
+const LOCATION_MIN_ZOOM = 0.2;
+const LOCATION_MAX_ZOOM = 1.5;
+const LOCATION_ZOOM_STEP = 0.05;
+const LOCATION_TOOLTIP_WIDTH_ESTIMATE = 180;
+const LOCATION_TOOLTIP_HEIGHT_ESTIMATE = 112;
+const LOCATION_TOOLTIP_MARGIN = 12;
+
+type UniverseLocationRouteState = {
+  fromUniverseMap?: boolean;
+  sectorUid?: string | null;
+  galx?: number | null;
+  galy?: number | null;
+};
+
+function formatTimestamp(value: string | null | undefined) {
+  if (!value) {
+    return "Unknown";
+  }
+
+  try {
+    return new Date(value).toLocaleString();
+  } catch {
+    return value;
+  }
+}
+
+function formatCoords(x: number | null | undefined, y: number | null | undefined) {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    return "Unknown";
+  }
+
+  return `${x}, ${y}`;
+}
+
+function formatValue(value: string | number | null | undefined, fallback = "Unknown") {
+  if (value === null || value === undefined || value === "") {
+    return fallback;
+  }
+
+  return String(value);
+}
+
+function formatLocationLine(
+  item: Pick<
+    StoredLocationDetail["ships"][number],
+    "system_name" | "planet_name" | "city_name" | "sysx" | "sysy" | "surfx" | "surfy" | "groundx" | "groundy"
+  >
+) {
+  const systemSpaceX = Number.isFinite(item.surfx) ? item.surfx : item.sysx;
+  const systemSpaceY = Number.isFinite(item.surfy) ? item.surfy : item.sysy;
+  const coordinateLabel = Number.isFinite(item.groundx) && Number.isFinite(item.groundy)
+    ? `Ground ${item.groundx},${item.groundy}`
+    : item.planet_name || item.city_name
+      ? (Number.isFinite(item.surfx) && Number.isFinite(item.surfy) ? `Surface ${item.surfx},${item.surfy}` : null)
+      : (Number.isFinite(systemSpaceX) && Number.isFinite(systemSpaceY) ? `System Space ${systemSpaceX},${systemSpaceY}` : null);
+
+  const parts = [
+    item.system_name ? `System ${item.system_name}` : null,
+    item.planet_name ? `Planet ${item.planet_name}` : null,
+    item.city_name ? `City ${item.city_name}` : null,
+    coordinateLabel,
+  ].filter(Boolean);
+
+  return parts.join(" · ") || "No stored location detail";
+}
+
+function resolveLocationGridX(
+  item: Pick<StoredLocationDetail["ships"][number], "sysx" | "surfx">
+) {
+  return Number.isFinite(item.surfx) ? Number(item.surfx) : Number(item.sysx);
+}
+
+function resolveLocationGridY(
+  item: Pick<StoredLocationDetail["ships"][number], "sysy" | "surfy">
+) {
+  return Number.isFinite(item.surfy) ? Number(item.surfy) : Number(item.sysy);
+}
+
+function resolveLocationShipIcon(ship: StoredLocationDetail["ships"][number]): string {
+  const normalizedClass = String(ship.class_name ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+  const classIconMap: Record<string, string> = {
+    bomber: ShipIconBomber,
+    capital: ShipIconCapital,
+    cargo: ShipIconCargo,
+    fighter: ShipIconFighter,
+    frigate: ShipIconFrigate,
+    gunboat: ShipIconGunboat,
+    hfreighter: ShipIconHFreighter,
+    lfreighter: ShipIconLFreighter,
+    sat: ShipIconSat,
+    super: ShipIconSuper,
+    vette: ShipIconVette,
+    wreck: ShipIconWreck,
+  };
+
+  if (normalizedClass && classIconMap[normalizedClass]) {
+    return classIconMap[normalizedClass];
+  }
+
+  const text = `${ship.class_name ?? ""} ${ship.type_name ?? ""} ${ship.name ?? ""}`.toLowerCase();
+
+  if (text.includes("wreck")) return ShipIconWreck;
+  if (text.includes("sat")) return ShipIconSat;
+  if (text.includes("super")) return ShipIconSuper;
+  if (
+    text.includes("capital") ||
+    text.includes("dreadnaught") ||
+    text.includes("destroyer") ||
+    text.includes("battlecruiser") ||
+    text.includes("carrier")
+  ) return ShipIconCapital;
+  if (text.includes("frigate")) return ShipIconFrigate;
+  if (text.includes("corvette") || text.includes("vette")) return ShipIconVette;
+  if (text.includes("gunboat")) return ShipIconGunboat;
+  if (text.includes("bomber")) return ShipIconBomber;
+  if (text.includes("fighter") || text.includes("interceptor") || text.includes("starfighter")) return ShipIconFighter;
+  if (text.includes("heavy freighter")) return ShipIconHFreighter;
+  if (text.includes("light freighter")) return ShipIconLFreighter;
+  if (text.includes("cargo") || text.includes("transport") || text.includes("freighter")) return ShipIconCargo;
+
+  return ShipIconCargo;
+}
+
+function resolveLocationShipRole(ship: StoredLocationDetail["ships"][number]): string {
+  const normalizedClass = String(ship.class_name ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+  const classLabelMap: Record<string, string> = {
+    bomber: "Bomber",
+    capital: "Capital",
+    cargo: "Cargo",
+    fighter: "Fighter",
+    frigate: "Frigate",
+    gunboat: "Gunboat",
+    hfreighter: "Heavy Freighter",
+    lfreighter: "Light Freighter",
+    sat: "Satellite",
+    super: "Super Capital",
+    vette: "Corvette",
+    wreck: "Wreck",
+  };
+
+  if (normalizedClass && classLabelMap[normalizedClass]) {
+    return classLabelMap[normalizedClass];
+  }
+
+  const text = `${ship.class_name ?? ""} ${ship.type_name ?? ""} ${ship.name ?? ""}`.toLowerCase();
+
+  if (text.includes("wreck")) return "Wreck";
+  if (text.includes("sat") || text.includes("satellite") || text.includes("probe")) return "Satellite";
+  if (text.includes("super")) return "Super Capital";
+  if (
+    text.includes("capital") ||
+    text.includes("dreadnaught") ||
+    text.includes("destroyer") ||
+    text.includes("battlecruiser") ||
+    text.includes("carrier") ||
+    text.includes("cruiser") ||
+    text.includes("bulk cruiser")
+  ) return "Capital";
+  if (text.includes("frigate")) return "Frigate";
+  if (text.includes("corvette") || text.includes("vette")) return "Corvette";
+  if (text.includes("gunboat")) return "Gunboat";
+  if (text.includes("bomber")) return "Bomber";
+  if (text.includes("fighter") || text.includes("interceptor") || text.includes("starfighter")) return "Fighter";
+  if (text.includes("heavy freighter")) return "Heavy Freighter";
+  if (text.includes("light freighter")) return "Light Freighter";
+  if (
+    text.includes("cargo") ||
+    text.includes("transport") ||
+    text.includes("freighter") ||
+    text.includes("yt-") ||
+    text.includes("action ")
+  ) return "Cargo";
+
+  return "Ship";
+}
+
+function resolveLocationStationIcon(station: StoredLocationDetail["stations"][number]): string {
+  return station.icon_url ?? station.image_url ?? StationsDuelcon;
+}
+
+function resolveLocationShipTitle(ship: StoredLocationDetail["ships"][number], index: number): string {
+  const trimmedName = String(ship.name ?? "").trim();
+  if (trimmedName && trimmedName.toLowerCase() !== "[no name]") {
+    return trimmedName;
+  }
+
+  return ship.type_name ?? ship.class_name ?? ship.uid ?? `Ship ${index + 1}`;
+}
+
+const MembersUniverseLocationPage: React.FC = () => {
+  const { galx, galy } = useParams<{ galx: string; galy: string }>();
+  const location = useLocation();
+  const routeState = (location.state ?? null) as UniverseLocationRouteState | null;
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [canSeeMembers, setCanSeeMembers] = useState(false);
+  const [canSeeDroidBrain, setCanSeeDroidBrain] = useState(false);
+  const [showDroidBrainIntel, setShowDroidBrainIntel] = useState(false);
+  const [authRefreshNonce, setAuthRefreshNonce] = useState(0);
+  const [detail, setDetail] = useState<StoredLocationDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedLocationCell, setSelectedLocationCell] = useState<{ x: number; y: number } | null>(null);
+  const [selectedShipRoleFilter, setSelectedShipRoleFilter] = useState<string | null>(null);
+  const [hoveredLocationCell, setHoveredLocationCell] = useState<{
+    x: number;
+    y: number;
+    left: number;
+    top: number;
+    transform: string;
+    stations: StoredLocationDetail["stations"];
+    ships: StoredLocationDetail["ships"];
+  } | null>(null);
+  const parsedGalx = Number(galx);
+  const parsedGaly = Number(galy);
+  const locationFitKey = Number.isFinite(parsedGalx) && Number.isFinite(parsedGaly)
+    ? `${parsedGalx}:${parsedGaly}`
+    : null;
+  const {
+    viewportRef: locationViewportRef,
+    viewportEl: locationViewportEl,
+    zoom: locationZoom,
+    offset: locationOffset,
+    isDragging: isDraggingLocation,
+    resetViewport: resetLocationViewport,
+    handleMouseDown: handleLocationMouseDown,
+    handleMouseMove: handleLocationMouseMove,
+    handleMouseUp: handleLocationMouseUp,
+    handleMouseLeave: handleLocationMouseLeave,
+  } = useUniverseViewport({
+    fitKey: locationFitKey,
+    worldWidth: LOCATION_GRID_SIZE * LOCATION_CELL_SIZE + LOCATION_CANVAS_PADDING * 2,
+    worldHeight: LOCATION_GRID_SIZE * LOCATION_CELL_SIZE + LOCATION_CANVAS_PADDING * 2,
+    minZoom: LOCATION_MIN_ZOOM,
+    maxZoom: LOCATION_MAX_ZOOM,
+    zoomStep: LOCATION_ZOOM_STEP,
+    viewPadding: LOCATION_VIEW_PADDING,
+    onViewportReset: () => {
+      setSelectedLocationCell(null);
+      setSelectedShipRoleFilter(null);
+      setShowDroidBrainIntel(false);
+      setHoveredLocationCell(null);
+    },
+  });
+
+  useEffect(() => {
+    return subscribeToAuthStateChange(() => {
+      setAuthRefreshNonce((value) => value + 1);
+    });
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const auth = await fetchAuthMe();
+        if (cancelled) return;
+        setIsLoggedIn(!!auth?.user);
+        setCanSeeMembers(canAccessMembers(auth?.user ?? null));
+        setCanSeeDroidBrain(
+          canAccessDroidBrainFull(auth?.user ?? null) || canAccessAdmin(auth?.user ?? null)
+        );
+      } catch {
+        if (!cancelled) {
+          setIsLoggedIn(false);
+          setCanSeeMembers(false);
+          setCanSeeDroidBrain(false);
+        }
+      } finally {
+        if (!cancelled) {
+          setAuthChecked(true);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authRefreshNonce]);
+
+  useEffect(() => {
+    if (!authChecked) {
+      return;
+    }
+
+    if (
+      !isLoggedIn ||
+      !canSeeMembers ||
+      !Number.isFinite(parsedGalx) ||
+      !Number.isFinite(parsedGaly)
+    ) {
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await getStoredLocation(parsedGalx, parsedGaly);
+
+        if (!cancelled) {
+          setDetail(response.data ?? null);
+        }
+      } catch (e: any) {
+        if (!cancelled) {
+          setDetail(null);
+          setError(e?.message ?? "Failed to load stored location.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authChecked, canSeeMembers, isLoggedIn, parsedGalx, parsedGaly]);
+
+  const intelPills = useMemo(() => {
+    if (!detail?.search_record) {
+      return [];
+    }
+
+    const pills: string[] = [];
+    if (detail.search_record.is_system_searched) pills.push("Searched");
+    if (detail.search_record.has_asteroids) pills.push("Asteroids");
+    if (detail.search_record.has_ships) pills.push("Ships");
+    if (detail.search_record.has_stations) pills.push("Stations");
+    if (detail.search_record.planetoid_1_size) pills.push(`Planetoid 1 ${detail.search_record.planetoid_1_size}`);
+    if (detail.search_record.planetoid_2_size) pills.push(`Planetoid 2 ${detail.search_record.planetoid_2_size}`);
+    if (detail.search_record.is_rescan_due) pills.push("Rescan Due");
+    return pills;
+  }, [detail?.search_record]);
+
+  const normalizedError = useMemo(() => {
+    const message = String(error ?? "").trim();
+    if (/api\/universe\/locations\/\d+\/-?\d+.*could not be found/i.test(message)) {
+      return "This backend does not have the location-detail route live yet. Deploy or restart the backend, then try this location again.";
+    }
+
+    return error;
+  }, [error]);
+
+  const mapCells = useMemo(() => {
+    const stations = detail?.stations
+      .map((station) => ({
+        ...station,
+        placementX: resolveLocationGridX(station),
+        placementY: resolveLocationGridY(station),
+      }))
+      .filter((station) => Number.isFinite(station.placementX) && Number.isFinite(station.placementY)) ?? [];
+    const ships = detail?.ships
+      .map((ship) => ({
+        ...ship,
+        placementX: resolveLocationGridX(ship),
+        placementY: resolveLocationGridY(ship),
+      }))
+      .filter((ship) => Number.isFinite(ship.placementX) && Number.isFinite(ship.placementY)) ?? [];
+
+    return Array.from({ length: LOCATION_GRID_SIZE }, (_, rowIndex) =>
+      Array.from({ length: LOCATION_GRID_SIZE }, (_, colIndex) => {
+        const x = colIndex;
+        const y = rowIndex;
+
+        return {
+          x,
+          y,
+          stations: stations.filter(
+            (station) => Number(station.placementX) === x && Number(station.placementY) === y
+          ),
+          ships: ships.filter(
+            (ship) => Number(ship.placementX) === x && Number(ship.placementY) === y
+          ),
+        };
+      })
+    );
+  }, [detail]);
+
+  const selectedCellData = selectedLocationCell
+    ? mapCells
+        .flat()
+        .find((cell) => cell.x === selectedLocationCell.x && cell.y === selectedLocationCell.y) ?? null
+    : null;
+  const selectedShipRoleGroups = selectedCellData
+    ? Array.from(
+        selectedCellData.ships.reduce((groups, ship) => {
+          const role = resolveLocationShipRole(ship);
+          groups.set(role, (groups.get(role) ?? 0) + 1);
+          return groups;
+        }, new Map<string, number>())
+      ).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    : [];
+  const filteredSelectedShips = selectedCellData?.ships.filter((ship) =>
+    !selectedShipRoleFilter || resolveLocationShipRole(ship) === selectedShipRoleFilter
+  ) ?? [];
+
+  useEffect(() => {
+    setSelectedShipRoleFilter(null);
+  }, [selectedLocationCell?.x, selectedLocationCell?.y]);
+
+  if (!authChecked || loading) {
+    return (
+      <section className="members-universe-system">
+        <div className="admin-card">
+          <p className="small">Loading location…</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return <NotLoggedInState title="Astrogation" message="Please log in to view stored chart locations." />;
+  }
+
+  if (!canSeeMembers) {
+    return <ForbiddenState title="Astrogation" message="You do not have access to stored chart locations." />;
+  }
+
+  if (!Number.isFinite(parsedGalx) || !Number.isFinite(parsedGaly)) {
+    return <Navigate to="/members" replace />;
+  }
+
+  const heading = detail?.location.primary_label ?? "Chart Location";
+  return (
+    <section className="members-universe-system members-universe-location">
+      <div className="members-tool-back">
+        <Link className="btn btn--small" to="/members">
+          Back To Tools Overview
+        </Link>
+      </div>
+
+      <UniverseDetailHero
+        eyebrow="Astrogation Location"
+        title={heading}
+        meta={
+          <>
+            <span>
+              Chart {detail ? formatCoords(detail.location.galx, detail.location.galy) : formatCoords(parsedGalx, parsedGaly)}
+            </span>
+            <span className="admin-badge admin-badge--soft">
+              {detail?.location.sector_name ?? routeState?.sectorUid ?? "Unknown Sector"}
+            </span>
+            {detail?.location.within_scan_window ? (
+              <span className="admin-badge admin-badge--soft">Within Scan Window</span>
+            ) : null}
+            {intelPills.map((pill) => (
+              <span key={pill} className="admin-badge admin-badge--soft">
+                {pill}
+              </span>
+            ))}
+          </>
+        }
+        backLabel="Back to Astrogation"
+        backTo="/members"
+        backState={{ membersView: "universe" }}
+      />
+
+      {normalizedError ? (
+        <div className="admin-card">
+          <p className="small" style={{ color: "salmon", margin: 0 }}>
+            {normalizedError}
+          </p>
+        </div>
+      ) : null}
+
+      <UniverseDetailImmersive
+        title="Location View"
+        toolbar={
+          <div className="sysuniverse-toolbar">
+            <div className="sysuniverse-toolbar__actions">
+              {canSeeDroidBrain && ((detail?.ships.length ?? 0) > 0 || (detail?.stations.length ?? 0) > 0) ? (
+                <button
+                  className={`btn members-universe-system__layer-toggle ${showDroidBrainIntel ? "is-active" : ""}`}
+                  type="button"
+                  onClick={() => setShowDroidBrainIntel((value) => !value)}
+                >
+                  DroidBrain Intel
+                </button>
+              ) : null}
+              <span className="small">Zoom: {locationZoom.toFixed(2)}x</span>
+              <button className="btn" type="button" onClick={resetLocationViewport}>
+                Reset View
+              </button>
+            </div>
+          </div>
+        }
+        copy="Scroll to zoom, drag to move, and inspect the stored chart square the same way as the system view."
+        viewport={
+          <div className="members-universe-location__chart-shell">
+            <div
+              ref={locationViewportRef}
+              className={`sysuniverse-map-viewport sysuniverse-map-viewport--system ${isDraggingLocation ? "is-dragging" : ""}`}
+              style={{ overscrollBehavior: "contain", touchAction: "none" }}
+              onMouseDown={handleLocationMouseDown}
+              onMouseMove={(event) => {
+                if (isDraggingLocation) {
+                  handleLocationMouseMove(event);
+                  setHoveredLocationCell(null);
+                }
+              }}
+              onMouseUp={handleLocationMouseUp}
+              onMouseLeave={() => {
+                handleLocationMouseLeave();
+                setHoveredLocationCell(null);
+              }}
+            >
+              <div className="sysuniverse-map-viewport__stars" />
+              <div
+                className="sysuniverse-map-canvas"
+                style={{
+                  transform: `translate(${locationOffset.x}px, ${locationOffset.y}px) scale(${locationZoom})`,
+                }}
+              >
+                {mapCells.map((row, rowIndex) => (
+                  <div
+                    key={`location-row-${rowIndex}`}
+                    className="sysuniverse-grid-row members-universe-location__chart-grid"
+                    style={{ gridTemplateColumns: `repeat(${row.length}, ${LOCATION_CELL_SIZE}px)` }}
+                    aria-hidden="true"
+                  >
+                    {row.map((cell) => {
+                      const occupancy = cell.stations.length + cell.ships.length;
+                      const isSelected =
+                        selectedLocationCell?.x === cell.x && selectedLocationCell?.y === cell.y;
+
+                      return (
+                        <button
+                          key={`location-cell-${cell.x}-${cell.y}`}
+                          className={`btn members-universe-system__grid-cell ${occupancy > 0 ? "has-content" : ""} ${isSelected ? "is-active" : ""}`}
+                          type="button"
+                          onClick={() => setSelectedLocationCell({ x: cell.x, y: cell.y })}
+                          onMouseEnter={(event) => {
+                            if (isDraggingLocation) return;
+                            const rect = event.currentTarget.getBoundingClientRect();
+                            const viewportRect =
+                              locationViewportEl?.getBoundingClientRect() ?? rect;
+                            const cellCenterX = rect.left - viewportRect.left + rect.width / 2;
+                            const tooltipHalfWidth = LOCATION_TOOLTIP_WIDTH_ESTIMATE / 2;
+                            const maxLeft =
+                              viewportRect.width - LOCATION_TOOLTIP_MARGIN - tooltipHalfWidth;
+                            const minLeft = LOCATION_TOOLTIP_MARGIN + tooltipHalfWidth;
+                            const clampedLeft = Math.min(maxLeft, Math.max(minLeft, cellCenterX));
+                            const preferredTop = rect.top - viewportRect.top - 10;
+                            const canRenderAbove =
+                              preferredTop - LOCATION_TOOLTIP_HEIGHT_ESTIMATE >= LOCATION_TOOLTIP_MARGIN;
+                            const tooltipTop = canRenderAbove
+                              ? preferredTop
+                              : rect.bottom - viewportRect.top + 10;
+                            setHoveredLocationCell({
+                              x: cell.x,
+                              y: cell.y,
+                              left: clampedLeft,
+                              top: tooltipTop,
+                              transform: canRenderAbove ? "translate(-50%, -100%)" : "translate(-50%, 0)",
+                              stations: cell.stations,
+                              ships: canSeeDroidBrain ? cell.ships : [],
+                            });
+                          }}
+                          onMouseLeave={() => {
+                            setHoveredLocationCell((current) =>
+                              current?.x === cell.x && current?.y === cell.y ? null : current
+                            );
+                          }}
+                          style={{
+                            minHeight: 72,
+                            borderWidth: `${Math.max(1, 1.15 / Math.max(locationZoom, LOCATION_MIN_ZOOM))}px`,
+                          }}
+                        >
+                          <div className="members-universe-system__grid-cell-body">
+                            {showDroidBrainIntel ? cell.stations.slice(0, 1).map((station, index) => (
+                              <img
+                                key={`${station.uid ?? station.name ?? index}-station`}
+                                src={resolveLocationStationIcon(station)}
+                                alt={station.type_name ?? station.name ?? "Station"}
+                                className="members-universe-system__grid-cell-station-icon"
+                              />
+                            )) : null}
+                            {canSeeDroidBrain && showDroidBrainIntel
+                              ? cell.ships.slice(0, 1).map((ship, index) => (
+                                  <img
+                                    key={`${ship.uid ?? ship.name ?? index}-ship`}
+                                    src={resolveLocationShipIcon(ship)}
+                                    alt={ship.class_name ?? ship.type_name ?? ship.name ?? "Ship"}
+                                    className="members-universe-system__grid-cell-ship-icon"
+                                  />
+                                ))
+                              : null}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+              {hoveredLocationCell ? (
+                <div
+                  className="members-universe-system__grid-hover"
+                  style={{
+                    left: hoveredLocationCell.left,
+                    top: hoveredLocationCell.top,
+                    transform: hoveredLocationCell.transform,
+                  }}
+                >
+                  <strong>
+                    {hoveredLocationCell.x}, {hoveredLocationCell.y}
+                  </strong>
+                  {hoveredLocationCell.stations.length > 0 ? (
+                    <div className="members-universe-system__grid-hover-group">
+                      <span className="small members-universe-system__grid-hover-label">Station</span>
+                      {hoveredLocationCell.stations.slice(0, 3).map((station, index) => (
+                        <span key={`${station.uid ?? station.name ?? index}`} className="small">
+                          {station.name ?? `Station ${index + 1}`}
+                          {station.type_name ? ` · ${station.type_name}` : ""}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  {showDroidBrainIntel && hoveredLocationCell.ships.length > 0 ? (
+                    <div className="members-universe-system__grid-hover-group">
+                      <span className="small members-universe-system__grid-hover-label">Ship</span>
+                      <span className="small">
+                        {hoveredLocationCell.ships.length} ship{hoveredLocationCell.ships.length === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                  ) : null}
+                  {hoveredLocationCell.stations.length === 0 && hoveredLocationCell.ships.length === 0 ? (
+                    <span className="small">Empty coordinate</span>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        }
+        selection={
+          <>
+            <div className="members-universe-system__selection-head">
+              <span className="members-universe-system__selection-label">Selected Location</span>
+              <strong>{formatCoords(detail?.location.galx ?? parsedGalx, detail?.location.galy ?? parsedGaly)}</strong>
+            </div>
+
+            <div className="members-universe-system__cell-panel">
+              <div className="members-universe-system__cell-group">
+                <span className="small">Sector</span>
+                <strong>{detail?.location.sector_name ?? routeState?.sectorUid ?? "Unknown Sector"}</strong>
+              </div>
+              <div className="members-universe-system__cell-group">
+                <span className="small">Primary Label</span>
+                <strong>{heading}</strong>
+              </div>
+              {detail?.location.within_scan_window ? (
+                <div className="members-universe__meta">
+                  <span className="admin-badge admin-badge--soft">Within Scan Window</span>
+                </div>
+              ) : null}
+              {intelPills.length > 0 ? (
+                <div className="members-universe__meta">
+                  {intelPills.map((pill) => (
+                    <span key={pill} className="admin-badge admin-badge--soft">
+                      {pill}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            {detail?.systems.length ? (
+              <div className="members-universe-system__cell-panel">
+                <div className="members-universe-system__cell-group">
+                  <span className="small">Systems At This Location</span>
+                  <div className="members-universe-system__cell-chip-grid">
+                    {detail.systems.map((system, index) => (
+                      <div
+                        key={`${system.uid ?? system.name ?? index}`}
+                        className="members-universe-system__cell-chip"
+                      >
+                        <img
+                          src={SystemIcon}
+                          alt={system.name ?? system.identifier ?? system.uid ?? "System"}
+                          className="members-universe-system__selection-ship-icon"
+                        />
+                        <div>
+                          <strong>{system.name ?? system.identifier ?? system.uid ?? `System ${index + 1}`}</strong>
+                          <span className="small">{system.owner_name ?? "No owner"}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="members-universe-system__cell-panel">
+              <div className="members-universe-system__cell-group">
+                <span className="small">Location Intel</span>
+                {detail?.search_record ? (
+                  <div className="members-universe-location__stack">
+                    {detail.search_record.square_name ? (
+                      <div className="members-universe-location__line">
+                        <span className="small">Label</span>
+                        <strong>{detail.search_record.square_name}</strong>
+                      </div>
+                    ) : null}
+                    {detail.search_record.asteroid_uid ? (
+                      <div className="members-universe-location__line">
+                        <span className="small">Asteroid UID</span>
+                        <strong>{detail.search_record.asteroid_uid}</strong>
+                      </div>
+                    ) : null}
+                    {detail.search_record.handle ? (
+                      <div className="members-universe-location__line">
+                        <span className="small">Recorded By</span>
+                        <strong>{detail.search_record.handle}</strong>
+                      </div>
+                    ) : null}
+                    {detail.search_record.legacy_recorded_at ? (
+                      <div className="members-universe-location__line">
+                        <span className="small">Recorded</span>
+                        <strong>{formatTimestamp(detail.search_record.legacy_recorded_at)}</strong>
+                      </div>
+                    ) : null}
+                    {detail.search_record.rescan_due_at ? (
+                      <div className="members-universe-location__line">
+                        <span className="small">Rescan Due</span>
+                        <strong>{formatTimestamp(detail.search_record.rescan_due_at)}</strong>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="small">No stored asteroid or scan record for this chart location.</p>
+                )}
+              </div>
+
+              {detail?.annotation?.notes ? (
+                <div className="members-universe-location__note">
+                  <span className="small">Location Note</span>
+                  <BBCodeView value={detail.annotation.notes} className="small members-universe-map__note-body" />
+                </div>
+              ) : null}
+            </div>
+
+            {!selectedCellData ? (
+              <p className="small sysuniverse-copy-reset">
+                Click a coordinate on the location chart to inspect the ships and stations placed there.
+              </p>
+            ) : null}
+
+            {showDroidBrainIntel && selectedCellData?.stations.length ? (
+              <div className="members-universe-system__cell-group">
+                <span className="small">Stations</span>
+                <div className="members-universe-system__cell-chip-grid">
+                  {selectedCellData.stations.map((station, index) => (
+                    <div
+                      key={`${station.uid ?? station.name ?? index}`}
+                      className="members-universe-system__cell-chip"
+                    >
+                      <img
+                        src={resolveLocationStationIcon(station)}
+                        alt={station.type_name ?? station.name ?? "Station"}
+                        className="members-universe-system__selection-ship-icon"
+                      />
+                      <div>
+                        <strong>{station.name ?? `Station ${index + 1}`}</strong>
+                        <span className="small">{station.type_name ?? "Unknown type"}</span>
+                        <span className="small">{formatValue(station.owner_name, "No owner")}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {showDroidBrainIntel && selectedCellData?.ships.length ? (
+              <div className="members-universe-system__cell-group">
+                <span className="small">DroidBrain Ships</span>
+                {selectedShipRoleGroups.length ? (
+                  <div className="members-universe__meta">
+                    {selectedShipRoleGroups.map(([role, count]) => (
+                      <button
+                        key={role}
+                        type="button"
+                        className={`admin-badge admin-badge--soft members-universe-location__filter-pill ${selectedShipRoleFilter === role ? "is-active" : ""}`}
+                        onClick={() =>
+                          setSelectedShipRoleFilter((current) => (current === role ? null : role))
+                        }
+                      >
+                        {role}
+                        {count > 1 ? ` x${count}` : ""}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                {!selectedShipRoleFilter ? (
+                  <p className="small">Click a ship-type pill to expand that ship list.</p>
+                ) : null}
+                {selectedShipRoleFilter ? (
+                  <div className="members-universe-system__cell-chip-grid">
+                    {filteredSelectedShips.map((ship, index) => (
+                      <div key={`${ship.uid ?? ship.name ?? index}`} className="members-universe-system__cell-chip">
+                        <img
+                          src={resolveLocationShipIcon(ship)}
+                          alt={ship.class_name ?? ship.type_name ?? ship.name ?? "Ship"}
+                          className="members-universe-system__selection-ship-icon"
+                        />
+                        <div className="members-universe-location__ship-card">
+                          <strong>{resolveLocationShipTitle(ship, index)}</strong>
+                          <div className="members-universe__meta">
+                            <span className="admin-badge admin-badge--soft">
+                              {resolveLocationShipRole(ship)}
+                            </span>
+                            {ship.type_name ? (
+                              <span className="admin-badge admin-badge--soft">
+                                {ship.type_name}
+                              </span>
+                            ) : null}
+                          </div>
+                          {ship.uid ? (
+                            <span className="small">
+                              UID: {ship.uid}
+                            </span>
+                          ) : null}
+                          <span className="small">
+                            Owner: {formatValue(ship.owner_name, "No owner")}
+                          </span>
+                          <span className="small">
+                            Position: {formatLocationLine(ship)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                {selectedShipRoleFilter && filteredSelectedShips.length === 0 ? (
+                  <p className="small">No ships in this coordinate match `{selectedShipRoleFilter}`.</p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {selectedCellData &&
+            (!showDroidBrainIntel ||
+              (selectedCellData.stations.length === 0 &&
+                selectedCellData.ships.length === 0)) ? (
+              <p className="small sysuniverse-copy-reset">Nothing is registered at this coordinate.</p>
+            ) : null}
+          </>
+        }
+      />
+    </section>
+  );
+};
+
+export default MembersUniverseLocationPage;

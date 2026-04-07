@@ -566,6 +566,8 @@ class DroidBrainUploadService
             $snapshotUnix
         );
         $tags = "scan\nstate:" . $state;
+        $scanItemX = $this->toIntOrNull($node->x ?? null);
+        $scanItemY = $this->toIntOrNull($node->y ?? null);
 
         if ($entityType === 'ships') {
             DB::table('droidbrain_ships')->insert([
@@ -580,10 +582,12 @@ class DroidBrainUploadService
                 'system_name' => $location['system_name'],
                 'galx' => $location['galx'],
                 'galy' => $location['galy'],
-                'sysx' => $location['sysx'],
-                'sysy' => $location['sysy'],
-                'surfx' => $this->toIntOrNull($node->x ?? null),
-                'surfy' => $this->toIntOrNull($node->y ?? null),
+                // RSS scan items only provide item-level x/y, so treat that as the primary
+                // map placement instead of the shared scan-square system coordinate.
+                'sysx' => $scanItemX ?? $location['sysx'],
+                'sysy' => $scanItemY ?? $location['sysy'],
+                'surfx' => null,
+                'surfy' => null,
                 'class_name' => $catalog['class_name'] ?? null,
                 'class_id' => null,
                 'type_name' => $catalog['type_name'] ?? $typeName,
@@ -614,10 +618,12 @@ class DroidBrainUploadService
                 'system_name' => $location['system_name'],
                 'galx' => $location['galx'],
                 'galy' => $location['galy'],
-                'sysx' => $location['sysx'],
-                'sysy' => $location['sysy'],
-                'surfx' => $this->toIntOrNull($node->x ?? null),
-                'surfy' => $this->toIntOrNull($node->y ?? null),
+                // RSS scan items only provide item-level x/y, so treat that as the primary
+                // map placement instead of the shared scan-square system coordinate.
+                'sysx' => $scanItemX ?? $location['sysx'],
+                'sysy' => $scanItemY ?? $location['sysy'],
+                'surfx' => null,
+                'surfy' => null,
                 'class_name' => $catalog['class_name'] ?? null,
                 'class_id' => null,
                 'type_name' => $catalog['type_name'] ?? $typeName,

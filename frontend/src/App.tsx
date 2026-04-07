@@ -16,6 +16,7 @@ import { fetchSiteLockStatus } from "./api/siteLock";
 import SysDebugPage from "./pages/SysDebugPage";
 import SysUniversePage from "./pages/SysUniversePage";
 import MembersUniverseSystemPage from "./pages/MembersUniverseSystemPage";
+import MembersUniverseLocationPage from "./pages/MembersUniverseLocationPage";
 
 function App() {
   const [checkingSiteLock, setCheckingSiteLock] = useState(true);
@@ -87,6 +88,7 @@ function App() {
           <Route path="/aboutme" element={<AboutMe />} />
           <Route path="/jen" element={<JenPage />} />
           <Route path="/members" element={<MembersPage />} />
+          <Route path="/members/universe/location/:galx/:galy" element={<MembersUniverseLocationPage />} />
           <Route path="/members/universe/system/:systemIdentifier" element={<MembersUniverseSystemPage />} />
           <Route path="/payments" element={<PaymentsPage />} />
           <Route path="/intel/droidbrain" element={<DroidBrainPage />} />

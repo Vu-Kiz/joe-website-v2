@@ -136,6 +136,9 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
     Route::delete('/universe/hyper-plans/{hyperPlan}', [UniverseController::class, 'deleteHyperPlan']);
     Route::get('/universe/search-records', [UniverseController::class, 'searchRecords']);
     Route::get('/universe/sectors/{sector}', [UniverseController::class, 'sector']);
+    Route::get('/universe/locations/{galx}/{galy}', [UniverseController::class, 'location'])
+        ->where('galx', '-?[0-9]+')
+        ->where('galy', '-?[0-9]+');
     Route::get('/universe/systems/{system}', [UniverseController::class, 'system']);
     Route::get('/universe/cell-annotations', [CellAnnotationController::class, 'index']);
     Route::post('/universe/cell-annotations', [CellAnnotationController::class, 'upsert']);

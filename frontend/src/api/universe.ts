@@ -376,6 +376,83 @@ export type StoredSystemDetail = {
     modifier: number | null;
     last_pulled_at: string | null;
   }>;
+  ships: Array<{
+    uid: string | null;
+    name: string | null;
+    owner_uid: string | null;
+    owner_name: string | null;
+    class_name: string | null;
+    type_name: string | null;
+    galx: number | null;
+    galy: number | null;
+    sysx: number | null;
+    sysy: number | null;
+    snapshot_unixtime: number | null;
+  }>;
+};
+
+export type StoredLocationDetail = {
+  resource: "location";
+  location: {
+    galx: number;
+    galy: number;
+    primary_label: string;
+    sector_uid: string | null;
+    sector_name: string | null;
+    within_scan_window: boolean;
+  };
+  systems: Array<{
+    uid: string | null;
+    identifier: string | null;
+    name: string | null;
+    sector_uid: string | null;
+    sector_name: string | null;
+    owner_uid: string | null;
+    owner_name: string | null;
+    galx: number | null;
+    galy: number | null;
+    last_pulled_at: string | null;
+  }>;
+  search_record: SectorSearchRecord | null;
+  annotation: SectorCellAnnotation | null;
+  ships: Array<{
+    uid: string | null;
+    name: string | null;
+    owner_uid: string | null;
+    owner_name: string | null;
+    class_name: string | null;
+    type_name: string | null;
+    system_name: string | null;
+    planet_name: string | null;
+    city_name: string | null;
+    sysx: number | null;
+    sysy: number | null;
+    surfx: number | null;
+    surfy: number | null;
+    groundx: number | null;
+    groundy: number | null;
+    snapshot_unixtime: number | null;
+  }>;
+  stations: Array<{
+    uid: string | null;
+    name: string | null;
+    owner_uid: string | null;
+    owner_name: string | null;
+    class_name: string | null;
+    type_name: string | null;
+    image_url: string | null;
+    icon_url: string | null;
+    system_name: string | null;
+    planet_name: string | null;
+    city_name: string | null;
+    sysx: number | null;
+    sysy: number | null;
+    surfx: number | null;
+    surfy: number | null;
+    groundx: number | null;
+    groundy: number | null;
+    snapshot_unixtime: number | null;
+  }>;
 };
 
 export type StoredStationTypeSummary = {
@@ -859,6 +936,12 @@ export function saveStoredSearchRecord(payload: {
 export function getStoredSystem(system: string) {
   return apiFetch<{ ok: boolean; data: StoredSystemDetail }>(
     `/universe/systems/${encodeURIComponent(system)}`
+  );
+}
+
+export function getStoredLocation(galx: number, galy: number) {
+  return apiFetch<{ ok: boolean; data: StoredLocationDetail }>(
+    `/universe/locations/${encodeURIComponent(String(galx))}/${encodeURIComponent(String(galy))}`
   );
 }
 

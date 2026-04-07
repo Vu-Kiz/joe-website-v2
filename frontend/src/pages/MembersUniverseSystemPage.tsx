@@ -1,11 +1,25 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Link, Navigate, useLocation, useParams } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { Navigate, useLocation, useParams } from "react-router-dom";
 import { fetchAuthMe, subscribeToAuthStateChange } from "../api/auth";
-import { canAccessMembers } from "../auth/permissions";
+import { canAccessDroidBrainFull, canAccessMembers } from "../auth/permissions";
 import ForbiddenState from "../components/common/ForbiddenState";
 import { getStoredSystem, type StoredSystemDetail } from "../api/universe";
-import { formatTimestampAsCgt, getCgtTime, type CgtResponse } from "../api/time";
 import NotLoggedInState from "../components/common/NotLoggedInState";
+import UniverseDetailHero from "../components/common/UniverseDetailHero";
+import UniverseDetailImmersive from "../components/common/UniverseDetailImmersive";
+import useUniverseViewport from "../components/common/useUniverseViewport";
+import ShipIconBomber from "../assets/map/ships/Bomber.png";
+import ShipIconCapital from "../assets/map/ships/Capital.png";
+import ShipIconCargo from "../assets/map/ships/Cargo.png";
+import ShipIconFighter from "../assets/map/ships/Fighter.png";
+import ShipIconFrigate from "../assets/map/ships/Frigate.png";
+import ShipIconGunboat from "../assets/map/ships/Gunboat.png";
+import ShipIconHFreighter from "../assets/map/ships/HFreighter.png";
+import ShipIconLFreighter from "../assets/map/ships/LFreighter.png";
+import ShipIconSat from "../assets/map/ships/Sat.png";
+import ShipIconSuper from "../assets/map/ships/Super.png";
+import ShipIconVette from "../assets/map/ships/Vette.png";
+import ShipIconWreck from "../assets/map/ships/Wreck.png";
 import "../styles/main.sass";
 import "../styles/_admin.sass";
 import "../styles/_membersuniverse.sass";
@@ -14,7 +28,13 @@ import "../styles/_sysuniverse.sass";
 const SYSTEM_GRID_SIZE = 20;
 const SYSTEM_CELL_SIZE = 78;
 const SYSTEM_CANVAS_PADDING = 16;
-const SYSTEM_VIEW_PADDING = 48;
+const SYSTEM_VIEW_PADDING = 24;
+const SYSTEM_MIN_ZOOM = 0.2;
+const SYSTEM_MAX_ZOOM = 1.5;
+const SYSTEM_ZOOM_STEP = 0.05;
+const SYSTEM_TOOLTIP_WIDTH_ESTIMATE = 180;
+const SYSTEM_TOOLTIP_HEIGHT_ESTIMATE = 112;
+const SYSTEM_TOOLTIP_MARGIN = 12;
 
 type UniverseSystemLocationState = {
   fromUniverseMap?: boolean;
@@ -52,14 +72,6 @@ function formatCoords(x: number | null | undefined, y: number | null | undefined
   return `${x}, ${y}`;
 }
 
-function formatHyperlanePercent(modifier: number | null | undefined, fallback = "Unknown") {
-  if (modifier === null || modifier === undefined || Number.isNaN(modifier)) {
-    return fallback;
-  }
-
-  return `${((1 - modifier) * 100).toFixed(1).replace(/\.0$/, "")}%`;
-}
-
 function bestPlanetImage(planet: StoredSystemDetail["planets"][number]): string | null {
   return (
     planet.image_small_url ??
@@ -84,58 +96,52 @@ function firstStationAtCell(stations: StoredSystemDetail["stations"]) {
   return stations[0] ?? null;
 }
 
-function countTerrainCells(planet: StoredSystemDetail["planets"][number]) {
-  return Array.isArray(planet.terrain_grid) ? planet.terrain_grid.length : 0;
-}
+function resolveShipMapIcon(ship: StoredSystemDetail["ships"][number]): string {
+  const normalizedClass = String(ship.class_name ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+  const classIconMap: Record<string, string> = {
+    bomber: ShipIconBomber,
+    capital: ShipIconCapital,
+    cargo: ShipIconCargo,
+    fighter: ShipIconFighter,
+    frigate: ShipIconFrigate,
+    gunboat: ShipIconGunboat,
+    hfreighter: ShipIconHFreighter,
+    lfreighter: ShipIconLFreighter,
+    sat: ShipIconSat,
+    super: ShipIconSuper,
+    vette: ShipIconVette,
+    wreck: ShipIconWreck,
+  };
 
-function countPlanetCities(planet: StoredSystemDetail["planets"][number]) {
-  return Array.isArray(planet.cities) ? planet.cities.length : 0;
-}
-
-function formatNumber(value: number | null | undefined, fallback = "Unknown") {
-  if (value === null || value === undefined) {
-    return fallback;
+  if (normalizedClass && classIconMap[normalizedClass]) {
+    return classIconMap[normalizedClass];
   }
 
-  return value.toLocaleString();
-}
+  const text = `${ship.class_name ?? ""} ${ship.type_name ?? ""} ${ship.name ?? ""}`.toLowerCase();
 
-function formatPopulationChange(
-  current: number | null | undefined,
-  previous: number | null | undefined
-) {
-  if (current === null || current === undefined) {
-    return "0";
-  }
+  if (text.includes("wreck")) return ShipIconWreck;
+  if (text.includes("sat")) return ShipIconSat;
+  if (text.includes("super")) return ShipIconSuper;
+  if (
+    text.includes("capital") ||
+    text.includes("dreadnaught") ||
+    text.includes("destroyer") ||
+    text.includes("battlecruiser") ||
+    text.includes("carrier")
+  ) return ShipIconCapital;
+  if (text.includes("frigate")) return ShipIconFrigate;
+  if (text.includes("corvette") || text.includes("vette")) return ShipIconVette;
+  if (text.includes("gunboat")) return ShipIconGunboat;
+  if (text.includes("bomber")) return ShipIconBomber;
+  if (text.includes("fighter") || text.includes("interceptor") || text.includes("starfighter")) return ShipIconFighter;
+  if (text.includes("heavy freighter")) return ShipIconHFreighter;
+  if (text.includes("light freighter")) return ShipIconLFreighter;
+  if (text.includes("cargo") || text.includes("transport") || text.includes("freighter")) return ShipIconCargo;
 
-  if (previous === null || previous === undefined) {
-    return "0";
-  }
-
-  const delta = current - previous;
-  const prefix = delta > 0 ? "+" : "";
-
-  return `${prefix}${delta.toLocaleString()}`;
-}
-
-type SystemBodyKind = "sun" | "moon" | "asteroid" | "planet";
-
-function classifySystemBody(planet: StoredSystemDetail["planets"][number]): SystemBodyKind {
-  const planetType = String(planet.planet_type_name ?? "").trim().toLowerCase();
-
-  if (planetType === "sun") {
-    return "sun";
-  }
-
-  if (planetType === "asteroid field") {
-    return "asteroid";
-  }
-
-  if (planetType === "moon") {
-    return "moon";
-  }
-
-  return "planet";
+  return ShipIconCargo;
 }
 
 const MembersUniverseSystemPage: React.FC = () => {
@@ -145,47 +151,48 @@ const MembersUniverseSystemPage: React.FC = () => {
   const [authChecked, setAuthChecked] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [canSeeMembers, setCanSeeMembers] = useState(false);
+  const [canSeeDroidBrainShips, setCanSeeDroidBrainShips] = useState(false);
   const [authRefreshNonce, setAuthRefreshNonce] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<StoredSystemDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [cgtState, setCgtState] = useState<CgtResponse | null>(null);
-  const [systemZoom, setSystemZoom] = useState(1);
-  const [systemOffset, setSystemOffset] = useState({ x: 0, y: 0 });
-  const [isDraggingSystem, setIsDraggingSystem] = useState(false);
+  const [showDroidBrainShips, setShowDroidBrainShips] = useState(false);
   const [selectedSystemCell, setSelectedSystemCell] = useState<{ x: number; y: number } | null>(null);
   const [hoveredSystemCell, setHoveredSystemCell] = useState<{
     x: number;
     y: number;
     left: number;
     top: number;
+    transform: string;
     planets: StoredSystemDetail["planets"];
     stations: StoredSystemDetail["stations"];
+    ships: StoredSystemDetail["ships"];
   } | null>(null);
-  const systemDragRef = useRef<{ x: number; y: number } | null>(null);
-  const systemViewportRef = useRef<HTMLDivElement | null>(null);
-  const systemAutoFitKeyRef = useRef<string | null>(null);
-
-  function fitSystemViewport() {
-    const viewport = systemViewportRef.current;
-    if (!viewport) {
-      return;
-    }
-
-    const worldWidth = SYSTEM_GRID_SIZE * SYSTEM_CELL_SIZE + SYSTEM_CANVAS_PADDING * 2;
-    const worldHeight = SYSTEM_GRID_SIZE * SYSTEM_CELL_SIZE + SYSTEM_CANVAS_PADDING * 2;
-    const viewportWidth = Math.max(1, viewport.clientWidth);
-    const viewportHeight = Math.max(1, viewport.clientHeight);
-    const scaleX = (viewportWidth - SYSTEM_VIEW_PADDING * 2) / worldWidth;
-    const scaleY = (viewportHeight - SYSTEM_VIEW_PADDING * 2) / worldHeight;
-    const nextZoom = Math.min(3.5, Math.max(0.45, Number(Math.min(scaleX, scaleY).toFixed(2))));
-
-    setSystemZoom(nextZoom);
-    setSystemOffset({
-      x: (viewportWidth - worldWidth * nextZoom) / 2,
-      y: (viewportHeight - worldHeight * nextZoom) / 2,
-    });
-  }
+  const systemFitKey = detail?.system.uid ?? detail?.system.identifier ?? null;
+  const {
+    viewportRef: systemViewportRef,
+    viewportEl: systemViewportEl,
+    zoom: systemZoom,
+    offset: systemOffset,
+    isDragging: isDraggingSystem,
+    resetViewport: resetSystemViewport,
+    handleMouseDown: handleSystemMouseDown,
+    handleMouseMove: handleSystemMouseMove,
+    handleMouseUp: handleSystemMouseUp,
+    handleMouseLeave: handleSystemMouseLeave,
+  } = useUniverseViewport({
+    fitKey: systemFitKey,
+    worldWidth: SYSTEM_GRID_SIZE * SYSTEM_CELL_SIZE + SYSTEM_CANVAS_PADDING * 2,
+    worldHeight: SYSTEM_GRID_SIZE * SYSTEM_CELL_SIZE + SYSTEM_CANVAS_PADDING * 2,
+    minZoom: SYSTEM_MIN_ZOOM,
+    maxZoom: SYSTEM_MAX_ZOOM,
+    zoomStep: SYSTEM_ZOOM_STEP,
+    viewPadding: SYSTEM_VIEW_PADDING,
+    onViewportReset: () => {
+      setSelectedSystemCell(null);
+      setHoveredSystemCell(null);
+    },
+  });
 
   useEffect(() => {
     return subscribeToAuthStateChange(() => {
@@ -202,10 +209,12 @@ const MembersUniverseSystemPage: React.FC = () => {
         if (cancelled) return;
         setIsLoggedIn(!!auth?.user);
         setCanSeeMembers(canAccessMembers(auth?.user ?? null));
+        setCanSeeDroidBrainShips(canAccessDroidBrainFull(auth?.user ?? null));
       } catch {
         if (!cancelled) {
           setIsLoggedIn(false);
           setCanSeeMembers(false);
+          setCanSeeDroidBrainShips(false);
         }
       } finally {
         if (!cancelled) {
@@ -218,27 +227,6 @@ const MembersUniverseSystemPage: React.FC = () => {
       cancelled = true;
     };
   }, [authRefreshNonce]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const response = await getCgtTime();
-        if (!cancelled) {
-          setCgtState(response);
-        }
-      } catch {
-        if (!cancelled) {
-          setCgtState(null);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (!authChecked) {
@@ -279,77 +267,10 @@ const MembersUniverseSystemPage: React.FC = () => {
   }, [authChecked, canSeeMembers, isLoggedIn, systemIdentifier]);
 
   useEffect(() => {
-    const viewport = systemViewportRef.current;
-    if (!viewport || !detail) return;
-
-    const handleWheel = (event: WheelEvent) => {
-      event.preventDefault();
-      const rect = viewport.getBoundingClientRect();
-      const mouseX = event.clientX - rect.left;
-      const mouseY = event.clientY - rect.top;
-      const delta = event.deltaY < 0 ? 0.12 : -0.12;
-      const nextZoom = Math.min(3.5, Math.max(0.45, Number((systemZoom + delta).toFixed(2))));
-
-      if (nextZoom === systemZoom) return;
-
-      const worldX = (mouseX - systemOffset.x) / systemZoom;
-      const worldY = (mouseY - systemOffset.y) / systemZoom;
-
-      setSystemZoom(nextZoom);
-      setSystemOffset({
-        x: mouseX - worldX * nextZoom,
-        y: mouseY - worldY * nextZoom,
-      });
-    };
-
-    viewport.addEventListener("wheel", handleWheel, { passive: false });
-
-    return () => {
-      viewport.removeEventListener("wheel", handleWheel);
-    };
-  }, [detail, systemOffset, systemZoom]);
-
-  useEffect(() => {
-    setSelectedSystemCell(null);
-    setHoveredSystemCell(null);
-    systemAutoFitKeyRef.current = null;
-  }, [detail?.system.uid, detail?.system.identifier]);
-
-  useLayoutEffect(() => {
-    const viewport = systemViewportRef.current;
-    const systemKey = detail?.system.uid ?? detail?.system.identifier ?? null;
-
-    if (!viewport || !systemKey) {
-      return;
+    if (!canSeeDroidBrainShips || !(detail?.ships.length ?? 0)) {
+      setShowDroidBrainShips(false);
     }
-
-    const fitIfNeeded = () => {
-      const viewportWidth = viewport.clientWidth;
-      const viewportHeight = viewport.clientHeight;
-
-      if (viewportWidth <= 0 || viewportHeight <= 0) {
-        return;
-      }
-
-      if (systemAutoFitKeyRef.current === systemKey) {
-        return;
-      }
-
-      fitSystemViewport();
-      systemAutoFitKeyRef.current = systemKey;
-    };
-
-    fitIfNeeded();
-
-    const observer = new ResizeObserver(() => {
-      fitIfNeeded();
-    });
-    observer.observe(viewport);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [detail?.system.uid, detail?.system.identifier]);
+  }, [canSeeDroidBrainShips, detail?.ships.length]);
 
   const mapCells = useMemo(() => {
     const planets = detail?.planets.filter(
@@ -357,6 +278,9 @@ const MembersUniverseSystemPage: React.FC = () => {
     ) ?? [];
     const stations = detail?.stations.filter(
       (station) => station.sysx != null && station.sysy != null
+    ) ?? [];
+    const ships = detail?.ships.filter(
+      (ship) => ship.sysx != null && ship.sysy != null
     ) ?? [];
 
     return Array.from({ length: 20 }, (_, rowIndex) =>
@@ -373,6 +297,9 @@ const MembersUniverseSystemPage: React.FC = () => {
           stations: stations.filter(
             (station) => Number(station.sysx) === x && Number(station.sysy) === y
           ),
+          ships: ships.filter(
+            (ship) => Number(ship.sysx) === x && Number(ship.sysy) === y
+          ),
         };
       })
     );
@@ -383,60 +310,6 @@ const MembersUniverseSystemPage: React.FC = () => {
         .flat()
         .find((cell) => cell.x === selectedSystemCell.x && cell.y === selectedSystemCell.y) ?? null
     : null;
-
-  const occupiedCellCount = useMemo(
-    () => mapCells.flat().filter((cell) => cell.planets.length > 0 || cell.stations.length > 0).length,
-    [mapCells]
-  );
-
-  const systemSummary = useMemo(() => {
-    const planets = detail?.planets ?? [];
-    const stations = detail?.stations ?? [];
-    const hyperlanes = detail?.hyperlanes ?? [];
-
-    const population = planets.reduce((sum, planet) => sum + (planet.population ?? 0), 0);
-    const bodyCounts = planets.reduce(
-      (acc, planet) => {
-        const kind = classifySystemBody(planet);
-        acc[kind] += 1;
-        return acc;
-      },
-      { sun: 0, moon: 0, asteroid: 0, planet: 0 }
-    );
-
-    const systemOwner = (detail?.system.owner_name ?? "").trim();
-    const owners = new Set(
-      [...planets.map((planet) => planet.owner_name), ...stations.map((station) => station.owner_name)]
-        .map((value) => (value ?? "").trim())
-        .filter(Boolean)
-    );
-
-    let ownerSummary = systemOwner || "Unknown";
-    if (!systemOwner) {
-      if (owners.size === 1) {
-        ownerSummary = Array.from(owners)[0] ?? "Unknown";
-      } else if (owners.size > 1) {
-        ownerSummary = "Mixed";
-      }
-    }
-
-    return {
-      ownerSummary,
-      population,
-      totalBodies: planets.length,
-      planets: bodyCounts.planet,
-      moons: bodyCounts.moon,
-      suns: bodyCounts.sun,
-      asteroids: bodyCounts.asteroid,
-      stations: stations.length,
-      hyperlanes: hyperlanes.length,
-    };
-  }, [detail]);
-
-  function resetSystemViewport() {
-    fitSystemViewport();
-  }
-
   if (!routeState?.fromUniverseMap) {
     return <Navigate to="/members" replace />;
   }
@@ -488,19 +361,16 @@ const MembersUniverseSystemPage: React.FC = () => {
     <div className="site-scale">
       <div className="app app--one">
         <main className="board admin-board members-universe-system-page">
-          <section className="members-universe-system__hero panel admin-card">
-            <div className="members-universe-system__hero-copy">
-              <span className="members-universe-system__eyebrow">Astrogation System</span>
-              <h1 className="members-universe-system__title">
-                {detail?.system.name ??
-                  detail?.system.identifier ??
-                  formatSwcDisplayId(detail?.system.uid) ??
-                  "Unknown system"}
-              </h1>
-              <p className="members-universe-system__subtitle">
-                Stored member-facing system data opened directly from the astrogation chart.
-              </p>
-              <div className="members-universe-system__hero-meta">
+          <UniverseDetailHero
+            eyebrow="Astrogation System"
+            title={
+              detail?.system.name ??
+              detail?.system.identifier ??
+              formatSwcDisplayId(detail?.system.uid) ??
+              "Unknown system"
+            }
+            meta={
+              <>
                 <span>Chart {formatCoords(detail?.system.galx ?? routeState.galx, detail?.system.galy ?? routeState.galy)}</span>
                 <span>
                   Sector{" "}
@@ -509,19 +379,9 @@ const MembersUniverseSystemPage: React.FC = () => {
                       formatSwcDisplayId(detail?.system.sector_uid ?? routeState?.sectorUid)
                   )}
                 </span>
-              </div>
-            </div>
-
-            <div className="members-universe-system__hero-actions">
-              <Link
-                className="btn"
-                to="/members"
-                state={{ membersView: "universe" }}
-              >
-                Back to Astrogation
-              </Link>
-            </div>
-          </section>
+              </>
+            }
+          />
 
           {error ? (
             <p className="small" style={{ color: "salmon" }}>
@@ -529,267 +389,214 @@ const MembersUniverseSystemPage: React.FC = () => {
             </p>
           ) : null}
 
-          <section className="members-universe-system__summary">
-            <article className="members-universe-system__stat">
-              <span className="small">UID</span>
-              <strong>{formatSwcDisplayId(detail?.system.uid)}</strong>
-            </article>
-            <article className="members-universe-system__stat">
-              <span className="small">Identifier</span>
-              <strong>{formatValue(detail?.system.identifier)}</strong>
-            </article>
-            <article className="members-universe-system__stat">
-              <span className="small">Owner</span>
-              <strong>{systemSummary.ownerSummary}</strong>
-            </article>
-            <article className="members-universe-system__stat">
-              <span className="small">Population</span>
-              <strong>{formatNumber(systemSummary.population, "0")}</strong>
-            </article>
-            <article className="members-universe-system__stat">
-              <span className="small">Bodies</span>
-              <strong>{systemSummary.totalBodies}</strong>
-            </article>
-            <article className="members-universe-system__stat">
-              <span className="small">Planets</span>
-              <strong>{systemSummary.planets}</strong>
-            </article>
-            <article className="members-universe-system__stat">
-              <span className="small">Moons</span>
-              <strong>{systemSummary.moons}</strong>
-            </article>
-            <article className="members-universe-system__stat">
-              <span className="small">Suns</span>
-              <strong>{systemSummary.suns}</strong>
-            </article>
-            <article className="members-universe-system__stat">
-              <span className="small">Asteroids</span>
-              <strong>{systemSummary.asteroids}</strong>
-            </article>
-            <article className="members-universe-system__stat">
-              <span className="small">Last Pulled</span>
-              <strong>{formatTimestampAsCgt(detail?.system.last_pulled_at, cgtState)}</strong>
-            </article>
-            <article className="members-universe-system__stat">
-              <span className="small">Stations</span>
-              <strong>{systemSummary.stations}</strong>
-            </article>
-            <article className="members-universe-system__stat">
-              <span className="small">Hyperlanes</span>
-              <strong>{systemSummary.hyperlanes}</strong>
-            </article>
-          </section>
-
-          <section className="panel admin-card members-universe-system__immersive">
-            <div className="admin-card__header">
-              <h3 className="admin-card__title">In-System View</h3>
-              <p className="admin-card__desc">
-                A top-down 20x20 system grid so you can browse the local system layout the same way as the debug view.
-              </p>
-            </div>
-
-            <div className="sysuniverse-toolbar">
-              <strong>
-                System Chart{" "}
-                {detail?.system.name ??
-                  detail?.system.identifier ??
-                  formatSwcDisplayId(detail?.system.uid) ??
-                  "Unknown system"}
-              </strong>
-              <div className="sysuniverse-toolbar__actions">
-                <span className="small">Zoom: {systemZoom.toFixed(2)}x</span>
-                <button className="btn" type="button" onClick={resetSystemViewport}>
-                  Reset View
-                </button>
-              </div>
-            </div>
-
-            <p className="small sysuniverse-copy-reset">
-              Scroll to zoom, drag to move, and click a coordinate cell to inspect the planets and stations placed there.
-            </p>
-
-            <div className="members-universe-system__map-meta">
-              <span className="admin-badge admin-badge--soft">20x20 grid</span>
-              <span className="admin-badge admin-badge--soft">Occupied cells {occupiedCellCount}</span>
-              <span className="admin-badge admin-badge--soft">Bodies {systemSummary.totalBodies}</span>
-              <span className="admin-badge admin-badge--soft">Stations {systemSummary.stations}</span>
-            </div>
-
-            <div
-              ref={systemViewportRef}
-              className={`sysuniverse-map-viewport sysuniverse-map-viewport--system ${isDraggingSystem ? "is-dragging" : ""}`}
-              style={{ overscrollBehavior: "contain", touchAction: "none" }}
-              onMouseDown={(event) => {
-                if (event.button !== 0) return;
-                setIsDraggingSystem(true);
-                systemDragRef.current = { x: event.clientX, y: event.clientY };
-              }}
-              onMouseMove={(event) => {
-                if (!isDraggingSystem || !systemDragRef.current) return;
-                const dx = event.clientX - systemDragRef.current.x;
-                const dy = event.clientY - systemDragRef.current.y;
-                systemDragRef.current = { x: event.clientX, y: event.clientY };
-                setSystemOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
-                setHoveredSystemCell(null);
-              }}
-              onMouseUp={() => {
-                setIsDraggingSystem(false);
-                systemDragRef.current = null;
-              }}
-              onMouseLeave={() => {
-                setIsDraggingSystem(false);
-                systemDragRef.current = null;
-                setHoveredSystemCell(null);
-              }}
-            >
-              <div className="sysuniverse-map-viewport__stars" />
-              <div className="members-universe-system__map-chrome">
-                <div className="members-universe-system__map-chrome-block">
-                  <span className="members-universe-system__map-kicker">Local Chart</span>
-                  <strong>
-                    {detail?.system.name ??
-                      detail?.system.identifier ??
-                      formatSwcDisplayId(detail?.system.uid) ??
-                      "Unknown system"}
-                  </strong>
-                </div>
-                <div className="members-universe-system__map-chrome-block members-universe-system__map-chrome-block--right">
-                  <span className="members-universe-system__map-kicker">Selection</span>
-                  <strong>
-                    {selectedSystemCell ? `${selectedSystemCell.x}, ${selectedSystemCell.y}` : "None"}
-                  </strong>
+          <UniverseDetailImmersive
+            title="In-System View"
+            toolbar={
+              <div className="sysuniverse-toolbar">
+                <div className="sysuniverse-toolbar__actions">
+                  {canSeeDroidBrainShips && (detail?.ships.length ?? 0) > 0 ? (
+                    <button
+                      className={`btn members-universe-system__layer-toggle ${showDroidBrainShips ? "is-active" : ""}`}
+                      type="button"
+                      onClick={() => setShowDroidBrainShips((value) => !value)}
+                    >
+                      DroidBrain Ships
+                    </button>
+                  ) : null}
+                  <span className="small">Zoom: {systemZoom.toFixed(2)}x</span>
+                  <button className="btn" type="button" onClick={resetSystemViewport}>
+                    Reset View
+                  </button>
                 </div>
               </div>
+            }
+            copy="Scroll to zoom, drag to move, and click a coordinate cell to inspect the planets and stations placed there."
+            viewport={
               <div
-                className="sysuniverse-map-canvas"
-                style={{
-                  transform: `translate(${systemOffset.x}px, ${systemOffset.y}px) scale(${systemZoom})`,
+                ref={systemViewportRef}
+                className={`sysuniverse-map-viewport sysuniverse-map-viewport--system ${isDraggingSystem ? "is-dragging" : ""}`}
+                style={{ overscrollBehavior: "contain", touchAction: "none" }}
+                onMouseDown={handleSystemMouseDown}
+                onMouseMove={(event) => {
+                  if (isDraggingSystem) {
+                    handleSystemMouseMove(event);
+                    setHoveredSystemCell(null);
+                  }
+                }}
+                onMouseUp={handleSystemMouseUp}
+                onMouseLeave={() => {
+                  handleSystemMouseLeave();
+                  setHoveredSystemCell(null);
                 }}
               >
-                {mapCells.map((row, rowIndex) => (
-                  <div
-                    key={`member-sys-row-${rowIndex}`}
-                    className="sysuniverse-grid-row"
-                    style={{ gridTemplateColumns: `repeat(${row.length}, 78px)` }}
-                  >
-                    {row.map((cell) => {
-                      const occupancy = cell.planets.length + cell.stations.length;
-                      const isSelected =
-                        selectedSystemCell?.x === cell.x && selectedSystemCell?.y === cell.y;
-                      const station = firstStationAtCell(cell.stations);
-
-                      return (
-                        <button
-                          key={`member-sys-cell-${cell.x}-${cell.y}`}
-                          className={`btn members-universe-system__grid-cell ${occupancy > 0 ? "has-content" : ""} ${isSelected ? "is-active" : ""}`}
-                          type="button"
-                          onClick={() => setSelectedSystemCell({ x: cell.x, y: cell.y })}
-                          onMouseEnter={(event) => {
-                            if (isDraggingSystem) return;
-                            const rect = event.currentTarget.getBoundingClientRect();
-                            const viewportRect =
-                              systemViewportRef.current?.getBoundingClientRect() ?? rect;
-                            setHoveredSystemCell({
-                              x: cell.x,
-                              y: cell.y,
-                              left: rect.left - viewportRect.left + rect.width / 2,
-                              top: rect.top - viewportRect.top - 10,
-                              planets: cell.planets,
-                              stations: station ? [station] : [],
-                            });
-                          }}
-                          onMouseLeave={() => {
-                            setHoveredSystemCell((current) =>
-                              current?.x === cell.x && current?.y === cell.y ? null : current
-                            );
-                          }}
-                          style={{
-                            minHeight: 72,
-                            borderWidth: `${Math.max(1, 1.15 / Math.max(systemZoom, 0.45))}px`,
-                          }}
-                        >
-                          <span className="members-universe-system__grid-cell-coords">
-                            {cell.x},{cell.y}
-                          </span>
-                          {occupancy > 0 ? (
-                            <span className="members-universe-system__grid-cell-count">{occupancy}</span>
-                          ) : null}
-                          <div className="members-universe-system__grid-cell-body">
-                            {cell.planets.slice(0, 1).map((planet) =>
-                              bestPlanetImage(planet) ? (
-                                <img
-                                  key={`member-planet-preview-${planet.uid ?? planet.name}`}
-                                  src={bestPlanetImage(planet) ?? ""}
-                                  alt={planet.name ?? planet.uid ?? "Planet"}
-                                  className="members-universe-system__grid-cell-thumb"
-                                />
-                              ) : null
-                            )}
-                            {station && bestStationImage(station) ? (
-                                <img
-                                  key={`member-station-preview-${station.uid ?? station.name}`}
-                                  src={bestStationImage(station) ?? ""}
-                                  alt={station.station_type?.name ?? station.type_name ?? station.name ?? "Station"}
-                                  className="members-universe-system__grid-cell-station-icon"
-                                />
-                              ) : null}
-                            {station && !bestStationImage(station) ? (
-                              <span className="members-universe-system__grid-cell-dot" />
-                            ) : null}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-              {hoveredSystemCell ? (
+                <div className="sysuniverse-map-viewport__stars" />
                 <div
-                  className="members-universe-system__grid-hover"
+                  className="sysuniverse-map-canvas"
                   style={{
-                    left: hoveredSystemCell.left,
-                    top: hoveredSystemCell.top,
-                    transform: "translate(-50%, -100%)",
+                    transform: `translate(${systemOffset.x}px, ${systemOffset.y}px) scale(${systemZoom})`,
                   }}
                 >
-                  <strong>
-                    {hoveredSystemCell.x}, {hoveredSystemCell.y}
-                  </strong>
-                  {hoveredSystemCell.planets.length > 0 ? (
-                    <div className="members-universe-system__grid-hover-group">
-                      <span className="small members-universe-system__grid-hover-label">Planet</span>
-                      {hoveredSystemCell.planets.slice(0, 3).map((planet, index) => (
-                        <span key={`${planet.uid ?? planet.name ?? index}`} className="small">
-                          {planet.name ?? formatSwcDisplayId(planet.uid) ?? `Planet ${index + 1}`}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                  {hoveredSystemCell.stations.length > 0 ? (
-                    <div className="members-universe-system__grid-hover-group">
-                      <span className="small members-universe-system__grid-hover-label">Station</span>
-                      {hoveredSystemCell.stations.slice(0, 3).map((station, index) => (
-                        <span key={`${station.uid ?? station.name ?? index}`} className="small">
-                          {station.name ?? formatSwcDisplayId(station.uid) ?? `Station ${index + 1}`}
-                          {" · "}
-                          {station.station_type?.name ?? station.type_name ?? "Unknown type"}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                  {hoveredSystemCell.planets.length === 0 && hoveredSystemCell.stations.length === 0 ? (
-                    <span className="small">Empty coordinate</span>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
+                  {mapCells.map((row, rowIndex) => (
+                    <div
+                      key={`member-sys-row-${rowIndex}`}
+                      className="sysuniverse-grid-row"
+                      style={{ gridTemplateColumns: `repeat(${row.length}, 78px)` }}
+                    >
+                      {row.map((cell) => {
+                        const occupancy = cell.planets.length + cell.stations.length;
+                        const isSelected =
+                          selectedSystemCell?.x === cell.x && selectedSystemCell?.y === cell.y;
+                        const station = firstStationAtCell(cell.stations);
 
-            {selectedCellData ? (
-              <div className="members-universe-system__cell-panel">
-                <strong>
-                  Cell {selectedCellData.x}, {selectedCellData.y}
-                </strong>
-                {selectedCellData.planets.length > 0 ? (
+                        return (
+                          <button
+                            key={`member-sys-cell-${cell.x}-${cell.y}`}
+                            className={`btn members-universe-system__grid-cell ${occupancy > 0 ? "has-content" : ""} ${isSelected ? "is-active" : ""}`}
+                            type="button"
+                            onClick={() => setSelectedSystemCell({ x: cell.x, y: cell.y })}
+                            onMouseEnter={(event) => {
+                              if (isDraggingSystem) return;
+                              const rect = event.currentTarget.getBoundingClientRect();
+                              const viewportRect =
+                                systemViewportEl?.getBoundingClientRect() ?? rect;
+                              const cellCenterX = rect.left - viewportRect.left + rect.width / 2;
+                              const tooltipHalfWidth = SYSTEM_TOOLTIP_WIDTH_ESTIMATE / 2;
+                              const maxLeft =
+                                viewportRect.width - SYSTEM_TOOLTIP_MARGIN - tooltipHalfWidth;
+                              const minLeft = SYSTEM_TOOLTIP_MARGIN + tooltipHalfWidth;
+                              const clampedLeft = Math.min(maxLeft, Math.max(minLeft, cellCenterX));
+                              const preferredTop = rect.top - viewportRect.top - 10;
+                              const canRenderAbove =
+                                preferredTop - SYSTEM_TOOLTIP_HEIGHT_ESTIMATE >= SYSTEM_TOOLTIP_MARGIN;
+                              const tooltipTop = canRenderAbove
+                                ? preferredTop
+                                : rect.bottom - viewportRect.top + 10;
+                              setHoveredSystemCell({
+                                x: cell.x,
+                                y: cell.y,
+                                left: clampedLeft,
+                                top: tooltipTop,
+                                transform: canRenderAbove ? "translate(-50%, -100%)" : "translate(-50%, 0)",
+                                planets: cell.planets,
+                                stations: station ? [station] : [],
+                                ships: showDroidBrainShips ? cell.ships : [],
+                              });
+                            }}
+                            onMouseLeave={() => {
+                              setHoveredSystemCell((current) =>
+                                current?.x === cell.x && current?.y === cell.y ? null : current
+                              );
+                            }}
+                            style={{
+                              minHeight: 72,
+                              borderWidth: `${Math.max(1, 1.15 / Math.max(systemZoom, SYSTEM_MIN_ZOOM))}px`,
+                            }}
+                          >
+                            <div className="members-universe-system__grid-cell-body">
+                              {cell.planets.slice(0, 1).map((planet) =>
+                                bestPlanetImage(planet) ? (
+                                  <img
+                                    key={`member-planet-preview-${planet.uid ?? planet.name}`}
+                                    src={bestPlanetImage(planet) ?? ""}
+                                    alt={planet.name ?? planet.uid ?? "Planet"}
+                                    className="members-universe-system__grid-cell-thumb"
+                                  />
+                                ) : null
+                              )}
+                              {station && bestStationImage(station) ? (
+                                  <img
+                                    key={`member-station-preview-${station.uid ?? station.name}`}
+                                    src={bestStationImage(station) ?? ""}
+                                    alt={station.station_type?.name ?? station.type_name ?? station.name ?? "Station"}
+                                    className="members-universe-system__grid-cell-station-icon"
+                                  />
+                                ) : null}
+                              {station && !bestStationImage(station) ? (
+                                <span className="members-universe-system__grid-cell-dot" />
+                              ) : null}
+                              {showDroidBrainShips && cell.ships[0] ? (
+                                <img
+                                  key={`member-ship-preview-${cell.ships[0].uid ?? cell.ships[0].name}`}
+                                  src={resolveShipMapIcon(cell.ships[0])}
+                                  alt={cell.ships[0].class_name ?? cell.ships[0].type_name ?? cell.ships[0].name ?? "Ship"}
+                                  className="members-universe-system__grid-cell-ship-icon"
+                                />
+                              ) : null}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+                {hoveredSystemCell ? (
+                  <div
+                    className="members-universe-system__grid-hover"
+                    style={{
+                      left: hoveredSystemCell.left,
+                      top: hoveredSystemCell.top,
+                      transform: hoveredSystemCell.transform,
+                    }}
+                  >
+                    <strong>
+                      {hoveredSystemCell.x}, {hoveredSystemCell.y}
+                    </strong>
+                    {hoveredSystemCell.planets.length > 0 ? (
+                      <div className="members-universe-system__grid-hover-group">
+                        <span className="small members-universe-system__grid-hover-label">Planet</span>
+                        {hoveredSystemCell.planets.slice(0, 3).map((planet, index) => (
+                          <span key={`${planet.uid ?? planet.name ?? index}`} className="small">
+                            {planet.name ?? formatSwcDisplayId(planet.uid) ?? `Planet ${index + 1}`}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    {hoveredSystemCell.stations.length > 0 ? (
+                      <div className="members-universe-system__grid-hover-group">
+                        <span className="small members-universe-system__grid-hover-label">Station</span>
+                        {hoveredSystemCell.stations.slice(0, 3).map((station, index) => (
+                          <span key={`${station.uid ?? station.name ?? index}`} className="small">
+                            {station.name ?? formatSwcDisplayId(station.uid) ?? `Station ${index + 1}`}
+                            {" · "}
+                            {station.station_type?.name ?? station.type_name ?? "Unknown type"}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    {hoveredSystemCell.ships.length > 0 ? (
+                      <div className="members-universe-system__grid-hover-group">
+                        <span className="small members-universe-system__grid-hover-label">Ship</span>
+                        {hoveredSystemCell.ships.slice(0, 3).map((ship, index) => (
+                          <span key={`${ship.uid ?? ship.name ?? index}`} className="small">
+                            {ship.name ?? formatSwcDisplayId(ship.uid) ?? `Ship ${index + 1}`}
+                            {ship.class_name ? ` · ${ship.class_name}` : ""}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    {hoveredSystemCell.planets.length === 0 && hoveredSystemCell.stations.length === 0 && hoveredSystemCell.ships.length === 0 ? (
+                      <span className="small">Empty coordinate</span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            }
+            selection={
+              <>
+                <div className="members-universe-system__selection-head">
+                  <span className="members-universe-system__selection-label">Selected Location</span>
+                  <strong>
+                    {selectedCellData ? `${selectedCellData.x}, ${selectedCellData.y}` : "None"}
+                  </strong>
+                </div>
+
+                {!selectedCellData ? (
+                  <p className="small sysuniverse-copy-reset">
+                    Click a coordinate on the system chart to inspect what is registered there.
+                  </p>
+                ) : null}
+
+                {selectedCellData?.planets.length ? (
                   <div className="members-universe-system__cell-group">
                     <span className="small">Planets</span>
                     <div className="members-universe-system__cell-chip-grid">
@@ -815,9 +622,9 @@ const MembersUniverseSystemPage: React.FC = () => {
                   </div>
                 ) : null}
 
-                {selectedCellData.stations.length > 0 ? (
+                {selectedCellData?.stations.length ? (
                   <div className="members-universe-system__cell-group">
-                    <span className="small">Station</span>
+                    <span className="small">Stations</span>
                     <div className="members-universe-system__cell-chip-grid">
                       {selectedCellData.stations.slice(0, 1).map((station, index) => (
                         <div
@@ -836,162 +643,43 @@ const MembersUniverseSystemPage: React.FC = () => {
                   </div>
                 ) : null}
 
-                {selectedCellData.planets.length === 0 && selectedCellData.stations.length === 0 ? (
+                {showDroidBrainShips && selectedCellData?.ships.length ? (
+                  <div className="members-universe-system__cell-group">
+                    <span className="small">DroidBrain Ships</span>
+                    <div className="members-universe-system__cell-chip-grid">
+                      {selectedCellData.ships.map((ship, index) => (
+                        <div
+                          key={`${ship.uid ?? ship.name ?? index}`}
+                          className="members-universe-system__cell-chip"
+                        >
+                          <img
+                            src={resolveShipMapIcon(ship)}
+                            alt={ship.class_name ?? ship.type_name ?? ship.name ?? "Ship"}
+                            className="members-universe-system__selection-ship-icon"
+                          />
+                          <div>
+                            <strong>{ship.name ?? formatSwcDisplayId(ship.uid) ?? `Ship ${index + 1}`}</strong>
+                            <span className="small">
+                              {ship.class_name ?? ship.type_name ?? "Unknown class"}
+                            </span>
+                            <span className="small">{formatValue(ship.owner_name, "No owner")}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {selectedCellData &&
+                selectedCellData.planets.length === 0 &&
+                selectedCellData.stations.length === 0 &&
+                selectedCellData.ships.length === 0 ? (
                   <p className="small sysuniverse-copy-reset">Nothing is registered at this coordinate.</p>
                 ) : null}
-              </div>
-            ) : null}
-          </section>
+              </>
+            }
+          />
 
-          <section className="members-universe-system__layout">
-            <article className="panel admin-card members-universe-system__panel members-universe-system__panel--planets">
-              <div className="admin-card__header">
-                <h3 className="admin-card__title">Celestial Bodies</h3>
-                <p className="admin-card__desc">
-                  Stored suns, planets, moons, and asteroids linked to this system.
-                </p>
-              </div>
-              <div className="members-universe__meta">
-                <span className="admin-badge admin-badge--soft">Planets {systemSummary.planets}</span>
-                <span className="admin-badge admin-badge--soft">Moons {systemSummary.moons}</span>
-                <span className="admin-badge admin-badge--soft">Suns {systemSummary.suns}</span>
-                <span className="admin-badge admin-badge--soft">Asteroids {systemSummary.asteroids}</span>
-              </div>
-              <div className="members-universe-system__entity-grid">
-                {detail?.planets.length ? (
-                  detail.planets.map((planet, index) => (
-                    <div
-                      key={planet.uid ?? planet.identifier ?? planet.name ?? `planet-${index}`}
-                      className="members-universe-system__entity-card"
-                    >
-                      {planet.image_small_url ? (
-                        <img
-                          className="members-universe-system__entity-image"
-                          src={planet.image_small_url}
-                          alt={planet.name ?? "Planet"}
-                        />
-                      ) : (
-                        <div className="members-universe-system__entity-image members-universe-system__entity-image--placeholder">
-                          Planet
-                        </div>
-                      )}
-                      <strong>{planet.name ?? formatSwcDisplayId(planet.uid) ?? "Unknown planet"}</strong>
-                      <span className="small">{formatValue(planet.owner_name, "No owner")}</span>
-                      <span className="small">
-                        {(() => {
-                          const kind = classifySystemBody(planet);
-                          return kind.charAt(0).toUpperCase() + kind.slice(1);
-                        })()}
-                      </span>
-                      <div className="members-universe-system__stat-mini-grid">
-                        <span className="small">UID: {formatSwcDisplayId(planet.uid)}</span>
-                        <span className="small">Identifier: {formatValue(planet.identifier)}</span>
-                        <span className="small">Chart: {formatCoords(planet.galx, planet.galy)}</span>
-                        <span className="small">System: {formatCoords(planet.sysx, planet.sysy)}</span>
-                        <span className="small">Size: {formatValue(planet.size, "?")}</span>
-                        <span className="small">Population: {formatNumber(planet.population)}</span>
-                        <span className="small">
-                          Population change: {formatPopulationChange(planet.population, planet.previous_population)}
-                        </span>
-                        {planet.previous_population !== null && planet.previous_population_recorded_at ? (
-                          <span className="small">
-                            Change recorded: {formatTimestampAsCgt(planet.previous_population_recorded_at, cgtState)}
-                          </span>
-                        ) : null}
-                        <span className="small">
-                          Surface: {planet.surface_bounds?.width && planet.surface_bounds?.height
-                            ? `${planet.surface_bounds.width} x ${planet.surface_bounds.height}`
-                            : "Unknown"}
-                        </span>
-                        <span className="small">
-                          Terrain cells: {countTerrainCells(planet) > 0 ? countTerrainCells(planet) : "Unknown"}
-                        </span>
-                        <span className="small">
-                          Cities: {countPlanetCities(planet) > 0 ? countPlanetCities(planet) : "None"}
-                        </span>
-                      </div>
-                      <span className="small">
-                        Last pulled {formatTimestampAsCgt(planet.last_pulled_at, cgtState)}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <span className="small">No stored planets.</span>
-                )}
-              </div>
-            </article>
-
-            <article className="panel admin-card members-universe-system__panel members-universe-system__panel--stations">
-              <div className="admin-card__header">
-                <h3 className="admin-card__title">Stations</h3>
-                <p className="admin-card__desc">Stored stations linked to this system.</p>
-              </div>
-              <div className="members-universe-system__entity-grid">
-                {detail?.stations.length ? (
-                  detail.stations.map((station, index) => (
-                    <div
-                      key={station.uid ?? station.identifier ?? station.name ?? `station-${index}`}
-                      className="members-universe-system__entity-card"
-                    >
-                      {station.station_type?.icon_url || station.station_type?.images?.small || station.station_type?.image_url ? (
-                        <img
-                          className="members-universe-system__entity-image"
-                          src={station.station_type?.icon_url ?? station.station_type?.images?.small ?? station.station_type?.image_url ?? ""}
-                          alt={station.station_type?.name ?? station.type_name ?? "Station type"}
-                        />
-                      ) : (
-                        <div className="members-universe-system__entity-image members-universe-system__entity-image--placeholder">
-                          Station
-                        </div>
-                      )}
-                      <strong>{station.name ?? formatSwcDisplayId(station.uid) ?? "Unknown station"}</strong>
-                      <span className="small">
-                        {station.station_type?.name ?? station.type_name ?? "Unknown type"}
-                      </span>
-                      <span className="small">Owner {formatValue(station.owner_name, "None")}</span>
-                      <span className="small">System coords {formatCoords(station.sysx, station.sysy)}</span>
-                      <span className="small">Length {formatValue(station.station_type?.length, "?")}</span>
-                      <span className="small">
-                        Last pulled {formatTimestampAsCgt(station.last_pulled_at, cgtState)}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <span className="small">No stored stations.</span>
-                )}
-              </div>
-            </article>
-
-            <article className="panel admin-card members-universe-system__panel members-universe-system__panel--hyperlanes">
-              <div className="admin-card__header">
-                <h3 className="admin-card__title">Hyperlanes</h3>
-                <p className="admin-card__desc">Stored outbound hyperlanes for this system.</p>
-              </div>
-              <div className="members-universe-system__entity-grid">
-                {detail?.hyperlanes.length ? (
-                  detail.hyperlanes.map((hyperlane) => (
-                    <div
-                      key={hyperlane.uid ?? hyperlane.name ?? `${hyperlane.destination_uid}-${hyperlane.destination_name}`}
-                      className="members-universe-system__entity-card"
-                    >
-                      <strong>{hyperlane.name ?? "Unnamed hyperlane"}</strong>
-                      <span className="small">
-                        {hyperlane.destination_name ??
-                          formatSwcDisplayId(hyperlane.destination_uid) ??
-                          "Unknown destination"}
-                      </span>
-                      <span className="small">Destination {formatCoords(hyperlane.destination_galx, hyperlane.destination_galy)}</span>
-                      <span className="small">Owner {formatValue(hyperlane.owner_name, "Unknown")}</span>
-                      <span className="small">Speed Modifier {formatHyperlanePercent(hyperlane.modifier, "?")}</span>
-                      <span className="small">Blocks {formatValue(hyperlane.blocks, "Unknown")}</span>
-                    </div>
-                  ))
-                ) : (
-                  <span className="small">No stored hyperlanes.</span>
-                )}
-              </div>
-            </article>
-          </section>
         </main>
       </div>
     </div>

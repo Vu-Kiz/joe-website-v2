@@ -13,6 +13,12 @@ class SwcAuthorizationController extends Controller
     protected const DEFAULT_MEMBER_TOOL_PREFERENCES = [
         'galaxy' => true,
         'payments' => true,
+        'universe' => [
+            'map_scope' => 'sector',
+            'selected_sector_uid' => null,
+            'selected_system_identifier' => null,
+            'focus_request' => null,
+        ],
     ];
 
     public function __construct(
@@ -79,6 +85,16 @@ class SwcAuthorizationController extends Controller
             'member_tool_preferences' => ['required', 'array'],
             'member_tool_preferences.galaxy' => ['required', 'boolean'],
             'member_tool_preferences.payments' => ['required', 'boolean'],
+            'member_tool_preferences.universe' => ['nullable', 'array'],
+            'member_tool_preferences.universe.map_scope' => ['nullable', 'in:sector,galaxy'],
+            'member_tool_preferences.universe.selected_sector_uid' => ['nullable', 'string', 'max:255'],
+            'member_tool_preferences.universe.selected_system_identifier' => ['nullable', 'string', 'max:255'],
+            'member_tool_preferences.universe.focus_request' => ['nullable', 'array'],
+            'member_tool_preferences.universe.focus_request.kind' => ['nullable', 'in:sector,coords'],
+            'member_tool_preferences.universe.focus_request.sectorUid' => ['nullable', 'string', 'max:255'],
+            'member_tool_preferences.universe.focus_request.galx' => ['nullable', 'integer'],
+            'member_tool_preferences.universe.focus_request.galy' => ['nullable', 'integer'],
+            'member_tool_preferences.universe.focus_request.zoom' => ['nullable', 'numeric'],
         ]);
 
         $preferences = $this->normalizeMemberToolPreferences($validated['member_tool_preferences'] ?? []);
@@ -104,6 +120,46 @@ class SwcAuthorizationController extends Controller
             'payments' => array_key_exists('payments', $current)
                 ? (bool) $current['payments']
                 : self::DEFAULT_MEMBER_TOOL_PREFERENCES['payments'],
+            'universe' => $this->normalizeUniversePreferences($current['universe'] ?? null),
+        ];
+    }
+
+    protected function normalizeUniversePreferences(mixed $preferences): array
+    {
+        $current = is_array($preferences) ? $preferences : [];
+        $focusRequest = is_array($current['focus_request'] ?? null) ? $current['focus_request'] : null;
+        $kind = is_string($focusRequest['kind'] ?? null) ? $focusRequest['kind'] : null;
+
+        $normalizedFocus = null;
+        if ($kind === 'sector' && !empty($focusRequest['sectorUid'])) {
+            $normalizedFocus = [
+                'kind' => 'sector',
+                'sectorUid' => (string) $focusRequest['sectorUid'],
+                'zoom' => isset($focusRequest['zoom']) ? (float) $focusRequest['zoom'] : null,
+            ];
+        } elseif (
+            $kind === 'coords' &&
+            isset($focusRequest['galx'], $focusRequest['galy']) &&
+            is_numeric($focusRequest['galx']) &&
+            is_numeric($focusRequest['galy'])
+        ) {
+            $normalizedFocus = [
+                'kind' => 'coords',
+                'galx' => (int) $focusRequest['galx'],
+                'galy' => (int) $focusRequest['galy'],
+                'zoom' => isset($focusRequest['zoom']) ? (float) $focusRequest['zoom'] : null,
+            ];
+        }
+
+        return [
+            'map_scope' => ($current['map_scope'] ?? null) === 'galaxy' ? 'galaxy' : 'sector',
+            'selected_sector_uid' => isset($current['selected_sector_uid']) && $current['selected_sector_uid'] !== ''
+                ? (string) $current['selected_sector_uid']
+                : null,
+            'selected_system_identifier' => isset($current['selected_system_identifier']) && $current['selected_system_identifier'] !== ''
+                ? (string) $current['selected_system_identifier']
+                : null,
+            'focus_request' => $normalizedFocus,
         ];
     }
 }
