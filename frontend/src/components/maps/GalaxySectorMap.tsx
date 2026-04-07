@@ -4,7 +4,7 @@ import asteroidFieldIconUrl from "../../assets/map/AsteroidFieldIcon.png";
 import asteroidFieldIconUnknownUrl from "../../assets/map/AsteroidFieldIconUnknown.png";
 import asteroidFieldIcon1x1Url from "../../assets/map/AsteroidFieldIcon1x1.png";
 import asteroidFieldIcon1x1DoubleUrl from "../../assets/map/AsteroidFieldIcon1x1-2.png";
-import asteroidFieldIcon1x1And2x2Url from "../../assets/map/AsteroidFieldIcon1x1and2x2.png";
+import asteroidFieldIcon1x1And2x2Url from "../../assets/map/AsteroidFieldIcon1x1-2x2.png";
 import asteroidFieldIcon2x2Url from "../../assets/map/AsteroidFieldIcon2x2.png";
 import scannedDuelconUrl from "../../assets/map/ScannedDuelcon.png";
 import rescanDueIconUrl from "../../assets/map/RescanDueIcon.png";

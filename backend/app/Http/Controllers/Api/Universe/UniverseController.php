@@ -733,6 +733,9 @@ class UniverseController extends Controller
 
     public function hyperPlanner(Request $request): JsonResponse
     {
+        // The planner reads a large slice of the universe graph. Use lighter
+        // query-builder rows here so production does not exhaust memory while
+        // hydrating thousands of full Eloquent models.
         $validated = $request->validate([
             'from' => ['required', 'string', 'max:255'],
             'to' => ['required', 'string', 'max:255'],
@@ -746,7 +749,7 @@ class UniverseController extends Controller
         $directJourneyLength = 0;
         $directTripSeconds = 0;
 
-        $systems = SwcSystem::query()
+        $systems = DB::table('swc_systems')
             ->whereNotNull('galx')
             ->whereNotNull('galy')
             ->get([
@@ -762,12 +765,12 @@ class UniverseController extends Controller
 
         $systemsById = $systems->keyBy('id');
         $systemsByUid = $systems
-            ->filter(fn (SwcSystem $system) => is_string($system->uid) && trim($system->uid) !== '')
-            ->keyBy(fn (SwcSystem $system) => trim((string) $system->uid));
+            ->filter(fn ($system) => is_string($system->uid) && trim($system->uid) !== '')
+            ->keyBy(fn ($system) => trim((string) $system->uid));
         $systemsByIdentifier = $systems
-            ->filter(fn (SwcSystem $system) => is_string($system->identifier) && trim($system->identifier) !== '')
-            ->keyBy(fn (SwcSystem $system) => trim((string) $system->identifier));
-        $systemsByCoords = $systems->keyBy(fn (SwcSystem $system) => $this->systemCoordKey($system->galx, $system->galy));
+            ->filter(fn ($system) => is_string($system->identifier) && trim((string) $system->identifier) !== '')
+            ->keyBy(fn ($system) => trim((string) $system->identifier));
+        $systemsByCoords = $systems->keyBy(fn ($system) => $this->systemCoordKey($system->galx, $system->galy));
         $systemsByName = [];
 
         foreach ($systems as $system) {
@@ -843,7 +846,7 @@ class UniverseController extends Controller
         $adjacency = [];
 
         foreach (
-            SwcHyperlane::query()->orderBy('name')->get([
+            DB::table('swc_hyperlanes')->orderBy('name')->get([
                 'uid',
                 'source_system_id',
                 'name',
@@ -1317,7 +1320,7 @@ class UniverseController extends Controller
     }
 
     protected function buildPlannerDirectEdgeToEndpoint(
-        SwcSystem $sourceSystem,
+        object $sourceSystem,
         array $toEndpoint,
         string $endNode,
         int $pilotingSkill,
@@ -1605,7 +1608,7 @@ class UniverseController extends Controller
         ]);
     }
 
-    protected function serializePlannerSystem(?SwcSystem $system): ?array
+    protected function serializePlannerSystem(?object $system): ?array
     {
         if (!$system) {
             return null;
@@ -1622,7 +1625,7 @@ class UniverseController extends Controller
         ];
     }
 
-    protected function buildPlannerSystemEndpoint(?SwcSystem $system): ?array
+    protected function buildPlannerSystemEndpoint(?object $system): ?array
     {
         if (!$system) {
             return null;
