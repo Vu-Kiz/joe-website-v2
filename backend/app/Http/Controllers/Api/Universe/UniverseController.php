@@ -31,6 +31,8 @@ use App\Support\Swc\Auth\Permissions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class UniverseController extends Controller
 {
@@ -733,120 +735,121 @@ class UniverseController extends Controller
 
     public function hyperPlanner(Request $request): JsonResponse
     {
-        // The planner reads a large slice of the universe graph. Use lighter
-        // query-builder rows here so production does not exhaust memory while
-        // hydrating thousands of full Eloquent models.
-        $validated = $request->validate([
-            'from' => ['required', 'string', 'max:255'],
-            'to' => ['required', 'string', 'max:255'],
-            'piloting_skill' => ['nullable', 'integer', 'min:0', 'max:5'],
-            'hyperspeed' => ['nullable', 'integer', 'min:1', 'max:15'],
-        ]);
-
-        $pilotingSkill = (int) ($validated['piloting_skill'] ?? 0);
-        $hyperspeed = (int) ($validated['hyperspeed'] ?? 1);
-        $hyperlaneSpeedLimit = 0.55;
-        $directJourneyLength = 0;
-        $directTripSeconds = 0;
-
-        $systems = DB::table('swc_systems')
-            ->whereNotNull('galx')
-            ->whereNotNull('galy')
-            ->get([
-                'id',
-                'uid',
-                'identifier',
-                'name',
-                'sector_uid',
-                'sector_name',
-                'galx',
-                'galy',
+        try {
+            // The planner reads a large slice of the universe graph. Use lighter
+            // query-builder rows here so production does not exhaust memory while
+            // hydrating thousands of full Eloquent models.
+            $validated = $request->validate([
+                'from' => ['required', 'string', 'max:255'],
+                'to' => ['required', 'string', 'max:255'],
+                'piloting_skill' => ['nullable', 'integer', 'min:0', 'max:5'],
+                'hyperspeed' => ['nullable', 'integer', 'min:1', 'max:15'],
             ]);
 
-        $systemsById = $systems->keyBy('id');
-        $systemsByUid = $systems
-            ->filter(fn ($system) => is_string($system->uid) && trim($system->uid) !== '')
-            ->keyBy(fn ($system) => trim((string) $system->uid));
-        $systemsByIdentifier = $systems
-            ->filter(fn ($system) => is_string($system->identifier) && trim((string) $system->identifier) !== '')
-            ->keyBy(fn ($system) => trim((string) $system->identifier));
-        $systemsByCoords = $systems->keyBy(fn ($system) => $this->systemCoordKey($system->galx, $system->galy));
-        $systemsByName = [];
+            $pilotingSkill = (int) ($validated['piloting_skill'] ?? 0);
+            $hyperspeed = (int) ($validated['hyperspeed'] ?? 1);
+            $hyperlaneSpeedLimit = 0.55;
+            $directJourneyLength = 0;
+            $directTripSeconds = 0;
 
-        foreach ($systems as $system) {
-            $normalizedName = $this->normalizeSystemLookupValue($system->name);
-            if ($normalizedName && !isset($systemsByName[$normalizedName])) {
-                $systemsByName[$normalizedName] = $system;
+            $systems = DB::table('swc_systems')
+                ->whereNotNull('galx')
+                ->whereNotNull('galy')
+                ->get([
+                    'id',
+                    'uid',
+                    'identifier',
+                    'name',
+                    'sector_uid',
+                    'sector_name',
+                    'galx',
+                    'galy',
+                ]);
+
+            $systemsById = $systems->keyBy('id');
+            $systemsByUid = $systems
+                ->filter(fn ($system) => is_string($system->uid) && trim($system->uid) !== '')
+                ->keyBy(fn ($system) => trim((string) $system->uid));
+            $systemsByIdentifier = $systems
+                ->filter(fn ($system) => is_string($system->identifier) && trim((string) $system->identifier) !== '')
+                ->keyBy(fn ($system) => trim((string) $system->identifier));
+            $systemsByCoords = $systems->keyBy(fn ($system) => $this->systemCoordKey($system->galx, $system->galy));
+            $systemsByName = [];
+
+            foreach ($systems as $system) {
+                $normalizedName = $this->normalizeSystemLookupValue($system->name);
+                if ($normalizedName && !isset($systemsByName[$normalizedName])) {
+                    $systemsByName[$normalizedName] = $system;
+                }
             }
-        }
 
-        $fromEndpoint = $this->resolvePlannerEndpoint(
-            $validated['from'],
-            $systemsByUid->all(),
-            $systemsByIdentifier->all(),
-            $systemsByName
-        );
-        $toEndpoint = $this->resolvePlannerEndpoint(
-            $validated['to'],
-            $systemsByUid->all(),
-            $systemsByIdentifier->all(),
-            $systemsByName
-        );
+            $fromEndpoint = $this->resolvePlannerEndpoint(
+                $validated['from'],
+                $systemsByUid->all(),
+                $systemsByIdentifier->all(),
+                $systemsByName
+            );
+            $toEndpoint = $this->resolvePlannerEndpoint(
+                $validated['to'],
+                $systemsByUid->all(),
+                $systemsByIdentifier->all(),
+                $systemsByName
+            );
 
-        if (!$fromEndpoint || !$toEndpoint) {
-            return response()->json([
-                'ok' => false,
-                'message' => !$fromEndpoint
-                    ? 'The starting system or coordinates could not be resolved.'
-                    : 'The destination system or coordinates could not be resolved.',
-            ], 404);
-        }
+            if (!$fromEndpoint || !$toEndpoint) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => !$fromEndpoint
+                        ? 'The starting system or coordinates could not be resolved.'
+                        : 'The destination system or coordinates could not be resolved.',
+                ], 404);
+            }
 
-        if (
-            (int) $fromEndpoint['galx'] === (int) $toEndpoint['galx']
-            && (int) $fromEndpoint['galy'] === (int) $toEndpoint['galy']
-        ) {
-            return response()->json([
-                'ok' => true,
-                'data' => [
-                    'from' => $this->serializePlannerEndpoint($fromEndpoint),
-                    'to' => $this->serializePlannerEndpoint($toEndpoint),
-                    'summary' => [
-                        'hop_count' => 0,
-                        'visited_systems' => 1,
-                        'total_modifier' => 0,
-                        'average_modifier' => null,
-                        'direct_seconds' => 0,
-                        'direct_formatted_time' => 'Less than a second',
-                        'time_saved_seconds' => 0,
-                        'time_saved_formatted' => 'Less than a second',
-                        'total_seconds' => 0,
-                        'formatted_time' => 'Less than a second',
-                        'piloting_skill' => $pilotingSkill,
-                        'hyperspeed' => $hyperspeed,
+            if (
+                (int) $fromEndpoint['galx'] === (int) $toEndpoint['galx']
+                && (int) $fromEndpoint['galy'] === (int) $toEndpoint['galy']
+            ) {
+                return response()->json([
+                    'ok' => true,
+                    'data' => [
+                        'from' => $this->serializePlannerEndpoint($fromEndpoint),
+                        'to' => $this->serializePlannerEndpoint($toEndpoint),
+                        'summary' => [
+                            'hop_count' => 0,
+                            'visited_systems' => 1,
+                            'total_modifier' => 0,
+                            'average_modifier' => null,
+                            'direct_seconds' => 0,
+                            'direct_formatted_time' => 'Less than a second',
+                            'time_saved_seconds' => 0,
+                            'time_saved_formatted' => 'Less than a second',
+                            'total_seconds' => 0,
+                            'formatted_time' => 'Less than a second',
+                            'piloting_skill' => $pilotingSkill,
+                            'hyperspeed' => $hyperspeed,
+                        ],
+                        'systems' => [$this->serializePlannerEndpoint($fromEndpoint)],
+                        'hops' => [],
                     ],
-                    'systems' => [$this->serializePlannerEndpoint($fromEndpoint)],
-                    'hops' => [],
-                ],
-            ]);
-        }
+                ]);
+            }
 
-        $directJourneyLength = $this->calculatePlannerJourneyLength(
-            $fromEndpoint['galx'],
-            $fromEndpoint['galy'],
-            $toEndpoint['galx'],
-            $toEndpoint['galy']
-        );
-        $directTripSeconds = $this->calculatePlannerDirectTravelSeconds(
-            $directJourneyLength,
-            $pilotingSkill,
-            $hyperspeed
-        );
+            $directJourneyLength = $this->calculatePlannerJourneyLength(
+                $fromEndpoint['galx'],
+                $fromEndpoint['galy'],
+                $toEndpoint['galx'],
+                $toEndpoint['galy']
+            );
+            $directTripSeconds = $this->calculatePlannerDirectTravelSeconds(
+                $directJourneyLength,
+                $pilotingSkill,
+                $hyperspeed
+            );
 
-        $adjacency = [];
+            $adjacency = [];
 
-        foreach (
-            DB::table('swc_hyperlanes')->orderBy('name')->get([
+            foreach (
+                DB::table('swc_hyperlanes')->orderBy('name')->get([
                 'uid',
                 'source_system_id',
                 'name',
@@ -857,8 +860,8 @@ class UniverseController extends Controller
                 'owner_name',
                 'blocks',
                 'modifier',
-            ]) as $hyperlane
-        ) {
+                ]) as $hyperlane
+            ) {
             $destinationSystem = null;
 
             if ($hyperlane->destination_uid && isset($systemsByUid[trim((string) $hyperlane->destination_uid)])) {
@@ -935,15 +938,15 @@ class UniverseController extends Controller
             ];
         }
 
-        $startNode = ($fromEndpoint['kind'] === 'system' && isset($fromEndpoint['system']) && $fromEndpoint['system'])
-            ? (string) $fromEndpoint['system']->id
-            : '__start__';
-        $endNode = ($toEndpoint['kind'] === 'system' && isset($toEndpoint['system']) && $toEndpoint['system'])
-            ? (string) $toEndpoint['system']->id
-            : '__end__';
+            $startNode = ($fromEndpoint['kind'] === 'system' && isset($fromEndpoint['system']) && $fromEndpoint['system'])
+                ? (string) $fromEndpoint['system']->id
+                : '__start__';
+            $endNode = ($toEndpoint['kind'] === 'system' && isset($toEndpoint['system']) && $toEndpoint['system'])
+                ? (string) $toEndpoint['system']->id
+                : '__end__';
 
-        if ($startNode === '__start__') {
-            foreach ($systems as $system) {
+            if ($startNode === '__start__') {
+                foreach ($systems as $system) {
                 $directSeconds = $this->calculatePlannerDirectTravelSeconds(
                     $this->calculatePlannerJourneyLength($fromEndpoint['galx'], $fromEndpoint['galy'], $system->galx, $system->galy),
                     $pilotingSkill,
@@ -979,11 +982,11 @@ class UniverseController extends Controller
                         'name' => $system->name,
                     ],
                 ];
+                }
             }
-        }
 
-        if ($endNode === '__end__') {
-            foreach ($systems as $system) {
+            if ($endNode === '__end__') {
+                foreach ($systems as $system) {
                 $directSeconds = $this->calculatePlannerDirectTravelSeconds(
                     $this->calculatePlannerJourneyLength($system->galx, $system->galy, $toEndpoint['galx'], $toEndpoint['galy']),
                     $pilotingSkill,
@@ -1020,16 +1023,16 @@ class UniverseController extends Controller
                     'to_endpoint' => $toEndpoint,
                     'destination_node' => $endNode,
                 ];
+                }
             }
-        }
 
-        if ($startNode === '__start__' && $endNode === '__end__') {
-            $directSeconds = $this->calculatePlannerDirectTravelSeconds(
+            if ($startNode === '__start__' && $endNode === '__end__') {
+                $directSeconds = $this->calculatePlannerDirectTravelSeconds(
                 $this->calculatePlannerJourneyLength($fromEndpoint['galx'], $fromEndpoint['galy'], $toEndpoint['galx'], $toEndpoint['galy']),
                 $pilotingSkill,
                 $hyperspeed
             );
-            $adjacency[$startNode][] = [
+                $adjacency[$startNode][] = [
                 'hop_type' => 'direct',
                 'lane_uid' => null,
                 'lane_name' => 'Direct jump',
@@ -1051,56 +1054,56 @@ class UniverseController extends Controller
                 'from_endpoint' => $fromEndpoint,
                 'to_endpoint' => $toEndpoint,
                 'destination_node' => $endNode,
-            ];
-        }
+                ];
+            }
 
-        $fastestHopEdges = $this->findPlannerShortestPathEdges(
-            $adjacency,
-            $systemsById,
-            $startNode,
-            $endNode,
-            $toEndpoint,
-            $pilotingSkill,
-            $hyperspeed,
-            $directTripSeconds
-        );
+            $fastestHopEdges = $this->findPlannerShortestPathEdges(
+                $adjacency,
+                $systemsById,
+                $startNode,
+                $endNode,
+                $toEndpoint,
+                $pilotingSkill,
+                $hyperspeed,
+                $directTripSeconds
+            );
 
-        if (empty($fastestHopEdges)) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'No stored hyperlane routes were found that beat direct travel between those systems.',
-            ], 404);
-        }
+            if (empty($fastestHopEdges)) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'No stored hyperlane routes were found that beat direct travel between those systems.',
+                ], 404);
+            }
 
-        $routeOptions = [];
-        $routeSignatures = [];
-        $visitedSystems = 0;
-        $exploredStates = 0;
-        $maxRoutes = 3;
-        $maxExploredStates = 15000;
+            $routeOptions = [];
+            $routeSignatures = [];
+            $visitedSystems = 0;
+            $exploredStates = 0;
+            $maxRoutes = 3;
+            $maxExploredStates = 15000;
 
-        $fastestRoutePayload = $this->buildPlannerRoutePayload(
-            $fromEndpoint,
-            $toEndpoint,
-            $fastestHopEdges,
-            $systemsById,
-            $pilotingSkill,
-            $hyperspeed,
-            $visitedSystems
-        );
-        $fastestRouteSignature = $this->buildPlannerRouteSignature($fastestHopEdges);
-        $routeOptions[] = $fastestRoutePayload;
-        $routeSignatures[$fastestRouteSignature] = true;
-        $stateQueue = new \SplPriorityQueue();
-        $stateQueue->setExtractFlags(\SplPriorityQueue::EXTR_DATA);
-        $stateQueue->insert([
-            'node' => $startNode,
-            'seconds' => 0,
-            'edges' => [],
-            'visited' => [$startNode => true],
-        ], 0);
+            $fastestRoutePayload = $this->buildPlannerRoutePayload(
+                $fromEndpoint,
+                $toEndpoint,
+                $fastestHopEdges,
+                $systemsById,
+                $pilotingSkill,
+                $hyperspeed,
+                $visitedSystems
+            );
+            $fastestRouteSignature = $this->buildPlannerRouteSignature($fastestHopEdges);
+            $routeOptions[] = $fastestRoutePayload;
+            $routeSignatures[$fastestRouteSignature] = true;
+            $stateQueue = new \SplPriorityQueue();
+            $stateQueue->setExtractFlags(\SplPriorityQueue::EXTR_DATA);
+            $stateQueue->insert([
+                'node' => $startNode,
+                'seconds' => 0,
+                'edges' => [],
+                'visited' => [$startNode => true],
+            ], 0);
 
-        while (!$stateQueue->isEmpty() && $exploredStates < $maxExploredStates) {
+            while (!$stateQueue->isEmpty() && $exploredStates < $maxExploredStates) {
             $state = $stateQueue->extract();
             $systemId = (string) ($state['node'] ?? '');
             $elapsedSeconds = (int) ($state['seconds'] ?? 0);
@@ -1200,27 +1203,43 @@ class UniverseController extends Controller
 
                 $stateQueue->insert($nextState, -$candidateSeconds);
             }
+            }
+
+            usort($routeOptions, fn (array $left, array $right) => ($left['summary']['total_seconds'] ?? PHP_INT_MAX) <=> ($right['summary']['total_seconds'] ?? PHP_INT_MAX));
+            $routeOptions = array_values(array_map(
+                fn (array $route, int $index) => [
+                    ...$route,
+                    'route_index' => $index,
+                    'route_label' => sprintf('Route %d', $index + 1),
+                ],
+                $routeOptions,
+                array_keys($routeOptions)
+            ));
+            $fastestRoute = $routeOptions[0];
+
+            return response()->json([
+                'ok' => true,
+                'data' => [
+                    ...$fastestRoute,
+                    'routes' => $routeOptions,
+                ],
+            ]);
+        } catch (Throwable $e) {
+            Log::error('Hyper Planner failed.', [
+                'from' => $request->query('from'),
+                'to' => $request->query('to'),
+                'piloting_skill' => $request->query('piloting_skill'),
+                'hyperspeed' => $request->query('hyperspeed'),
+                'message' => $e->getMessage(),
+                'exception' => get_class($e),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'Hyper Planner could not calculate that route right now.',
+                'error_code' => 'hyper_planner_failed',
+            ], 500);
         }
-
-        usort($routeOptions, fn (array $left, array $right) => ($left['summary']['total_seconds'] ?? PHP_INT_MAX) <=> ($right['summary']['total_seconds'] ?? PHP_INT_MAX));
-        $routeOptions = array_values(array_map(
-            fn (array $route, int $index) => [
-                ...$route,
-                'route_index' => $index,
-                'route_label' => sprintf('Route %d', $index + 1),
-            ],
-            $routeOptions,
-            array_keys($routeOptions)
-        ));
-        $fastestRoute = $routeOptions[0];
-
-        return response()->json([
-            'ok' => true,
-            'data' => [
-                ...$fastestRoute,
-                'routes' => $routeOptions,
-            ],
-        ]);
     }
 
     protected function buildPlannerRoutePayload(
