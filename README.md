@@ -4,18 +4,17 @@ Jawa Offworld Enterprises website and member tools.
 
 ## Current Version
 
-- Production release: `v2.0.2`
-- Active development branch: `v2.0.4`
+- Production release: `v2.0.5`
+- Active development branch: `dev`
 
 ## Branch Status
 
-- `dev` is the working branch for `v2.0.4` updates
+- `dev` is the working branch for post-`v2.0.5` updates
 - production should only receive pulled, tested changes from `dev`
 
 ## Notes
 
-- `v2.0.2` is now the live production patch release
-- `v2.0.4` is the next active update cycle
+- `v2.0.5` is now the live production patch release
 - larger new work should be planned deliberately instead of being folded into patch updates
 
 ## v2.0.1 Status
@@ -101,3 +100,43 @@ Included updates:
   Added a `DroidBrain Intel` toggle to the location view, gated to intel/admin/sysadmin access, so deep-space DroidBrain ships and stations stay hidden until explicitly enabled.
 - Astrogation map state persistence
   Extended the existing user `member_tool_preferences` record so astrogation now remembers the user’s last selected sector, selected system, map scope, and focus target, allowing the galaxy/sector view to reopen in the same context instead of resetting to the default first sector.
+
+## v2.0.5 Patch Notes
+
+- `v2.0.5` is now released and live in production
+- this section reflects the shipped patch scope
+
+Included updates:
+
+- New feature: Wrecking Helper extension platform
+  Added a brand-new browser-extension workflow for members, including a dedicated Members tool panel, one-click website-to-extension connect flow, downloadable extension packages, and shared profile-backed settings so extension behavior can be managed from the website.
+- Wrecking Helper backend authorization and settings
+  Added server-side action authorization for extension actions, introduced a dedicated extension access permission so rollout can be controlled per user, and added persisted extension settings storage (default prefix `wrecker`) so users keep consistent behavior across reloads and devices.
+- Wrecking Helper runtime and packaging stability
+  Fixed MV3 service-worker/module loading issues, hardened extension bridge handshake behavior, and regenerated the distributed Chromium package so install/reload flows are reliable in production.
+- Wrecking Helper stamp reliability fix
+  Updated `Alt+Q` stamping so pending inserts retry after page load and auto-apply the confirmed focus/position behavior, removing the need for users to manually press `End` when boarding pages load slowly.
+- Wrecking Helper icon and guide alignment
+  Switched extension and members-tool branding to `WreckerIcon`, updated packaged Chromium downloads to include the icon asset, and simplified member-facing install guidance to Chromium-only steps while removing Firefox-specific install guidance.
+- Entity Stats directional arc UX overhaul
+  Reworked member-side arc presentation so weapon arcs and shield arcs render as per-arc directional entries using ship-heading visual indicators, moved shield arcs into the `Defenses` panel flow for consistency, added explicit `Shield Arcs` labeling inside defenses, and cleaned left/right alignment so arc names and values are readable without overlap or duplicated headers.
+- Entity Stats overlay sizing and readability polish
+  Updated grouped overlay sizing to be content-aware instead of one fixed large modal size, reducing dead space for compact scalar sections like Electronics and Dimensions while preserving larger layouts for complex sections such as Weapons and Description.
+- Targeting Heatmap panel architecture refresh
+  Converted both left and right side rails to collapsible sections so the tool opens in a cleaner state, adjusted default open/closed behavior to reduce information overload at load, and removed duplicate section labels in collapsed blocks.
+- Shared UI component standardization
+  Introduced reusable common components for repeated controls: a shared `HamburgerToggle` with centralized styling and a reusable `DirectionalCompass` component for heading/bearing visuals, then replaced hard-coded copies across JEN overlays, Entity Stats overlays, and Targeting Heatmap.
+- Targeting Heatmap heading and compass improvements
+  Removed debug-style heading duplication, replaced the old heading card with the reusable compass view, added an outer glowing bearing marker that follows ship facing, removed verbose compass direction text labels, and fixed heading animation wrap so transitions across `0°/360°` use shortest-path rotation instead of full-spin artifacts.
+- Targeting Heatmap selection flow cleanup
+  Removed forced auto-selection of the first platform so members can choose their own starting entity, added an explicit `Clear Selection` action, and kept no-selection states stable without breaking board rendering.
+- Targeting Heatmap heading visibility and atmo sizing cleanup
+  Updated heading controls to only render when the selected platform actually supports directional capital/super-capital arcs, replaced the atmo planet searcher with a direct atmosphere grid size input, and capped that board size to `20x20` maximum for consistent member-side behavior.
+- Targeting Heatmap layout polish
+  Tightened and centered the atmo size input block to remove dead space, centered helper text for cleaner alignment, and removed the old dev/sandbox subtitle line so the tool header stays clean in members view.
+- Targeting Heatmap directional arc correctness
+  Fixed directional arc parsing for mounted weapons that store `arc_from` / `arc_to` keys (including tractor beams), and expanded fallback arc-name coverage for `Front/Rear/Port/Starboard 90`, `Frontal 270`, and `Port/Starboard 180` labels.
+- Entity Stats arc indicator accuracy fix
+  Reworked arc indicator rendering to use explicit SVG arc geometry so displayed ring segments align with SWC arc start/sweep directions instead of drifting from dashed-offset calculations.
+- Members tools view persistence on refresh
+  Updated `/members` view-state routing so tool selections persist in URL query state, allowing refresh/navigation to reopen the same panel (including Wrecking Helper) instead of dropping back to the overview tools tab.

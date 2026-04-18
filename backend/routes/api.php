@@ -40,6 +40,8 @@ use App\Http\Controllers\Api\DiscordBotController;
 use App\Http\Controllers\Api\MemberToolAccessController;
 use App\Http\Controllers\Api\ContactRequestController;
 use App\Http\Controllers\Api\Admin\ContactRequestSettingsController;
+use App\Http\Controllers\Api\Extension\HelperAuthController;
+use App\Http\Controllers\Api\Extension\HelperSettingsController;
 
 // Public utility
 Route::get('/health', [HealthController::class, 'index']);
@@ -266,6 +268,7 @@ Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('admin')->group(fun
     Route::get('/website-health', [WebsiteHealthController::class, 'show']);
     Route::get('/site-lock', [SiteLockController::class, 'show']);
     Route::post('/site-lock', [SiteLockController::class, 'update']);
+    Route::get('/entity-stats/{entityType}/export.csv', [EntityStatsController::class, 'exportCsv']);
     Route::post('/entity-stats/station-icons/populate', [EntityStatsController::class, 'populateStationIcons']);
     Route::post('/entity-stats/material-icons/populate', [EntityStatsController::class, 'populateMaterialIcons']);
     Route::put('/entity-stats/{entityType}/{entityId}', [EntityStatsController::class, 'update']);
@@ -278,6 +281,11 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/member-tools/access', [MemberToolAccessController::class, 'store']);
+    Route::post('/extension/authorize-action', [HelperAuthController::class, 'authorizeAction'])->middleware('throttle:120,1');
+    Route::post('/extension/wrecking-helper/token', [HelperAuthController::class, 'issueToken'])->middleware('throttle:30,1');
+    Route::delete('/extension/wrecking-helper/token', [HelperAuthController::class, 'revokeToken'])->middleware('throttle:30,1');
+    Route::get('/extension/wrecking-helper/settings', [HelperSettingsController::class, 'show'])->middleware('throttle:120,1');
+    Route::put('/extension/wrecking-helper/settings', [HelperSettingsController::class, 'update'])->middleware('throttle:120,1');
 });
 
 Route::middleware(['auth:sanctum', 'require_any:is_joe_member,is_intel,is_sysadmin'])->group(function () {
@@ -308,6 +316,8 @@ Route::middleware(['auth:sanctum', 'require_any:is_admin'])->group(function () {
 
 Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('sys/debug')->group(function () {
     Route::get('/runtime', [DebugController::class, 'runtime']);
+    Route::get('/combat-settings', [DebugController::class, 'combatSettings']);
+    Route::put('/combat-settings', [DebugController::class, 'updateCombatSettings']);
     Route::get('/swc-auth', [DebugController::class, 'swcAuth']);
     Route::get('/payments', [DebugController::class, 'payments']);
     Route::get('/factions', [DebugController::class, 'factions']);

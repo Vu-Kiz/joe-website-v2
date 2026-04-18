@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { BlogPost } from "../../api/blog";
 import { getBackendOrigin } from "../../api/auth";
 import BBCodeView from "../bbcode/BBCodeView";
+import HamburgerToggle from "../common/HamburgerToggle";
 
 type Rect = {
   top: number;
@@ -122,17 +123,11 @@ const JenExpandedOverlay: React.FC<Props> = ({ post, sourceRect, onClose }) => {
             </div>
           </div>
 
-          <button
-            type="button"
-            className="jen-panel__toggle jen-panel__toggle--open"
+          <HamburgerToggle
+            open={true}
             onClick={handleClose}
-            aria-label="Close post"
-            aria-expanded={true}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
+            ariaLabel="Close post"
+          />
         </header>
 
         <div className="jen-overlay__body">

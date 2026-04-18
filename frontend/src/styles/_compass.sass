@@ -1,0 +1,61 @@
+.directional-compass
+  display: grid
+  gap: 0.5rem
+  justify-items: center
+
+.directional-compass__visual
+  position: relative
+  width: 6.2rem
+  height: 6.2rem
+  display: grid
+  place-items: center
+  border: 1px solid rgba(255,255,255,0.12)
+  border-radius: 999px
+  background: radial-gradient(circle at center, rgba(246,163,0,0.06), rgba(255,255,255,0.02) 62%, rgba(255,255,255,0.01))
+
+  &::before
+    content: ""
+    position: absolute
+    inset: 0.55rem
+    border: 1px dashed rgba(255,255,255,0.12)
+    border-radius: 999px
+
+  &::after
+    content: ""
+    position: absolute
+    top: 0.35rem
+    left: 50%
+    width: 2px
+    height: 0.7rem
+    transform: translateX(-50%)
+    border-radius: 999px
+    background: rgba(246,163,0,0.95)
+    box-shadow: 0 0 10px rgba(246,163,0,0.35)
+
+.directional-compass__bearing-marker
+  position: absolute
+  top: 50%
+  left: 50%
+  width: 2px
+  height: 0.85rem
+  border-radius: 999px
+  background: rgba(246,163,0,0.95)
+  box-shadow: 0 0 12px rgba(246,163,0,0.5)
+  pointer-events: none
+
+.directional-compass__ship
+  width: 3.2rem
+  height: 3.2rem
+  object-fit: contain
+  transform-origin: 50% 50%
+  transition: transform 0.14s ease
+  filter: drop-shadow(0 0 10px rgba(0,0,0,0.28))
+
+.directional-compass__readout
+  display: grid
+  justify-items: center
+  gap: 0.1rem
+
+  strong
+    color: rgba(246,163,0,0.95)
+    font-size: 1.1rem

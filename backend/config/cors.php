@@ -7,7 +7,10 @@ return [
 
     'allowed_origins' => array_filter(array_map('trim', explode(',', env('CORS_ALLOWED_ORIGINS', '')))),
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '#^chrome-extension://[a-z]{32}$#',
+        '#^moz-extension://[A-Za-z0-9-]+$#',
+    ],
 
     'allowed_headers' => ['*'],
 

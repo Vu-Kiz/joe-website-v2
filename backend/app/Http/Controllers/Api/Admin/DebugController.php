@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Support\Admin\AdminActionLogger;
 use App\Support\Payments\PaymentVerificationService;
 use App\Support\Payments\SwcPaymentUrlBuilder;
+use App\Support\Combat\CombatMathSettings;
 use App\Support\Swc\SwcHttp;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Client\Response;
@@ -160,6 +161,40 @@ class DebugController extends Controller
                 'pull_service_hash' => is_string($pullServiceContents)
                     ? md5($pullServiceContents)
                     : null,
+            ],
+        ]);
+    }
+
+    public function combatSettings(): JsonResponse
+    {
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'ship_classes' => CombatMathSettings::shipClasses(),
+                'weapon_damage_types' => CombatMathSettings::weaponDamageTypes(),
+                'ship_damage_type_modifiers' => CombatMathSettings::getShipDamageTypeModifiers(),
+                'ship_class_modifiers' => CombatMathSettings::getShipClassModifiers(),
+            ],
+        ]);
+    }
+
+    public function updateCombatSettings(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'ship_damage_type_modifiers' => ['required', 'array'],
+            'ship_class_modifiers' => ['required', 'array'],
+        ]);
+
+        CombatMathSettings::setShipDamageTypeModifiers($validated['ship_damage_type_modifiers'] ?? []);
+        CombatMathSettings::setShipClassModifiers($validated['ship_class_modifiers'] ?? []);
+
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'ship_classes' => CombatMathSettings::shipClasses(),
+                'weapon_damage_types' => CombatMathSettings::weaponDamageTypes(),
+                'ship_damage_type_modifiers' => CombatMathSettings::getShipDamageTypeModifiers(),
+                'ship_class_modifiers' => CombatMathSettings::getShipClassModifiers(),
             ],
         ]);
     }

@@ -1,0 +1,13 @@
+{
+  "name": "wrecking-helper-ts",
+  "version": "3.0.0",
+  "private": true,
+  "description": "TypeScript build of Wrecking Helper with website bridge support.",
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "npm run clean && tsc -p tsconfig.json && cp src/manifest.json dist/manifest.json && cp src/popup.html dist/popup.html && cp src/WreckerIcon.png dist/WreckerIcon.png"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

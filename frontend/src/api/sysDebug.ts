@@ -263,6 +263,16 @@ export type DebugRuntimeResponse = {
   };
 };
 
+export type DebugCombatSettingsResponse = {
+  ok: boolean;
+  data: {
+    ship_classes: string[];
+    weapon_damage_types: string[];
+    ship_damage_type_modifiers: Record<string, number>;
+    ship_class_modifiers: Record<string, Record<string, Record<string, number>>>;
+  };
+};
+
 export type SectorCellAnnotation = {
   id?: number;
   sector_uid: string;
@@ -290,6 +300,20 @@ export function getDebugSwcAuth(userId?: number) {
 
 export function getDebugRuntime() {
   return apiFetch<DebugRuntimeResponse>(`/sys/debug/runtime`);
+}
+
+export function getDebugCombatSettings() {
+  return apiFetch<DebugCombatSettingsResponse>(`/sys/debug/combat-settings`);
+}
+
+export function updateDebugCombatSettings(payload: {
+  ship_damage_type_modifiers: Record<string, number>;
+  ship_class_modifiers: Record<string, Record<string, Record<string, number>>>;
+}) {
+  return apiFetch<DebugCombatSettingsResponse>(`/sys/debug/combat-settings`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
 }
 
 export function getDebugPayments(userId?: number) {

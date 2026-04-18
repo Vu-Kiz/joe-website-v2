@@ -61,6 +61,16 @@ export function canAccessSysadmin(user: SwcUser | null | undefined): boolean {
   return isSysadmin(user);
 }
 
+export function canAccessCombatCalculator(user: SwcUser | null | undefined): boolean {
+  if (!user) return false;
+  return !!(user.can_access_combat_calc || user.is_admin || user.is_sysadmin);
+}
+
+export function canAccessWreckingHelperExtension(user: SwcUser | null | undefined): boolean {
+  if (!user) return false;
+  return !!(user.can_access_wrecking_helper_extension || user.is_admin || user.is_sysadmin);
+}
+
 export function canManageBlog(user: SwcUser | null | undefined): boolean {
   if (!user) return false;
   return !!(user.can_manage_blog || user.is_admin || user.is_sysadmin);

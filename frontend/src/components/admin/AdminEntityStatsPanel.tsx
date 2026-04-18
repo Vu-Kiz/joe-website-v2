@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  downloadAdminEntityStatsCsv,
   getStoredCreatureType,
   getStoredCreatureTypes,
   getStoredFacilityType,
@@ -31,6 +32,7 @@ import {
   type EntityStatsKind,
   updateAdminEntityStats,
 } from "../../api/universe";
+import type { SwcUser } from "../../api/auth";
 
 type EntityRecordSummary = {
   uid: string;
@@ -54,6 +56,49 @@ type EntityBrowseItem = {
   itemRecord?: EntityRecordSummary | null;
   weaponRecord?: EntityRecordSummary | null;
 };
+
+type ShieldArcEntry = {
+  name: string;
+  value: string;
+  percent: string;
+};
+
+type ShieldArcPreset = {
+  key: string;
+  label: string;
+  arcs: Array<{
+    name: string;
+    percent: number;
+  }>;
+};
+
+function normalizeShieldArcPresetSignature(
+  arcs: Array<{ name: string; percent: number }>
+) {
+  return [...arcs]
+    .map((arc) => ({
+      name: arc.name.trim().toLowerCase(),
+      percent: Number(arc.percent.toFixed(2)),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((arc) => `${arc.name}:${arc.percent.toFixed(2)}`)
+    .join("|");
+}
+
+function normalizeShieldArcDraftSignature(rows: ShieldArcEntry[]) {
+  return rows
+    .map((row) => ({
+      name: row.name.trim().toLowerCase(),
+      percent:
+        row.percent.trim() === "" || Number.isNaN(Number(row.percent))
+          ? null
+          : Number(Number(row.percent).toFixed(2)),
+    }))
+    .filter((row) => row.name && row.percent !== null)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((row) => `${row.name}:${row.percent!.toFixed(2)}`)
+    .join("|");
+}
 
 const kindOptions: Array<{ key: EntityStatsKind; label: string }> = [
   { key: "station", label: "Station Types" },
@@ -145,7 +190,123 @@ function getBrowseRecordForKind(
   return item.primaryRecord;
 }
 
-const AdminEntityStatsPanel: React.FC = () => {
+const SHIELD_ARC_NAME_OPTIONS = [
+  "Front 120",
+  "Front 90",
+  "Port 60",
+  "Port 90",
+  "Starboard 60",
+  "Starboard 90",
+  "Rear 120",
+  "Rear 90",
+  "Omni",
+  "Front",
+  "Frontal",
+  "Rear",
+  "Port",
+  "Starboard",
+  "Front 50",
+  "Rear 50",
+  "Port 50",
+  "Starboard 50",
+  "Front 60",
+  "Rear 60",
+  "Port 120",
+  "Starboard 120",
+];
+
+const SHIELD_ARC_PRESETS: ShieldArcPreset[] = [
+  {
+    key: "preset-0",
+    label: "Preset 0",
+    arcs: [{ name: "Omni", percent: 100 }],
+  },
+  {
+    key: "preset-1",
+    label: "Preset 1",
+    arcs: [
+      { name: "Front 90", percent: 25 },
+      { name: "Port 90", percent: 25 },
+      { name: "Starboard 90", percent: 25 },
+      { name: "Rear 90", percent: 25 },
+    ],
+  },
+  {
+    key: "preset-2",
+    label: "Preset 2",
+    arcs: [
+      { name: "Front 90", percent: 40 },
+      { name: "Port 90", percent: 20 },
+      { name: "Starboard 90", percent: 20 },
+      { name: "Rear 90", percent: 20 },
+    ],
+  },
+  {
+    key: "preset-3",
+    label: "Preset 3",
+    arcs: [
+      { name: "Front 90", percent: 20 },
+      { name: "Starboard 90", percent: 20 },
+      { name: "Port 90", percent: 20 },
+      { name: "Rear 90", percent: 20 },
+      { name: "Omni", percent: 20 },
+    ],
+  },
+  {
+    key: "preset-4",
+    label: "Preset 4",
+    arcs: [
+      { name: "Front 90", percent: 50 },
+      { name: "Rear 90", percent: 50 },
+    ],
+  },
+  {
+    key: "preset-5",
+    label: "Preset 5",
+    arcs: [
+      { name: "Front 120", percent: 27 },
+      { name: "Port 60", percent: 18 },
+      { name: "Starboard 60", percent: 18 },
+      { name: "Rear 120", percent: 12 },
+      { name: "Omni", percent: 25 },
+    ],
+  },
+  {
+    key: "preset-6",
+    label: "Preset 6",
+    arcs: [
+      { name: "Front 60", percent: 15 },
+      { name: "Port 120", percent: 24 },
+      { name: "Starboard 120", percent: 24 },
+      { name: "Rear 60", percent: 12 },
+      { name: "Omni", percent: 25 },
+    ],
+  },
+  {
+    key: "preset-7",
+    label: "Preset 7",
+    arcs: [
+      { name: "Front 120", percent: 18 },
+      { name: "Port 60", percent: 12 },
+      { name: "Starboard 60", percent: 12 },
+      { name: "Rear 120", percent: 8 },
+      { name: "Omni", percent: 50 },
+    ],
+  },
+  {
+    key: "preset-8",
+    label: "Preset 8",
+    arcs: [
+      { name: "Front 60", percent: 10 },
+      { name: "Port 120", percent: 16 },
+      { name: "Starboard 120", percent: 16 },
+      { name: "Rear 60", percent: 8 },
+      { name: "Omni", percent: 50 },
+    ],
+  },
+];
+
+const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => {
   const [kind, setKind] = useState<EntityStatsKind>("station");
   const [items, setItems] = useState<EntityBrowseItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -158,8 +319,11 @@ const AdminEntityStatsPanel: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [iconPopulateLoading, setIconPopulateLoading] = useState(false);
   const [materialIconPopulateLoading, setMaterialIconPopulateLoading] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [shieldArcDraftRows, setShieldArcDraftRows] = useState<ShieldArcEntry[]>([]);
+  const isSysadmin = !!user?.is_sysadmin;
 
   useEffect(() => {
     let cancelled = false;
@@ -360,6 +524,96 @@ const AdminEntityStatsPanel: React.FC = () => {
     ).sort((a, b) => a.localeCompare(b));
   }, [items, kind]);
 
+  const parsedEditorDetail = useMemo(() => {
+    try {
+      return editorValue.trim() ? JSON.parse(editorValue) as Record<string, unknown> : null;
+    } catch {
+      return null;
+    }
+  }, [editorValue]);
+
+  const isCapitalShieldArcEditor = useMemo(() => {
+    if (!isSysadmin || kind !== "ship" || !parsedEditorDetail) {
+      return false;
+    }
+
+    const className = String(parsedEditorDetail.class_name ?? "").trim().toLowerCase();
+    return className === "capital ships" || className === "super capitals";
+  }, [isSysadmin, kind, parsedEditorDetail]);
+
+  const shieldArcRows = useMemo<ShieldArcEntry[]>(() => {
+    const arcs = Array.isArray(parsedEditorDetail?.shield_arcs) ? parsedEditorDetail?.shield_arcs : [];
+
+    return arcs.map((arc) => {
+      const row = (arc && typeof arc === "object") ? arc as Record<string, unknown> : {};
+      return {
+        name: String(row.name ?? ""),
+        value: row.value == null ? "" : String(row.value),
+        percent: row.percent == null ? "" : String(row.percent),
+      };
+    });
+  }, [parsedEditorDetail]);
+
+  useEffect(() => {
+    setShieldArcDraftRows(shieldArcRows);
+  }, [shieldArcRows]);
+
+  const activeShieldArcPresetKey = useMemo(() => {
+    const currentSignature = normalizeShieldArcDraftSignature(shieldArcDraftRows);
+    if (!currentSignature) {
+      return null;
+    }
+
+    const matchingPreset = SHIELD_ARC_PRESETS.find(
+      (preset) => normalizeShieldArcPresetSignature(preset.arcs) === currentSignature
+    );
+
+    return matchingPreset?.key ?? null;
+  }, [shieldArcDraftRows]);
+
+  const totalShieldValue = useMemo(() => {
+    const raw = parsedEditorDetail?.shield;
+    if (raw == null || raw === "" || Number.isNaN(Number(raw))) {
+      return null;
+    }
+
+    return Number(raw);
+  }, [parsedEditorDetail]);
+
+  function updateEditorShieldArcs(nextRows: ShieldArcEntry[]) {
+    setShieldArcDraftRows(nextRows);
+    const base = parsedEditorDetail && typeof parsedEditorDetail === "object" ? parsedEditorDetail : {};
+    const nextDetail = {
+      ...base,
+      shield_arcs: nextRows
+        .map((row) => ({
+          name: row.name.trim() || null,
+          value: row.value.trim() === "" || Number.isNaN(Number(row.value)) ? null : Math.round(Number(row.value)),
+          percent: row.percent.trim() === "" || Number.isNaN(Number(row.percent)) ? null : Number(Number(row.percent).toFixed(2)),
+        }))
+        .filter((row) => row.name !== null || row.value !== null || row.percent !== null),
+    };
+
+    setEditorValue(JSON.stringify(nextDetail, null, 2));
+  }
+
+  function patchShieldArcRow(index: number, patch: Partial<ShieldArcEntry>) {
+    const nextRows = shieldArcDraftRows.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row);
+    updateEditorShieldArcs(nextRows);
+  }
+
+  function applyShieldArcPreset(preset: ShieldArcPreset) {
+    const nextRows = preset.arcs.map((arc) => ({
+      name: arc.name,
+      percent: arc.percent.toFixed(2),
+      value: totalShieldValue != null
+        ? String(Math.round((totalShieldValue * arc.percent) / 100))
+        : "",
+    }));
+
+    updateEditorShieldArcs(nextRows);
+  }
+
   async function onSave() {
     if (!selectedItem) {
       setError("Select an entity first.");
@@ -372,6 +626,21 @@ const AdminEntityStatsPanel: React.FC = () => {
       setMessage(null);
 
       const parsed = JSON.parse(editorValue) as Record<string, unknown>;
+      const payload: Record<string, unknown> = { ...parsed };
+
+      if (isCapitalShieldArcEditor) {
+        payload.shield_arcs = shieldArcDraftRows
+          .map((row) => ({
+            name: row.name.trim() || null,
+            value: row.value.trim() === "" || Number.isNaN(Number(row.value)) ? null : Math.round(Number(row.value)),
+            percent:
+              row.percent.trim() === "" || Number.isNaN(Number(row.percent))
+                ? null
+                : Number(Number(row.percent).toFixed(2)),
+          }))
+          .filter((row) => row.name !== null || row.value !== null || row.percent !== null);
+      }
+
       const detailKind =
         kind === "item" || kind === "weapon"
           ? (selectedSourceKind ?? kind)
@@ -383,10 +652,10 @@ const AdminEntityStatsPanel: React.FC = () => {
         throw new Error("No editable source record was found for this entry.");
       }
 
-      const response = await updateAdminEntityStats(detailKind, selectedUid, parsed);
+      const response = await updateAdminEntityStats(detailKind, selectedUid, payload);
 
       setMessage(response.message ?? "Entity stats updated.");
-      setEditorValue(JSON.stringify(response.data ?? parsed, null, 2));
+      setEditorValue(JSON.stringify(response.data ?? payload, null, 2));
       setItems((current) =>
         current.map((item) =>
           item.key === selectedItem.key
@@ -506,6 +775,31 @@ const AdminEntityStatsPanel: React.FC = () => {
     }
   }
 
+  async function onExportCsv() {
+    try {
+      setExportingCsv(true);
+      setError(null);
+      setMessage(null);
+
+      const { blob, filename } = await downloadAdminEntityStatsCsv(kind);
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+      setMessage(`${kindOptions.find((option) => option.key === kind)?.label ?? kind} CSV exported.`);
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to export CSV.");
+    } finally {
+      setExportingCsv(false);
+    }
+  }
+
   return (
     <section className="panel admin-panel">
       <div className="admin-panel__header">
@@ -515,37 +809,50 @@ const AdminEntityStatsPanel: React.FC = () => {
         </p>
       </div>
 
-      <div className="admin-card__actions">
-        {kindOptions.map((option) => (
-          <button
-            key={option.key}
-            type="button"
-            className={`btn${kind === option.key ? " admin-nav__btn--active" : ""}`}
-            onClick={() => setKind(option.key)}
-          >
-            {option.label}
-          </button>
-        ))}
-        {kind === "station" ? (
+      <div className="admin-entity-stats__toolbar">
+        <div className="admin-card__actions">
+          {kindOptions.map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              className={`btn${kind === option.key ? " admin-nav__btn--active" : ""}`}
+              onClick={() => setKind(option.key)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="admin-entity-stats__utility-actions">
+          {kind === "station" ? (
+            <button
+              type="button"
+              className="btn"
+              onClick={onPopulateStationIcons}
+              disabled={iconPopulateLoading}
+            >
+              {iconPopulateLoading ? "Populating Icons…" : "Populate Station Icons"}
+            </button>
+          ) : null}
+          {kind === "material" ? (
+            <button
+              type="button"
+              className="btn"
+              onClick={onPopulateMaterialIcons}
+              disabled={materialIconPopulateLoading}
+            >
+              {materialIconPopulateLoading ? "Populating Icons…" : "Populate Material Icons"}
+            </button>
+          ) : null}
           <button
             type="button"
             className="btn"
-            onClick={onPopulateStationIcons}
-            disabled={iconPopulateLoading}
+            onClick={onExportCsv}
+            disabled={exportingCsv}
           >
-            {iconPopulateLoading ? "Populating Icons…" : "Populate Station Icons"}
+            {exportingCsv ? "Exporting CSV…" : "Export CSV"}
           </button>
-        ) : null}
-        {kind === "material" ? (
-          <button
-            type="button"
-            className="btn"
-            onClick={onPopulateMaterialIcons}
-            disabled={materialIconPopulateLoading}
-          >
-            {materialIconPopulateLoading ? "Populating Icons…" : "Populate Material Icons"}
-          </button>
-        ) : null}
+        </div>
       </div>
 
       {error ? <p className="small" style={{ color: "salmon" }}>{error}</p> : null}
@@ -625,7 +932,6 @@ const AdminEntityStatsPanel: React.FC = () => {
                   {item.itemRecord && item.weaponRecord ? <span className="small">Item + Weapon</span> : null}
                   {item.className ? <span className="small">{item.className}</span> : null}
                   {item.code ? <span className="small">Code {item.code}</span> : null}
-                  {item.last_pulled_at ? <span className="small">Pulled {item.last_pulled_at}</span> : null}
                 </div>
               </button>
             ))}
@@ -642,6 +948,107 @@ const AdminEntityStatsPanel: React.FC = () => {
               Edit the stored detail record as JSON. UID and last-pulled are preserved automatically.
             </p>
           </div>
+
+          {isCapitalShieldArcEditor ? (
+            <div className="admin-entity-stats__shield-arcs">
+              <div className="admin-card__header">
+                <h4 className="admin-card__title">Shield Arcs</h4>
+                <p className="admin-card__desc">
+                  Sysadmin-only helper for capital and super-capital deflector segments.
+                  {totalShieldValue != null ? ` Total Deflectors: ${totalShieldValue.toLocaleString()}.` : ""}
+                </p>
+              </div>
+
+              <div className="admin-card__actions">
+                {SHIELD_ARC_PRESETS.map((preset) => (
+                  <button
+                    key={preset.key}
+                    type="button"
+                    className={`ui-btn ui-btn--small admin-entity-stats__subnav-btn${activeShieldArcPresetKey === preset.key ? " ui-btn--primary" : " ui-btn--soft"}`}
+                    onClick={() => applyShieldArcPreset(preset)}
+                    title={preset.arcs.map((arc) => `${arc.name}: ${arc.percent.toFixed(2)}%`).join("\n")}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="admin-entity-stats__shield-arc-list">
+                {shieldArcDraftRows.map((row, index) => (
+                  <div key={`${row.name}-${index}`} className="admin-entity-stats__shield-arc-row">
+                    <select
+                      className="admin-entity-stats__search"
+                      value={row.name}
+                      onChange={(event) => patchShieldArcRow(index, { name: event.target.value })}
+                    >
+                      <option value="">Select arc</option>
+                      {SHIELD_ARC_NAME_OPTIONS.map((option) => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    <input
+                      className="admin-entity-stats__search"
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={row.value}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        const percent = totalShieldValue && value !== "" && !Number.isNaN(Number(value))
+                          ? ((Number(value) / totalShieldValue) * 100).toFixed(2)
+                          : row.percent;
+                        patchShieldArcRow(index, { value, percent });
+                      }}
+                      placeholder="Value"
+                    />
+                    <input
+                      className="admin-entity-stats__search"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={row.percent}
+                      onChange={(event) => {
+                        const percent = event.target.value;
+                        const value = totalShieldValue && percent !== "" && !Number.isNaN(Number(percent))
+                          ? String(Math.round((totalShieldValue * Number(percent)) / 100))
+                          : row.value;
+                        patchShieldArcRow(index, { percent, value });
+                      }}
+                      placeholder="%"
+                    />
+                    <button
+                      type="button"
+                      className="btn admin-entity-stats__shield-arc-remove"
+                      onClick={() => updateEditorShieldArcs(shieldArcDraftRows.filter((_, rowIndex) => rowIndex !== index))}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="admin-card__actions">
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    const nextRows = [...shieldArcDraftRows, { name: "", value: "", percent: "" }];
+                    setShieldArcDraftRows(nextRows);
+                  }}
+                >
+                  Add Shield Arc
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={onSave}
+                  disabled={saving || detailLoading || !selectedId}
+                >
+                  {saving ? "Saving Shield Arcs…" : "Save Shield Arcs"}
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           {selectedItem && (selectedItem.itemRecord || selectedItem.weaponRecord) && (kind === "item" || kind === "weapon") ? (
             <div className="admin-card__actions">

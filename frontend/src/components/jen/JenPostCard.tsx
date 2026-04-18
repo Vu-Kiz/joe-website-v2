@@ -4,6 +4,7 @@ import type { BlogPost } from "../../api/blog";
 import type { SwcUser } from "../../api/auth";
 import { getBackendOrigin } from "../../api/auth";
 import { canDeleteBlog, canEditBlogPost } from "../../auth/permissions";
+import HamburgerToggle from "../common/HamburgerToggle";
 
 type Props = {
   post: BlogPost;
@@ -107,17 +108,11 @@ const JenPostCard: React.FC<Props> = ({
             </button>
           )}
 
-          <button
-            type="button"
-            className="jen-panel__toggle"
+          <HamburgerToggle
+            open={isOverlayOpen}
             onClick={handleHamburgerClick}
-            aria-label={isOverlayOpen ? "Close post" : "Open post"}
-            aria-expanded={isOverlayOpen}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
+            ariaLabel={isOverlayOpen ? "Close post" : "Open post"}
+          />
         </div>
       </header>
 

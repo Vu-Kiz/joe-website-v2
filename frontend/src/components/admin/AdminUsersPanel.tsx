@@ -23,6 +23,8 @@ type EditableUserState = {
   isSysadmin: boolean;
   isIntel: boolean;
   canViewAsteroidIntel: boolean;
+  canAccessCombatCalc: boolean;
+  canAccessWreckingHelperExtension: boolean;
   isGarry: boolean;
   isRaid: boolean;
 
@@ -54,6 +56,8 @@ function mapUser(user: AdminManageableUser): EditableUserState {
     isSysadmin: !!user.is_sysadmin,
     isIntel: !!user.is_intel,
     canViewAsteroidIntel: !!user.can_view_asteroid_intel,
+    canAccessCombatCalc: !!user.can_access_combat_calc,
+    canAccessWreckingHelperExtension: !!user.can_access_wrecking_helper_extension,
     isGarry: !!user.is_garry,
     isRaid: !!user.is_raid,
     canManageBlog: !!user.can_manage_blog,
@@ -127,6 +131,7 @@ const AdminUsersPanel: React.FC = () => {
   const handleToggle = (
     userId: number,
     key: "isAdmin" | "canViewAsteroidIntel" | "canManageBlog"
+      | "canAccessCombatCalc" | "canAccessWreckingHelperExtension"
   ) => {
     setNotice(null);
 
@@ -145,6 +150,8 @@ const AdminUsersPanel: React.FC = () => {
       const res = await updateAdminUserPermissions(user.id, {
         is_admin: user.isAdmin,
         can_view_asteroid_intel: user.canViewAsteroidIntel,
+        can_access_combat_calc: user.canAccessCombatCalc,
+        can_access_wrecking_helper_extension: user.canAccessWreckingHelperExtension,
         scan_window_top_left_galx: user.scanWindowTopLeftGalx.trim() === "" ? null : Number(user.scanWindowTopLeftGalx),
         scan_window_top_left_galy: user.scanWindowTopLeftGaly.trim() === "" ? null : Number(user.scanWindowTopLeftGaly),
         scan_window_bottom_right_galx: user.scanWindowBottomRightGalx.trim() === "" ? null : Number(user.scanWindowBottomRightGalx),
@@ -280,6 +287,12 @@ const AdminUsersPanel: React.FC = () => {
                       {user.canViewAsteroidIntel && (
                         <span className="admin-badge admin-badge--soft">Asteroid Intel</span>
                       )}
+                      {user.canAccessCombatCalc && (
+                        <span className="admin-badge admin-badge--content">Combat Calc</span>
+                      )}
+                      {user.canAccessWreckingHelperExtension && (
+                        <span className="admin-badge admin-badge--content">Wrecking Helper</span>
+                      )}
                       {user.isGarry && (
                         <span className="admin-badge admin-badge--garry">Garry</span>
                       )}
@@ -356,6 +369,40 @@ const AdminUsersPanel: React.FC = () => {
                         </span>
                         <span className="admin-perm-tile__desc">
                           Can view asteroid types, intel flags, and grid note data on the galaxy map.
+                        </span>
+                      </label>
+
+                      <label className={"admin-perm-tile" + (user.canAccessCombatCalc ? " is-active" : "")}>
+                        <input
+                          type="checkbox"
+                          checked={user.canAccessCombatCalc}
+                          onChange={() => handleToggle(user.id, "canAccessCombatCalc")}
+                        />
+                        <span className="admin-perm-tile__head">
+                          <span className="admin-perm-tile__title">Combat Calculator</span>
+                          <span className="admin-perm-tile__switch" aria-hidden="true">
+                            <span className="admin-perm-tile__knob" />
+                          </span>
+                        </span>
+                        <span className="admin-perm-tile__desc">
+                          Grants access to the members-side combat calculator while the math is being validated.
+                        </span>
+                      </label>
+
+                      <label className={"admin-perm-tile" + (user.canAccessWreckingHelperExtension ? " is-active" : "")}>
+                        <input
+                          type="checkbox"
+                          checked={user.canAccessWreckingHelperExtension}
+                          onChange={() => handleToggle(user.id, "canAccessWreckingHelperExtension")}
+                        />
+                        <span className="admin-perm-tile__head">
+                          <span className="admin-perm-tile__title">Wrecking Helper Extension</span>
+                          <span className="admin-perm-tile__switch" aria-hidden="true">
+                            <span className="admin-perm-tile__knob" />
+                          </span>
+                        </span>
+                        <span className="admin-perm-tile__desc">
+                          Grants backend authorization for this specific browser extension.
                         </span>
                       </label>
 

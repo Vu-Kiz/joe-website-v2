@@ -65,6 +65,13 @@ const AdminHomePanel: React.FC<Props> = ({ showSystemTools, canSeeLogs }) => {
       hidden: !showSystemTools,
     },
     {
+      key: "combatValues",
+      title: "Combat Values",
+      description:
+        "Manage DB-backed combat modifiers like damage-type values and ship-class matrices used by combat tooling.",
+      hidden: !showSystemTools,
+    },
+    {
       key: "entityStats",
       title: "Entity Stats",
       description:

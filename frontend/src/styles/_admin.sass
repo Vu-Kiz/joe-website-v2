@@ -98,10 +98,26 @@
   display: grid
   grid-template-columns: minmax(360px, 520px) minmax(0, 1fr)
   gap: 1rem
+  align-items: start
+
+.admin-entity-stats__toolbar
+  display: grid
+  gap: 0.75rem
+
+.admin-entity-stats__utility-actions
+  display: flex
+  flex-wrap: wrap
+  gap: 0.75rem
 
 .admin-entity-stats__sidebar,
 .admin-entity-stats__editor
+  display: flex
+  flex-direction: column
   min-height: 560px
+
+.admin-entity-stats__sidebar
+  max-height: calc(100vh - 11rem)
+  overflow: hidden
 
 .admin-entity-stats__search
   width: 100%
@@ -111,6 +127,22 @@
   border: 1px solid rgba(255,255,255,0.08)
   background: rgba(255,255,255,0.03)
   color: inherit
+
+select.admin-entity-stats__search
+  appearance: none
+  -webkit-appearance: none
+  -moz-appearance: none
+  background-image: linear-gradient(45deg, transparent 50%, rgba(245,213,70,0.8) 50%), linear-gradient(135deg, rgba(245,213,70,0.8) 50%, transparent 50%)
+  background-position: calc(100% - 18px) calc(50% - 3px), calc(100% - 12px) calc(50% - 3px)
+  background-size: 6px 6px, 6px 6px
+  background-repeat: no-repeat
+  padding-right: 2.3rem
+  background-color: rgba(17,17,17,0.96)
+  color: rgba(255,255,255,0.9)
+
+  option
+    background: #111
+    color: rgba(255,255,255,0.9)
 
 .admin-entity-stats__subnav
   display: flex
@@ -132,8 +164,10 @@
   display: grid
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr))
   gap: 0.75rem
+  flex: 1 1 auto
   min-height: 0
   overflow: auto
+  padding-right: 0.2rem
 
 .admin-entity-stats__item
   display: flex
@@ -202,7 +236,7 @@
 
 .admin-entity-stats__textarea
   width: 100%
-  min-height: 480px
+  min-height: 360px
   padding: 1rem
   border-radius: 12px
   border: 1px solid rgba(255,255,255,0.08)
@@ -213,8 +247,37 @@
   line-height: 1.5
   resize: vertical
 
+.admin-entity-stats__shield-arcs
+  display: grid
+  gap: 0.75rem
+  padding: 0.85rem
+  border: 1px solid rgba(255,255,255,0.08)
+  border-radius: 14px
+  background: rgba(255,255,255,0.02)
+
+.admin-entity-stats__shield-arc-list
+  display: grid
+  gap: 0.6rem
+
+.admin-entity-stats__shield-arc-row
+  display: grid
+  grid-template-columns: minmax(0, 1.4fr) minmax(110px, 0.7fr) minmax(110px, 0.7fr) auto
+  gap: 0.6rem
+  align-items: center
+
+.admin-entity-stats__shield-arc-remove
+  min-height: 42px
+
 @media (max-width: 900px)
   .admin-entity-stats
+    grid-template-columns: 1fr
+
+  .admin-entity-stats__sidebar,
+  .admin-entity-stats__editor
+    max-height: none
+    overflow: visible
+
+  .admin-entity-stats__shield-arc-row
     grid-template-columns: 1fr
 
 @media (max-width: 768px)

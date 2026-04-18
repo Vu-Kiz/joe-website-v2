@@ -39,6 +39,8 @@ class AuthController extends Controller
                 'is_sysadmin' => (bool) Auth::user()->is_sysadmin,
                 'is_intel' => (bool) Auth::user()->is_intel,
                 'can_view_asteroid_intel' => (bool) Auth::user()->can_view_asteroid_intel,
+                'can_access_combat_calc' => (bool) Auth::user()->can_access_combat_calc,
+                'can_access_wrecking_helper_extension' => (bool) Auth::user()->can_access_wrecking_helper_extension,
                 'scan_window_top_left_galx' => Auth::user()->scan_window_top_left_galx,
                 'scan_window_top_left_galy' => Auth::user()->scan_window_top_left_galy,
                 'scan_window_bottom_right_galx' => Auth::user()->scan_window_bottom_right_galx,

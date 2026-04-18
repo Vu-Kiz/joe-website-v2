@@ -1301,6 +1301,17 @@ class UniversePullService
         return (float) $string;
     }
 
+    protected function toPercentFloatOrNull(mixed $value): ?float
+    {
+        $string = str_replace('%', '', trim((string) $value));
+
+        if ($string === '' || !is_numeric($string)) {
+            return null;
+        }
+
+        return (float) $string;
+    }
+
     protected function toBoolOrNull(mixed $value): ?bool
     {
         $string = strtolower(trim((string) $value));
@@ -1709,6 +1720,7 @@ class UniversePullService
             'escape_pods' => $this->firstIntValue($typeNode, ['escapepods']),
             'hull' => $this->firstIntValue($typeNode, ['hull']),
             'shield' => $this->firstIntValue($typeNode, ['shield']),
+            'shield_arcs' => $this->parseShieldArcs($typeNode),
             'armour' => $this->firstIntValue($typeNode, ['armour']),
             'ionic_capacity' => $this->firstIntValue($typeNode, ['ioniccapacity']),
             'has_repulsors' => $this->toBoolOrNull($typeNode->repulsors ?? null),
@@ -1730,6 +1742,57 @@ class UniversePullService
             'icon_url' => $images['icon'] ?? null,
             'payload' => $payload,
         ];
+    }
+
+    protected function parseShieldArcs(\SimpleXMLElement $typeNode): ?array
+    {
+        $shieldArcNode = $this->extractTypeDetailNode($typeNode, ['shieldArcs', 'shieldarcs', 'shieldArc', 'shieldarc']);
+
+        if (!($shieldArcNode instanceof \SimpleXMLElement)) {
+            return null;
+        }
+
+        $arcs = [];
+
+        foreach ($shieldArcNode->children() as $child) {
+            if (!($child instanceof \SimpleXMLElement)) {
+                continue;
+            }
+
+            $tagName = $child->getName();
+            $name = trim((string) ($child->name ?? $child['name'] ?? $child->arc ?? $child['arc'] ?? ''));
+            if ($name === '') {
+                $name = $this->humanizeShieldArcTag($tagName);
+            }
+
+            $value = $this->firstIntValue($child, ['value', 'shield', 'amount', 'strength', 'points'])
+                ?? $this->toIntOrNull($child['value'] ?? null)
+                ?? $this->toIntOrNull($child['shield'] ?? null);
+
+            $percent = $this->firstPercentValue($child, ['percent', 'percentage', 'share'])
+                ?? $this->firstPercentValueFromAttributes($child, ['percent', 'percentage', 'share']);
+
+            if ($name === '' && $value === null && $percent === null) {
+                continue;
+            }
+
+            $arcs[] = [
+                'name' => $name !== '' ? $name : null,
+                'value' => $value,
+                'percent' => $percent,
+            ];
+        }
+
+        return $arcs !== [] ? $arcs : null;
+    }
+
+    protected function humanizeShieldArcTag(string $tagName): string
+    {
+        $normalized = preg_replace('/(?<!^)([A-Z])/', ' $1', $tagName) ?? $tagName;
+        $normalized = preg_replace('/[_\-]+/', ' ', $normalized) ?? $normalized;
+        $normalized = preg_replace('/\s+/', ' ', $normalized) ?? $normalized;
+
+        return trim($normalized);
     }
 
     protected function parseFacilityTypeNode(\SimpleXMLElement $typeNode, ?string $fallbackIdentifier = null): array
@@ -2453,6 +2516,32 @@ class UniversePullService
                 if ($value !== null) {
                     return $value;
                 }
+            }
+        }
+
+        return null;
+    }
+
+    protected function firstPercentValue(\SimpleXMLElement $node, array $keys): ?float
+    {
+        foreach ($keys as $key) {
+            if (isset($node->{$key})) {
+                $value = $this->toPercentFloatOrNull($node->{$key});
+                if ($value !== null) {
+                    return $value;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    protected function firstPercentValueFromAttributes(\SimpleXMLElement $node, array $keys): ?float
+    {
+        foreach ($keys as $key) {
+            $value = $this->toPercentFloatOrNull($node[$key] ?? null);
+            if ($value !== null) {
+                return $value;
             }
         }
 

@@ -7,9 +7,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
+    use HasApiTokens;
     use HasFactory;
     use Notifiable;
 
@@ -31,6 +33,8 @@ class User extends Authenticatable
         'is_sysadmin',
         'is_intel',
         'can_view_asteroid_intel',
+        'can_access_combat_calc',
+        'can_access_wrecking_helper_extension',
         'scan_window_top_left_galx',
         'scan_window_top_left_galy',
         'scan_window_bottom_right_galx',
@@ -49,6 +53,8 @@ class User extends Authenticatable
         'is_sysadmin' => 'boolean',
         'is_intel' => 'boolean',
         'can_view_asteroid_intel' => 'boolean',
+        'can_access_combat_calc' => 'boolean',
+        'can_access_wrecking_helper_extension' => 'boolean',
         'scan_window_top_left_galx' => 'integer',
         'scan_window_top_left_galy' => 'integer',
         'scan_window_bottom_right_galx' => 'integer',
@@ -89,6 +95,11 @@ class User extends Authenticatable
     public function swcAccounts()
     {
         return $this->hasMany(\App\Models\UserSwcAccount::class);
+    }
+
+    public function wreckingHelperSetting()
+    {
+        return $this->hasOne(\App\Models\WreckingHelperSetting::class);
     }
 
     public function currentSwcAccount()

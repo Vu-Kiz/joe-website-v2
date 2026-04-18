@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wrecking Helper</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      width: 260px;
+      padding: 14px 16px;
+      margin: 0;
+      background: #111827;
+      color: #e5e7eb;
+    }
+    h2 {
+      margin: 0 0 10px;
+      font-size: 14px;
+      color: #f5b400;
+      letter-spacing: 0.4px;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .label { font-size: 12px; color: #9ca3af; }
+    .counter { font-size: 22px; font-weight: 700; color: #f9fafb; }
+    .hotkey {
+      font-size: 11px;
+      background: #1f2937;
+      border-radius: 4px;
+      padding: 3px 7px;
+      color: #f5b400;
+      letter-spacing: 0.2px;
+    }
+    .hotkey-table { width: 100%; border-collapse: collapse; margin: 8px 0 10px; }
+    .hotkey-table td { font-size: 11px; padding: 3px 0; }
+    .hotkey-table td:first-child { color: #9ca3af; }
+    .hotkey-table td:last-child { text-align: right; }
+    .divider { border: none; border-top: 1px solid #374151; margin: 8px 0; }
+    button {
+      width: 100%;
+      margin-top: 4px;
+      padding: 7px;
+      border: 1px solid #374151;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 12px;
+      color: #f9fafb;
+      background: #1f2937;
+    }
+    #savePrefixBtn { border-color: #14532d; background: #052e16; color: #86efac; }
+    #setCounterBtn { border-color: #1e3a8a; background: #172554; color: #93c5fd; }
+    #resetBtn { border-color: #7f1d1d; background: #450a0a; color: #fca5a5; }
+    input[type=number], input[type=text] {
+      background: #111827;
+      border: 1px solid #374151;
+      color: #f9fafb;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 13px;
+    }
+    input[type=number] { width: 72px; }
+    input[type=text] { flex: 1; }
+    .next-preview {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-top: 4px;
+      text-align: center;
+    }
+    .next-preview span { color: #f5b400; font-weight: 600; }
+    .input-group {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .section-title {
+      font-size: 11px;
+      color: #f5b400;
+      margin: 10px 0 6px;
+      font-weight: 600;
+    }
+    .site-note {
+      margin-top: 10px;
+      font-size: 10px;
+      color: #6b7280;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <h2>Wrecking Helper (TS)</h2>
+  <div class="row">
+    <span class="label">Next number:</span>
+    <span class="counter" id="counterDisplay">---</span>
+  </div>
+  <div class="next-preview">Next stamp: <span id="previewText">...</span></div>
+
+  <hr class="divider">
+
+  <table class="hotkey-table">
+    <tr><td>Paste next</td><td><span class="hotkey">Alt+Q</span></td></tr>
+    <tr><td>Count back</td><td><span class="hotkey">Alt+C</span></td></tr>
+    <tr><td>Set counter</td><td><span class="hotkey">Alt+X</span></td></tr>
+    <tr><td>Toggle recycle tab</td><td><span class="hotkey">Alt+W</span></td></tr>
+  </table>
+
+  <hr class="divider">
+
+  <div class="section-title">Prefix</div>
+  <div class="input-group">
+    <span class="label">Prefix:</span>
+    <input type="text" id="prefixInput" placeholder="wrecker" maxlength="50">
+  </div>
+  <button id="savePrefixBtn">Save Prefix</button>
+  <div class="next-preview"><span id="prefixStatus">Local prefix mode</span></div>
+
+  <hr class="divider">
+
+  <div class="section-title">Counter</div>
+  <div class="input-group">
+    <span class="label">Set to:</span>
+    <input type="number" id="setCounterInput" min="1" value="1">
+  </div>
+  <button id="setCounterBtn">Set Counter</button>
+  <button id="resetBtn">Reset to #001</button>
+
+  <hr class="divider">
+
+  <div class="section-title">Backend Authorization</div>
+  <p class="small" style="margin: 0;">Connect from the website Members tool. Users do not need to set API or token manually.</p>
+  <button id="clearTokenBtn">Disconnect Token</button>
+  <div class="next-preview">Auth status: <span id="authStatus">...</span></div>
+
+  <div class="site-note">
+    Stamp, countback, and recycle now require backend authorization.
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

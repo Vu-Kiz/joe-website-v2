@@ -2431,6 +2431,7 @@ class UniverseController extends Controller
                 'escape_pods',
                 'hull',
                 'shield',
+                'shield_arcs',
                 'armour',
                 'ionic_capacity',
                 'has_repulsors',
@@ -2776,9 +2777,37 @@ class UniverseController extends Controller
                 'last_pulled_at',
             ]);
 
+        $matchingWeapon = SwcWeaponType::query()
+            ->where('uid', $type->uid)
+            ->orWhere('name', $type->name)
+            ->first([
+                'uid',
+                'name',
+                'class_name',
+                'description',
+                'damage_type',
+                'min_damage',
+                'max_damage',
+                'optimum_range',
+                'max_hits',
+                'drop_off',
+                'firepower',
+                'tracking',
+                'is_poison',
+                'is_dual',
+                'price_credits',
+                'images',
+                'image_url',
+                'icon_url',
+                'payload',
+                'last_pulled_at',
+            ]);
+
         return response()->json([
             'ok' => true,
-            'data' => $type,
+            'data' => array_merge($type->toArray(), [
+                'matching_weapon' => $matchingWeapon?->toArray(),
+            ]),
         ]);
     }
 
@@ -2806,6 +2835,7 @@ class UniverseController extends Controller
                 'escape_pods',
                 'hull',
                 'shield',
+                'shield_arcs',
                 'armour',
                 'ionic_capacity',
                 'has_repulsors',
@@ -3011,10 +3041,82 @@ class UniverseController extends Controller
                 'last_pulled_at',
             ]);
 
+        $mountedShips = SwcShipType::query()
+            ->orderBy('name')
+            ->get([
+                'uid',
+                'name',
+                'class_name',
+                'image_url',
+                'icon_url',
+                'weapons',
+            ])
+            ->filter(fn (SwcShipType $ship) => $this->typeMountsWeapon($ship->weapons, $type->uid, $type->name))
+            ->map(fn (SwcShipType $ship) => [
+                'uid' => $ship->uid,
+                'name' => $ship->name,
+                'class_name' => $ship->class_name,
+                'image_url' => $ship->image_url,
+                'icon_url' => $ship->icon_url,
+            ])
+            ->values();
+
+        $mountedVehicles = SwcVehicleType::query()
+            ->orderBy('name')
+            ->get([
+                'uid',
+                'name',
+                'class_name',
+                'image_url',
+                'icon_url',
+                'weapons',
+            ])
+            ->filter(fn (SwcVehicleType $vehicle) => $this->typeMountsWeapon($vehicle->weapons, $type->uid, $type->name))
+            ->map(fn (SwcVehicleType $vehicle) => [
+                'uid' => $vehicle->uid,
+                'name' => $vehicle->name,
+                'class_name' => $vehicle->class_name,
+                'image_url' => $vehicle->image_url,
+                'icon_url' => $vehicle->icon_url,
+            ])
+            ->values();
+
         return response()->json([
             'ok' => true,
-            'data' => $type,
+            'data' => array_merge($type->toArray(), [
+                'mounted_ships' => $mountedShips,
+                'mounted_vehicles' => $mountedVehicles,
+            ]),
         ]);
+    }
+
+    /**
+     * @param  mixed  $weapons
+     */
+    private function typeMountsWeapon($weapons, ?string $weaponUid, ?string $weaponName): bool
+    {
+        if (! is_array($weapons) || $weapons === []) {
+            return false;
+        }
+
+        foreach ($weapons as $weapon) {
+            if (! is_array($weapon)) {
+                continue;
+            }
+
+            $mountedUid = isset($weapon['uid']) ? trim((string) $weapon['uid']) : null;
+            $mountedName = isset($weapon['name']) ? trim((string) $weapon['name']) : null;
+
+            if ($weaponUid !== null && $mountedUid === $weaponUid) {
+                return true;
+            }
+
+            if ($weaponName !== null && $mountedName === $weaponName) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function creatureType(string $creatureType): JsonResponse
@@ -3038,6 +3140,7 @@ class UniverseController extends Controller
                 'spawn_terrain_types',
                 'terrain_restrictions',
                 'skills',
+                'weapons',
                 'price_credits',
                 'images',
                 'image_url',

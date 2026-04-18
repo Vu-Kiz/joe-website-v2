@@ -45,6 +45,8 @@ class UserController extends Controller
                 'is_sysadmin',
                 'is_intel',
                 'can_view_asteroid_intel',
+                'can_access_combat_calc',
+                'can_access_wrecking_helper_extension',
                 'scan_window_top_left_galx',
                 'scan_window_top_left_galy',
                 'scan_window_bottom_right_galx',
@@ -69,6 +71,8 @@ class UserController extends Controller
                     'is_sysadmin'      => (bool) $user->is_sysadmin,
                     'is_intel'         => (bool) $user->is_intel,
                     'can_view_asteroid_intel' => (bool) $user->can_view_asteroid_intel,
+                    'can_access_combat_calc' => (bool) $user->can_access_combat_calc,
+                    'can_access_wrecking_helper_extension' => (bool) $user->can_access_wrecking_helper_extension,
                     'scan_window_top_left_galx' => $user->scan_window_top_left_galx,
                     'scan_window_top_left_galy' => $user->scan_window_top_left_galy,
                     'scan_window_bottom_right_galx' => $user->scan_window_bottom_right_galx,
@@ -95,6 +99,8 @@ class UserController extends Controller
         $validated = $request->validate([
             'is_admin'        => ['sometimes', 'boolean'],
             'can_view_asteroid_intel' => ['sometimes', 'boolean'],
+            'can_access_combat_calc' => ['sometimes', 'boolean'],
+            'can_access_wrecking_helper_extension' => ['sometimes', 'boolean'],
             'scan_window_top_left_galx' => ['sometimes', 'nullable', 'integer'],
             'scan_window_top_left_galy' => ['sometimes', 'nullable', 'integer'],
             'scan_window_bottom_right_galx' => ['sometimes', 'nullable', 'integer'],
@@ -119,6 +125,8 @@ class UserController extends Controller
         $beforeAll = [
             'is_admin'        => (bool) $user->is_admin,
             'can_view_asteroid_intel' => (bool) $user->can_view_asteroid_intel,
+            'can_access_combat_calc' => (bool) $user->can_access_combat_calc,
+            'can_access_wrecking_helper_extension' => (bool) $user->can_access_wrecking_helper_extension,
             'scan_window_top_left_galx' => $user->scan_window_top_left_galx,
             'scan_window_top_left_galy' => $user->scan_window_top_left_galy,
             'scan_window_bottom_right_galx' => $user->scan_window_bottom_right_galx,
@@ -134,6 +142,14 @@ class UserController extends Controller
 
         if (array_key_exists('can_view_asteroid_intel', $validated)) {
             $user->can_view_asteroid_intel = (bool) $validated['can_view_asteroid_intel'];
+        }
+
+        if (array_key_exists('can_access_combat_calc', $validated)) {
+            $user->can_access_combat_calc = (bool) $validated['can_access_combat_calc'];
+        }
+
+        if (array_key_exists('can_access_wrecking_helper_extension', $validated)) {
+            $user->can_access_wrecking_helper_extension = (bool) $validated['can_access_wrecking_helper_extension'];
         }
 
         if (array_key_exists('scan_window_top_left_galx', $validated)) {
@@ -170,6 +186,8 @@ class UserController extends Controller
         $afterAll = [
             'is_admin'        => (bool) $user->is_admin,
             'can_view_asteroid_intel' => (bool) $user->can_view_asteroid_intel,
+            'can_access_combat_calc' => (bool) $user->can_access_combat_calc,
+            'can_access_wrecking_helper_extension' => (bool) $user->can_access_wrecking_helper_extension,
             'scan_window_top_left_galx' => $user->scan_window_top_left_galx,
             'scan_window_top_left_galy' => $user->scan_window_top_left_galy,
             'scan_window_bottom_right_galx' => $user->scan_window_bottom_right_galx,
@@ -221,6 +239,8 @@ class UserController extends Controller
                 'is_sysadmin'      => (bool) $user->is_sysadmin,
                 'is_intel'         => (bool) $user->is_intel,
                 'can_view_asteroid_intel' => (bool) $user->can_view_asteroid_intel,
+                'can_access_combat_calc' => (bool) $user->can_access_combat_calc,
+                'can_access_wrecking_helper_extension' => (bool) $user->can_access_wrecking_helper_extension,
                 'scan_window_top_left_galx' => $user->scan_window_top_left_galx,
                 'scan_window_top_left_galy' => $user->scan_window_top_left_galy,
                 'scan_window_bottom_right_galx' => $user->scan_window_bottom_right_galx,

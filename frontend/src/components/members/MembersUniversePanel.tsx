@@ -28,6 +28,7 @@ import {
   type SwcPersonalEventsImportResponse,
 } from "../../api/swcAuthorization";
 import SpinnerLoadingCard from "../common/SpinnerLoadingCard";
+import SearchSuggestionPicker from "../common/SearchSuggestionPicker";
 import "../../styles/_membersuniverse.sass";
 
 type FocusRequest =
@@ -1118,49 +1119,25 @@ const MembersUniversePanel: React.FC = () => {
                   Sector
                 </label>
                 <div className="members-universe__inline members-universe__sector-picker">
-                  <div className="members-universe__typeahead">
-                    <input
-                      id="members-universe-sector"
-                      className="input"
-                      value={sectorQuery}
-                      onChange={(event) => {
-                        setSectorQuery(event.target.value);
-                        setShowSectorMatches(true);
-                      }}
-                      onFocus={() => setShowSectorMatches(true)}
-                      onBlur={() => {
-                        window.setTimeout(() => setShowSectorMatches(false), 120);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          handleGoToSector();
-                        }
-                      }}
-                      placeholder="Type a sector name"
-                      autoComplete="off"
-                    />
-                    {showSectorMatches && filteredSectors.length ? (
-                      <div className="members-universe__typeahead-list">
-                        {filteredSectors.map((sector) => (
-                          <button
-                            key={sector.uid}
-                            type="button"
-                            className={`members-universe__typeahead-option${
-                              sector.uid === selectedSectorUid ? " is-active" : ""
-                            }`}
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              commitSectorSelection(sector);
-                            }}
-                          >
-                            <strong>{sector.name ?? formatSwcDisplayId(sector.uid)}</strong>
-                            <span className="small">{formatSwcDisplayId(sector.uid)}</span>
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
+                  <SearchSuggestionPicker
+                    id="members-universe-sector"
+                    value={sectorQuery}
+                    onChange={setSectorQuery}
+                    onSubmit={handleGoToSector}
+                    placeholder="Type a sector name"
+                    suggestions={filteredSectors}
+                    showSuggestions={showSectorMatches}
+                    onShowSuggestions={setShowSectorMatches}
+                    getKey={(sector) => sector.uid}
+                    isActive={(sector) => sector.uid === selectedSectorUid}
+                    onSelect={commitSectorSelection}
+                    renderSuggestion={(sector) => (
+                      <>
+                        <strong>{sector.name ?? formatSwcDisplayId(sector.uid)}</strong>
+                        <span className="small">{formatSwcDisplayId(sector.uid)}</span>
+                      </>
+                    )}
+                  />
                   <button className="btn" type="button" onClick={handleGoToSector}>
                     Go to Sector
                   </button>

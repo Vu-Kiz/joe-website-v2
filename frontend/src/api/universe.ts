@@ -1,4 +1,4 @@
-import { apiFetch } from "./auth";
+import { apiFetch, getApiBaseUrl } from "./auth";
 
 export type StoredSectorSummary = {
   id: number;
@@ -516,6 +516,11 @@ export type StoredShipTypeSummary = {
   escape_pods: number | null;
   hull: number | null;
   shield: number | null;
+  shield_arcs: Array<{
+    name: string | null;
+    value: number | null;
+    percent: number | null;
+  }> | null;
   armour: number | null;
   ionic_capacity: number | null;
   has_repulsors: boolean | null;
@@ -644,6 +649,7 @@ export type StoredCreatureTypeSummary = {
 };
 
 export type StoredCreatureTypeDetail = StoredCreatureTypeSummary & {
+  weapons: Array<Record<string, unknown>> | null;
   payload: Record<string, unknown> | null;
 };
 
@@ -709,6 +715,20 @@ export type StoredWeaponTypeSummary = {
 
 export type StoredWeaponTypeDetail = StoredWeaponTypeSummary & {
   payload: Record<string, unknown> | null;
+  mounted_ships?: Array<{
+    uid: string;
+    name: string | null;
+    class_name: string | null;
+    image_url: string | null;
+    icon_url: string | null;
+  }> | null;
+  mounted_vehicles?: Array<{
+    uid: string;
+    name: string | null;
+    class_name: string | null;
+    image_url: string | null;
+    icon_url: string | null;
+  }> | null;
 };
 
 export type StoredFacilityTypeSummary = {
@@ -747,6 +767,7 @@ export type StoredItemTypeSummary = {
 };
 
 export type StoredItemTypeDetail = StoredItemTypeSummary & {
+  matching_weapon?: StoredWeaponTypeDetail | null;
   payload: Record<string, unknown> | null;
 };
 
@@ -1169,4 +1190,44 @@ export function populateAdminMaterialIcons() {
       method: "POST",
     }
   );
+}
+
+export async function downloadAdminEntityStatsCsv(entityType: EntityStatsKind) {
+  const response = await fetch(
+    `${getApiBaseUrl()}/admin/entity-stats/${encodeURIComponent(entityType)}/export.csv`,
+    {
+      method: "GET",
+      credentials: "include",
+      headers: {
+        Accept: "text/csv",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+
+    let json: any = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      // leave as raw text
+    }
+
+    throw new Error(
+      json?.message ||
+        json?.error ||
+        (text && !text.startsWith("<!DOCTYPE") ? text : null) ||
+        `Failed to export CSV (${response.status}).`
+    );
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const filenameMatch = disposition.match(/filename="?([^"]+)"?/i);
+
+  return {
+    blob,
+    filename: filenameMatch?.[1] ?? `${entityType}-entity-stats.csv`,
+  };
 }

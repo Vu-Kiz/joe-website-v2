@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   getStoredCreatureType,
   getStoredCreatureTypes,
@@ -28,7 +28,10 @@ import {
   getStoredWeaponTypes,
   type EntityStatsKind,
 } from "../../api/universe";
+import HamburgerToggle from "../common/HamburgerToggle";
 import { formatTimestampAsCgt, getCgtTime, type CgtResponse } from "../../api/time";
+import isdDirectionImage from "../../assets/swc/isd.png";
+import { resolveWeaponArcWindow, normalizeDegrees } from "../tools/weaponHeatmap/weaponHeatmapMath";
 
 type EntityRecordSummary = {
   uid: string;
@@ -62,6 +65,12 @@ type TerrainLookupEntry = {
 type CompareDetailState = Record<string, EntityDetail>;
 type CompareSelectionState = [string | null, string | null];
 type CompareQueryState = [string, string];
+type OverlayRect = {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+};
 
 const kindOptions: Array<{ key: EntityStatsKind; label: string }> = [
   { key: "ship", label: "Ships" },
@@ -73,8 +82,6 @@ const kindOptions: Array<{ key: EntityStatsKind; label: string }> = [
   { key: "creature", label: "Creatures" },
   { key: "npc", label: "NPC Types" },
   { key: "race", label: "Races" },
-  { key: "weapon", label: "Weapons" },
-  { key: "planet", label: "Planets" },
   { key: "terrain", label: "Terrain" },
   { key: "material", label: "Materials" },
 ];
@@ -244,7 +251,7 @@ function looksLikeHtml(value: string) {
   return /<\/?[a-z][\s\S]*>/i.test(value) || /&[a-z0-9#]+;/i.test(value);
 }
 
-function collectImageUrls(detail: EntityDetail): string[] {
+function collectImageUrls(detail: EntityDetail, kind?: EntityStatsKind): string[] {
   if (!detail) {
     return [];
   }
@@ -257,12 +264,38 @@ function collectImageUrls(detail: EntityDetail): string[] {
     }
   };
 
-  maybeAdd(detail.image_url);
-  maybeAdd(detail.icon_url);
+  if (kind === "facility") {
+    maybeAdd(detail.icon_url);
+    maybeAdd(detail.image_large_url);
+    maybeAdd(detail.image_small_url);
+    maybeAdd(detail.image_url);
+  } else {
+    maybeAdd(detail.image_large_url);
+    maybeAdd(detail.image_url);
+    maybeAdd(detail.image_small_url);
+    maybeAdd(detail.icon_url);
+  }
 
   const images = detail.images;
   if (images && typeof images === "object" && !Array.isArray(images)) {
-    Object.values(images as Record<string, unknown>).forEach((value) => {
+    const imageRecord = images as Record<string, unknown>;
+    [
+      imageRecord.large,
+      imageRecord.full,
+      imageRecord.main,
+      imageRecord.medium,
+      imageRecord.small,
+      imageRecord.icon,
+    ].forEach((value) => {
+      if (Array.isArray(value)) {
+        value.forEach(maybeAdd);
+        return;
+      }
+
+      maybeAdd(value);
+    });
+
+    Object.values(imageRecord).forEach((value) => {
       if (Array.isArray(value)) {
         value.forEach(maybeAdd);
         return;
@@ -428,30 +461,301 @@ function buildWeaponCollectionKey(item: Record<string, unknown>) {
   return [uid, name, quantity, arc, arcFrom, arcTo].join("|");
 }
 
-function formatWeaponCollectionSummary(item: Record<string, unknown>) {
-  const parts: string[] = [];
+function buildWeaponArcGroupKey(item: Record<string, unknown>) {
+  const uid = typeof item.uid === "string" ? item.uid : "";
+  const name = typeof item.name === "string" ? item.name : "";
+  const arc = typeof item.arc === "string" ? item.arc : "";
+  const arcFrom = item.arc_from === null || item.arc_from === undefined ? "" : String(item.arc_from);
+  const arcTo = item.arc_to === null || item.arc_to === undefined ? "" : String(item.arc_to);
 
-  if (typeof item.uid === "string" && item.uid) {
-    parts.push(`ID: ${formatSwcDisplayId(item.uid)}`);
-  }
+  return [uid, name, arc, arcFrom, arcTo].join("|");
+}
+
+function buildWeaponNameGroupKey(item: Record<string, unknown>) {
+  const uid = typeof item.uid === "string" ? item.uid : "";
+  const name = typeof item.name === "string" ? item.name : "";
+
+  return [uid, name].join("|");
+}
+
+function groupWeaponCollectionItems(items: Array<Record<string, unknown>>) {
+  const grouped = new Map<string, Record<string, unknown>>();
+
+  items.forEach((item) => {
+    const key = buildWeaponArcGroupKey(item);
+    const existing = grouped.get(key);
+
+    if (!existing) {
+      grouped.set(key, { ...item });
+      return;
+    }
+
+    const nextQuantity =
+      (Number(existing.quantity ?? 0) || 0) +
+      (Number(item.quantity ?? 0) || 0);
+
+    grouped.set(key, {
+      ...existing,
+      quantity: nextQuantity > 0 ? nextQuantity : existing.quantity ?? item.quantity ?? null,
+    });
+  });
+
+  return Array.from(grouped.values());
+}
+
+function getWeaponArcDisplay(item: Record<string, unknown>) {
+  const arcLabel =
+    (typeof item.arc === "string" && item.arc) ||
+    "Unspecified Arc";
+
+  const metaParts: string[] = [];
 
   if (item.quantity !== null && item.quantity !== undefined && item.quantity !== "") {
-    parts.push(`Quantity: ${formatScalar(item.quantity)}`);
-  }
-
-  if (typeof item.arc === "string" && item.arc) {
-    parts.push(`Arc: ${item.arc}`);
+    metaParts.push(`Quantity: ${formatScalar(item.quantity)}`);
   }
 
   if (item.arc_from !== null && item.arc_from !== undefined && item.arc_from !== "") {
-    parts.push(`Arc From: ${formatScalar(item.arc_from)}`);
+    metaParts.push(`From: ${formatScalar(item.arc_from)}`);
   }
 
   if (item.arc_to !== null && item.arc_to !== undefined && item.arc_to !== "") {
-    parts.push(`Arc To: ${formatScalar(item.arc_to)}`);
+    metaParts.push(`To: ${formatScalar(item.arc_to)}`);
   }
 
-  return parts.join(" · ");
+  return {
+    arcLabel,
+    meta: metaParts.join(" · "),
+    arcName: typeof item.arc === "string" ? item.arc : null,
+    arcFrom: item.arc_from == null || Number.isNaN(Number(item.arc_from)) ? null : Number(item.arc_from),
+    arcTo: item.arc_to == null || Number.isNaN(Number(item.arc_to)) ? null : Number(item.arc_to),
+  };
+}
+
+function getShieldArcDisplay(item: Record<string, unknown>) {
+  const arcLabel =
+    (typeof item.name === "string" && item.name) ||
+    (typeof item.arc === "string" && item.arc) ||
+    "Unspecified Arc";
+
+  const metaParts: string[] = [];
+
+  if (item.value !== null && item.value !== undefined && item.value !== "") {
+    metaParts.push(`Deflectors: ${formatScalar(item.value)}`);
+  }
+
+  if (item.percent !== null && item.percent !== undefined && item.percent !== "") {
+    metaParts.push(`${formatScalar(item.percent)}%`);
+  }
+
+  return {
+    arcLabel,
+    meta: metaParts.join(" · "),
+    arcName: typeof item.name === "string" ? item.name : (typeof item.arc === "string" ? item.arc : null),
+    arcFrom:
+      item.arc_from == null || Number.isNaN(Number(item.arc_from)) ? null : Number(item.arc_from),
+    arcTo:
+      item.arc_to == null || Number.isNaN(Number(item.arc_to)) ? null : Number(item.arc_to),
+  };
+}
+
+function getArcSweepDegrees(
+  arcName: string | null,
+  arcFrom: number | null,
+  arcTo: number | null
+) {
+  const normalizedName = String(arcName ?? "").trim().toLowerCase();
+  if (normalizedName === "omni" || normalizedName === "omnidirectional") {
+    return { start: 0, sweep: 360 };
+  }
+
+  if (arcFrom != null && arcTo != null && Math.abs(arcTo - arcFrom) >= 360) {
+    return { start: 0, sweep: 360 };
+  }
+
+  const window = resolveWeaponArcWindow(arcName, arcFrom, arcTo);
+  if (!window) {
+    return null;
+  }
+
+  const start = normalizeDegrees(window.start);
+  const end = normalizeDegrees(window.end);
+  const sweep = start === end ? 360 : (start < end ? end - start : (360 - start) + end);
+
+  return {
+    start,
+    sweep,
+  };
+}
+
+const ArcIndicator: React.FC<{
+  arcName: string | null;
+  arcFrom: number | null;
+  arcTo: number | null;
+}> = ({ arcName, arcFrom, arcTo }) => {
+  const arc = getArcSweepDegrees(arcName, arcFrom, arcTo);
+  const radius = 22;
+  const center = 28;
+
+  const arcPath = useMemo(() => {
+    if (!arc || arc.sweep <= 0 || arc.sweep >= 360) {
+      return null;
+    }
+
+    const startAngle = normalizeDegrees(arc.start);
+    const endAngle = normalizeDegrees(arc.start + arc.sweep);
+    const toPoint = (angle: number) => {
+      const radians = (angle * Math.PI) / 180;
+      return {
+        x: center + (radius * Math.sin(radians)),
+        y: center - (radius * Math.cos(radians)),
+      };
+    };
+
+    const startPoint = toPoint(startAngle);
+    const endPoint = toPoint(endAngle);
+    const largeArcFlag = arc.sweep > 180 ? 1 : 0;
+
+    return `M ${startPoint.x} ${startPoint.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endPoint.x} ${endPoint.y}`;
+  }, [arc]);
+
+  return (
+    <span className="members-entity-stats__arc-indicator" aria-hidden="true">
+      <svg viewBox="0 0 56 56" className="members-entity-stats__arc-indicator-ring">
+        <circle cx="28" cy="28" r={radius} className="members-entity-stats__arc-indicator-track" />
+        {arc && arc.sweep >= 360 ? (
+          <circle
+            cx="28"
+            cy="28"
+            r={radius}
+            className="members-entity-stats__arc-indicator-arc"
+          />
+        ) : null}
+        {arcPath ? (
+          <path d={arcPath} className="members-entity-stats__arc-indicator-arc" />
+        ) : null}
+      </svg>
+      <img
+        src={isdDirectionImage}
+        alt=""
+        className="members-entity-stats__arc-indicator-ship"
+      />
+    </span>
+  );
+};
+
+function renderWeaponSelectionList(
+  items: Array<Record<string, unknown>>,
+  activeKey: string | null,
+  onSelect?: (item: Record<string, unknown>) => void
+) {
+  const groupedItems = Array.from(
+    items.reduce((groups, item) => {
+      const key = buildWeaponNameGroupKey(item);
+      const existing = groups.get(key);
+
+      if (existing) {
+        existing.push(item);
+      } else {
+        groups.set(key, [item]);
+      }
+
+      return groups;
+    }, new Map<string, Array<Record<string, unknown>>>())
+  );
+
+  return (
+    <div className="members-entity-stats__list-table">
+      {groupedItems.map(([groupKey, groupItems], index) => {
+        const representativeItem = groupItems[0] ?? {};
+        const isActive = groupItems.some((item) => buildWeaponCollectionKey(item) === activeKey);
+        const name =
+          (typeof representativeItem.name === "string" && representativeItem.name) ||
+          (typeof representativeItem.value === "string" && representativeItem.value) ||
+          (typeof representativeItem.uid === "string" && formatSwcDisplayId(representativeItem.uid)) ||
+          `Weapon ${index + 1}`;
+        const primarySummary =
+          typeof representativeItem.uid === "string" && representativeItem.uid
+            ? `ID: ${formatSwcDisplayId(representativeItem.uid)}`
+            : null;
+
+        return (
+          <button
+            key={groupKey || `weapon-group-${index}`}
+            type="button"
+            className={`members-entity-stats__list-button${isActive ? " is-active" : ""}`}
+            onClick={() => onSelect?.(representativeItem)}
+          >
+            <span className="members-entity-stats__list-button-copy">
+              <strong>{name}</strong>
+              {primarySummary ? <span className="small">{primarySummary}</span> : null}
+              {groupItems.map((item, itemIndex) => {
+                const arcDisplay = getWeaponArcDisplay(item);
+
+                return arcDisplay.arcLabel || arcDisplay.meta ? (
+                  <span key={`${groupKey}-arc-${itemIndex}`} className="members-entity-stats__weapon-arc-line">
+                    <ArcIndicator
+                      arcName={arcDisplay.arcName}
+                      arcFrom={arcDisplay.arcFrom}
+                      arcTo={arcDisplay.arcTo}
+                    />
+                    <span className="members-entity-stats__weapon-arc-name small">
+                      {arcDisplay.arcLabel}
+                    </span>
+                    {arcDisplay.meta ? (
+                      <span className="members-entity-stats__weapon-arc-meta small">
+                        {arcDisplay.meta}
+                      </span>
+                    ) : null}
+                  </span>
+                ) : null;
+              })}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function renderCollectionListRows(items: Array<Record<string, unknown>>) {
+  return (
+    <div className="members-entity-stats__list-table">
+      {items.map((item, index) => {
+        const primary =
+          (typeof item.name === "string" && item.name) ||
+          (typeof item.value === "string" && item.value) ||
+          (typeof item.uid === "string" && formatSwcDisplayId(item.uid)) ||
+          `Entry ${index + 1}`;
+
+        const extras = Object.entries(item)
+          .filter(
+            ([key, value]) =>
+              key !== "name" &&
+              key !== "value" &&
+              key !== "href" &&
+              value !== null &&
+              value !== undefined &&
+              value !== ""
+          )
+          .map(([key, value]) => {
+            if (key === "uid") {
+              return `ID: ${formatSwcDisplayId(String(value))}`;
+            }
+
+            return `${formatLabel(key)}: ${formatScalar(value)}`;
+          })
+          .filter(Boolean)
+          .join(" · ");
+
+        return (
+          <div key={`${primary}-${index}`} className="members-entity-stats__list-row">
+            <span className="members-entity-stats__list-label small">{primary}</span>
+            <strong className="members-entity-stats__list-value">{extras || "Recorded"}</strong>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function renderSkills(skills: Record<string, unknown>) {
@@ -488,11 +792,12 @@ function renderSkills(skills: Record<string, unknown>) {
         return (
           <section key={groupName} className="members-entity-stats__skill-group">
             <h4>{formatLabel(groupName)}</h4>
-            <div className="members-entity-stats__chip-list">
+            <div className="members-entity-stats__list-table">
               {visibleSkills.map(([skillName, skillValue]) => (
-                <span key={skillName} className="members-entity-stats__chip">
-                  {formatLabel(skillName)}: {formatScalar(skillValue)}
-                </span>
+                <div key={skillName} className="members-entity-stats__list-row">
+                  <span className="members-entity-stats__list-label small">{formatLabel(skillName)}</span>
+                  <strong className="members-entity-stats__list-value">{formatScalar(skillValue)}</strong>
+                </div>
               ))}
             </div>
           </section>
@@ -502,25 +807,547 @@ function renderSkills(skills: Record<string, unknown>) {
   );
 }
 
+function formatGroupedStatValue(key: string, value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return "Unknown";
+  }
+
+  const numericValue = typeof value === "number" ? value : Number(value);
+  const hasNumericValue = !Number.isNaN(numericValue);
+
+  switch (key) {
+    case "weight_tonnes":
+    case "weight_capacity_tonnes":
+      return hasNumericValue ? `${numericValue.toLocaleString()} T` : formatScalar(value);
+    case "volume_m3":
+    case "volume_capacity_m3":
+      return hasNumericValue ? `${numericValue.toLocaleString()} m³` : formatScalar(value);
+    case "length":
+    case "width":
+    case "height":
+      return hasNumericValue ? `${numericValue.toLocaleString()} m` : formatScalar(value);
+    case "slot_size":
+      return hasNumericValue ? numericValue.toFixed(2) : formatScalar(value);
+    case "max_speed":
+      return hasNumericValue ? `${numericValue.toLocaleString()} km/h` : formatScalar(value);
+    case "recycling_xp":
+      return hasNumericValue ? `${numericValue.toLocaleString()} XP` : formatScalar(value);
+    case "price_credits":
+      return hasNumericValue ? `${numericValue.toLocaleString()} CR` : formatScalar(value);
+    case "production_modifier":
+      return hasNumericValue ? `${numericValue.toLocaleString()}` : formatScalar(value);
+    case "hyperdrive":
+      return hasNumericValue ? `${numericValue}` : formatScalar(value);
+    default:
+      return formatScalar(value);
+  }
+}
+
+function summarizeNamedCollection(
+  value: unknown,
+  quantityKeys: string[] = ["quantity", "amount", "count"]
+): Array<[string, string]> {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item): item is Record<string, unknown> => !!item && typeof item === "object")
+    .map((item) => {
+      const name =
+        (typeof item.name === "string" && item.name) ||
+        (typeof item.value === "string" && item.value) ||
+        (typeof item.class_name === "string" && item.class_name) ||
+        null;
+
+      if (!name) {
+        return null;
+      }
+
+      const quantityValue = quantityKeys
+        .map((key) => item[key])
+        .find((entry) => entry !== null && entry !== undefined && entry !== "");
+
+      return [
+        name,
+        quantityValue !== undefined ? formatScalar(quantityValue) : "1",
+      ] as [string, string];
+    })
+    .filter((entry): entry is [string, string] => !!entry);
+}
+
+function buildGroupedDetailSections(detail: EntityDetail): Array<{
+  title: string;
+  entries: Array<[string, string]>;
+}> {
+  if (!detail) {
+    return [];
+  }
+
+  const asRecord = detail as Record<string, unknown>;
+  const sections: Array<{ title: string; entries: Array<[string, string]> }> = [];
+
+  const addScalarSection = (
+    title: string,
+    fields: Array<[string, string]>
+  ) => {
+    const entries = fields
+      .map(([key, label]) => {
+        const value = asRecord[key];
+        if (value === null || value === undefined || value === "") {
+          return null;
+        }
+
+        return [label, formatGroupedStatValue(key, value)] as [string, string];
+      })
+      .filter((entry): entry is [string, string] => !!entry);
+
+    if (entries.length > 0) {
+      sections.push({ title, entries });
+    }
+  };
+
+  const materialEntries = summarizeNamedCollection(asRecord.materials);
+  if (materialEntries.length > 0) {
+    sections.push({
+      title: "Raw Materials",
+      entries: materialEntries,
+    });
+  }
+
+  const affiliationEntries = summarizeNamedCollection(
+    asRecord.affiliations ?? asRecord.affiliation ?? null,
+    ["quantity"]
+  );
+  sections.push({
+    title: "Affiliations",
+    entries: affiliationEntries.length > 0 ? affiliationEntries : [["No affiliations", ""]],
+  });
+
+  if (
+    (Array.isArray(asRecord.material_types) && asRecord.material_types.length > 0) ||
+    (asRecord.material_probability_percent !== null &&
+      asRecord.material_probability_percent !== undefined &&
+      asRecord.material_probability_percent !== "")
+  ) {
+    sections.push({
+      title: "Material Types",
+      entries: [],
+    });
+  }
+
+  if (Array.isArray(asRecord.hiring_locations) && asRecord.hiring_locations.length > 0) {
+    sections.push({
+      title: "Hiring Locations",
+      entries: [],
+    });
+  }
+
+  if (Array.isArray(asRecord.spawn_terrain_types) && asRecord.spawn_terrain_types.length > 0) {
+    sections.push({
+      title: "Spawn Terrain Types",
+      entries: [],
+    });
+  }
+
+  if (asRecord.skills && typeof asRecord.skills === "object" && !Array.isArray(asRecord.skills)) {
+    sections.push({
+      title: "Skills",
+      entries: [],
+    });
+  }
+
+  if (Array.isArray(asRecord.terrain_restrictions) && asRecord.terrain_restrictions.length > 0) {
+    sections.push({
+      title: "Terrain Restrictions",
+      entries: [],
+    });
+  }
+
+  if (typeof asRecord.description === "string" && asRecord.description.trim() !== "") {
+    sections.push({
+      title: "Description",
+      entries: [],
+    });
+  }
+
+  addScalarSection("Propulsion", [
+    ["hyperdrive", "Hyperspeed"],
+    ["max_speed", "Max Speed"],
+    ["manoeuvrability", "Manoeuvrability"],
+  ]);
+
+  addScalarSection("Dimensions", [
+    ["weight_tonnes", "Weight"],
+    ["volume_m3", "Volume"],
+    ["length", "Length"],
+    ["width", "Width"],
+    ["height", "Height"],
+    ["slot_size", "Party Slot"],
+  ]);
+
+  addScalarSection("Cargo Capacity", [
+    ["weight_capacity_tonnes", "Weight Cap"],
+    ["volume_capacity_m3", "Volume Cap"],
+    ["max_passengers", "Max Passengers"],
+  ]);
+
+  if (Array.isArray(asRecord.weapons) && asRecord.weapons.length > 0) {
+    sections.push({
+      title: "Weapons",
+      entries: [],
+    });
+  }
+
+  addScalarSection("Defenses", [
+    ["hull", "Hull"],
+    ["shield", "Deflectors"],
+    ["ionic_capacity", "Ionic Capacity"],
+    ["armour", "Armour"],
+  ]);
+
+  addScalarSection("Electronics", [
+    ["sensors", "Sensors"],
+    ["ecm", "ECM"],
+  ]);
+
+  addScalarSection("Production", [
+    ["price_credits", "Raw Value"],
+    ["recommended_workers", "Recommended Workers"],
+    ["recycling_xp", "Recycling XP"],
+    ["production_modifier", "Production Mod"],
+  ]);
+
+  return sections.filter((section) =>
+    (section.title === "Description" ||
+      section.title === "Material Types" ||
+      section.title === "Hiring Locations" ||
+      section.title === "Terrain Restrictions" ||
+      section.title === "Spawn Terrain Types" ||
+      section.title === "Skills") ||
+    section.entries.some(([, value]) => value !== "")
+  );
+}
+
+function getEntityStatsOverlayTargetRect(
+  section: { title: string; entries: Array<[string, string]> },
+  detail: EntityDetail = null,
+  linkedWeapons: Array<Record<string, unknown>> = []
+): OverlayRect {
+  const title = section.title;
+  const entryCount = section.entries.length;
+  const shieldArcCount =
+    title === "Defenses" && Array.isArray((detail as Record<string, unknown> | null)?.shield_arcs)
+      ? (((detail as Record<string, unknown>).shield_arcs as Array<Record<string, unknown>>).length)
+      : 0;
+
+  const largeSectionTitles = new Set([
+    "Weapons",
+    "Description",
+    "Skills",
+    "Material Types",
+    "Terrain Restrictions",
+    "Hiring Locations",
+    "Spawn Terrain Types",
+  ]);
+
+  const compactScalarSectionTitles = new Set([
+    "Propulsion",
+    "Dimensions",
+    "Cargo Capacity",
+    "Defenses",
+    "Electronics",
+    "Production",
+  ]);
+
+  const maxEntryTextLength = section.entries.reduce((largest, [label, value]) => {
+    const combinedLength = `${label}${value}`.length;
+    return Math.max(largest, combinedLength);
+  }, 0);
+
+  const compactWidthEstimate = Math.max(
+    420,
+    Math.min(560, 260 + maxEntryTextLength * 5)
+  );
+
+  const width = Math.min(
+    window.innerWidth - 32,
+    largeSectionTitles.has(title)
+      ? title === "Weapons"
+        ? 720
+        : 860
+      : title === "Defenses" && shieldArcCount > 0
+        ? 760
+        : compactScalarSectionTitles.has(title)
+          ? compactWidthEstimate
+          : 640
+  );
+
+  const estimatedHeight = largeSectionTitles.has(title)
+    ? title === "Weapons"
+      ? 220 + Math.min(linkedWeapons.length, 6) * 62
+      : title === "Description"
+        ? 560
+        : 480
+    : title === "Defenses" && shieldArcCount > 0
+      ? 170 + entryCount * 52 + shieldArcCount * 58
+      : 150 + entryCount * 52;
+
+  const height = Math.min(window.innerHeight - 32, Math.max(220, estimatedHeight));
+
+  return {
+    width,
+    height,
+    left: Math.round((window.innerWidth - width) / 2),
+    top: Math.round((window.innerHeight - height) / 2),
+  };
+}
+
+const EntityStatsGroupOverlay: React.FC<{
+  section: { title: string; entries: Array<[string, string]> };
+  detail?: EntityDetail;
+  linkedWeapons?: Array<Record<string, unknown>>;
+  terrainLookup?: Record<string, TerrainLookupEntry>;
+  selectedLinkedWeaponKey?: string | null;
+  onSelectLinkedWeapon?: (item: Record<string, unknown>) => void;
+  linkedWeaponLoading?: boolean;
+  selectedLinkedWeaponDetail?: EntityDetail;
+  sourceRect: OverlayRect;
+  onClose: () => void;
+}> = ({
+  section,
+  detail = null,
+  linkedWeapons = [],
+  terrainLookup = {},
+  selectedLinkedWeaponKey = null,
+  onSelectLinkedWeapon,
+  linkedWeaponLoading = false,
+  selectedLinkedWeaponDetail = null,
+  sourceRect,
+  onClose,
+}) => {
+  const [entered, setEntered] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [targetRect, setTargetRect] = useState<OverlayRect>(() =>
+    getEntityStatsOverlayTargetRect(section, detail, linkedWeapons)
+  );
+
+  useEffect(() => {
+    const onResize = () => setTargetRect(getEntityStatsOverlayTargetRect(section, detail, linkedWeapons));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [section, detail, linkedWeapons]);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        handleClose();
+      }
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  });
+
+  const currentRect = closing || !entered ? sourceRect : targetRect;
+
+  const handleClose = () => {
+    setClosing(true);
+    setEntered(false);
+    window.setTimeout(() => onClose(), 280);
+  };
+
+  return (
+    <div className={"members-entity-stats__overlay" + (entered && !closing ? " is-open" : "")}>
+      <button
+        type="button"
+        className="members-entity-stats__overlay-backdrop"
+        aria-label="Close stats section"
+        onClick={handleClose}
+      />
+
+      <article
+        className="panel members-entity-stats__overlay-panel"
+        style={{
+          top: `${currentRect.top}px`,
+          left: `${currentRect.left}px`,
+          width: `${currentRect.width}px`,
+          height: `${currentRect.height}px`,
+        }}
+        >
+        <header className="members-entity-stats__overlay-header">
+          <div className="members-entity-stats__overlay-title-block">
+            <h3 className="members-entity-stats__overlay-title">{section.title}</h3>
+          </div>
+
+          <HamburgerToggle
+            open={true}
+            onClick={handleClose}
+            ariaLabel="Close stats section"
+          />
+        </header>
+
+        <div className="members-entity-stats__overlay-body">
+          {section.title === "Weapons" && linkedWeapons.length > 0 ? (
+            <>
+              {renderWeaponSelectionList(
+                linkedWeapons,
+                selectedLinkedWeaponKey,
+                onSelectLinkedWeapon
+              )}
+              {linkedWeaponLoading ? (
+                <p className="small">Loading weapon stats…</p>
+              ) : selectedLinkedWeaponDetail ? (
+                <div className="members-entity-stats__list-table">
+                  {buildWeaponStatEntries(selectedLinkedWeaponDetail).map(([label, value]) => (
+                    <div key={label} className="members-entity-stats__list-row">
+                      <span className="members-entity-stats__list-label small">{label}</span>
+                      <strong className="members-entity-stats__list-value">{formatScalar(value)}</strong>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </>
+          ) : null}
+          {section.title === "Description" && typeof (detail as Record<string, unknown>)?.description === "string" ? (
+            looksLikeHtml((detail as Record<string, unknown>).description as string) ? (
+              <div
+                className="members-entity-stats__long-text members-entity-stats__long-text--html"
+                dangerouslySetInnerHTML={{ __html: (detail as Record<string, unknown>).description as string }}
+              />
+            ) : (
+              <div className="members-entity-stats__long-text">
+                {(detail as Record<string, unknown>).description as string}
+              </div>
+            )
+          ) : null}
+          {section.title === "Material Types" ? (
+            <>
+              {(detail as Record<string, unknown>)?.material_probability_percent !== null &&
+              (detail as Record<string, unknown>)?.material_probability_percent !== undefined &&
+              (detail as Record<string, unknown>)?.material_probability_percent !== "" ? (
+                <div className="members-entity-stats__list-table">
+                  <div className="members-entity-stats__list-row">
+                    <span className="members-entity-stats__list-label small">Probability</span>
+                    <strong className="members-entity-stats__list-value">
+                      {formatScalar((detail as Record<string, unknown>).material_probability_percent)}%
+                    </strong>
+                  </div>
+                </div>
+              ) : null}
+              {Array.isArray((detail as Record<string, unknown>)?.material_types)
+                ? renderCollectionListRows(
+                    (detail as Record<string, unknown>).material_types as Array<Record<string, unknown>>
+                  )
+                : null}
+            </>
+          ) : null}
+          {section.title === "Hiring Locations" &&
+          Array.isArray((detail as Record<string, unknown>)?.hiring_locations) ? (
+            renderCollectionListRows(
+              (detail as Record<string, unknown>).hiring_locations as Array<Record<string, unknown>>
+            )
+          ) : null}
+          {section.title === "Terrain Restrictions" &&
+          Array.isArray((detail as Record<string, unknown>)?.terrain_restrictions) ? (
+            renderCollectionItems(
+              (detail as Record<string, unknown>).terrain_restrictions as Array<Record<string, unknown>>,
+              terrainLookup
+            )
+          ) : null}
+          {section.title === "Defenses" &&
+          Array.isArray((detail as Record<string, unknown>)?.shield_arcs) ? (
+            <>
+              <div className="members-entity-stats__section-heading">
+                <h4>Shield Arcs</h4>
+                <span className="small">Directional deflector segments</span>
+              </div>
+              <div className="members-entity-stats__list-table">
+                {((detail as Record<string, unknown>).shield_arcs as Array<Record<string, unknown>>).map((item, index) => {
+                  const shieldArc = getShieldArcDisplay(item);
+
+                  return (
+                    <div
+                      key={`shield-arc-${index}-${shieldArc.arcLabel}`}
+                      className="members-entity-stats__list-row members-entity-stats__list-row--shield-arc"
+                    >
+                      <span className="members-entity-stats__weapon-arc-copy">
+                        <span className="members-entity-stats__weapon-arc-name small">
+                          {shieldArc.arcLabel}
+                        </span>
+                        {shieldArc.meta ? (
+                          <span className="members-entity-stats__weapon-arc-meta small">
+                            {shieldArc.meta}
+                          </span>
+                        ) : null}
+                      </span>
+                      <ArcIndicator
+                        arcName={shieldArc.arcName}
+                        arcFrom={shieldArc.arcFrom}
+                        arcTo={shieldArc.arcTo}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : null}
+          {section.title === "Spawn Terrain Types" &&
+          Array.isArray((detail as Record<string, unknown>)?.spawn_terrain_types) ? (
+            renderCollectionItems(
+              (detail as Record<string, unknown>).spawn_terrain_types as Array<Record<string, unknown>>,
+              terrainLookup
+            )
+          ) : null}
+          {section.title === "Skills" &&
+          (detail as Record<string, unknown>)?.skills &&
+          typeof (detail as Record<string, unknown>).skills === "object" &&
+          !Array.isArray((detail as Record<string, unknown>).skills) ? (
+            renderSkills((detail as Record<string, unknown>).skills as Record<string, unknown>)
+          ) : null}
+          <div className="members-entity-stats__list-table">
+            {section.entries.map(([label, value]) => (
+              <div key={`${section.title}-${label}`} className="members-entity-stats__list-row">
+                <span className="members-entity-stats__list-label small">{label}</span>
+                <strong className="members-entity-stats__list-value">{value || "None"}</strong>
+              </div>
+            ))}
+          </div>
+        </div>
+      </article>
+    </div>
+  );
+};
+
 const MemberEntityStatsPanel: React.FC = () => {
   const [kind, setKind] = useState<EntityStatsKind>("ship");
   const [items, setItems] = useState<EntityBrowseItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSourceKind, setSelectedSourceKind] = useState<EntityStatsKind | null>(null);
   const [detail, setDetail] = useState<EntityDetail>(null);
-  const [relatedWeaponDetail, setRelatedWeaponDetail] = useState<EntityDetail>(null);
   const [selectedLinkedWeaponKey, setSelectedLinkedWeaponKey] = useState<string | null>(null);
   const [selectedLinkedWeaponDetail, setSelectedLinkedWeaponDetail] = useState<EntityDetail>(null);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [relatedWeaponLoading, setRelatedWeaponLoading] = useState(false);
   const [linkedWeaponLoading, setLinkedWeaponLoading] = useState(false);
   const [compareIds, setCompareIds] = useState<CompareSelectionState>([null, null]);
   const [compareQueries, setCompareQueries] = useState<CompareQueryState>(["", ""]);
   const [compareDetails, setCompareDetails] = useState<CompareDetailState>({});
   const [compareLoading, setCompareLoading] = useState(false);
   const [showDifferencesOnly, setShowDifferencesOnly] = useState(false);
+  const [openGroupedSectionTitle, setOpenGroupedSectionTitle] = useState<string | null>(null);
+  const [openGroupedSectionRect, setOpenGroupedSectionRect] = useState<OverlayRect | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [terrainLookup, setTerrainLookup] = useState<Record<string, TerrainLookupEntry>>({});
   const [cgtState, setCgtState] = useState<CgtResponse | null>(null);
@@ -673,48 +1500,6 @@ const MemberEntityStatsPanel: React.FC = () => {
   }, [kind, selectedId, selectedSourceKind, items]);
 
   useEffect(() => {
-    if (kind === "weapon") {
-      setRelatedWeaponDetail(null);
-      setRelatedWeaponLoading(false);
-      return;
-    }
-
-    const selectedItem = items.find((item) => item.key === selectedId) ?? null;
-    const weaponUid = selectedItem?.weaponRecord?.uid ?? null;
-
-    if (!weaponUid) {
-      setRelatedWeaponDetail(null);
-      setRelatedWeaponLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        setRelatedWeaponLoading(true);
-        const response = await getStoredWeaponType(weaponUid);
-
-        if (cancelled) return;
-
-        setRelatedWeaponDetail(response.data ?? null);
-      } catch {
-        if (!cancelled) {
-          setRelatedWeaponDetail(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setRelatedWeaponLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [kind, selectedId, items]);
-
-  useEffect(() => {
     let cancelled = false;
 
     (async () => {
@@ -808,9 +1593,44 @@ const MemberEntityStatsPanel: React.FC = () => {
       return { concise: [], expanded: [] };
     }
 
-    const imageKeys = new Set(["image_url", "icon_url", "images"]);
+    const imageKeys = new Set(["image_url", "icon_url", "images", "image_large_url", "image_small_url"]);
     const heroKeys = new Set(["uid", "name", "class_name", "last_pulled_at"]);
-    const curatedSectionKeys = new Set(["weapons"]);
+    const curatedSectionKeys = new Set([
+      "weapons",
+      "skills",
+      "terrain_restrictions",
+      "spawn_terrain_types",
+      "hiring_locations",
+      "material_types",
+      "material_probability_percent",
+      "materials",
+      "affiliations",
+      "affiliation",
+      "description",
+      "shield_arcs",
+      "hyperdrive",
+      "max_speed",
+      "manoeuvrability",
+      "weight_tonnes",
+      "volume_m3",
+      "length",
+      "width",
+      "height",
+      "slot_size",
+      "weight_capacity_tonnes",
+      "volume_capacity_m3",
+      "max_passengers",
+      "hull",
+      "shield",
+      "ionic_capacity",
+      "armour",
+      "sensors",
+      "ecm",
+      "price_credits",
+      "recommended_workers",
+      "recycling_xp",
+      "production_modifier",
+    ]);
     const concise: Array<[string, unknown]> = [];
     const expanded: Array<[string, unknown]> = [];
 
@@ -838,15 +1658,18 @@ const MemberEntityStatsPanel: React.FC = () => {
     return { concise, expanded };
   }, [detail]);
 
-  const imageUrls = useMemo(() => collectImageUrls(detail), [detail]);
+  const imageUrls = useMemo(() => collectImageUrls(detail, kind), [detail, kind]);
+  const heroImageUrl = imageUrls[0] ?? selectedSummary?.imageUrl ?? null;
+  const baseGroupedDetailSections = useMemo(() => buildGroupedDetailSections(detail), [detail]);
+  const groupedSectionCardRefs = useRef<Record<string, HTMLElement | null>>({});
   const linkedWeapons = useMemo(() => {
     if (!Array.isArray(detail?.weapons)) {
       return [];
     }
 
-    return detail.weapons.filter(
+    return groupWeaponCollectionItems(detail.weapons.filter(
       (item): item is Record<string, unknown> => !!item && typeof item === "object"
-    );
+    ));
   }, [detail]);
   useEffect(() => {
     setSelectedLinkedWeaponKey(null);
@@ -906,17 +1729,25 @@ const MemberEntityStatsPanel: React.FC = () => {
       cancelled = true;
     };
   }, [selectedLinkedWeaponKey, linkedWeapons]);
-  const relatedWeaponSummary = useMemo(() => {
-    if (kind === "weapon" || !selectedSummary?.weaponRecord) {
-      return null;
+  const groupedDetailSections = useMemo(() => {
+    let nextSections = baseGroupedDetailSections;
+
+    if (linkedWeapons.length > 0) {
+      const hasWeaponsSection = nextSections.some((section) => section.title === "Weapons");
+      if (!hasWeaponsSection) {
+        nextSections = [
+          ...nextSections,
+          { title: "Weapons", entries: [] as Array<[string, string]> },
+        ];
+      }
     }
 
-    return {
-      record: selectedSummary.weaponRecord,
-      detail: relatedWeaponDetail,
-      statEntries: buildWeaponStatEntries(relatedWeaponDetail),
-    };
-  }, [kind, selectedSummary, relatedWeaponDetail]);
+    return nextSections;
+  }, [baseGroupedDetailSections, linkedWeapons]);
+  const openGroupedSection = useMemo(
+    () => groupedDetailSections.find((section) => section.title === openGroupedSectionTitle) ?? null,
+    [groupedDetailSections, openGroupedSectionTitle]
+  );
 
   const compareRows = useMemo(() => {
     if (compareItems.length < 2) {
@@ -934,12 +1765,14 @@ const MemberEntityStatsPanel: React.FC = () => {
       "uid",
       "name",
       "class_name",
+      "description",
       "last_pulled_at",
       "payload",
       "image_url",
       "icon_url",
       "images",
       "weapons",
+      "shield_arcs",
     ]);
 
     const keys = Array.from(new Set([...Object.keys(leftDetail), ...Object.keys(rightDetail)]));
@@ -1003,35 +1836,47 @@ const MemberEntityStatsPanel: React.FC = () => {
       ? rightDetail.weapons.filter(isWeaponCollectionItem)
       : [];
 
-    const allWeapons = new Map<string, { left: Record<string, unknown> | null; right: Record<string, unknown> | null }>();
+    const allWeapons = new Map<string, { left: Array<Record<string, unknown>>; right: Array<Record<string, unknown>> }>();
 
     leftWeapons.forEach((item) => {
-      const key = buildWeaponCollectionKey(item);
-      allWeapons.set(key, { left: item, right: null });
-    });
-
-    rightWeapons.forEach((item) => {
-      const key = buildWeaponCollectionKey(item);
+      const key = buildWeaponNameGroupKey(item);
       const existing = allWeapons.get(key);
       if (existing) {
-        existing.right = item;
+        existing.left.push(item);
         return;
       }
 
-      allWeapons.set(key, { left: null, right: item });
+      allWeapons.set(key, { left: [item], right: [] });
+    });
+
+    rightWeapons.forEach((item) => {
+      const key = buildWeaponNameGroupKey(item);
+      const existing = allWeapons.get(key);
+      if (existing) {
+        existing.right.push(item);
+        return;
+      }
+
+      allWeapons.set(key, { left: [], right: [item] });
     });
 
     return Array.from(allWeapons.entries())
       .map(([key, value]) => {
-        const leftLabel = value.left
-          ? `${typeof value.left.name === "string" ? value.left.name : "Weapon"}`
-          : "—";
-        const rightLabel = value.right
-          ? `${typeof value.right.name === "string" ? value.right.name : "Weapon"}`
-          : "—";
-        const leftSummary = value.left ? formatWeaponCollectionSummary(value.left) : "—";
-        const rightSummary = value.right ? formatWeaponCollectionSummary(value.right) : "—";
-        const isDifferent = leftLabel !== rightLabel || leftSummary !== rightSummary;
+        const representative = value.left[0] ?? value.right[0] ?? null;
+        const label = representative
+          ? `${typeof representative.name === "string" ? representative.name : "Weapon"}`
+          : "Weapon";
+        const leftSummaries = value.left
+          .map((item) => getWeaponArcDisplay(item))
+          .filter((summary) => summary.arcLabel || summary.meta);
+        const rightSummaries = value.right
+          .map((item) => getWeaponArcDisplay(item))
+          .filter((summary) => summary.arcLabel || summary.meta);
+        const leftId = value.left[0] && typeof value.left[0].uid === "string" ? `ID: ${formatSwcDisplayId(value.left[0].uid)}` : null;
+        const rightId = value.right[0] && typeof value.right[0].uid === "string" ? `ID: ${formatSwcDisplayId(value.right[0].uid)}` : null;
+        const isDifferent =
+          leftId !== rightId ||
+          JSON.stringify(leftSummaries) !== JSON.stringify(rightSummaries);
 
         if (showDifferencesOnly && !isDifferent) {
           return null;
@@ -1039,8 +1884,72 @@ const MemberEntityStatsPanel: React.FC = () => {
 
         return {
           key,
-          leftLabel,
-          rightLabel,
+          label,
+          leftId,
+          rightId,
+          leftSummaries,
+          rightSummaries,
+          isDifferent,
+        };
+      })
+      .filter((row): row is {
+        key: string;
+        label: string;
+        leftId: string | null;
+        rightId: string | null;
+        leftSummaries: Array<ReturnType<typeof getWeaponArcDisplay>>;
+        rightSummaries: Array<ReturnType<typeof getWeaponArcDisplay>>;
+        isDifferent: boolean;
+      } => !!row);
+  }, [compareItems, compareDetails, showDifferencesOnly]);
+
+  const compareShieldArcRows = useMemo(() => {
+    if (compareItems.length < 2) {
+      return [];
+    }
+
+    const leftDetail = compareDetails[compareItems[0].key];
+    const rightDetail = compareDetails[compareItems[1].key];
+    const leftArcs = Array.isArray(leftDetail?.shield_arcs)
+      ? leftDetail.shield_arcs.filter(isWeaponCollectionItem)
+      : [];
+    const rightArcs = Array.isArray(rightDetail?.shield_arcs)
+      ? rightDetail.shield_arcs.filter(isWeaponCollectionItem)
+      : [];
+
+    const allArcs = new Map<string, { left: Record<string, unknown> | null; right: Record<string, unknown> | null }>();
+
+    leftArcs.forEach((item) => {
+      const key =
+        (typeof item.name === "string" && item.name) ||
+        (typeof item.arc === "string" && item.arc) ||
+        `left-${allArcs.size}`;
+      const existing = allArcs.get(key);
+      allArcs.set(key, { left: item, right: existing?.right ?? null });
+    });
+
+    rightArcs.forEach((item) => {
+      const key =
+        (typeof item.name === "string" && item.name) ||
+        (typeof item.arc === "string" && item.arc) ||
+        `right-${allArcs.size}`;
+      const existing = allArcs.get(key);
+      allArcs.set(key, { left: existing?.left ?? null, right: item });
+    });
+
+    return Array.from(allArcs.entries())
+      .map(([key, value]) => {
+        const leftSummary = value.left ? getShieldArcDisplay(value.left) : null;
+        const rightSummary = value.right ? getShieldArcDisplay(value.right) : null;
+        const isDifferent = JSON.stringify(leftSummary) !== JSON.stringify(rightSummary);
+
+        if (showDifferencesOnly && !isDifferent) {
+          return null;
+        }
+
+        return {
+          key,
+          label: key,
           leftSummary,
           rightSummary,
           isDifferent,
@@ -1048,10 +1957,9 @@ const MemberEntityStatsPanel: React.FC = () => {
       })
       .filter((row): row is {
         key: string;
-        leftLabel: string;
-        rightLabel: string;
-        leftSummary: string;
-        rightSummary: string;
+        label: string;
+        leftSummary: ReturnType<typeof getShieldArcDisplay> | null;
+        rightSummary: ReturnType<typeof getShieldArcDisplay> | null;
         isDifferent: boolean;
       } => !!row);
   }, [compareItems, compareDetails, showDifferencesOnly]);
@@ -1239,15 +2147,10 @@ const MemberEntityStatsPanel: React.FC = () => {
                   <strong>{item.name ?? item.primaryRecord.uid}</strong>
                   <span className="small">
                     {formatSwcDisplayId(item.primaryRecord.uid)}
-                    {item.itemRecord && item.weaponRecord
-                      ? ` · ${formatSwcDisplayId(item.itemRecord.uid)} / ${formatSwcDisplayId(item.weaponRecord.uid)}`
-                      : ""}
                   </span>
                   {item.className ? <span className="small">{item.className}</span> : null}
                   {item.itemRecord && item.weaponRecord ? (
-                    <span className="small">Item + Weapon</span>
-                  ) : item.weaponRecord && kind !== "weapon" ? (
-                    <span className="small">Matching Weapon Record</span>
+                    <span className="small">Weapon</span>
                   ) : null}
                 </button>
               ))}
@@ -1319,15 +2222,112 @@ const MemberEntityStatsPanel: React.FC = () => {
                       {compareWeaponRows.map((row) => (
                         <React.Fragment key={row.key}>
                           <div className={`members-entity-stats__compare-cell members-entity-stats__compare-cell--label${row.isDifferent ? " is-different" : ""}`}>
-                            {row.leftLabel !== "—" ? row.leftLabel : row.rightLabel}
+                            {row.label}
                           </div>
                           <div className={`members-entity-stats__compare-cell${row.isDifferent ? " is-different" : ""}`}>
-                            <strong>{row.leftLabel}</strong>
-                            {row.leftSummary !== "—" ? <div className="small">{row.leftSummary}</div> : null}
+                            {row.leftId ? <strong>{row.leftId}</strong> : <strong>—</strong>}
+                            {row.leftSummaries.map((summary, index) => (
+                              <div key={`${row.key}-left-${index}`} className="members-entity-stats__weapon-arc-line">
+                                <ArcIndicator
+                                  arcName={summary.arcName}
+                                  arcFrom={summary.arcFrom}
+                                  arcTo={summary.arcTo}
+                                />
+                                <span className="members-entity-stats__weapon-arc-name small">
+                                  {summary.arcLabel}
+                                </span>
+                                {summary.meta ? (
+                                  <span className="members-entity-stats__weapon-arc-meta small">
+                                    {summary.meta}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ))}
                           </div>
                           <div className={`members-entity-stats__compare-cell${row.isDifferent ? " is-different" : ""}`}>
-                            <strong>{row.rightLabel}</strong>
-                            {row.rightSummary !== "—" ? <div className="small">{row.rightSummary}</div> : null}
+                            {row.rightId ? <strong>{row.rightId}</strong> : <strong>—</strong>}
+                            {row.rightSummaries.map((summary, index) => (
+                              <div key={`${row.key}-right-${index}`} className="members-entity-stats__weapon-arc-line">
+                                <ArcIndicator
+                                  arcName={summary.arcName}
+                                  arcFrom={summary.arcFrom}
+                                  arcTo={summary.arcTo}
+                                />
+                                <span className="members-entity-stats__weapon-arc-name small">
+                                  {summary.arcLabel}
+                                </span>
+                                {summary.meta ? (
+                                  <span className="members-entity-stats__weapon-arc-meta small">
+                                    {summary.meta}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+
+                {compareShieldArcRows.length > 0 ? (
+                  <section className="members-entity-stats__section">
+                    <h4>Shield Arc Differences</h4>
+                    <div className="members-entity-stats__compare-grid">
+                      <div className="members-entity-stats__compare-head small">Arc</div>
+                      <div className="members-entity-stats__compare-head small">
+                        {compareItems[0].name ?? formatSwcDisplayId(compareItems[0].primaryRecord.uid)}
+                      </div>
+                      <div className="members-entity-stats__compare-head small">
+                        {compareItems[1].name ?? formatSwcDisplayId(compareItems[1].primaryRecord.uid)}
+                      </div>
+
+                      {compareShieldArcRows.map((row) => (
+                        <React.Fragment key={row.key}>
+                          <div className={`members-entity-stats__compare-cell members-entity-stats__compare-cell--label${row.isDifferent ? " is-different" : ""}`}>
+                            {row.label}
+                          </div>
+                          <div className={`members-entity-stats__compare-cell${row.isDifferent ? " is-different" : ""}`}>
+                            {row.leftSummary ? (
+                              <div className="members-entity-stats__weapon-arc-line">
+                                <ArcIndicator
+                                  arcName={row.leftSummary.arcName}
+                                  arcFrom={row.leftSummary.arcFrom}
+                                  arcTo={row.leftSummary.arcTo}
+                                />
+                                <span className="members-entity-stats__weapon-arc-name small">
+                                  {row.leftSummary.arcLabel}
+                                </span>
+                                {row.leftSummary.meta ? (
+                                  <span className="members-entity-stats__weapon-arc-meta small">
+                                    {row.leftSummary.meta}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <strong>—</strong>
+                            )}
+                          </div>
+                          <div className={`members-entity-stats__compare-cell${row.isDifferent ? " is-different" : ""}`}>
+                            {row.rightSummary ? (
+                              <div className="members-entity-stats__weapon-arc-line">
+                                <ArcIndicator
+                                  arcName={row.rightSummary.arcName}
+                                  arcFrom={row.rightSummary.arcFrom}
+                                  arcTo={row.rightSummary.arcTo}
+                                />
+                                <span className="members-entity-stats__weapon-arc-name small">
+                                  {row.rightSummary.arcLabel}
+                                </span>
+                                {row.rightSummary.meta ? (
+                                  <span className="members-entity-stats__weapon-arc-meta small">
+                                    {row.rightSummary.meta}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <strong>—</strong>
+                            )}
                           </div>
                         </React.Fragment>
                       ))}
@@ -1345,9 +2345,9 @@ const MemberEntityStatsPanel: React.FC = () => {
           ) : (
             <>
               <div className="members-entity-stats__hero">
-                {(selectedSummary.imageUrl || imageUrls[0]) ? (
+                {heroImageUrl ? (
                   <img
-                    src={selectedSummary.imageUrl ?? imageUrls[0]}
+                    src={heroImageUrl}
                     alt={selectedSummary.name ?? selectedSummary.primaryRecord.uid}
                     className="members-entity-stats__image"
                   />
@@ -1375,90 +2375,47 @@ const MemberEntityStatsPanel: React.FC = () => {
                   ) : null}
                 </div>
               </div>
+              {groupedDetailSections.length > 0 ? (
+                <div className={"members-entity-stats__grouped-sections" + (openGroupedSection ? " members-entity-stats__grouped-sections--has-open" : "")}>
+                  {groupedDetailSections.map((section) => (
+                    <button
+                      key={section.title}
+                      type="button"
+                      ref={(element) => {
+                        groupedSectionCardRefs.current[section.title] = element;
+                      }}
+                      className={
+                        "members-entity-stats__group-panel" +
+                        (openGroupedSectionTitle === section.title ? " is-active" : "")
+                      }
+                      onClick={() => {
+                        if (openGroupedSectionTitle === section.title) {
+                          setOpenGroupedSectionTitle(null);
+                          setOpenGroupedSectionRect(null);
+                          return;
+                        }
 
-              {imageUrls.length > 0 ? (
-                <section className="members-entity-stats__section">
-                  <h4>Images</h4>
-                  <div className="members-entity-stats__image-strip">
-                    {imageUrls.map((url) => (
-                      <article key={url} className="members-entity-stats__image-card">
-                        <img src={url} alt={selectedSummary.name ?? selectedSummary.primaryRecord.uid} />
-                        <p className="small">{url}</p>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-              ) : null}
+                        const element = groupedSectionCardRefs.current[section.title];
+                        if (!element) {
+                          return;
+                        }
 
-              {linkedWeapons.length > 0 ? (
-                <section className="members-entity-stats__section">
-                  <h4>Linked Weapons</h4>
-                  {renderCollectionItems(linkedWeapons, terrainLookup, {
-                    hideImages: true,
-                    activeKey: selectedLinkedWeaponKey,
-                    onSelect: (item) => {
-                      const key =
-                        (typeof item.uid === "string" && item.uid) ||
-                        (typeof item.name === "string" && item.name) ||
-                        null;
-                      setSelectedLinkedWeaponKey((current) => (current === key ? null : key));
-                    },
-                  })}
-                  {linkedWeaponLoading ? (
-                    <p className="small">Loading weapon stats…</p>
-                  ) : selectedLinkedWeaponDetail ? (
-                    <div className="members-entity-stats__stats-grid">
-                      {buildWeaponStatEntries(selectedLinkedWeaponDetail).map(([label, value]) => (
-                        <article key={label} className="members-entity-stats__stat">
-                          <span className="small">{label}</span>
-                          <strong>{formatScalar(value)}</strong>
-                        </article>
-                      ))}
-                    </div>
-                  ) : null}
-                </section>
-              ) : null}
-
-              {relatedWeaponSummary ? (
-                <section className="members-entity-stats__section">
-                  <div className="members-entity-stats__section-heading">
-                    <h4>Matching Weapon Record</h4>
-                  </div>
-
-                  <div className="members-entity-stats__related-card">
-                    <div className="members-entity-stats__related-copy">
-                      <strong>{relatedWeaponSummary.record.name ?? relatedWeaponSummary.record.uid}</strong>
-                      <span className="small">
-                        ID: {formatSwcDisplayId(relatedWeaponSummary.record.uid)}
-                      </span>
-                      {relatedWeaponSummary.record.className ? (
-                        <span className="small">Class: {relatedWeaponSummary.record.className}</span>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  {relatedWeaponLoading ? (
-                    <p className="small">Loading weapon stats…</p>
-                  ) : relatedWeaponSummary.statEntries.length > 0 ? (
-                    <div className="members-entity-stats__stats-grid">
-                      {relatedWeaponSummary.statEntries.map(([label, value]) => (
-                        <article key={label} className="members-entity-stats__stat">
-                          <span className="small">{label}</span>
-                          <strong>{formatScalar(value)}</strong>
-                        </article>
-                      ))}
-                    </div>
-                  ) : null}
-                </section>
-              ) : null}
-
-              {detailEntries.concise.length > 0 ? (
-                <div className="members-entity-stats__stats-grid">
-                  {detailEntries.concise.map(([key, value]) => (
-                    <article key={key} className="members-entity-stats__stat">
-                      <span className="small">{formatLabel(key)}</span>
-                      <strong>{formatScalar(value)}</strong>
-                    </article>
+                        const rect = element.getBoundingClientRect();
+                        setOpenGroupedSectionRect({
+                          top: rect.top,
+                          left: rect.left,
+                          width: rect.width,
+                          height: rect.height,
+                        });
+                        setOpenGroupedSectionTitle(section.title);
+                      }}
+                    >
+                      <div className="members-entity-stats__group-panel-header">
+                        <div className="members-entity-stats__group-panel-copy">
+                          <h4>{section.title}</h4>
+                        </div>
+                      </div>
+                    </button>
                   ))}
                 </div>
               ) : null}
@@ -1488,6 +2445,30 @@ const MemberEntityStatsPanel: React.FC = () => {
           )}
         </section>
       </div>
+
+      {openGroupedSection && openGroupedSectionRect ? (
+        <EntityStatsGroupOverlay
+          section={openGroupedSection}
+          detail={detail}
+          linkedWeapons={openGroupedSection.title === "Weapons" ? linkedWeapons : []}
+          terrainLookup={terrainLookup}
+          selectedLinkedWeaponKey={selectedLinkedWeaponKey}
+          onSelectLinkedWeapon={(item) => {
+            const key =
+              (typeof item.uid === "string" && item.uid) ||
+              (typeof item.name === "string" && item.name) ||
+              null;
+            setSelectedLinkedWeaponKey((current) => (current === key ? null : key));
+          }}
+          linkedWeaponLoading={linkedWeaponLoading}
+          selectedLinkedWeaponDetail={selectedLinkedWeaponDetail}
+          sourceRect={openGroupedSectionRect}
+          onClose={() => {
+            setOpenGroupedSectionTitle(null);
+            setOpenGroupedSectionRect(null);
+          }}
+        />
+      ) : null}
     </section>
   );
 };

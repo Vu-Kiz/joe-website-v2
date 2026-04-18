@@ -14,7 +14,7 @@ import {
 } from "../api/jobs";
 import { getPayments } from "../api/payments";
 import { getMyPayableFactions, type PayableFaction } from "../api/factions";
-import { canAccessAdmin, canAccessDroidBrain, canAccessIntel, canAccessMembers, canAccessPayments, canAccessSysadmin } from "../auth/permissions";
+import { canAccessAdmin, canAccessCombatCalculator, canAccessDroidBrain, canAccessIntel, canAccessMembers, canAccessPayments, canAccessSysadmin, canAccessWreckingHelperExtension } from "../auth/permissions";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import OpenJobsPanel from "../components/members/jobs/OpenJobsPanel";
@@ -26,15 +26,21 @@ import MembersUniversePanel from "../components/members/MembersUniversePanel";
 import MemberEntityStatsPanel from "../components/members/MemberEntityStatsPanel";
 import HyperPlannerPanel from "../components/members/HyperPlannerPanel";
 import MemberGalacticArchivePanel from "../components/members/MemberGalacticArchivePanel";
+import MemberCombatCalculatorPanel from "../components/members/MemberCombatCalculatorPanel";
+import MemberWeaponHeatmapPanel from "../components/members/MemberWeaponHeatmapPanel";
+import MemberWreckingHelperPanel from "../components/members/MemberWreckingHelperPanel";
 import jawaLogo from "../assets/branding/jawalogo.png";
 import archiveIcon from "../assets/members/ArchiveIcon.png";
 import astrogationIcon from "../assets/members/AstrogationIcon.png";
 import chainCodeIcon from "../assets/members/ChainCodeIcon.png";
+import combatCalcIcon from "../assets/members/CombatCalcIcon.png";
 import droidBrainIcon from "../assets/members/DroidBrainIcon.png";
+import heatmapIcon from "../assets/members/HeatmapIcon.png";
 import hyperIcon from "../assets/members/HyperIcon.png";
 import jobBoardIcon from "../assets/members/JobBoardIcon.png";
 import paymentIcon from "../assets/members/PaymentIcon.png";
 import statsIcon from "../assets/members/StatsIcon.png";
+import wreckerIcon from "../assets/members/WreckerIcon.png";
 import {
   getSwcAuthorizationStatus,
   type SwcAuthorizationStatus,
@@ -45,7 +51,7 @@ import "../styles/main.sass";
 import "../styles/_admin.sass";
 import "../styles/_membersuniverse.sass";
 
-type MembersView = "overview" | "jobs" | "universe" | "stats" | "hyperplanner" | "archive";
+type MembersView = "overview" | "jobs" | "universe" | "stats" | "hyperplanner" | "archive" | "shipHeatmap" | "weaponHeatmap" | "wreckingHelper";
 type JobsView = "open" | "posted" | "taken" | "create";
 type MembersToolCard = {
   key: string;
@@ -55,11 +61,28 @@ type MembersToolCard = {
   onClick: () => void;
 };
 
+function parseMembersView(value: string | null): MembersView | null {
+  switch (value) {
+    case "overview":
+    case "jobs":
+    case "universe":
+    case "stats":
+    case "hyperplanner":
+    case "archive":
+    case "shipHeatmap":
+    case "weaponHeatmap":
+    case "wreckingHelper":
+      return value;
+    default:
+      return null;
+  }
+}
+
 const MembersPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const requestedMembersView = searchParams.get("members_view");
+  const requestedMembersView = parseMembersView(searchParams.get("members_view"));
   const requestedJobsView = searchParams.get("jobs_view");
   const requestedJobId = Number(searchParams.get("job_id") ?? "");
   const swcOauthSuccess = searchParams.get("swc_oauth_success") === "1";
@@ -76,9 +99,7 @@ const MembersPage: React.FC = () => {
   const [membersView, setMembersView] = useState<MembersView>(
     Number.isFinite(requestedJobId) && requestedJobId > 0
       ? "jobs"
-      : location.state?.membersView === "universe" || requestedMembersView === "universe"
-      ? "universe"
-      : "overview"
+      : requestedMembersView ?? (location.state?.membersView === "universe" ? "universe" : "overview")
   );
   const [jobsView, setJobsView] = useState<JobsView>(
     requestedJobsView === "posted" || requestedJobsView === "taken" || requestedJobsView === "create"
@@ -90,7 +111,12 @@ const MembersPage: React.FC = () => {
   );
 
   useEffect(() => {
-    if (location.state?.membersView === "universe" || requestedMembersView === "universe") {
+    if (requestedMembersView) {
+      setMembersView(requestedMembersView);
+      return;
+    }
+
+    if (location.state?.membersView === "universe") {
       setMembersView("universe");
     }
   }, [location.state, requestedMembersView]);
@@ -112,6 +138,44 @@ const MembersPage: React.FC = () => {
       setJobsView("open");
     }
   }, [requestedJobsView, requestedMembersView]);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams(searchParams.toString());
+
+    if (membersView === "overview") {
+      nextParams.delete("members_view");
+      nextParams.delete("jobs_view");
+      nextParams.delete("job_id");
+    } else {
+      nextParams.set("members_view", membersView);
+
+      if (membersView === "jobs") {
+        nextParams.set("jobs_view", jobsView);
+        if (selectedJobId) {
+          nextParams.set("job_id", String(selectedJobId));
+        } else {
+          nextParams.delete("job_id");
+        }
+      } else {
+        nextParams.delete("jobs_view");
+        nextParams.delete("job_id");
+      }
+    }
+
+    const currentQuery = searchParams.toString();
+    const nextQuery = nextParams.toString();
+    if (currentQuery === nextQuery) {
+      return;
+    }
+
+    navigate(
+      {
+        pathname: "/members",
+        search: nextQuery ? `?${nextQuery}` : "",
+      },
+      { replace: true }
+    );
+  }, [jobsView, membersView, navigate, searchParams, selectedJobId]);
 
   useEffect(() => {
     if (!swcOauthSuccess && !swcOauthError) {
@@ -233,9 +297,11 @@ const MembersPage: React.FC = () => {
   }
 
   const isLoggedIn = !!user;
-  const canSeeMembers = canAccessMembers(user) || canAccessIntel(user);
+  const canSeeMembers = canAccessMembers(user) || canAccessIntel(user) || canAccessWreckingHelperExtension(user);
   const canSeeMemberOnlyTools = canAccessMembers(user);
   const canSeeGalacticArchive = canAccessSysadmin(user);
+  const canSeeCombatCalculator = canAccessCombatCalculator(user);
+  const canSeeWreckingHelperExtension = canAccessWreckingHelperExtension(user);
 
   const openJobs = useMemo(() => jobs.filter((j) => j.status === "open"), [jobs]);
 
@@ -370,6 +436,18 @@ const MembersPage: React.FC = () => {
             } satisfies MembersToolCard,
           ]
         : []),
+      ...(canSeeWreckingHelperExtension
+        ? [
+            {
+              key: "wreckingHelper",
+              title: "Wrecking Helper",
+              description:
+                "Download the extension package, then manage the shared prefix setting used by the extension.",
+              actionLabel: "Open Wrecking Helper",
+              onClick: () => setMembersView("wreckingHelper"),
+            } satisfies MembersToolCard,
+          ]
+        : []),
       ...(canSeeMemberOnlyTools
         ? [
             {
@@ -410,6 +488,22 @@ const MembersPage: React.FC = () => {
               onClick: () => setMembersView("hyperplanner"),
             } satisfies MembersToolCard,
             {
+              key: "shipHeatmap",
+              title: "Combat Calculator",
+              description:
+                "Pick attacker and target ships, test expected engagement ranges, and inspect the combat board while the calculator is still being verified.",
+              actionLabel: "Open Combat Calculator",
+              onClick: () => setMembersView("shipHeatmap"),
+            } satisfies MembersToolCard,
+            {
+              key: "weaponHeatmap",
+              title: "Targeting Heatmap",
+              description:
+                "Test firing arcs, approach angles, and hit chance in a cleaner targeting sandbox.",
+              actionLabel: "Open Targeting Heatmap",
+              onClick: () => setMembersView("weaponHeatmap"),
+            } satisfies MembersToolCard,
+            {
               key: "universe",
               title: "Astrogation",
               description: "Open the astrogation map, browse intel, and pull your SWC travel events.",
@@ -418,6 +512,7 @@ const MembersPage: React.FC = () => {
             } satisfies MembersToolCard,
           ]
             .filter((tool) => tool.key !== "archive" || canSeeGalacticArchive)
+            .filter((tool) => tool.key !== "shipHeatmap" || canSeeCombatCalculator)
         : []),
     ],
     [
@@ -426,6 +521,8 @@ const MembersPage: React.FC = () => {
       myTakenJobs.length,
       navigate,
       openJobs.length,
+      canSeeCombatCalculator,
+      canSeeWreckingHelperExtension,
       swcAuth?.member_tools_connected,
       user,
     ]
@@ -480,8 +577,8 @@ const MembersPage: React.FC = () => {
   if (loading) {
     return (
       <main className="board admin-board members-page-shell">
-        <h1>Member Tools</h1>
-        <p className="small">Loading member tools…</p>
+        <h1>Tool Kit</h1>
+        <p className="small">Loading tool kit…</p>
       </main>
     );
   }
@@ -489,7 +586,7 @@ const MembersPage: React.FC = () => {
   if (error) {
     return (
       <main className="board admin-board members-page-shell">
-        <h1>Member Tools</h1>
+        <h1>Tool Kit</h1>
         <p className="small" style={{ color: "salmon" }}>
           {error}
         </p>
@@ -502,7 +599,7 @@ const MembersPage: React.FC = () => {
       <main className="board admin-board members-page-shell">
         <NotLoggedInState
           title="Not logged in"
-          message="You need to sign in to access member tools."
+          message="You need to sign in to access tools."
         />
       </main>
     );
@@ -513,7 +610,7 @@ const MembersPage: React.FC = () => {
       <main className="board admin-board members-page-shell">
         <ForbiddenState
           title="403 Forbidden"
-          message="You do not have permission to access member tools."
+          message="You do not have permission to access tools."
         />
       </main>
     );
@@ -521,9 +618,9 @@ const MembersPage: React.FC = () => {
 
   return (
     <main className="board admin-board members-page-shell">
-      <h1>Member Tools</h1>
+      <h1>Tool Kit</h1>
       {membersView === "overview" ? (
-        <p className="small">Member tools live here. Pick a tool card to jump straight in.</p>
+        <p className="small">Tools live here. Pick a tool card to jump straight in.</p>
       ) : null}
 
       {membersView === "overview" && (
@@ -535,6 +632,12 @@ const MembersPage: React.FC = () => {
                   src={
                     tool.key === "universe"
                       ? astrogationIcon
+                      : tool.key === "wreckingHelper"
+                        ? wreckerIcon
+                      : tool.key === "shipHeatmap"
+                        ? combatCalcIcon
+                      : tool.key === "weaponHeatmap"
+                        ? heatmapIcon
                       : tool.key === "hyperplanner"
                         ? hyperIcon
                         : tool.key === "archive"
@@ -554,6 +657,12 @@ const MembersPage: React.FC = () => {
                   alt={
                     tool.key === "universe"
                       ? "Astrogation"
+                      : tool.key === "wreckingHelper"
+                        ? "Wrecking Helper"
+                      : tool.key === "shipHeatmap"
+                        ? "Combat Calculator"
+                      : tool.key === "weaponHeatmap"
+                        ? "Targeting Heatmap"
                       : tool.key === "hyperplanner"
                         ? "Hyper Planner"
                       : tool.key === "archive"
@@ -725,7 +834,29 @@ const MembersPage: React.FC = () => {
         />
       )}
 
-      {membersView === "stats" && (
+      {membersView === "shipHeatmap" && canSeeCombatCalculator && (
+        <>
+          <div className="members-tool-back">
+            <button className="btn" type="button" onClick={() => setMembersView("overview")}>
+              Back to Overview
+            </button>
+          </div>
+          <MemberCombatCalculatorPanel />
+        </>
+      )}
+
+      {membersView === "weaponHeatmap" && canSeeMemberOnlyTools && (
+        <>
+          <div className="members-tool-back">
+            <button className="btn" type="button" onClick={() => setMembersView("overview")}>
+              Back to Overview
+            </button>
+          </div>
+          <MemberWeaponHeatmapPanel />
+        </>
+      )}
+
+      {membersView === "stats" && canSeeMemberOnlyTools && (
         <>
           <div className="members-tool-back">
             <button className="btn" type="button" onClick={() => setMembersView("overview")}>
@@ -738,6 +869,10 @@ const MembersPage: React.FC = () => {
 
       {membersView === "archive" && canSeeGalacticArchive && (
         <MemberGalacticArchivePanel onBack={() => setMembersView("overview")} />
+      )}
+
+      {membersView === "wreckingHelper" && canSeeWreckingHelperExtension && (
+        <MemberWreckingHelperPanel onBack={() => setMembersView("overview")} />
       )}
     </main>
   );

@@ -1001,6 +1001,7 @@ class UniversePersistenceService
                 'escape_pods' => $typeData['escape_pods'] ?? null,
                 'hull' => $typeData['hull'] ?? null,
                 'shield' => $typeData['shield'] ?? null,
+                'shield_arcs' => $typeData['shield_arcs'] ?? null,
                 'armour' => $typeData['armour'] ?? null,
                 'ionic_capacity' => $typeData['ionic_capacity'] ?? null,
                 'has_repulsors' => $typeData['has_repulsors'] ?? null,

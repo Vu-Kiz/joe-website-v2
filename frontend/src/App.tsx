@@ -17,6 +17,8 @@ import SysDebugPage from "./pages/SysDebugPage";
 import SysUniversePage from "./pages/SysUniversePage";
 import MembersUniverseSystemPage from "./pages/MembersUniverseSystemPage";
 import MembersUniverseLocationPage from "./pages/MembersUniverseLocationPage";
+import SysWeaponHeatmapPage from "./pages/SysWeaponHeatmapPage";
+import SysShipHeatmapPage from "./pages/SysShipHeatmapPage";
 
 function App() {
   const [checkingSiteLock, setCheckingSiteLock] = useState(true);
@@ -94,6 +96,8 @@ function App() {
           <Route path="/intel/droidbrain" element={<DroidBrainPage />} />
           <Route path="/sys/debug" element={<SysDebugPage />} />
           <Route path="/sys/debug/universe" element={<SysUniversePage />} />
+          <Route path="/sys/debug/weapon-heatmap" element={<SysWeaponHeatmapPage />} />
+          <Route path="/sys/debug/ship-heatmap" element={<SysShipHeatmapPage />} />
 
           <Route
             path="/admin"

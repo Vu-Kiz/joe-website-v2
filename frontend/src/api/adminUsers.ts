@@ -18,6 +18,8 @@ export type AdminManageableUser = {
   is_sysadmin: boolean;
   is_intel: boolean;
   can_view_asteroid_intel: boolean;
+  can_access_combat_calc: boolean;
+  can_access_wrecking_helper_extension: boolean;
   is_garry: boolean;
   is_raid: boolean;
 
@@ -34,6 +36,8 @@ export type ListAdminUsersResponse = {
 export type UpdateAdminUserPermissionsPayload = {
   is_admin?: boolean;
   can_view_asteroid_intel?: boolean;
+  can_access_combat_calc?: boolean;
+  can_access_wrecking_helper_extension?: boolean;
   scan_window_top_left_galx?: number | null;
   scan_window_top_left_galy?: number | null;
   scan_window_bottom_right_galx?: number | null;

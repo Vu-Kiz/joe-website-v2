@@ -1,0 +1,76 @@
+{
+  "manifest_version": 3,
+  "name": "Wrecking Helper",
+  "version": "3.0.0",
+  "description": "TypeScript counter helper, tab switching, and website bridge for SWCombine workflows.",
+  "icons": {
+    "16": "WreckerIcon.png",
+    "32": "WreckerIcon.png",
+    "48": "WreckerIcon.png",
+    "128": "WreckerIcon.png"
+  },
+  "permissions": ["scripting", "activeTab", "storage", "tabs"],
+  "host_permissions": [
+    "https://www.swcombine.com/*",
+    "https://*.swc-joe.com/*",
+    "https://api.swc-joe.com/*",
+    "https://dev-v2-api.swc-joe.com/*",
+    "https://www.swc-joe.com/*",
+    "https://swc-joe.com/*",
+    "https://dev-v2.swc-joe.com/*",
+    "http://localhost:8000/*",
+    "http://127.0.0.1:8000/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.swcombine.com/*",
+        "https://*.swc-joe.com/*",
+        "https://www.swc-joe.com/*",
+        "https://swc-joe.com/*",
+        "https://dev-v2.swc-joe.com/*",
+        "http://localhost:8000/*",
+        "http://127.0.0.1:8000/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "stamp": {
+      "suggested_key": { "default": "Alt+Q" },
+      "description": "Paste next sequential ID into focused field"
+    },
+    "countback": {
+      "suggested_key": { "default": "Alt+C" },
+      "description": "Decrease counter by 1"
+    },
+    "setcount": {
+      "suggested_key": { "default": "Alt+X" },
+      "description": "Manually set counter value"
+    },
+    "recycle": {
+      "suggested_key": { "default": "Alt+W" },
+      "description": "Toggle between current tab and recycling page"
+    }
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "wrecking-helper@swc-joe.com"
+    }
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Wrecking Helper",
+    "default_icon": {
+      "16": "WreckerIcon.png",
+      "32": "WreckerIcon.png",
+      "48": "WreckerIcon.png",
+      "128": "WreckerIcon.png"
+    }
+  }
+}
