@@ -39,6 +39,7 @@ import jawaLogo from "../assets/branding/jawalogo.png";
 import archiveIcon from "../assets/members/ArchiveIcon.png";
 import astrogationIcon from "../assets/members/AstrogationIcon.png";
 import chainCodeIcon from "../assets/members/ChainCodeIcon.png";
+import changelogIcon from "../assets/members/ChangelogIcon.png";
 import combatCalcIcon from "../assets/members/CombatCalcIcon.png";
 import droidBrainIcon from "../assets/members/DroidBrainIcon.png";
 import heatmapIcon from "../assets/members/HeatmapIcon.png";
@@ -717,7 +718,7 @@ const MembersPage: React.FC = () => {
                       : tool.key === "wreckingHelper"
                         ? wreckerIcon
                       : tool.key === "changelog"
-                        ? archiveIcon
+                        ? changelogIcon
                       : tool.key === "shipHeatmap"
                         ? combatCalcIcon
                       : tool.key === "weaponHeatmap"
