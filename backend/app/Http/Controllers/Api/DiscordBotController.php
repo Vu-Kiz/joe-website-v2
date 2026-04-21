@@ -7,6 +7,7 @@ use App\Models\DiscordChannelConfig;
 use App\Models\DiscordBotGuild;
 use App\Models\DiscordMessageDelivery;
 use App\Models\DiscordOutboxMessage;
+use App\Models\MemberChangelogEntry;
 use App\Models\User;
 use App\Support\Discord\DiscordNotifier;
 use App\Support\Discord\JenPostService;
@@ -107,6 +108,54 @@ class DiscordBotController extends Controller
         return response()->json([
             'ok' => true,
             'count' => count($seenGuildIds),
+        ]);
+    }
+
+    public function latestChangelogVersion(): JsonResponse
+    {
+        $entry = MemberChangelogEntry::query()
+            ->where('is_active', true)
+            ->orderByDesc('released_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$entry) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No changelog entries found.',
+            ], 404);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'version' => (string) $entry->version,
+                'released_at' => $entry->released_at?->toIso8601String(),
+            ],
+        ]);
+    }
+
+    public function authorizeChangelogPost(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'discord_user_id' => ['required', 'string', 'max:40'],
+        ]);
+
+        $user = User::query()->where('discord_user_id', $data['discord_user_id'])->first();
+        $allowed = $user ? Permissions::isSysadmin($user) : false;
+
+        if (!$allowed) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Only linked sysadmins can post changelog announcements.',
+            ], 403);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'allowed' => true,
+            ],
         ]);
     }
 

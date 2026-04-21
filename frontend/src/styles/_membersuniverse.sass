@@ -45,6 +45,187 @@
   justify-content: flex-start
   margin-bottom: 16px
 
+.members-toolkit-priv-preview
+  display: grid
+  gap: 0.75rem
+  margin-bottom: 14px
+
+.members-toolkit-priv-preview__head
+  display: flex
+  justify-content: space-between
+  align-items: flex-start
+  gap: 0.75rem
+  flex-wrap: wrap
+
+.members-toolkit-priv-preview__title
+  margin: 0
+  font-size: 1rem
+
+.members-toolkit-priv-preview__copy
+  margin: 0
+  opacity: 0.82
+
+.members-toolkit-priv-preview__toggle
+  display: inline-flex
+  align-items: center
+  gap: 0.45rem
+
+.members-changelog
+  display: grid
+  gap: 0.85rem
+
+.members-changelog__header
+  display: grid
+  gap: 0.3rem
+
+.members-changelog__title
+  margin: 0
+
+.members-changelog__subtitle
+  margin: 0
+  opacity: 0.86
+
+.members-changelog__toolbar
+  display: grid
+  gap: 0.55rem
+
+.members-changelog__view-as
+  display: grid
+  gap: 0.5rem
+
+  label
+    margin: 0
+
+.members-changelog__view-as-head
+  display: flex
+  justify-content: space-between
+  align-items: center
+  gap: 0.5rem
+  flex-wrap: wrap
+
+.members-changelog__preset-actions
+  display: flex
+  flex-wrap: wrap
+  gap: 0.4rem
+
+.members-changelog__priv-grid
+  display: grid
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))
+  gap: 0.45rem
+
+.members-changelog__priv-btn
+  display: flex
+  justify-content: space-between
+  align-items: center
+  gap: 0.5rem
+  text-align: left
+
+  &.is-active
+    border-color: rgba(246,163,0,0.55)
+    box-shadow: inset 0 0 0 1px rgba(246,163,0,0.16)
+    background: rgba(246,163,0,0.12)
+
+  &:not(.is-active)
+    opacity: 0.9
+
+.members-changelog__priv-name
+  font-size: 0.78rem
+  white-space: nowrap
+  overflow: hidden
+  text-overflow: ellipsis
+
+.members-changelog__priv-state
+  font-size: 0.7rem
+  font-weight: 800
+  letter-spacing: 0.04em
+
+.members-changelog__filters
+  display: grid
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto
+  gap: 0.55rem
+  align-items: center
+
+.members-changelog__count
+  margin: 0
+  opacity: 0.86
+
+.members-changelog__body
+  display: grid
+  gap: 0.75rem
+
+.members-changelog__status
+  margin: 0
+
+.members-changelog__status--error
+  color: salmon
+
+.members-changelog__version
+  display: grid
+  gap: 0.75rem
+
+.members-changelog__version-head
+  display: flex
+  align-items: center
+  justify-content: space-between
+  gap: 0.8rem
+
+.members-changelog__version-copy
+  display: grid
+  gap: 0.2rem
+
+.members-changelog__version-title
+  margin: 0
+  color: rgba(246,163,0,0.95)
+
+.members-changelog__version-meta
+  margin: 0
+  opacity: 0.8
+
+.members-changelog__entries
+  display: grid
+  gap: 0.55rem
+
+.members-changelog__entry
+  display: grid
+  gap: 0.35rem
+  padding: 0.75rem 0.85rem
+  border-radius: 12px
+  border: 1px solid rgba(255,255,255,0.12)
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(246,163,0,0.05))
+
+.members-changelog__entry-title
+  margin: 0
+  font-size: 1rem
+
+.members-changelog__entry-details
+  margin: 0
+  line-height: 1.42
+
+.members-changelog__tool-list
+  display: flex
+  flex-wrap: wrap
+  gap: 0.35rem
+
+.members-changelog__tool-chip
+  display: inline-flex
+  align-items: center
+  min-height: 26px
+  padding: 0.2rem 0.55rem
+  border-radius: 999px
+  border: 1px solid rgba(246,163,0,0.42)
+  background: rgba(246,163,0,0.1)
+  color: rgba(255,214,122,0.95)
+  font-size: 0.78rem
+  font-weight: 700
+
+.members-changelog__sys-note
+  margin: 0
+  opacity: 0.7
+
+@media (max-width: 900px)
+  .members-changelog__filters
+    grid-template-columns: 1fr
+
 .members-wrecking-helper__guide
   gap: 0.75rem
 

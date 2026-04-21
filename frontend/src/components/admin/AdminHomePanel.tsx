@@ -44,6 +44,12 @@ const AdminHomePanel: React.FC<Props> = ({ showSystemTools, canSeeLogs }) => {
         "Review users and manage admin-level and content-management permissions. Sysadmin remains database-only.",
     },
     {
+      key: "memberChangelog",
+      title: "Change Log",
+      description:
+        "Manage backend-driven member changelog entries and generate/update entries from README patch-note sections.",
+    },
+    {
       key: "websiteHealth",
       title: "Website Health",
       description:

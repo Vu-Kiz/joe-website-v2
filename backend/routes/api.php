@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\TatooineWeatherController;
 use App\Http\Controllers\Api\Admin\WeatherController;
 use App\Http\Controllers\Api\Admin\ActionLogController;
 use App\Http\Controllers\Api\Admin\MemberAccessLogController;
+use App\Http\Controllers\Api\Admin\MemberChangelogAdminController;
 use App\Http\Controllers\Api\Admin\SiteLockController;
 use App\Http\Controllers\Api\Admin\EntityStatsController;
 use App\Http\Controllers\Api\Admin\DiscordBotAdminController;
@@ -38,6 +39,7 @@ use App\Http\Controllers\Api\ManualPaymentTemplateController;
 use App\Http\Controllers\Api\DroidBrainController;
 use App\Http\Controllers\Api\DiscordBotController;
 use App\Http\Controllers\Api\MemberToolAccessController;
+use App\Http\Controllers\Api\MemberChangelogController;
 use App\Http\Controllers\Api\ContactRequestController;
 use App\Http\Controllers\Api\Admin\ContactRequestSettingsController;
 use App\Http\Controllers\Api\Extension\HelperAuthController;
@@ -60,6 +62,8 @@ Route::prefix('auth')->group(function () {
 Route::prefix('discord-bot')->middleware(['discord_bot'])->group(function () {
     Route::post('/channels/{notificationKey}', [DiscordBotController::class, 'setChannel']);
     Route::post('/sync-state', [DiscordBotController::class, 'syncState']);
+    Route::get('/changelog/latest-version', [DiscordBotController::class, 'latestChangelogVersion']);
+    Route::post('/changelog/authorize-post', [DiscordBotController::class, 'authorizeChangelogPost']);
     Route::get('/outbox/claim', [DiscordBotController::class, 'claimOutbox']);
     Route::get('/outbox/claim-direct', [DiscordBotController::class, 'claimDirectOutbox']);
     Route::post('/outbox/{messageId}/delivered', [DiscordBotController::class, 'markDelivered']);
@@ -90,6 +94,13 @@ Route::middleware(['auth:sanctum', 'require_any:is_admin'])->prefix('admin')->gr
     Route::get('/users', [UserController::class, 'index']);
     Route::patch('/users/{user}/permissions', [UserController::class, 'updatePermissions']);
     Route::post('/users/{user}/force-logout', [UserController::class, 'forceLogout']);
+    Route::get('/member-changelog', [MemberChangelogAdminController::class, 'index']);
+    Route::post('/member-changelog', [MemberChangelogAdminController::class, 'store']);
+    Route::put('/member-changelog/{memberChangelogEntry}', [MemberChangelogAdminController::class, 'update']);
+    Route::delete('/member-changelog/{memberChangelogEntry}', [MemberChangelogAdminController::class, 'destroy']);
+    Route::post('/member-changelog/generate-from-readme', [MemberChangelogAdminController::class, 'generateFromReadme']);
+    Route::get('/member-changelog/export', [MemberChangelogAdminController::class, 'export']);
+    Route::post('/member-changelog/import', [MemberChangelogAdminController::class, 'import']);
 });
 
 // Jobs
@@ -115,6 +126,7 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->prefix('job-assignmen
 });
 
 Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
+    Route::get('/member/changelog', [MemberChangelogController::class, 'index']);
     Route::get('/payments', [\App\Http\Controllers\Api\PaymentController::class, 'index']);
     Route::get('/payments/pending-count', [\App\Http\Controllers\Api\PaymentController::class, 'pendingCount']);
     Route::get('/payments/owed-to-me', [\App\Http\Controllers\Api\PaymentController::class, 'owedToMe']);

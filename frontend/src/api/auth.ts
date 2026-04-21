@@ -209,6 +209,48 @@ export async function apiFetch<T>(
   }
 
   if (!res.ok) {
+    if (res.status === 401) {
+      // Fallback for when the live session stream is not connected:
+      // force auth-state subscribers (navbar/pages) to refresh immediately.
+      emitAuthStateChanged();
+
+      if (typeof window !== "undefined") {
+        const isFallbackPending = window.sessionStorage.getItem("joe:401-fallback-pending") === "1";
+        const isOnHome = window.location.pathname === "/home";
+
+        if (!isFallbackPending && !isOnHome) {
+          window.sessionStorage.setItem("joe:401-fallback-pending", "1");
+
+          window.setTimeout(async () => {
+            try {
+              const base = getApiBaseUrl();
+              const authUrl = `${base}/auth/me`;
+              const authRes = await fetch(authUrl, {
+                method: "GET",
+                credentials: "include",
+                headers: {
+                  Accept: "application/json",
+                },
+              });
+
+              const payload = await authRes.json().catch(() => null);
+              const hasUser = !!payload?.user;
+
+              if (!authRes.ok || !hasUser) {
+                window.sessionStorage.setItem("joe:401-redirecting", "1");
+                window.location.href = "/home?session_invalidated=1";
+              }
+            } catch {
+              window.sessionStorage.setItem("joe:401-redirecting", "1");
+              window.location.href = "/home?session_invalidated=1";
+            } finally {
+              window.sessionStorage.removeItem("joe:401-fallback-pending");
+            }
+          }, 1400);
+        }
+      }
+    }
+
     const requiredFlags = Array.isArray(json?.required_flags)
       ? json.required_flags.filter(Boolean).map(formatPermissionFlag).join(", ")
       : null;

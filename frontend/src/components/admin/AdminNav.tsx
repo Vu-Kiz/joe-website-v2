@@ -13,6 +13,7 @@ export type AdminView =
   | "discordBot"
   | "combatValues"
   | "entityStats"
+  | "memberChangelog"
   | "logs"
   | "memberAccessLogs";
 
@@ -48,6 +49,7 @@ const AdminNav: React.FC<Props> = ({
     { key: "system", label: "System", hidden: !showSystemTools },
     { key: "combatValues", label: "Combat Values", hidden: !showSystemTools },
     { key: "entityStats", label: "Entity Stats", hidden: !showSystemTools },
+    { key: "memberChangelog", label: "Change Log" },
     { key: "logs", label: "Action Logs", hidden: !canSeeLogs },
     { key: "memberAccessLogs", label: "Member Access", hidden: !canSeeLogs },
   ];

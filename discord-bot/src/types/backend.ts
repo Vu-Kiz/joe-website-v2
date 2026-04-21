@@ -3,6 +3,15 @@ export type BackendEnvelope<T> = {
   data: T;
 };
 
+export type LatestChangelogVersionResponse = {
+  version: string;
+  released_at: string | null;
+};
+
+export type ChangelogAuthorizePostResponse = {
+  allowed: boolean;
+};
+
 export type ChannelConfig = {
   id: number;
   notification_key: string;

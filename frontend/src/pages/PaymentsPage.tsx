@@ -537,8 +537,10 @@ const PaymentsPage: React.FC = () => {
       });
     } catch (e: any) {
       const message = String(e?.message ?? "Failed to pull SWC credit log.");
+      const statusCode = Number(e?.status ?? 0);
+      const isReconnectStatus = statusCode === 401 || statusCode === 403 || statusCode === 422;
       const normalizedMessage =
-        /timed out|expired|reconnect|not connected/i.test(message)
+        isReconnectStatus || /timed out|expired|reconnect|not connected|unauthenticated|forbidden/i.test(message)
           ? "Your Chain Code Verification for payments has timed out. Please reconnect it and try again."
           : message;
 

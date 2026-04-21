@@ -871,6 +871,130 @@ select.admin-entity-stats__search
     text-transform: uppercase
     letter-spacing: 0.03em
 
+.admin-member-changelog__picker-row
+  display: grid
+  grid-template-columns: minmax(0, 1fr) auto
+  gap: 0.5rem
+
+.admin-member-changelog__chip-list
+  display: flex
+  flex-wrap: wrap
+  gap: 0.45rem
+  margin-top: 0.4rem
+
+.admin-member-changelog__chip
+  display: inline-flex
+  align-items: center
+  min-height: 30px
+  padding: 0.2rem 0.65rem
+  border-radius: 999px
+  border: 1px solid rgba(245,213,70,0.38)
+  background: rgba(245,213,70,0.1)
+  color: rgba(255,220,132,0.95)
+  font-family: 'Tektur', sans-serif
+  font-size: 0.78rem
+  font-weight: 700
+
+  &:hover
+    background: rgba(245,213,70,0.18)
+
+.admin-member-changelog__entry-card
+  display: grid
+  grid-template-columns: minmax(0, 1fr) auto
+  gap: 0.9rem
+  align-items: start
+
+.admin-member-changelog__entry-copy
+  min-width: 0
+
+.admin-member-changelog__entry-head
+  display: flex
+  align-items: flex-start
+  justify-content: space-between
+  gap: 0.75rem
+  flex-wrap: wrap
+
+.admin-member-changelog__entry-title
+  margin: 0
+  font-size: 1rem
+
+.admin-member-changelog__meta-badges
+  display: flex
+  flex-wrap: wrap
+  gap: 0.4rem
+
+.admin-member-changelog__meta-badge
+  display: inline-flex
+  align-items: center
+  min-height: 24px
+  padding: 0.15rem 0.5rem
+  border-radius: 999px
+  border: 1px solid rgba(255,255,255,0.18)
+  background: rgba(255,255,255,0.06)
+  font-size: 0.72rem
+  font-weight: 700
+  letter-spacing: 0.02em
+
+  &.is-active
+    border-color: rgba(145,230,145,0.45)
+    background: rgba(80,170,80,0.2)
+    color: #d0ffd0
+
+  &.is-inactive
+    border-color: rgba(255,160,160,0.45)
+    background: rgba(170,70,70,0.22)
+    color: #ffd5d5
+
+.admin-member-changelog__entry-details
+  margin: 0
+  opacity: 0.9
+  line-height: 1.45
+
+.admin-member-changelog__entry-groups
+  display: grid
+  gap: 0.6rem
+
+.admin-member-changelog__entry-group
+  display: grid
+  gap: 0.35rem
+
+.admin-member-changelog__entry-group-label
+  font-size: 0.76rem
+  font-weight: 700
+  opacity: 0.78
+  text-transform: uppercase
+  letter-spacing: 0.03em
+
+.admin-member-changelog__entry-chip-list
+  display: flex
+  flex-wrap: wrap
+  gap: 0.35rem
+
+.admin-member-changelog__entry-chip
+  display: inline-flex
+  align-items: center
+  min-height: 24px
+  padding: 0.1rem 0.45rem
+  border-radius: 999px
+  border: 1px solid rgba(245,213,70,0.3)
+  background: rgba(245,213,70,0.08)
+  color: rgba(255,232,160,0.95)
+  font-size: 0.73rem
+  font-weight: 700
+
+  &.is-muted
+    border-color: rgba(255,255,255,0.2)
+    background: rgba(255,255,255,0.07)
+    color: rgba(255,255,255,0.75)
+
+.admin-member-changelog__entry-footer
+  margin: 0
+  opacity: 0.75
+
+@media (max-width: 920px)
+  .admin-member-changelog__entry-card
+    grid-template-columns: 1fr
+
 .admin-action-log-table__body
   display: flex
   flex-direction: column

@@ -14,7 +14,7 @@ import {
 } from "../api/jobs";
 import { getPayments } from "../api/payments";
 import { getMyPayableFactions, type PayableFaction } from "../api/factions";
-import { canAccessAdmin, canAccessCombatCalculator, canAccessDroidBrain, canAccessIntel, canAccessMembers, canAccessPayments, canAccessSysadmin, canAccessWreckingHelperExtension } from "../auth/permissions";
+import { canAccessCombatCalculator, canAccessIntel, canAccessMembers, canAccessPayments, canAccessSysadmin, canAccessWreckingHelperExtension } from "../auth/permissions";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import OpenJobsPanel from "../components/members/jobs/OpenJobsPanel";
@@ -29,6 +29,12 @@ import MemberGalacticArchivePanel from "../components/members/MemberGalacticArch
 import MemberCombatCalculatorPanel from "../components/members/MemberCombatCalculatorPanel";
 import MemberWeaponHeatmapPanel from "../components/members/MemberWeaponHeatmapPanel";
 import MemberWreckingHelperPanel from "../components/members/MemberWreckingHelperPanel";
+import MemberRoleChangelogPanel from "../components/members/MemberRoleChangelogPanel";
+import PrivilegePreviewPanel, {
+  toPreviewPrivs,
+  type PreviewPrivs,
+} from "../components/members/PrivilegePreviewPanel";
+import HamburgerToggle from "../components/common/HamburgerToggle";
 import jawaLogo from "../assets/branding/jawalogo.png";
 import archiveIcon from "../assets/members/ArchiveIcon.png";
 import astrogationIcon from "../assets/members/AstrogationIcon.png";
@@ -51,7 +57,7 @@ import "../styles/main.sass";
 import "../styles/_admin.sass";
 import "../styles/_membersuniverse.sass";
 
-type MembersView = "overview" | "jobs" | "universe" | "stats" | "hyperplanner" | "archive" | "shipHeatmap" | "weaponHeatmap" | "wreckingHelper";
+type MembersView = "overview" | "jobs" | "universe" | "stats" | "hyperplanner" | "archive" | "shipHeatmap" | "weaponHeatmap" | "wreckingHelper" | "changelog";
 type JobsView = "open" | "posted" | "taken" | "create";
 type MembersToolCard = {
   key: string;
@@ -72,6 +78,7 @@ function parseMembersView(value: string | null): MembersView | null {
     case "shipHeatmap":
     case "weaponHeatmap":
     case "wreckingHelper":
+    case "changelog":
       return value;
     default:
       return null;
@@ -83,6 +90,7 @@ const MembersPage: React.FC = () => {
   const navigate = useNavigate();
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const requestedMembersView = parseMembersView(searchParams.get("members_view"));
+  const requestedChangelogVersion = searchParams.get("changelog_version");
   const requestedJobsView = searchParams.get("jobs_view");
   const requestedJobId = Number(searchParams.get("job_id") ?? "");
   const swcOauthSuccess = searchParams.get("swc_oauth_success") === "1";
@@ -95,6 +103,8 @@ const MembersPage: React.FC = () => {
   const [hasPendingPayments, setHasPendingPayments] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authRefreshNonce, setAuthRefreshNonce] = useState(0);
+  const [toolkitPrivPreviewOpen, setToolkitPrivPreviewOpen] = useState(false);
+  const [toolkitPreviewPrivs, setToolkitPreviewPrivs] = useState<PreviewPrivs>(() => toPreviewPrivs(null));
 
   const [membersView, setMembersView] = useState<MembersView>(
     Number.isFinite(requestedJobId) && requestedJobId > 0
@@ -146,6 +156,7 @@ const MembersPage: React.FC = () => {
       nextParams.delete("members_view");
       nextParams.delete("jobs_view");
       nextParams.delete("job_id");
+      nextParams.delete("changelog_version");
     } else {
       nextParams.set("members_view", membersView);
 
@@ -159,6 +170,10 @@ const MembersPage: React.FC = () => {
       } else {
         nextParams.delete("jobs_view");
         nextParams.delete("job_id");
+      }
+
+      if (membersView !== "changelog") {
+        nextParams.delete("changelog_version");
       }
     }
 
@@ -201,6 +216,10 @@ const MembersPage: React.FC = () => {
       setAuthRefreshNonce((value) => value + 1);
     });
   }, []);
+
+  useEffect(() => {
+    setToolkitPreviewPrivs(toPreviewPrivs(user));
+  }, [user]);
 
   useEffect(() => {
     if (!user) {
@@ -302,6 +321,15 @@ const MembersPage: React.FC = () => {
   const canSeeGalacticArchive = canAccessSysadmin(user);
   const canSeeCombatCalculator = canAccessCombatCalculator(user);
   const canSeeWreckingHelperExtension = canAccessWreckingHelperExtension(user);
+  const canSeeToolkitPrivilegePreview = canAccessSysadmin(user);
+  const previewCardPrivs = canSeeToolkitPrivilegePreview ? toolkitPreviewPrivs : toPreviewPrivs(user);
+  const showAdminCard = previewCardPrivs.isAdmin || previewCardPrivs.isSysadmin;
+  const showMemberToolCards = previewCardPrivs.isJoeMember || previewCardPrivs.isAdmin || previewCardPrivs.isSysadmin;
+  const showPaymentsCard = previewCardPrivs.isJoeMember || previewCardPrivs.isAdmin || previewCardPrivs.isSysadmin;
+  const showDroidBrainCard = previewCardPrivs.isJoeMember || previewCardPrivs.isIntel || previewCardPrivs.isSysadmin;
+  const showWreckingHelperCard = previewCardPrivs.canAccessWreckingHelper || previewCardPrivs.isAdmin || previewCardPrivs.isSysadmin;
+  const showCombatCalculatorCard = previewCardPrivs.canAccessCombatCalc || previewCardPrivs.isAdmin || previewCardPrivs.isSysadmin;
+  const showGalacticArchiveCard = previewCardPrivs.isSysadmin;
 
   const openJobs = useMemo(() => jobs.filter((j) => j.status === "open"), [jobs]);
 
@@ -377,7 +405,7 @@ const MembersPage: React.FC = () => {
 
   const memberTools = useMemo<MembersToolCard[]>(
     () => [
-      ...(canAccessAdmin(user)
+      ...(showAdminCard
         ? [
             {
               key: "admin",
@@ -389,7 +417,7 @@ const MembersPage: React.FC = () => {
             } satisfies MembersToolCard,
           ]
         : []),
-      ...(canSeeMemberOnlyTools
+      ...(showMemberToolCards
         ? [
             {
               key: "swc-access",
@@ -408,7 +436,7 @@ const MembersPage: React.FC = () => {
             } satisfies MembersToolCard,
           ]
         : []),
-      ...(canAccessPayments(user)
+      ...(showPaymentsCard
         ? [
             {
               key: "payments",
@@ -424,7 +452,7 @@ const MembersPage: React.FC = () => {
             } satisfies MembersToolCard,
           ]
         : []),
-      ...(canAccessDroidBrain(user)
+      ...(showDroidBrainCard
         ? [
             {
               key: "droidbrain",
@@ -436,7 +464,7 @@ const MembersPage: React.FC = () => {
             } satisfies MembersToolCard,
           ]
         : []),
-      ...(canSeeWreckingHelperExtension
+      ...(showWreckingHelperCard
         ? [
             {
               key: "wreckingHelper",
@@ -448,8 +476,16 @@ const MembersPage: React.FC = () => {
             } satisfies MembersToolCard,
           ]
         : []),
-      ...(canSeeMemberOnlyTools
+      ...(showMemberToolCards
         ? [
+            {
+              key: "changelog",
+              title: "Change Log",
+              description:
+                "See patch notes filtered to the tools and permissions available on your account.",
+              actionLabel: "Open Change Log",
+              onClick: () => setMembersView("changelog"),
+            } satisfies MembersToolCard,
             {
               key: "jobs",
               title: "Jobs",
@@ -511,20 +547,23 @@ const MembersPage: React.FC = () => {
               onClick: () => setMembersView("universe"),
             } satisfies MembersToolCard,
           ]
-            .filter((tool) => tool.key !== "archive" || canSeeGalacticArchive)
-            .filter((tool) => tool.key !== "shipHeatmap" || canSeeCombatCalculator)
+            .filter((tool) => tool.key !== "archive" || showGalacticArchiveCard)
+            .filter((tool) => tool.key !== "shipHeatmap" || showCombatCalculatorCard)
         : []),
     ],
     [
-      canSeeMemberOnlyTools,
+      showAdminCard,
+      showMemberToolCards,
+      showPaymentsCard,
+      showDroidBrainCard,
+      showWreckingHelperCard,
+      showCombatCalculatorCard,
+      showGalacticArchiveCard,
       hasPendingPayments,
       myTakenJobs.length,
       navigate,
       openJobs.length,
-      canSeeCombatCalculator,
-      canSeeWreckingHelperExtension,
       swcAuth?.member_tools_connected,
-      user,
     ]
   );
 
@@ -625,6 +664,40 @@ const MembersPage: React.FC = () => {
 
       {membersView === "overview" && (
         <>
+          {canSeeToolkitPrivilegePreview ? (
+            <section className="panel members-toolkit-priv-preview">
+              <div className="members-toolkit-priv-preview__head">
+                <div>
+                  <h2 className="members-toolkit-priv-preview__title">Privilege Preview</h2>
+                  <p className="small members-toolkit-priv-preview__copy">
+                    Sysadmin-only toolkit access simulator. Hidden by default.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn--small members-toolkit-priv-preview__toggle"
+                  onClick={() => setToolkitPrivPreviewOpen((open) => !open)}
+                >
+                  <span>{toolkitPrivPreviewOpen ? "Hide" : "Open"}</span>
+                  <HamburgerToggle
+                    open={toolkitPrivPreviewOpen}
+                    ariaLabel={toolkitPrivPreviewOpen ? "Collapse privilege preview" : "Expand privilege preview"}
+                    decorative
+                  />
+                </button>
+              </div>
+
+              {toolkitPrivPreviewOpen ? (
+                <PrivilegePreviewPanel
+                  value={toolkitPreviewPrivs}
+                  onChange={setToolkitPreviewPrivs}
+                  onReset={() => setToolkitPreviewPrivs(toPreviewPrivs(user))}
+                  title="Toolkit Privileges"
+                />
+              ) : null}
+            </section>
+          ) : null}
+
           <section className="members-tool-grid">
             {memberTools.map((tool) => (
               <article key={tool.key} className="members-tool-card">
@@ -634,6 +707,8 @@ const MembersPage: React.FC = () => {
                       ? astrogationIcon
                       : tool.key === "wreckingHelper"
                         ? wreckerIcon
+                      : tool.key === "changelog"
+                        ? archiveIcon
                       : tool.key === "shipHeatmap"
                         ? combatCalcIcon
                       : tool.key === "weaponHeatmap"
@@ -659,6 +734,8 @@ const MembersPage: React.FC = () => {
                       ? "Astrogation"
                       : tool.key === "wreckingHelper"
                         ? "Wrecking Helper"
+                      : tool.key === "changelog"
+                        ? "Change Log"
                       : tool.key === "shipHeatmap"
                         ? "Combat Calculator"
                       : tool.key === "weaponHeatmap"
@@ -873,6 +950,14 @@ const MembersPage: React.FC = () => {
 
       {membersView === "wreckingHelper" && canSeeWreckingHelperExtension && (
         <MemberWreckingHelperPanel onBack={() => setMembersView("overview")} />
+      )}
+
+      {membersView === "changelog" && (
+        <MemberRoleChangelogPanel
+          user={user}
+          initialVersionFilter={requestedChangelogVersion}
+          onBack={() => setMembersView("overview")}
+        />
       )}
     </main>
   );

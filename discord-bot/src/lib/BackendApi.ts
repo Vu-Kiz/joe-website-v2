@@ -1,10 +1,12 @@
 import type {
   BackendEnvelope,
   ChannelConfig,
+  ChangelogAuthorizePostResponse,
   CreateJenPayload,
   CreateJobPayload,
   JenResponse,
   JobResponse,
+  LatestChangelogVersionResponse,
   MarkFailedPayload,
   OutboxClaimMessage,
   SetChannelPayload,
@@ -90,6 +92,19 @@ export class BackendApi {
     return this.fetch<{ ok: true; count: number }>('/discord-bot/sync-state', {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+  }
+
+  public getLatestChangelogVersion() {
+    return this.fetch<BackendEnvelope<LatestChangelogVersionResponse>>('/discord-bot/changelog/latest-version');
+  }
+
+  public authorizeChangelogPost(discordUserId: string) {
+    return this.fetch<BackendEnvelope<ChangelogAuthorizePostResponse>>('/discord-bot/changelog/authorize-post', {
+      method: 'POST',
+      body: JSON.stringify({
+        discord_user_id: discordUserId,
+      }),
     });
   }
 

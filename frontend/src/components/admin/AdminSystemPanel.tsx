@@ -368,6 +368,89 @@ const AdminSystemPanel: React.FC = () => {
       const decoder = new TextDecoder();
       let buffer = "";
 
+      const processSystemStreamLine = (line: string) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+
+        let chunk: any;
+
+        try {
+          chunk = JSON.parse(trimmed);
+        } catch {
+          setSystemProgressLines((prev) => [...prev, trimmed]);
+          return;
+        }
+
+        const event = chunk.event;
+        const payload = chunk.payload ?? {};
+
+        if (event === "started") {
+          setSystemProgressLines((prev) => [
+            ...prev,
+            `Request accepted. Persist: ${payload.persist ? "yes" : "no"}, deep: ${payload.deep ? "yes" : "no"}.`,
+          ]);
+        } else if (event === "system_pulled") {
+          setSystemResult({
+            system: payload.system ?? null,
+          });
+          setSystemProgressLines((prev) => [
+            ...prev,
+            `System payload pulled. Planets: ${payload.planets ?? 0}, stations: ${payload.stations ?? 0}, hyperlanes: ${payload.hyperlanes ?? 0}.`,
+          ]);
+        } else if (event === "persist_started") {
+          setSystemProgressLines((prev) => [...prev, "Saving system data to the local database..."]);
+        } else if (event === "planet_upserted") {
+          setSystemProgressLines((prev) => [...prev, `Indexed planet: ${payload.name ?? payload.uid ?? payload.identifier ?? "Unknown"}`]);
+        } else if (event === "planet_pull_started") {
+          setSystemProgressLines((prev) => [
+            ...prev,
+            `Pulling full planet: ${payload.name ?? payload.uid ?? payload.identifier ?? "Unknown"}`,
+          ]);
+        } else if (event === "planet_pull_completed") {
+          setSystemProgressLines((prev) => [
+            ...prev,
+            `Completed planet: ${payload.name ?? payload.uid ?? payload.identifier ?? "Unknown"}`,
+          ]);
+        } else if (event === "station_upserted") {
+          setSystemProgressLines((prev) => [
+            ...prev,
+            `Indexed station: ${payload.name ?? payload.uid ?? payload.identifier ?? "Unknown"}`,
+          ]);
+        } else if (event === "station_pull_started") {
+          setSystemProgressLines((prev) => [
+            ...prev,
+            `Pulling full station: ${payload.name ?? payload.uid ?? payload.identifier ?? "Unknown"}`,
+          ]);
+        } else if (event === "station_pull_completed") {
+          setSystemProgressLines((prev) => [
+            ...prev,
+            `Completed station: ${payload.name ?? payload.uid ?? payload.identifier ?? "Unknown"}`,
+          ]);
+        } else if (event === "hyperlane_upserted") {
+          setSystemProgressLines((prev) => [
+            ...prev,
+            `Indexed hyperlane: ${payload.name ?? payload.destination_uid ?? "Unknown"}`,
+          ]);
+        } else if (event === "destination_system_pull_started") {
+          setSystemProgressLines((prev) => [
+            ...prev,
+            `Pulling connected system: ${payload.destination_name ?? payload.destination_uid ?? "Unknown"}`,
+          ]);
+        } else if (event === "destination_system_pull_completed") {
+          setSystemProgressLines((prev) => [
+            ...prev,
+            `Completed connected system: ${payload.destination_name ?? payload.destination_uid ?? "Unknown"}`,
+          ]);
+        } else if (event === "completed") {
+          setSystemResult(payload.data ?? null);
+          setSystemPersistence(payload.persistence ?? null);
+          setSystemMessage(payload.message ?? "System pull completed.");
+          setSystemProgressLines((prev) => [...prev, "System pull completed."]);
+        } else if (event === "error") {
+          throw new Error(payload.message ?? "System pull failed.");
+        }
+      };
+
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -377,82 +460,13 @@ const AdminSystemPanel: React.FC = () => {
         buffer = lines.pop() ?? "";
 
         for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
-
-          const chunk = JSON.parse(trimmed);
-          const event = chunk.event;
-          const payload = chunk.payload ?? {};
-
-          if (event === "started") {
-            setSystemProgressLines((prev) => [
-              ...prev,
-              `Request accepted. Persist: ${payload.persist ? "yes" : "no"}, deep: ${payload.deep ? "yes" : "no"}.`,
-            ]);
-          } else if (event === "system_pulled") {
-            setSystemResult({
-              system: payload.system ?? null,
-            });
-            setSystemProgressLines((prev) => [
-              ...prev,
-              `System payload pulled. Planets: ${payload.planets ?? 0}, stations: ${payload.stations ?? 0}, hyperlanes: ${payload.hyperlanes ?? 0}.`,
-            ]);
-          } else if (event === "persist_started") {
-            setSystemProgressLines((prev) => [...prev, "Saving system data to the local database..."]);
-          } else if (event === "planet_upserted") {
-            setSystemProgressLines((prev) => [
-              ...prev,
-              `Indexed planet: ${payload.name ?? payload.uid ?? payload.identifier ?? "Unknown"}`,
-            ]);
-          } else if (event === "planet_pull_started") {
-            setSystemProgressLines((prev) => [
-              ...prev,
-              `Pulling full planet: ${payload.name ?? payload.uid ?? payload.identifier ?? "Unknown"}`,
-            ]);
-          } else if (event === "planet_pull_completed") {
-            setSystemProgressLines((prev) => [
-              ...prev,
-              `Completed planet: ${payload.name ?? payload.uid ?? payload.identifier ?? "Unknown"}`,
-            ]);
-          } else if (event === "station_upserted") {
-            setSystemProgressLines((prev) => [
-              ...prev,
-              `Indexed station: ${payload.name ?? payload.uid ?? payload.identifier ?? "Unknown"}`,
-            ]);
-          } else if (event === "station_pull_started") {
-            setSystemProgressLines((prev) => [
-              ...prev,
-              `Pulling full station: ${payload.name ?? payload.uid ?? payload.identifier ?? "Unknown"}`,
-            ]);
-          } else if (event === "station_pull_completed") {
-            setSystemProgressLines((prev) => [
-              ...prev,
-              `Completed station: ${payload.name ?? payload.uid ?? payload.identifier ?? "Unknown"}`,
-            ]);
-          } else if (event === "hyperlane_upserted") {
-            setSystemProgressLines((prev) => [
-              ...prev,
-              `Indexed hyperlane: ${payload.name ?? payload.destination_uid ?? "Unknown"}`,
-            ]);
-          } else if (event === "destination_system_pull_started") {
-            setSystemProgressLines((prev) => [
-              ...prev,
-              `Pulling connected system: ${payload.destination_name ?? payload.destination_uid ?? "Unknown"}`,
-            ]);
-          } else if (event === "destination_system_pull_completed") {
-            setSystemProgressLines((prev) => [
-              ...prev,
-              `Completed connected system: ${payload.destination_name ?? payload.destination_uid ?? "Unknown"}`,
-            ]);
-          } else if (event === "completed") {
-            setSystemResult(payload.data ?? null);
-            setSystemPersistence(payload.persistence ?? null);
-            setSystemMessage(payload.message ?? "System pull completed.");
-            setSystemProgressLines((prev) => [...prev, "System pull completed."]);
-          } else if (event === "error") {
-            throw new Error(payload.message ?? "System pull failed.");
-          }
+          processSystemStreamLine(line);
         }
+      }
+
+      const trailing = buffer.trim();
+      if (trailing) {
+        processSystemStreamLine(trailing);
       }
 
       if (systemPersist) {
