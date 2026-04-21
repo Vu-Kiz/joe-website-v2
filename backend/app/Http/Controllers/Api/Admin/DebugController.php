@@ -69,6 +69,44 @@ class DebugController extends Controller
         return is_array($events) ? [$events] : [];
     }
 
+    protected function readSystemUpdaterCursor(User $user): array
+    {
+        $prefs = is_array($user->member_tool_preferences) ? $user->member_tool_preferences : [];
+        $universe = is_array($prefs['universe'] ?? null) ? $prefs['universe'] : [];
+        $updater = is_array($universe['system_updater'] ?? null) ? $universe['system_updater'] : [];
+
+        return [
+            'timestamp' => isset($updater['last_uploaded_timestamp']) && is_numeric((string) $updater['last_uploaded_timestamp'])
+                ? (int) $updater['last_uploaded_timestamp']
+                : null,
+            'event_uid' => isset($updater['last_uploaded_event_uid']) && trim((string) $updater['last_uploaded_event_uid']) !== ''
+                ? trim((string) $updater['last_uploaded_event_uid'])
+                : null,
+            'updated_at' => isset($updater['cursor_updated_at']) && trim((string) $updater['cursor_updated_at']) !== ''
+                ? trim((string) $updater['cursor_updated_at'])
+                : null,
+        ];
+    }
+
+    protected function writeSystemUpdaterCursor(User $user, ?int $timestamp, ?string $eventUid): array
+    {
+        $prefs = is_array($user->member_tool_preferences) ? $user->member_tool_preferences : [];
+        $universe = is_array($prefs['universe'] ?? null) ? $prefs['universe'] : [];
+        $updater = is_array($universe['system_updater'] ?? null) ? $universe['system_updater'] : [];
+
+        $updater['last_uploaded_timestamp'] = $timestamp;
+        $updater['last_uploaded_event_uid'] = $eventUid !== null ? trim($eventUid) : null;
+        $updater['cursor_updated_at'] = now()->toIso8601String();
+        $universe['system_updater'] = $updater;
+        $prefs['universe'] = $universe;
+
+        $user->member_tool_preferences = $prefs;
+        $user->save();
+        $user->refresh();
+
+        return $this->readSystemUpdaterCursor($user);
+    }
+
     protected function summarizeUsefulEvent(array $event, int $index): ?array
     {
         $text = trim((string) data_get($event, 'text', ''));
@@ -216,7 +254,9 @@ class DebugController extends Controller
         User $user,
         SwcAuthorization $auth,
         string $path,
-        array $baseQuery
+        array $baseQuery,
+        ?int $stopBeforeTimestamp = null,
+        ?string $stopBeforeEventUid = null
     ): array {
         $normalizedPath = ltrim($path, '/');
 
@@ -241,6 +281,10 @@ class DebugController extends Controller
         $latestTimestamp = null;
         $earliestTimestamp = null;
         $lastAttempt = null;
+        $stoppedByTimestampCutoff = false;
+        $cutoffEventTimestamp = null;
+        $latestProcessedEventTimestamp = null;
+        $latestProcessedEventUid = null;
 
         for ($page = 0; $page < $maxPages; $page += 1) {
             $query = $baseQuery;
@@ -299,8 +343,29 @@ class DebugController extends Controller
             foreach ($events as $eventIndex => $event) {
                 $seenEvents += 1;
                 $timestamp = data_get($event, 'time.timestamp');
+                $eventUid = trim((string) data_get($event, 'attributes.uid', '')) ?: null;
                 if ($timestamp !== null && is_numeric((string) $timestamp)) {
                     $timestampInt = (int) $timestamp;
+
+                    if (
+                        $stopBeforeTimestamp !== null &&
+                        (
+                            $timestampInt < $stopBeforeTimestamp ||
+                            ($timestampInt === $stopBeforeTimestamp && $stopBeforeEventUid !== null && $eventUid === $stopBeforeEventUid)
+                        )
+                    ) {
+                        $stoppedByTimestampCutoff = true;
+                        $cutoffEventTimestamp = $timestampInt;
+                        break;
+                    }
+
+                    if ($latestProcessedEventTimestamp === null || $timestampInt > $latestProcessedEventTimestamp) {
+                        $latestProcessedEventTimestamp = $timestampInt;
+                        $latestProcessedEventUid = $eventUid;
+                    } elseif ($timestampInt === $latestProcessedEventTimestamp && $latestProcessedEventUid === null && $eventUid !== null) {
+                        $latestProcessedEventUid = $eventUid;
+                    }
+
                     $latestTimestamp = $latestTimestamp === null ? $timestampInt : max($latestTimestamp, $timestampInt);
                     $earliestTimestamp = $earliestTimestamp === null ? $timestampInt : min($earliestTimestamp, $timestampInt);
                 }
@@ -309,6 +374,10 @@ class DebugController extends Controller
                 if ($summary) {
                     $matches[] = $summary;
                 }
+            }
+
+            if ($stoppedByTimestampCutoff) {
+                break;
             }
 
             if (count($events) < $itemCount) {
@@ -344,6 +413,12 @@ class DebugController extends Controller
                 'events_matched' => count($matches),
                 'earliest_timestamp' => $earliestTimestamp,
                 'latest_timestamp' => $latestTimestamp,
+                'latest_processed_event_timestamp' => $latestProcessedEventTimestamp,
+                'latest_processed_event_uid' => $latestProcessedEventUid,
+                'stop_before_timestamp' => $stopBeforeTimestamp,
+                'stop_before_event_uid' => $stopBeforeEventUid,
+                'stopped_by_timestamp_cutoff' => $stoppedByTimestampCutoff,
+                'cutoff_event_timestamp' => $cutoffEventTimestamp,
                 'matches' => $matches,
             ],
         ];
@@ -786,9 +861,22 @@ class DebugController extends Controller
         }
 
         $query = $request->query();
-        unset($query['path'], $query['user_id'], $query['auth_context'], $query['max_pages']);
+        unset($query['path'], $query['user_id'], $query['auth_context'], $query['max_pages'], $query['use_uploader_cursor']);
 
-        return $this->buildEventsHistoryResponse($request, $user, $auth, $path, $query);
+        $useUploaderCursor = $request->boolean('use_uploader_cursor', false);
+        $normalizedPathForCursor = strtolower(trim($path));
+        $isXpPath = str_contains($normalizedPathForCursor, 'events/personal/xp');
+        $cursor = $this->readSystemUpdaterCursor($user);
+        $stopBeforeTimestamp = ($useUploaderCursor && $isXpPath) ? $cursor['timestamp'] : null;
+        $stopBeforeEventUid = ($useUploaderCursor && $isXpPath) ? $cursor['event_uid'] : null;
+
+        $result = $this->collectEventsHistory($request, $user, $auth, $path, $query, $stopBeforeTimestamp, $stopBeforeEventUid);
+        $result['cursor'] = [
+            'applied' => $useUploaderCursor && $isXpPath,
+            'before' => $cursor,
+        ];
+
+        return response()->json($result, 200);
     }
 
     public function importEventsHistory(Request $request): JsonResponse
@@ -832,7 +920,15 @@ class DebugController extends Controller
             $query
         );
 
-        $historyResult = $this->collectEventsHistory($request, $user, $auth, $path, $query);
+        $useUploaderCursor = filter_var($request->input('use_uploader_cursor', true), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+        $useUploaderCursor = $useUploaderCursor ?? true;
+        $normalizedPathForCursor = strtolower(trim($path));
+        $isXpPath = str_contains($normalizedPathForCursor, 'events/personal/xp');
+        $cursorBefore = $this->readSystemUpdaterCursor($user);
+        $stopBeforeTimestamp = ($useUploaderCursor && $isXpPath) ? $cursorBefore['timestamp'] : null;
+        $stopBeforeEventUid = ($useUploaderCursor && $isXpPath) ? $cursorBefore['event_uid'] : null;
+
+        $historyResult = $this->collectEventsHistory($request, $user, $auth, $path, $query, $stopBeforeTimestamp, $stopBeforeEventUid);
         if (!($historyResult['ok'] ?? false)) {
             return response()->json($historyResult, 200);
         }
@@ -840,10 +936,84 @@ class DebugController extends Controller
         $matches = data_get($historyResult, 'history.matches', []);
         $import = $this->importMatchedEventsIntoSearchRecords($request, is_array($matches) ? $matches : []);
 
+        $cursorAfter = $cursorBefore;
+        if ($useUploaderCursor && $isXpPath) {
+            $latestProcessedEventTimestamp = data_get($historyResult, 'history.latest_processed_event_timestamp');
+            $latestProcessedEventUid = data_get($historyResult, 'history.latest_processed_event_uid');
+
+            if (is_numeric((string) $latestProcessedEventTimestamp)) {
+                $nextTimestamp = (int) $latestProcessedEventTimestamp;
+                $currentTimestamp = $cursorBefore['timestamp'];
+                if ($currentTimestamp === null || $nextTimestamp > $currentTimestamp || ($nextTimestamp === $currentTimestamp && !empty($latestProcessedEventUid))) {
+                    $cursorAfter = $this->writeSystemUpdaterCursor(
+                        $user,
+                        $nextTimestamp,
+                        is_string($latestProcessedEventUid) ? $latestProcessedEventUid : null
+                    );
+                }
+            }
+        }
+
         return response()->json([
             ...$historyResult,
             'import' => $import,
+            'cursor' => [
+                'applied' => $useUploaderCursor && $isXpPath,
+                'before' => $cursorBefore,
+                'after' => $cursorAfter,
+            ],
         ], 200);
+    }
+
+    public function showSystemUpdaterCursor(Request $request): JsonResponse
+    {
+        $user = $this->resolveTargetUser($request, []);
+
+        if (!$user) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'User not found.',
+            ], 404);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'target_user' => [
+                'id' => $user->id,
+                'swc_handle' => $user->swc_handle,
+                'swc_character_id' => $user->swc_character_id,
+            ],
+            'cursor' => $this->readSystemUpdaterCursor($user),
+        ]);
+    }
+
+    public function resetSystemUpdaterCursor(Request $request): JsonResponse
+    {
+        $user = $this->resolveTargetUser($request, []);
+
+        if (!$user) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'User not found.',
+            ], 404);
+        }
+
+        $before = $this->readSystemUpdaterCursor($user);
+        $after = $this->writeSystemUpdaterCursor($user, null, null);
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'System updater XP cursor reset.',
+            'target_user' => [
+                'id' => $user->id,
+                'swc_handle' => $user->swc_handle,
+                'swc_character_id' => $user->swc_character_id,
+            ],
+            'cursor' => [
+                'before' => $before,
+                'after' => $after,
+            ],
+        ]);
     }
 
     public function testFactionPrivilege(Request $request): JsonResponse

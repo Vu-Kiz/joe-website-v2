@@ -64,12 +64,15 @@ export async function generateAdminMemberChangelogFromReadme(replaceExisting: bo
 export type AdminMemberChangelogExportPayload = {
   ok: true;
   exported_at: string;
+  version: string | null;
   count: number;
   entries: AdminMemberChangelogEntry[];
 };
 
-export async function exportAdminMemberChangelog() {
-  return apiFetch<AdminMemberChangelogExportPayload>("/admin/member-changelog/export");
+export async function exportAdminMemberChangelog(version?: string) {
+  const trimmedVersion = version?.trim() ?? "";
+  const suffix = trimmedVersion ? `?version=${encodeURIComponent(trimmedVersion)}` : "";
+  return apiFetch<AdminMemberChangelogExportPayload>(`/admin/member-changelog/export${suffix}`);
 }
 
 export async function importAdminMemberChangelog(

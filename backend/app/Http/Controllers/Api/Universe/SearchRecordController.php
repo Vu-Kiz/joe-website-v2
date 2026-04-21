@@ -7,6 +7,7 @@ use App\Models\SwcAuthorization;
 use App\Models\SwcSector;
 use App\Models\SwcSectorSearchRecord;
 use App\Models\SwcSystem;
+use App\Models\User;
 use App\Support\Admin\AdminActionLogger;
 use App\Support\Swc\SwcHttp;
 use Illuminate\Http\JsonResponse;
@@ -16,6 +17,64 @@ use Illuminate\Support\Carbon;
 
 class SearchRecordController extends Controller
 {
+    protected function readSystemUpdaterCursor(User $user): array
+    {
+        $prefs = is_array($user->member_tool_preferences) ? $user->member_tool_preferences : [];
+        $universe = is_array($prefs['universe'] ?? null) ? $prefs['universe'] : [];
+        $updater = is_array($universe['system_updater'] ?? null) ? $universe['system_updater'] : [];
+
+        $timestamp = isset($updater['last_uploaded_timestamp']) && is_numeric((string) $updater['last_uploaded_timestamp'])
+            ? (int) $updater['last_uploaded_timestamp']
+            : null;
+        $eventUid = isset($updater['last_uploaded_event_uid']) && trim((string) $updater['last_uploaded_event_uid']) !== ''
+            ? trim((string) $updater['last_uploaded_event_uid'])
+            : null;
+
+        return [
+            'timestamp' => $timestamp,
+            'event_uid' => $eventUid,
+        ];
+    }
+
+    protected function writeSystemUpdaterCursor(User $user, ?int $timestamp, ?string $eventUid): void
+    {
+        $prefs = is_array($user->member_tool_preferences) ? $user->member_tool_preferences : [];
+        $universe = is_array($prefs['universe'] ?? null) ? $prefs['universe'] : [];
+        $updater = is_array($universe['system_updater'] ?? null) ? $universe['system_updater'] : [];
+
+        $updater['last_uploaded_timestamp'] = $timestamp;
+        $updater['last_uploaded_event_uid'] = $eventUid !== null ? trim($eventUid) : null;
+        $updater['cursor_updated_at'] = now()->toIso8601String();
+
+        $universe['system_updater'] = $updater;
+        $prefs['universe'] = $universe;
+
+        $user->member_tool_preferences = $prefs;
+        $user->save();
+    }
+
+    protected function resolveLastImportedTimestampForHandle(?string $handle): ?int
+    {
+        $normalized = trim((string) $handle);
+        if ($normalized === '') {
+            return null;
+        }
+
+        $latestRecordedAt = SwcSectorSearchRecord::query()
+            ->where('legacy_handle', $normalized)
+            ->max('legacy_recorded_at');
+
+        if (!$latestRecordedAt) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse((string) $latestRecordedAt)->utc()->timestamp;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
     protected function resolveImportActorHandle($user): ?string
     {
         $value = trim((string) (
@@ -100,7 +159,12 @@ class SearchRecordController extends Controller
         ];
     }
 
-    protected function collectPersonalEventsHistory(Request $request, SwcAuthorization $auth): array
+    protected function collectPersonalEventsHistory(
+        Request $request,
+        SwcAuthorization $auth,
+        ?int $stopBeforeTimestamp = null,
+        ?string $stopBeforeEventUid = null
+    ): array
     {
         $accessToken = decrypt($auth->access_token_encrypted);
         $url = rtrim((string) config('swc.api_base'), '/') . '/events/personal/';
@@ -112,6 +176,10 @@ class SearchRecordController extends Controller
         $latestTimestamp = null;
         $earliestTimestamp = null;
         $lastAttempt = null;
+        $stoppedByTimestampCutoff = false;
+        $cutoffEventTimestamp = null;
+        $latestProcessedEventTimestamp = null;
+        $latestProcessedEventUid = null;
 
         for ($page = 0; $page < $maxPages; $page += 1) {
             $query = [
@@ -157,8 +225,29 @@ class SearchRecordController extends Controller
             foreach ($events as $event) {
                 $seenEvents += 1;
                 $timestamp = data_get($event, 'time.timestamp');
+                $eventUid = trim((string) data_get($event, 'attributes.uid', '')) ?: null;
                 if ($timestamp !== null && is_numeric((string) $timestamp)) {
                     $timestampInt = (int) $timestamp;
+
+                    if (
+                        $stopBeforeTimestamp !== null &&
+                        (
+                            $timestampInt < $stopBeforeTimestamp ||
+                            ($timestampInt === $stopBeforeTimestamp && $stopBeforeEventUid !== null && $eventUid === $stopBeforeEventUid)
+                        )
+                    ) {
+                        $stoppedByTimestampCutoff = true;
+                        $cutoffEventTimestamp = $timestampInt;
+                        break;
+                    }
+
+                    if ($latestProcessedEventTimestamp === null || $timestampInt > $latestProcessedEventTimestamp) {
+                        $latestProcessedEventTimestamp = $timestampInt;
+                        $latestProcessedEventUid = $eventUid;
+                    } elseif ($timestampInt === $latestProcessedEventTimestamp && $latestProcessedEventUid === null && $eventUid !== null) {
+                        $latestProcessedEventUid = $eventUid;
+                    }
+
                     $latestTimestamp = $latestTimestamp === null ? $timestampInt : max($latestTimestamp, $timestampInt);
                     $earliestTimestamp = $earliestTimestamp === null ? $timestampInt : min($earliestTimestamp, $timestampInt);
                 }
@@ -167,6 +256,10 @@ class SearchRecordController extends Controller
                 if ($summary) {
                     $matches[] = $summary;
                 }
+            }
+
+            if ($stoppedByTimestampCutoff) {
+                break;
             }
 
             if (count($events) < $itemCount) {
@@ -191,6 +284,12 @@ class SearchRecordController extends Controller
                 'events_matched' => count($matches),
                 'earliest_timestamp' => $earliestTimestamp,
                 'latest_timestamp' => $latestTimestamp,
+                'latest_processed_event_timestamp' => $latestProcessedEventTimestamp,
+                'latest_processed_event_uid' => $latestProcessedEventUid,
+                'stop_before_timestamp' => $stopBeforeTimestamp,
+                'stop_before_event_uid' => $stopBeforeEventUid,
+                'stopped_by_timestamp_cutoff' => $stoppedByTimestampCutoff,
+                'cutoff_event_timestamp' => $cutoffEventTimestamp,
                 'matches' => $matches,
             ],
         ];
@@ -447,7 +546,19 @@ class SearchRecordController extends Controller
             ], 422);
         }
 
-        $historyResult = $this->collectPersonalEventsHistory($request, $auth);
+        $importActorHandle = $this->resolveImportActorHandle($user);
+        $cursor = $this->readSystemUpdaterCursor($user);
+        $cursorCameFromPreferences = $cursor['timestamp'] !== null;
+        $legacyFallbackTimestamp = $this->resolveLastImportedTimestampForHandle($importActorHandle);
+        $stopBeforeTimestamp = $cursor['timestamp'] ?? $legacyFallbackTimestamp;
+        $stopBeforeEventUid = $cursor['event_uid'];
+
+        $historyResult = $this->collectPersonalEventsHistory(
+            $request,
+            $auth,
+            $stopBeforeTimestamp,
+            $stopBeforeEventUid
+        );
         if (!($historyResult['ok'] ?? false)) {
             $upstreamStatus = (int) ($historyResult['status'] ?? 500);
             $message = match ($upstreamStatus) {
@@ -465,12 +576,37 @@ class SearchRecordController extends Controller
         $matches = data_get($historyResult, 'history.matches', []);
         $import = $this->importMatchedEvents(
             is_array($matches) ? $matches : [],
-            $this->resolveImportActorHandle($user)
+            $importActorHandle
         );
+
+        $latestProcessedEventTimestamp = data_get($historyResult, 'history.latest_processed_event_timestamp');
+        $latestProcessedEventUid = data_get($historyResult, 'history.latest_processed_event_uid');
+
+        if (is_numeric((string) $latestProcessedEventTimestamp)) {
+            $latestTs = (int) $latestProcessedEventTimestamp;
+            $currentTs = $cursor['timestamp'];
+            if ($currentTs === null || $latestTs > $currentTs || ($latestTs === $currentTs && !empty($latestProcessedEventUid))) {
+                $this->writeSystemUpdaterCursor(
+                    $user,
+                    $latestTs,
+                    is_string($latestProcessedEventUid) ? $latestProcessedEventUid : null
+                );
+                $user->refresh();
+                $cursor = $this->readSystemUpdaterCursor($user);
+            }
+        }
 
         return response()->json([
             ...$historyResult,
             'import' => $import,
+            'cursor' => [
+                'before' => [
+                    'timestamp' => $stopBeforeTimestamp,
+                    'event_uid' => $stopBeforeEventUid,
+                    'source' => $cursorCameFromPreferences ? 'member_tool_preferences' : 'legacy_recorded_at_fallback',
+                ],
+                'after' => $cursor,
+            ],
         ], 200);
     }
 }

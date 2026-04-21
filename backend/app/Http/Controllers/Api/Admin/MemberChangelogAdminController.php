@@ -205,12 +205,24 @@ class MemberChangelogAdminController extends Controller
         ]);
     }
 
-    public function export(): JsonResponse
+    public function export(Request $request): JsonResponse
     {
-        $entries = MemberChangelogEntry::query()
+        $validated = $request->validate([
+            'version' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        $version = trim((string) Arr::get($validated, 'version', ''));
+
+        $query = MemberChangelogEntry::query()
             ->orderByDesc('released_at')
             ->orderBy('sort_order')
-            ->orderByDesc('id')
+            ->orderByDesc('id');
+
+        if ($version !== '') {
+            $query->where('version', $version);
+        }
+
+        $entries = $query
             ->get()
             ->map(fn (MemberChangelogEntry $entry): array => $this->serializeEntry($entry))
             ->values()
@@ -219,6 +231,7 @@ class MemberChangelogAdminController extends Controller
         return response()->json([
             'ok' => true,
             'exported_at' => now()->toIso8601String(),
+            'version' => $version !== '' ? $version : null,
             'count' => count($entries),
             'entries' => $entries,
         ]);

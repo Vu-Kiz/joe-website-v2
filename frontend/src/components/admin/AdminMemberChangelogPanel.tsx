@@ -108,6 +108,7 @@ const AdminMemberChangelogPanel: React.FC = () => {
   const [customTool, setCustomTool] = useState("");
   const [selectedAudience, setSelectedAudience] = useState(AUDIENCE_OPTIONS[0]);
   const [customAudience, setCustomAudience] = useState("");
+  const [exportVersion, setExportVersion] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -157,6 +158,12 @@ const AdminMemberChangelogPanel: React.FC = () => {
     const values = Array.from(new Set(entries.map((entry) => entry.version).filter(Boolean)));
     return values.sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: "base" }));
   }, [entries]);
+
+  useEffect(() => {
+    if (!exportVersion.trim() && knownVersions.length) {
+      setExportVersion(knownVersions[0]);
+    }
+  }, [knownVersions, exportVersion]);
 
   const resetEditor = () => {
     setEditingId(null);
@@ -288,25 +295,35 @@ const AdminMemberChangelogPanel: React.FC = () => {
     }
   };
 
-  const onExportSnapshot = async () => {
+  const onExportSnapshot = async (version?: string) => {
+    const requestedVersion = version?.trim() ?? "";
+
+    if (version !== undefined && !requestedVersion) {
+      setError("Pick or enter a version first, then export that version.");
+      return;
+    }
+
     try {
       setExporting(true);
       setError(null);
       setNotice(null);
 
-      const payload = await exportAdminMemberChangelog();
+      const payload = await exportAdminMemberChangelog(requestedVersion || undefined);
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       const stamp = new Date().toISOString().replace(/[:]/g, "-").replace(/\..+$/, "");
+      const exportScope = payload.version ? `v${payload.version}` : "all";
       link.href = url;
-      link.download = `member-changelog-${stamp}.json`;
+      link.download = `member-changelog-${exportScope}-${stamp}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      setNotice(`Exported ${payload.count} changelog entr${payload.count === 1 ? "y" : "ies"} to JSON.`);
+      setNotice(
+        `Exported ${payload.count} changelog entr${payload.count === 1 ? "y" : "ies"} to JSON (${payload.version ? `v${payload.version}` : "all versions"}).`
+      );
     } catch (err: any) {
       setError(err?.message ?? "Failed to export changelog snapshot.");
     } finally {
@@ -601,11 +618,39 @@ const AdminMemberChangelogPanel: React.FC = () => {
           <div className="panel" style={{ display: "grid", gap: "0.7rem" }}>
             <h3 style={{ margin: 0 }}>Export / Import JSON</h3>
             <p className="small" style={{ margin: 0, opacity: 0.85 }}>
-              Export a snapshot from dev, then paste/import it on prod.
+              Export all changelog entries or only one version from dev, then paste/import on prod.
             </p>
-            <button type="button" className="btn btn--small" onClick={onExportSnapshot} disabled={exporting}>
-              {exporting ? "Exporting…" : "Export Changelog JSON"}
-            </button>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+              <button type="button" className="btn btn--small" onClick={() => onExportSnapshot()} disabled={exporting}>
+                {exporting ? "Exporting…" : "Export All Versions"}
+              </button>
+              <button type="button" className="btn btn--small" onClick={() => onExportSnapshot(exportVersion)} disabled={exporting}>
+                {exporting ? "Exporting…" : "Export Selected Version"}
+              </button>
+            </div>
+            <div className="admin-member-changelog__picker-row">
+              <select
+                className="input"
+                value={knownVersions.includes(exportVersion) ? exportVersion : ""}
+                onChange={(event) => setExportVersion(event.target.value)}
+              >
+                <option value="">Select existing version</option>
+                {knownVersions.map((version) => (
+                  <option key={`export-version-${version}`} value={version}>
+                    {version}
+                  </option>
+                ))}
+              </select>
+              <input
+                className="input"
+                value={exportVersion}
+                onChange={(event) => setExportVersion(event.target.value)}
+                placeholder="2.0.6"
+              />
+            </div>
+            <p className="small" style={{ margin: 0, opacity: 0.75 }}>
+              Selected version for filtered export: <strong>{exportVersion.trim() || "none"}</strong>
+            </p>
             <textarea
               className="input"
               rows={7}

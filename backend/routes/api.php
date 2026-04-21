@@ -336,6 +336,8 @@ Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('sys/debug')->group
     Route::get('/raw-swc', [DebugController::class, 'rawSwc']);
     Route::get('/events-history', [DebugController::class, 'eventsHistory']);
     Route::post('/events-history/import', [DebugController::class, 'importEventsHistory']);
+    Route::get('/astrogation/system-updater-cursor', [DebugController::class, 'showSystemUpdaterCursor']);
+    Route::post('/astrogation/system-updater-cursor/reset', [DebugController::class, 'resetSystemUpdaterCursor']);
     Route::get('/test-faction-privilege', [DebugController::class, 'testFactionPrivilege']);
     Route::post('/test-payment', [DebugController::class, 'testPayment']);
     Route::post('/pull-credit-log', [DebugController::class, 'pullCreditLog']);

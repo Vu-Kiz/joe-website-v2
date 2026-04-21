@@ -140,9 +140,5 @@ Included updates:
   Reworked arc indicator rendering to use explicit SVG arc geometry so displayed ring segments align with SWC arc start/sweep directions instead of drifting from dashed-offset calculations.
 - Members tools view persistence on refresh
   Updated `/members` view-state routing so tool selections persist in URL query state, allowing refresh/navigation to reopen the same panel (including Wrecking Helper) instead of dropping back to the overview tools tab.
-- Role-based changelog system and admin workflow
-  Added a backend-driven member changelog feed with audience-based visibility, shipped an admin changelog management panel (CRUD + README generation), upgraded editor UX with structured tool/audience dropdown chips, and improved member-side changelog browsing with grouped versions, cleaner cards, and live filters.
-- Changelog data quality and release consistency
-  Added per-version sort auto-increment, moved release date handling to version-level behavior so release dates stay consistent across all entries in the same version, and switched the release date control to the shared date picker component.
-- Discord release-posting automation for changelog links
-  Added a new `/post-changelog` Discord slash command that posts a release message including the version number and direct changelog link (`/members?members_view=changelog&changelog_version=...`), supports auto-resolving the latest release version when no version is provided, and now enforces linked sysadmin-only access before posting.
+- Auth-state sync hardening for navbar vs tools
+  Fixed an auth desync edge case where `/members` could briefly render `Not logged in` while the navbar still showed a signed-in user after deploy/refresh timing races, by forcing `auth/me` checks to bypass cache and adding a short retry before committing the signed-out state.

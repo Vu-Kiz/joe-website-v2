@@ -5,6 +5,7 @@ import { listAdminUsers, type AdminManageableUser } from "../api/adminUsers";
 import { getStoredSector, type StoredSectorDetail } from "../api/universe";
 import SectorGridMap from "../components/maps/SectorGridMap";
 import {
+  getDebugSystemUpdaterCursor,
   getDebugEventsHistory,
   getDebugFactions,
   getDebugPayments,
@@ -13,6 +14,7 @@ import {
   getDebugSwcAuth,
   importDebugEventsHistory,
   pullDebugCreditLog,
+  resetDebugSystemUpdaterCursor,
   runUniversePull,
   testFactionPrivilege,
   testManualPayment,
@@ -450,7 +452,23 @@ const SysDebugPage: React.FC = () => {
 
     await runPanel(
       "eventsTest",
-      () => importDebugEventsHistory(eventsPath, queryObj, activeTargetUserId),
+      () => importDebugEventsHistory(eventsPath, queryObj, activeTargetUserId, true),
+      (res) => res
+    );
+  }
+
+  async function onShowSystemUpdaterCursor() {
+    await runPanel(
+      "eventsTest",
+      () => getDebugSystemUpdaterCursor(activeTargetUserId),
+      (res) => res
+    );
+  }
+
+  async function onResetSystemUpdaterCursor() {
+    await runPanel(
+      "eventsTest",
+      () => resetDebugSystemUpdaterCursor(activeTargetUserId),
       (res) => res
     );
   }
@@ -1065,6 +1083,24 @@ const SysDebugPage: React.FC = () => {
                       className="btn"
                       type="button"
                       style={{ marginLeft: 8 }}
+                      onClick={onShowSystemUpdaterCursor}
+                      disabled={panels.eventsTest.loading}
+                    >
+                      Show system-updater cursor
+                    </button>
+                    <button
+                      className="btn"
+                      type="button"
+                      style={{ marginLeft: 8 }}
+                      onClick={onResetSystemUpdaterCursor}
+                      disabled={panels.eventsTest.loading}
+                    >
+                      Reset system-updater cursor
+                    </button>
+                    <button
+                      className="btn"
+                      type="button"
+                      style={{ marginLeft: 8 }}
                       onClick={() => {
                         setEventsPath("events/personal/");
                         setEventsQuery("start_index=0&item_count=1000&max_pages=50");
@@ -1079,7 +1115,8 @@ const SysDebugPage: React.FC = () => {
                                   item_count: "1000",
                                   max_pages: "50",
                                 },
-                                activeTargetUserId
+                                activeTargetUserId,
+                                false
                               ),
                             (res) => res
                           );
@@ -1107,7 +1144,8 @@ const SysDebugPage: React.FC = () => {
                                   item_count: "1000",
                                   max_pages: "50",
                                 },
-                                activeTargetUserId
+                                activeTargetUserId,
+                                true
                               ),
                             (res) => res
                           );

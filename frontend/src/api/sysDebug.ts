@@ -156,6 +156,47 @@ export type DebugEventsHistoryResponse = {
       legacy_recorded_at: string | null;
     }>;
   };
+  cursor?: {
+    applied?: boolean;
+    before?: {
+      timestamp: number | null;
+      event_uid: string | null;
+      updated_at?: string | null;
+    } | null;
+    after?: {
+      timestamp: number | null;
+      event_uid: string | null;
+      updated_at?: string | null;
+    } | null;
+  };
+};
+
+export type DebugSystemUpdaterCursorResponse = {
+  ok: boolean;
+  message?: string;
+  target_user?: {
+    id: number;
+    swc_handle: string | null;
+    swc_character_id: number | null;
+  };
+  cursor:
+    | {
+        timestamp: number | null;
+        event_uid: string | null;
+        updated_at?: string | null;
+      }
+    | {
+        before: {
+          timestamp: number | null;
+          event_uid: string | null;
+          updated_at?: string | null;
+        };
+        after: {
+          timestamp: number | null;
+          event_uid: string | null;
+          updated_at?: string | null;
+        };
+      };
 };
 
 export type DebugFactionPrivilegeResponse = {
@@ -352,10 +393,14 @@ export function getDebugRawSwc(
 export function getDebugEventsHistory(
   path: string,
   queryParams?: Record<string, string>,
-  userId?: number
+  userId?: number,
+  useUploaderCursor = false
 ) {
   const params = withOptionalUserId(new URLSearchParams(), userId);
   params.set("path", path);
+  if (useUploaderCursor) {
+    params.set("use_uploader_cursor", "1");
+  }
 
   if (queryParams) {
     for (const [key, value] of Object.entries(queryParams)) {
@@ -371,7 +416,8 @@ export function getDebugEventsHistory(
 export function importDebugEventsHistory(
   path: string,
   queryParams?: Record<string, string>,
-  userId?: number
+  userId?: number,
+  useUploaderCursor = true
 ) {
   const params = withOptionalUserId(new URLSearchParams(), userId);
   const qs = params.toString();
@@ -383,7 +429,27 @@ export function importDebugEventsHistory(
       body: JSON.stringify({
         path,
         query: queryParams ?? {},
+        use_uploader_cursor: useUploaderCursor,
       }),
+    }
+  );
+}
+
+export function getDebugSystemUpdaterCursor(userId?: number) {
+  const params = withOptionalUserId(new URLSearchParams(), userId);
+  const qs = params.toString();
+  return apiFetch<DebugSystemUpdaterCursorResponse>(
+    `/sys/debug/astrogation/system-updater-cursor${qs ? `?${qs}` : ""}`
+  );
+}
+
+export function resetDebugSystemUpdaterCursor(userId?: number) {
+  const params = withOptionalUserId(new URLSearchParams(), userId);
+  const qs = params.toString();
+  return apiFetch<DebugSystemUpdaterCursorResponse>(
+    `/sys/debug/astrogation/system-updater-cursor/reset${qs ? `?${qs}` : ""}`,
+    {
+      method: "POST",
     }
   );
 }
