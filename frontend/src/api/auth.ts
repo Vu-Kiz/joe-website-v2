@@ -287,7 +287,13 @@ export async function apiFetch<T>(
 }
 
 export function fetchAuthMe(): Promise<AuthMeResponse> {
-  return apiFetch<AuthMeResponse>("/auth/me");
+  return apiFetch<AuthMeResponse>("/auth/me", {
+    cache: "no-store",
+    headers: {
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
+  });
 }
 
 export function apiLogout(): Promise<{ ok: true }> {

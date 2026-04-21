@@ -248,8 +248,17 @@ const MembersPage: React.FC = () => {
     (async () => {
       try {
         setLoading(true);
-        const authRes = await fetchAuthMe();
-        const currentUser = authRes?.user ?? null;
+        let authRes = await fetchAuthMe();
+        let currentUser = authRes?.user ?? null;
+
+        // Guard against transient auth races right after deploy/refresh where
+        // the first auth/me can briefly resolve to null.
+        if (!currentUser) {
+          await new Promise((resolve) => window.setTimeout(resolve, 180));
+          authRes = await fetchAuthMe();
+          currentUser = authRes?.user ?? null;
+        }
+
         const canSeeMemberTools = canAccessMembers(currentUser);
         const canSeeDroidBrain = canAccessIntel(currentUser);
 
