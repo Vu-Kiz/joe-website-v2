@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\SwcSectorSearchRecord;
 use App\Models\User;
 use App\Support\Admin\AdminActionLogger;
 use Illuminate\Http\JsonResponse;
@@ -10,6 +11,44 @@ use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
+    protected function readSystemUpdaterCursor(User $user): array
+    {
+        $prefs = is_array($user->member_tool_preferences) ? $user->member_tool_preferences : [];
+        $universe = is_array($prefs['universe'] ?? null) ? $prefs['universe'] : [];
+        $updater = is_array($universe['system_updater'] ?? null) ? $universe['system_updater'] : [];
+
+        return [
+            'timestamp' => isset($updater['last_uploaded_timestamp']) && is_numeric((string) $updater['last_uploaded_timestamp'])
+                ? (int) $updater['last_uploaded_timestamp']
+                : null,
+            'event_uid' => isset($updater['last_uploaded_event_uid']) && trim((string) $updater['last_uploaded_event_uid']) !== ''
+                ? trim((string) $updater['last_uploaded_event_uid'])
+                : null,
+            'updated_at' => isset($updater['cursor_updated_at']) && trim((string) $updater['cursor_updated_at']) !== ''
+                ? trim((string) $updater['cursor_updated_at'])
+                : null,
+        ];
+    }
+
+    protected function writeSystemUpdaterCursor(User $user, ?int $timestamp, ?string $eventUid): array
+    {
+        $prefs = is_array($user->member_tool_preferences) ? $user->member_tool_preferences : [];
+        $universe = is_array($prefs['universe'] ?? null) ? $prefs['universe'] : [];
+        $updater = is_array($universe['system_updater'] ?? null) ? $universe['system_updater'] : [];
+
+        $updater['last_uploaded_timestamp'] = $timestamp;
+        $updater['last_uploaded_event_uid'] = $eventUid !== null ? trim($eventUid) : null;
+        $updater['cursor_updated_at'] = now()->toIso8601String();
+        $universe['system_updater'] = $updater;
+        $prefs['universe'] = $universe;
+
+        $user->member_tool_preferences = $prefs;
+        $user->save();
+        $user->refresh();
+
+        return $this->readSystemUpdaterCursor($user);
+    }
+
     protected function resolveDisplayHandle(User $user): string
     {
         $candidates = [
@@ -26,6 +65,18 @@ class UserController extends Controller
         }
 
         return 'User #' . $user->id;
+    }
+
+    protected function resolveImportActorHandle(User $user): ?string
+    {
+        $value = trim((string) (
+            $user->swc_handle
+            ?? $user->discord_global_name
+            ?? $user->discord_username
+            ?? ''
+        ));
+
+        return $value !== '' ? $value : null;
     }
 
     public function index(Request $request): JsonResponse
@@ -279,6 +330,93 @@ class UserController extends Controller
                 'id' => $user->id,
                 'handle' => $this->resolveDisplayHandle($user),
                 'auth_version' => $user->auth_version,
+            ],
+        ]);
+    }
+
+    public function resetSystemUpdaterCursor(Request $request, User $user): JsonResponse
+    {
+        $before = $this->readSystemUpdaterCursor($user);
+        $after = $this->writeSystemUpdaterCursor($user, null, null);
+
+        AdminActionLogger::log(
+            $request,
+            'users',
+            'reset_system_updater_cursor',
+            'Reset system updater cursor for ' . $this->resolveDisplayHandle($user),
+            'user',
+            $user->id,
+            [
+                'system_updater_cursor' => $before,
+            ],
+            [
+                'system_updater_cursor' => $after,
+            ]
+        );
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'System updater cursor reset.',
+            'user' => [
+                'id' => $user->id,
+                'handle' => $this->resolveDisplayHandle($user),
+            ],
+            'cursor' => [
+                'before' => $before,
+                'after' => $after,
+            ],
+        ]);
+    }
+
+    public function fullResetSystemUpdater(Request $request, User $user): JsonResponse
+    {
+        $handle = $this->resolveImportActorHandle($user);
+        $beforeCursor = $this->readSystemUpdaterCursor($user);
+
+        $clearedLegacyLinks = 0;
+        if ($handle !== null) {
+            $clearedLegacyLinks = SwcSectorSearchRecord::query()
+                ->where('legacy_handle', $handle)
+                ->update([
+                    'legacy_handle' => null,
+                    'legacy_player' => null,
+                ]);
+        }
+
+        // Use timestamp=0 so import logic skips fallback cutoff behavior.
+        $afterCursor = $this->writeSystemUpdaterCursor($user, 0, null);
+
+        AdminActionLogger::log(
+            $request,
+            'users',
+            'full_reset_system_updater',
+            'Full reset system updater for ' . $this->resolveDisplayHandle($user),
+            'user',
+            $user->id,
+            [
+                'system_updater_cursor' => $beforeCursor,
+                'legacy_handle' => $handle,
+            ],
+            [
+                'system_updater_cursor' => $afterCursor,
+                'legacy_links_cleared' => $clearedLegacyLinks,
+            ]
+        );
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'System updater fully reset. Map data was preserved.',
+            'user' => [
+                'id' => $user->id,
+                'handle' => $this->resolveDisplayHandle($user),
+            ],
+            'cursor' => [
+                'before' => $beforeCursor,
+                'after' => $afterCursor,
+            ],
+            'legacy' => [
+                'handle' => $handle,
+                'links_cleared' => $clearedLegacyLinks,
             ],
         ]);
     }

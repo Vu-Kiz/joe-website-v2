@@ -60,6 +60,52 @@ export type ForceAdminUserLogoutResponse = {
   };
 };
 
+export type ResetAdminUserSystemUpdaterCursorResponse = {
+  ok: boolean;
+  message: string;
+  user: {
+    id: number;
+    handle: string | null;
+  };
+  cursor: {
+    before: {
+      timestamp: number | null;
+      event_uid: string | null;
+      updated_at?: string | null;
+    };
+    after: {
+      timestamp: number | null;
+      event_uid: string | null;
+      updated_at?: string | null;
+    };
+  };
+};
+
+export type FullResetAdminUserSystemUpdaterResponse = {
+  ok: boolean;
+  message: string;
+  user: {
+    id: number;
+    handle: string | null;
+  };
+  cursor: {
+    before: {
+      timestamp: number | null;
+      event_uid: string | null;
+      updated_at?: string | null;
+    };
+    after: {
+      timestamp: number | null;
+      event_uid: string | null;
+      updated_at?: string | null;
+    };
+  };
+  legacy: {
+    handle: string | null;
+    links_cleared: number;
+  };
+};
+
 export async function listAdminUsers(): Promise<ListAdminUsersResponse> {
   return apiFetch<ListAdminUsersResponse>("/admin/users", {
     method: "GET",
@@ -84,6 +130,28 @@ export async function forceAdminUserLogout(
 ): Promise<ForceAdminUserLogoutResponse> {
   return apiFetch<ForceAdminUserLogoutResponse>(
     `/admin/users/${userId}/force-logout`,
+    {
+      method: "POST",
+    }
+  );
+}
+
+export async function resetAdminUserSystemUpdaterCursor(
+  userId: number
+): Promise<ResetAdminUserSystemUpdaterCursorResponse> {
+  return apiFetch<ResetAdminUserSystemUpdaterCursorResponse>(
+    `/admin/users/${userId}/reset-system-updater-cursor`,
+    {
+      method: "POST",
+    }
+  );
+}
+
+export async function fullResetAdminUserSystemUpdater(
+  userId: number
+): Promise<FullResetAdminUserSystemUpdaterResponse> {
+  return apiFetch<FullResetAdminUserSystemUpdaterResponse>(
+    `/admin/users/${userId}/full-reset-system-updater`,
     {
       method: "POST",
     }

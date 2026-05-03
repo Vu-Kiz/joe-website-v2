@@ -9,9 +9,13 @@ use App\Support\Admin\AdminActionLogger;
 use App\Support\Swc\Auth\Permissions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class CellAnnotationController extends Controller
 {
+    private const INDEX_CACHE_TTL_SECONDS = 120;
+    private const CACHE_VERSION_KEY = 'universe:cell-annotations:version';
+
     public function index(Request $request): JsonResponse
     {
         if (!Permissions::hasAny($request->user(), ['can_view_asteroid_intel', 'is_admin', 'is_sysadmin'])) {
@@ -48,28 +52,31 @@ class CellAnnotationController extends Controller
             ]
             : null;
 
-        $annotations = SwcSectorCellAnnotation::query()
-            ->when($hasSectorUid, function ($query) use ($data) {
-                $query->where('sector_uid', (string) $data['sector_uid']);
-            })
-            ->when($bounds !== null, function ($query) use ($bounds) {
-                $query
-                    ->whereBetween('galx', [$bounds['min_galx'], $bounds['max_galx']])
-                    ->whereBetween('galy', [$bounds['min_galy'], $bounds['max_galy']]);
-            })
-            ->orderBy('galy')
-            ->orderBy('galx')
-            ->get([
-                'id',
-                'sector_uid',
-                'galx',
-                'galy',
-                'marker_type',
-                'label',
-                'notes',
-                'created_at',
-                'updated_at',
-            ]);
+        $cacheKey = $this->buildIndexCacheKey($data, $bounds);
+        $annotations = Cache::remember($cacheKey, self::INDEX_CACHE_TTL_SECONDS, function () use ($hasSectorUid, $data, $bounds) {
+            return SwcSectorCellAnnotation::query()
+                ->when($hasSectorUid, function ($query) use ($data) {
+                    $query->where('sector_uid', (string) $data['sector_uid']);
+                })
+                ->when($bounds !== null, function ($query) use ($bounds) {
+                    $query
+                        ->whereBetween('galx', [$bounds['min_galx'], $bounds['max_galx']])
+                        ->whereBetween('galy', [$bounds['min_galy'], $bounds['max_galy']]);
+                })
+                ->orderBy('galy')
+                ->orderBy('galx')
+                ->get([
+                    'id',
+                    'sector_uid',
+                    'galx',
+                    'galy',
+                    'marker_type',
+                    'label',
+                    'notes',
+                    'created_at',
+                    'updated_at',
+                ]);
+        });
 
         return response()->json([
             'ok' => true,
@@ -129,6 +136,8 @@ class CellAnnotationController extends Controller
                     $before,
                     null
                 );
+
+                $this->bumpCacheVersion();
             }
 
             return response()->json([
@@ -214,6 +223,8 @@ class CellAnnotationController extends Controller
             $after
         );
 
+        $this->bumpCacheVersion();
+
         return response()->json([
             'ok' => true,
             'message' => 'Sector cell annotation saved.',
@@ -229,5 +240,24 @@ class CellAnnotationController extends Controller
                 'updated_at',
             ]),
         ]);
+    }
+
+    private function buildIndexCacheKey(array $data, ?array $bounds): string
+    {
+        $version = (int) Cache::get(self::CACHE_VERSION_KEY, 1);
+
+        return sprintf(
+            'universe:cell-annotations:index:v%d:%s',
+            $version,
+            md5(json_encode([
+                'sector_uid' => $data['sector_uid'] ?? null,
+                'bounds' => $bounds,
+            ], JSON_THROW_ON_ERROR))
+        );
+    }
+
+    private function bumpCacheVersion(): void
+    {
+        Cache::forever(self::CACHE_VERSION_KEY, ((int) Cache::get(self::CACHE_VERSION_KEY, 1)) + 1);
     }
 }

@@ -11,8 +11,8 @@ RUN apt-get update && apt-get install -y \
   && docker-php-ext-install pdo pdo_mysql mbstring zip intl \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Enable mod_rewrite
-RUN a2enmod rewrite
+# Enable Apache modules needed for API delivery.
+RUN a2enmod rewrite deflate headers
 
 # Use our Laravel vhost config
 COPY apache/000-default.conf /etc/apache2/sites-available/000-default.conf

@@ -5,7 +5,7 @@ export type SwcAuthorizationStatus = {
     galaxy: boolean;
     payments: boolean;
     universe?: {
-      map_scope: "sector" | "galaxy";
+      map_scope?: "sector" | "galaxy";
       selected_sector_uid: string | null;
       selected_system_identifier: string | null;
       focus_request:
@@ -51,7 +51,7 @@ export async function updateSwcAuthorizationPreferences(memberToolPreferences: {
   galaxy: boolean;
   payments: boolean;
   universe?: {
-    map_scope: "sector" | "galaxy";
+    map_scope?: "sector" | "galaxy";
     selected_sector_uid: string | null;
     selected_system_identifier: string | null;
     focus_request:
@@ -76,7 +76,7 @@ export async function updateSwcAuthorizationPreferences(memberToolPreferences: {
         galaxy: boolean;
         payments: boolean;
         universe?: {
-          map_scope: "sector" | "galaxy";
+          map_scope?: "sector" | "galaxy";
           selected_sector_uid: string | null;
           selected_system_identifier: string | null;
           focus_request:
@@ -150,4 +150,37 @@ export async function importSwcPersonalEvents() {
       body: JSON.stringify({}),
     }
   );
+}
+
+export type ImportLogArea = {
+  galx: number;
+  galy: number;
+  square_name: string | null;
+  sector_uid: string | null;
+  has_asteroids: boolean;
+  action: "created" | "updated";
+};
+
+export type ImportLogEntry = {
+  id: number;
+  created_at: string;
+  events_seen: number;
+  events_matched: number;
+  created: number;
+  updated: number;
+  unchanged: number;
+  skipped: number;
+  areas: ImportLogArea[];
+};
+
+export async function getSwcImportLogs() {
+  return apiFetch<{ ok: true; data: ImportLogEntry[] }>(
+    `/universe/search-records/import-logs`
+  );
+}
+
+export async function clearSwcImportLogs() {
+  return apiFetch<{ ok: true }>(`/universe/search-records/import-logs`, {
+    method: "DELETE",
+  });
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Universe;
 
 use App\Http\Controllers\Controller;
 use App\Models\SwcAuthorization;
+use App\Models\SwcMemberImportLog;
 use App\Models\SwcSector;
 use App\Models\SwcSectorSearchRecord;
 use App\Models\SwcSystem;
@@ -14,9 +15,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Client\Response;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 class SearchRecordController extends Controller
 {
+    private const CACHE_VERSION_KEY = 'universe:search-records:version';
+
     protected function readSystemUpdaterCursor(User $user): array
     {
         $prefs = is_array($user->member_tool_preferences) ? $user->member_tool_preferences : [];
@@ -53,38 +57,23 @@ class SearchRecordController extends Controller
         $user->save();
     }
 
-    protected function resolveLastImportedTimestampForHandle(?string $handle): ?int
-    {
-        $normalized = trim((string) $handle);
-        if ($normalized === '') {
-            return null;
-        }
-
-        $latestRecordedAt = SwcSectorSearchRecord::query()
-            ->where('legacy_handle', $normalized)
-            ->max('legacy_recorded_at');
-
-        if (!$latestRecordedAt) {
-            return null;
-        }
-
-        try {
-            return Carbon::parse((string) $latestRecordedAt)->utc()->timestamp;
-        } catch (\Throwable) {
-            return null;
-        }
-    }
-
     protected function resolveImportActorHandle($user): ?string
     {
-        $value = trim((string) (
-            $user?->swc_handle
-            ?? $user?->discord_global_name
-            ?? $user?->discord_username
-            ?? ''
-        ));
+        $candidates = [
+            $user?->swc_handle,
+            $user?->currentSwcAccount?->swc_handle,
+            $user?->discord_global_name,
+            $user?->discord_username,
+        ];
 
-        return $value !== '' ? $value : null;
+        foreach ($candidates as $candidate) {
+            $value = trim((string) ($candidate ?? ''));
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
     }
 
     protected function parseSwcEventsFromJson(mixed $json): array
@@ -112,17 +101,40 @@ class SearchRecordController extends Controller
 
         $isHyperspaceArrival = stripos($text, 'Finished travelling in hyperspace, arrived at your destination') !== false;
         $isHyperlaneArrival = stripos($text, 'Hyperlane, arrived at your destination') !== false;
+        // XP events: "Finished sublight travel within [SystemName] (galx, galy) at (sysx, sysy)"
+        $isSublightTravel = stripos($text, 'Finished sublight travel within') !== false;
 
-        if (!$isHyperspaceArrival && !$isHyperlaneArrival) {
+        if (!$isHyperspaceArrival && !$isHyperlaneArrival && !$isSublightTravel) {
             return null;
         }
 
-        preg_match('/at\s*\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/i', $text, $coordMatches);
         preg_match('/systemID=(\d+)/i', $text, $systemMatches);
 
+        $galx = null;
+        $galy = null;
         $squareName = null;
-        if (preg_match('/arrived at your destination\s+(.+?)\s+at\s+\(\s*-?\d+\s*,\s*-?\d+\s*\)/i', $text, $nameMatches)) {
-            $squareName = trim(strip_tags(html_entity_decode($nameMatches[1], ENT_QUOTES | ENT_HTML5)));
+
+        if ($isSublightTravel) {
+            // Galaxy coords appear BEFORE "at (sysx, sysy)": "[Name] (galx, galy) at (sysx, sysy)"
+            if (preg_match('/\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)\s+at\s+\(/i', $text, $coordMatches)) {
+                $galx = (int) $coordMatches[1];
+                $galy = (int) $coordMatches[2];
+            }
+            if (preg_match('/Finished sublight travel within\s+(.+?)\s+\(\s*-?\d+\s*,\s*-?\d+\s*\)/i', $text, $nameMatches)) {
+                $squareName = trim(strip_tags(html_entity_decode($nameMatches[1], ENT_QUOTES | ENT_HTML5)));
+            }
+        } else {
+            // Hyperspace/hyperlane arrivals have two formats:
+            // Named:    "arrived at your destination Kuat at (galx, galy)"
+            // Unnamed:  "arrived at your destination (galx, galy)"  ← deep space
+            if (preg_match('/arrived at your destination\s+(.+?)\s+at\s+\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/i', $text, $namedMatches)) {
+                $squareName = trim(strip_tags(html_entity_decode($namedMatches[1], ENT_QUOTES | ENT_HTML5)));
+                $galx = (int) $namedMatches[2];
+                $galy = (int) $namedMatches[3];
+            } elseif (preg_match('/arrived at your destination\s+\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/i', $text, $coordMatches)) {
+                $galx = (int) $coordMatches[1];
+                $galy = (int) $coordMatches[2];
+            }
         }
 
         $hasAsteroids =
@@ -136,8 +148,8 @@ class SearchRecordController extends Controller
             'timestamp' => data_get($event, 'time.timestamp'),
             'square_name' => $squareName,
             'asteroid_uid' => isset($systemMatches[1]) ? sprintf('5:%s', $systemMatches[1]) : null,
-            'galx' => isset($coordMatches[1]) ? (int) $coordMatches[1] : null,
-            'galy' => isset($coordMatches[2]) ? (int) $coordMatches[2] : null,
+            'galx' => $galx,
+            'galy' => $galy,
             'has_asteroids' => $hasAsteroids,
             'text' => html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5),
         ];
@@ -167,7 +179,7 @@ class SearchRecordController extends Controller
     ): array
     {
         $accessToken = decrypt($auth->access_token_encrypted);
-        $url = rtrim((string) config('swc.api_base'), '/') . '/events/personal/';
+        $url = rtrim((string) config('swc.api_base'), '/') . '/events/personal/xp/';
         $itemCount = 1000;
         $maxPages = 50;
         $seenEvents = 0;
@@ -295,13 +307,14 @@ class SearchRecordController extends Controller
         ];
     }
 
-    protected function importMatchedEvents(array $matches, ?string $importActorHandle = null): array
+    protected function importMatchedEvents(array $matches, ?string $importActorHandle = null, ?int $importUserId = null): array
     {
         $created = 0;
         $updated = 0;
         $unchanged = 0;
         $skipped = 0;
         $skippedNoCoordinates = 0;
+        $changedAreas = [];
 
         foreach ($matches as $match) {
             $galx = $match['galx'] ?? null;
@@ -340,11 +353,13 @@ class SearchRecordController extends Controller
             }
 
             $payload = [
+                'user_id' => $importUserId,
                 'sector_id' => $record?->sector_id ?? $resolvedSector['sector_id'],
                 'sector_uid' => $record?->sector_uid ?? $resolvedSector['sector_uid'],
                 'asteroid_uid' => $nextAsteroidUid,
                 'square_name' => $nextSquareName,
                 'has_asteroids' => (bool) ($record?->has_asteroids ?? false) || (bool) ($match['has_asteroids'] ?? false),
+                'is_system_searched' => true,
                 'legacy_recorded_at' => $nextLegacyRecordedAt,
                 'legacy_player' => $importActorHandle,
                 'legacy_handle' => $importActorHandle,
@@ -352,11 +367,13 @@ class SearchRecordController extends Controller
 
             if ($record) {
                 $isChanged =
+                    $record->user_id !== $payload['user_id'] ||
                     $record->sector_id !== $payload['sector_id'] ||
                     $record->sector_uid !== $payload['sector_uid'] ||
                     $record->asteroid_uid !== $payload['asteroid_uid'] ||
                     $record->square_name !== $payload['square_name'] ||
                     (bool) $record->has_asteroids !== (bool) $payload['has_asteroids'] ||
+                    !$record->is_system_searched ||
                     $record->legacy_player !== $payload['legacy_player'] ||
                     $record->legacy_handle !== $payload['legacy_handle'] ||
                     (($record->legacy_recorded_at?->toIso8601String()) !== ($payload['legacy_recorded_at']?->toIso8601String()));
@@ -369,6 +386,14 @@ class SearchRecordController extends Controller
                 $record->fill($payload);
                 $record->save();
                 $updated += 1;
+                $changedAreas[] = [
+                    'galx' => $galx,
+                    'galy' => $galy,
+                    'square_name' => $nextSquareName,
+                    'sector_uid' => $payload['sector_uid'],
+                    'has_asteroids' => (bool) $payload['has_asteroids'],
+                    'action' => 'updated',
+                ];
                 continue;
             }
 
@@ -378,6 +403,14 @@ class SearchRecordController extends Controller
                 ...$payload,
             ]);
             $created += 1;
+            $changedAreas[] = [
+                'galx' => $galx,
+                'galy' => $galy,
+                'square_name' => $nextSquareName,
+                'sector_uid' => $payload['sector_uid'],
+                'has_asteroids' => (bool) $payload['has_asteroids'],
+                'action' => 'created',
+            ];
         }
 
         return [
@@ -386,6 +419,7 @@ class SearchRecordController extends Controller
             'unchanged' => $unchanged,
             'skipped' => $skipped,
             'skipped_no_coordinates' => $skippedNoCoordinates,
+            'areas' => $changedAreas,
         ];
     }
 
@@ -507,6 +541,8 @@ class SearchRecordController extends Controller
             $after
         );
 
+        $this->bumpCacheVersion();
+
         return response()->json([
             'ok' => true,
             'message' => 'Grid intel saved.',
@@ -549,8 +585,7 @@ class SearchRecordController extends Controller
         $importActorHandle = $this->resolveImportActorHandle($user);
         $cursor = $this->readSystemUpdaterCursor($user);
         $cursorCameFromPreferences = $cursor['timestamp'] !== null;
-        $legacyFallbackTimestamp = $this->resolveLastImportedTimestampForHandle($importActorHandle);
-        $stopBeforeTimestamp = $cursor['timestamp'] ?? $legacyFallbackTimestamp;
+        $stopBeforeTimestamp = $cursor['timestamp'];
         $stopBeforeEventUid = $cursor['event_uid'];
 
         $historyResult = $this->collectPersonalEventsHistory(
@@ -576,7 +611,47 @@ class SearchRecordController extends Controller
         $matches = data_get($historyResult, 'history.matches', []);
         $import = $this->importMatchedEvents(
             is_array($matches) ? $matches : [],
-            $importActorHandle
+            $importActorHandle,
+            $user->id
+        );
+
+        $importedCount = (int) ($import['created'] ?? 0) + (int) ($import['updated'] ?? 0);
+        if ($importedCount > 0) {
+            $this->bumpCacheVersion();
+        }
+
+        SwcMemberImportLog::create([
+            'user_id' => $user->id,
+            'events_seen' => (int) data_get($historyResult, 'history.events_seen', 0),
+            'events_matched' => (int) data_get($historyResult, 'history.events_matched', 0),
+            'created' => (int) ($import['created'] ?? 0),
+            'updated' => (int) ($import['updated'] ?? 0),
+            'unchanged' => (int) ($import['unchanged'] ?? 0),
+            'skipped' => (int) ($import['skipped'] ?? 0),
+            'areas' => $import['areas'] ?? [],
+        ]);
+
+        AdminActionLogger::log(
+            $request,
+            'galaxy',
+            'import_personal_events',
+            sprintf(
+                'Imported personal astrogation events: %d new, %d updated, %d unchanged, %d skipped.',
+                (int) ($import['created'] ?? 0),
+                (int) ($import['updated'] ?? 0),
+                (int) ($import['unchanged'] ?? 0),
+                (int) ($import['skipped'] ?? 0)
+            ),
+            null,
+            null,
+            null,
+            [
+                'created' => (int) ($import['created'] ?? 0),
+                'updated' => (int) ($import['updated'] ?? 0),
+                'unchanged' => (int) ($import['unchanged'] ?? 0),
+                'skipped' => (int) ($import['skipped'] ?? 0),
+                'areas' => array_slice($import['areas'] ?? [], 0, 50),
+            ]
         );
 
         $latestProcessedEventTimestamp = data_get($historyResult, 'history.latest_processed_event_timestamp');
@@ -608,5 +683,43 @@ class SearchRecordController extends Controller
                 'after' => $cursor,
             ],
         ], 200);
+    }
+
+    public function importLogs(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $logs = SwcMemberImportLog::query()
+            ->where('user_id', $user->id)
+            ->orderByDesc('created_at')
+            ->limit(30)
+            ->get();
+
+        return response()->json([
+            'ok' => true,
+            'data' => $logs->map(fn (SwcMemberImportLog $log) => [
+                'id' => $log->id,
+                'created_at' => $log->created_at?->toISOString(),
+                'events_seen' => $log->events_seen,
+                'events_matched' => $log->events_matched,
+                'created' => $log->created,
+                'updated' => $log->updated,
+                'unchanged' => $log->unchanged,
+                'skipped' => $log->skipped,
+                'areas' => $log->areas ?? [],
+            ])->values(),
+        ]);
+    }
+
+    public function clearImportLogs(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        SwcMemberImportLog::query()->where('user_id', $user->id)->delete();
+        return response()->json(['ok' => true]);
+    }
+
+    private function bumpCacheVersion(): void
+    {
+        Cache::forever(self::CACHE_VERSION_KEY, ((int) Cache::get(self::CACHE_VERSION_KEY, 1)) + 1);
     }
 }

@@ -819,9 +819,43 @@ export type StoredPlanetTypeDetail = StoredPlanetTypeSummary & {
 };
 
 export type EntityStatsKind = "station" | "facility" | "item" | "planet" | "ship" | "vehicle" | "droid" | "creature" | "npc" | "race" | "weapon" | "terrain" | "material";
+export type UniverseCacheManifest = {
+  revision: string;
+  snapshot: Record<string, unknown>;
+  generated_at: string;
+};
+
+export type GalaxySnapshotLayerMeta = {
+  name: "sectors" | "systems" | "asteroids" | "scans" | "notes" | "ships" | "stations";
+  count: number;
+  available: boolean;
+};
+
+export type GalaxySnapshotMeta = {
+  revision: string;
+  manifest_revision: string;
+  can_view_asteroid_intel: boolean;
+  can_view_scan_window: boolean;
+  layers: GalaxySnapshotLayerMeta[];
+  generated_at: string;
+};
 
 export function getStoredSectors() {
   return apiFetch<{ ok: boolean; data: StoredSectorSummary[] }>("/universe/sectors");
+}
+
+export function getUniverseCacheManifest() {
+  return apiFetch<{ ok: boolean; data: UniverseCacheManifest }>("/universe/cache-manifest");
+}
+
+export function getGalaxySnapshotMeta() {
+  return apiFetch<{ ok: boolean; data: GalaxySnapshotMeta }>("/universe/galaxy-snapshot/meta");
+}
+
+export function getGalaxySnapshotLayer<T>(layer: GalaxySnapshotLayerMeta["name"]) {
+  return apiFetch<{ ok: boolean; data: T[] }>(
+    `/universe/galaxy-snapshot/layer/${encodeURIComponent(layer)}`
+  );
 }
 
 export function getStoredSector(sector: string) {

@@ -1,35 +1,120 @@
-import React, { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import GalaxySectorMap from "../maps/GalaxySectorMap";
 import {
   saveStoredSearchRecord,
   getStoredMapSystems,
-  getStoredMapSystemsInBounds,
-  getStoredSearchRecords,
-  getStoredSearchRecordsInBounds,
   saveStoredCellAnnotation,
-  getStoredCellAnnotations,
   getStoredSectors,
   getStoredSystem,
-  type GalaxyBounds,
   type SectorCellAnnotation,
   type SectorSearchRecord,
   type StoredMapSystem,
   type StoredSectorSummary,
   type StoredSystemDetail,
 } from "../../api/universe";
-import { fetchAuthMe, type SwcUser } from "../../api/auth";
+import { getApiBaseUrl, getBackendOrigin } from "../../api/auth";
+import type { SwcUser } from "../../api/auth";
 import { canAccessAdmin, canViewAsteroidIntel, canViewScanWindow } from "../../auth/permissions";
 import {
   getSwcAuthorizationStatus,
+  getSwcImportLogs,
+  clearSwcImportLogs,
   importSwcPersonalEvents,
   updateSwcAuthorizationPreferences,
+  type ImportLogEntry,
   type SwcAuthorizationStatus,
   type SwcPersonalEventsImportResponse,
 } from "../../api/swcAuthorization";
 import SpinnerLoadingCard from "../common/SpinnerLoadingCard";
 import SearchSuggestionPicker from "../common/SearchSuggestionPicker";
 import "../../styles/_membersuniverse.sass";
+
+const DeckGalaxyMap = lazy(() => import("../maps/DeckGalaxyMap"));
+const SHOW_PERF_QUERY = "map_perf";
+
+type GalaxySnapshotResult = {
+  systems: StoredMapSystem[];
+  searchRecords: SectorSearchRecord[];
+  annotationsBySector: Record<string, SectorCellAnnotation[]>;
+};
+
+type CachedGalaxySnapshot = {
+  key: string;
+  revision: string;
+  systems: StoredMapSystem[];
+  searchRecords: SectorSearchRecord[];
+  annotationsBySector: Record<string, SectorCellAnnotation[]>;
+  updated_at: string;
+};
+
+type GalaxyWorkerInbound =
+  | { type: "load"; requestId: number; apiBase: string }
+  | { type: "cancel" };
+
+type GalaxyWorkerOutbound =
+  | {
+      type: "result";
+      requestId: number;
+      revision: string;
+      systems: StoredMapSystem[];
+      searchRecords: SectorSearchRecord[];
+      annotationsBySector: Record<string, SectorCellAnnotation[]>;
+    }
+  | { type: "error"; requestId: number; message: string; status?: number };
+
+const GALAXY_SNAPSHOT_DB_NAME = "joe-galaxy-snapshot-cache";
+const GALAXY_SNAPSHOT_DB_VERSION = 1;
+const GALAXY_SNAPSHOT_STORE = "snapshots";
+const GALAXY_SNAPSHOT_CACHE_KEY = "galaxy:latest";
+
+function openGalaxySnapshotDb(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || typeof indexedDB === "undefined") {
+    return Promise.resolve(null);
+  }
+
+  return new Promise((resolve) => {
+    const request = indexedDB.open(GALAXY_SNAPSHOT_DB_NAME, GALAXY_SNAPSHOT_DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(GALAXY_SNAPSHOT_STORE)) {
+        db.createObjectStore(GALAXY_SNAPSHOT_STORE, { keyPath: "key" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function readCachedGalaxySnapshot(key: string): Promise<CachedGalaxySnapshot | null> {
+  const db = await openGalaxySnapshotDb();
+  if (!db) {
+    return null;
+  }
+
+  return new Promise((resolve) => {
+    const tx = db.transaction(GALAXY_SNAPSHOT_STORE, "readonly");
+    const store = tx.objectStore(GALAXY_SNAPSHOT_STORE);
+    const request = store.get(key);
+    request.onsuccess = () => resolve((request.result as CachedGalaxySnapshot | undefined) ?? null);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function writeCachedGalaxySnapshot(snapshot: CachedGalaxySnapshot): Promise<void> {
+  const db = await openGalaxySnapshotDb();
+  if (!db) {
+    return;
+  }
+
+  await new Promise<void>((resolve) => {
+    const tx = db.transaction(GALAXY_SNAPSHOT_STORE, "readwrite");
+    const store = tx.objectStore(GALAXY_SNAPSHOT_STORE);
+    store.put(snapshot);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => resolve();
+    tx.onabort = () => resolve();
+  });
+}
 
 type FocusRequest =
   | {
@@ -44,10 +129,9 @@ type FocusRequest =
       galy: number;
       nonce: number;
       zoom?: number;
+      highlightCell?: boolean;
     }
   | null;
-
-type MapScope = "sector" | "galaxy";
 
 function formatSwcDisplayId(value: string | null | undefined, fallback = "Unknown") {
   if (!value) {
@@ -60,56 +144,6 @@ function formatSwcDisplayId(value: string | null | undefined, fallback = "Unknow
   }
 
   return value;
-}
-
-function sectorBoundsMayTouch(
-  left: StoredSectorSummary["bounds"] | null | undefined,
-  right: StoredSectorSummary["bounds"] | null | undefined
-) {
-  if (!left || !right) {
-    return false;
-  }
-
-  return !(
-    left.max_galx < right.min_galx - 1 ||
-    left.min_galx > right.max_galx + 1 ||
-    left.max_galy < right.min_galy - 1 ||
-    left.min_galy > right.max_galy + 1
-  );
-}
-
-function sectorsAppearToTouch(
-  selectedSector: StoredSectorSummary,
-  candidateSector: StoredSectorSummary
-) {
-  if (selectedSector.uid === candidateSector.uid) {
-    return true;
-  }
-
-  if (!sectorBoundsMayTouch(selectedSector.bounds, candidateSector.bounds)) {
-    return false;
-  }
-
-  const selectedOutline = selectedSector.outline_coordinates ?? [];
-  const candidateOutline = candidateSector.outline_coordinates ?? [];
-
-  if (!selectedOutline.length || !candidateOutline.length) {
-    return true;
-  }
-
-  const selectedPoints = new Set(selectedOutline.map((point) => `${point.galx}:${point.galy}`));
-
-  return candidateOutline.some((point) => {
-    for (let dx = -1; dx <= 1; dx += 1) {
-      for (let dy = -1; dy <= 1; dy += 1) {
-        if (selectedPoints.has(`${point.galx + dx}:${point.galy + dy}`)) {
-          return true;
-        }
-      }
-    }
-
-    return false;
-  });
 }
 
 function pointInSectorOutline(
@@ -189,16 +223,24 @@ function dedupeByKey<T>(items: T[], keyOf: (item: T) => string) {
   });
 }
 
-const MembersUniversePanel: React.FC = () => {
+type MembersUniversePanelProps = {
+  viewer: SwcUser | null;
+  swcAuthFromParent: SwcAuthorizationStatus | null;
+  onSwcAuthChange?: (next: SwcAuthorizationStatus | null) => void;
+};
+
+const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
+  viewer,
+  swcAuthFromParent,
+  onSwcAuthChange,
+}) => {
   const navigate = useNavigate();
-  const [viewer, setViewer] = useState<SwcUser | null>(null);
-  const [swcAuth, setSwcAuth] = useState<SwcAuthorizationStatus | null>(null);
+  const [swcAuth, setSwcAuth] = useState<SwcAuthorizationStatus | null>(swcAuthFromParent);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sectors, setSectors] = useState<StoredSectorSummary[]>([]);
   const [mapSystems, setMapSystems] = useState<StoredMapSystem[]>([]);
   const [systemSearchOptions, setSystemSearchOptions] = useState<StoredMapSystem[]>([]);
-  const [mapScope, setMapScope] = useState<MapScope>("sector");
   const [selectedSectorUid, setSelectedSectorUid] = useState("");
   const [sectorQuery, setSectorQuery] = useState("");
   const [showSectorMatches, setShowSectorMatches] = useState(false);
@@ -206,38 +248,97 @@ const MembersUniversePanel: React.FC = () => {
   const [showSystemMatches, setShowSystemMatches] = useState(false);
   const [selectedSystemIdentifier, setSelectedSystemIdentifier] = useState("");
   const [systemDetailCache, setSystemDetailCache] = useState<Record<string, StoredSystemDetail>>({});
-  const [sectorScopeSystemsData, setSectorScopeSystemsData] = useState<StoredMapSystem[]>([]);
-  const [sectorScopeAnnotationsData, setSectorScopeAnnotationsData] = useState<SectorCellAnnotation[]>([]);
-  const [sectorScopeSearchRecordsData, setSectorScopeSearchRecordsData] = useState<SectorSearchRecord[]>([]);
   const [annotationCacheBySector, setAnnotationCacheBySector] = useState<
     Record<string, SectorCellAnnotation[]>
   >({});
   const [mapSearchRecords, setMapSearchRecords] = useState<SectorSearchRecord[]>([]);
   const [globalMapDataLoading, setGlobalMapDataLoading] = useState(false);
   const [globalMapDataLoaded, setGlobalMapDataLoaded] = useState(false);
-  const [globalMapTransitioning, setGlobalMapTransitioning] = useState(false);
+  const showPerfDebug = useMemo(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+    return new URLSearchParams(window.location.search).get(SHOW_PERF_QUERY) === "1";
+  }, []);
   const [locationX, setLocationX] = useState("");
   const [locationY, setLocationY] = useState("");
   const [focusRequest, setFocusRequest] = useState<FocusRequest>(null);
+  const [galaxyCameraPosition, setGalaxyCameraPosition] = useState<{ galx: number; galy: number; zoom: number } | null>(null);
   const [eventsImportLoading, setEventsImportLoading] = useState(false);
   const [eventsImportError, setEventsImportError] = useState<string | null>(null);
   const [eventsImportResult, setEventsImportResult] = useState<SwcPersonalEventsImportResponse | null>(null);
+  const [importLogs, setImportLogs] = useState<ImportLogEntry[]>([]);
+  const [importLogsLoading, setImportLogsLoading] = useState(false);
+  const [expandedLogId, setExpandedLogId] = useState<number | null>(null);
   const universePreferencesSaveTimerRef = useRef<number | null>(null);
-  const annotationLoadPromisesRef = useRef<Record<string, Promise<SectorCellAnnotation[]>>>({});
   const systemSearchLoadedRef = useRef(false);
   const systemSearchLoadPromiseRef = useRef<Promise<void> | null>(null);
+  const galaxyWorkerRef = useRef<Worker | null>(null);
+  const galaxyWorkerRequestIdRef = useRef(0);
   const oauthParams = useMemo(() => new URLSearchParams(window.location.search), []);
   const swcOauthError = oauthParams.get("swc_oauth_error");
   const mapAnnotations = useMemo(
     () => Object.values(annotationCacheBySector).flat(),
     [annotationCacheBySector]
   );
-  const loadedAnnotationSectorUids = useMemo(
-    () => Object.keys(annotationCacheBySector),
-    [annotationCacheBySector]
-  );
   const canSeeAsteroidIntel = canViewAsteroidIntel(viewer);
   const canSeeScanWindow = canViewScanWindow(viewer);
+
+  useEffect(() => {
+    setSwcAuth(swcAuthFromParent);
+  }, [swcAuthFromParent]);
+
+  useEffect(() => {
+    const worker = new Worker(
+      new URL("../../workers/galaxySnapshotWorker.ts", import.meta.url),
+      { type: "module" }
+    );
+    galaxyWorkerRef.current = worker;
+
+    worker.onmessage = (event: MessageEvent<GalaxyWorkerOutbound>) => {
+      const msg = event.data;
+
+      if (msg.type === "result") {
+        if (msg.requestId !== galaxyWorkerRequestIdRef.current) return;
+        applyGalaxySnapshotResult(msg);
+        setGlobalMapDataLoaded(true);
+        setGlobalMapDataLoading(false);
+        void writeCachedGalaxySnapshot({
+          key: GALAXY_SNAPSHOT_CACHE_KEY,
+          revision: msg.revision,
+          systems: msg.systems,
+          searchRecords: msg.searchRecords,
+          annotationsBySector: msg.annotationsBySector,
+          updated_at: new Date().toISOString(),
+        });
+      }
+
+      if (msg.type === "error") {
+        if (msg.requestId !== galaxyWorkerRequestIdRef.current) return;
+        setError(msg.message);
+        setGlobalMapDataLoading(false);
+      }
+    };
+
+    worker.onerror = () => {
+      setError("Galaxy snapshot worker crashed. Please refresh the page.");
+      setGlobalMapDataLoading(false);
+    };
+
+    return () => {
+      worker.terminate();
+      galaxyWorkerRef.current = null;
+    };
+  }, []);
+
+  function applyGalaxySnapshotResult(result: GalaxySnapshotResult) {
+    setMapSystems(result.systems);
+    setMapSearchRecords(result.searchRecords);
+    setAnnotationCacheBySector((current) => ({
+      ...current,
+      ...result.annotationsBySector,
+    }));
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -245,16 +346,16 @@ const MembersUniversePanel: React.FC = () => {
     (async () => {
       try {
         setLoading(true);
-        const [authResponse, swcAuthResponse, sectorsResponse] = await Promise.all([
-          fetchAuthMe(),
-          getSwcAuthorizationStatus(),
+        const [swcAuthResponse, sectorsResponse] = await Promise.all([
+          swcAuthFromParent ? Promise.resolve({ data: swcAuthFromParent }) : getSwcAuthorizationStatus(),
           getStoredSectors(),
+          getSwcImportLogs().then((r) => { if (r?.ok) setImportLogs(r.data ?? []); }).catch(() => {}),
         ]);
 
         if (cancelled) return;
 
-        setViewer(authResponse.user ?? null);
         setSwcAuth(swcAuthResponse.data ?? null);
+        onSwcAuthChange?.(swcAuthResponse.data ?? null);
         const nextSectors = sectorsResponse.data ?? [];
         const persistedState = swcAuthResponse.data?.member_tool_preferences?.universe ?? null;
         const preferredSectorUid =
@@ -269,10 +370,6 @@ const MembersUniversePanel: React.FC = () => {
         setSectorQuery("");
         setError(null);
 
-        if (persistedState?.map_scope) {
-          setMapScope(persistedState.map_scope);
-        }
-
         if (persistedState?.selected_system_identifier) {
           setSelectedSystemIdentifier(persistedState.selected_system_identifier);
         }
@@ -284,6 +381,15 @@ const MembersUniversePanel: React.FC = () => {
             zoom: restoredFocus.zoom ?? undefined,
             nonce: Date.now(),
           });
+          // Seed galaxyCameraPosition so the preference-saving effect has a valid
+          // position when focusRequest is consumed and cleared by DeckGalaxyMap.
+          if (restoredFocus.kind === "coords") {
+            setGalaxyCameraPosition({
+              galx: restoredFocus.galx,
+              galy: restoredFocus.galy,
+              zoom: restoredFocus.zoom ?? 3.5,
+            });
+          }
         } else if (firstSectorUid) {
           setFocusRequest({
             kind: "sector",
@@ -315,10 +421,16 @@ const MembersUniversePanel: React.FC = () => {
     }
 
     const nextUniversePreferences = {
-      map_scope: mapScope,
       selected_sector_uid: selectedSectorUid || null,
       selected_system_identifier: selectedSystemIdentifier || null,
-      focus_request: focusRequest
+      focus_request: galaxyCameraPosition
+        ? {
+            kind: "coords" as const,
+            galx: galaxyCameraPosition.galx,
+            galy: galaxyCameraPosition.galy,
+            zoom: galaxyCameraPosition.zoom,
+          }
+        : focusRequest
         ? focusRequest.kind === "sector"
           ? {
               kind: "sector" as const,
@@ -367,132 +479,48 @@ const MembersUniversePanel: React.FC = () => {
         window.clearTimeout(universePreferencesSaveTimerRef.current);
       }
     };
-  }, [focusRequest, mapScope, selectedSectorUid, selectedSystemIdentifier, swcAuth, viewer]);
+  }, [focusRequest, galaxyCameraPosition, selectedSectorUid, selectedSystemIdentifier, swcAuth, viewer]);
 
-  const selectedSectorSummary = useMemo(
-    () => sectors.find((sector) => sector.uid === selectedSectorUid) ?? null,
-    [selectedSectorUid, sectors]
-  );
-  const selectedSectorCluster = useMemo(() => {
-    if (!selectedSectorSummary) {
-      return [];
-    }
-
-    return sectors.filter((sector) => sectorsAppearToTouch(selectedSectorSummary, sector));
-  }, [selectedSectorSummary, sectors]);
-  const selectedSectorClusterUids = useMemo(
-    () => selectedSectorCluster.map((sector) => sector.uid),
-    [selectedSectorCluster]
-  );
-  const selectedSectorClusterBounds = useMemo<GalaxyBounds | null>(() => {
-    const bounds = selectedSectorCluster
-      .map((sector) => sector.bounds)
-      .filter((value): value is NonNullable<StoredSectorSummary["bounds"]> => !!value);
-
-    if (!bounds.length) {
-      return null;
-    }
-
-    return {
-      min_galx: Math.min(...bounds.map((bound) => bound.min_galx)),
-      max_galx: Math.max(...bounds.map((bound) => bound.max_galx)),
-      min_galy: Math.min(...bounds.map((bound) => bound.min_galy)),
-      max_galy: Math.max(...bounds.map((bound) => bound.max_galy)),
-    };
-  }, [selectedSectorCluster]);
-  const selectedSectorClusterBoundsKey = useMemo(
-    () =>
-      selectedSectorClusterBounds
-        ? [
-            selectedSectorClusterBounds.min_galx,
-            selectedSectorClusterBounds.max_galx,
-            selectedSectorClusterBounds.min_galy,
-            selectedSectorClusterBounds.max_galy,
-          ].join(":")
-        : "none",
-    [selectedSectorClusterBounds]
-  );
   const availableSystemSearchOptions = useMemo(
     () =>
       dedupeByKey(
-        [
-          ...systemSearchOptions,
-          ...sectorScopeSystemsData,
-          ...mapSystems,
-        ],
+        [...systemSearchOptions, ...mapSystems],
         (system) =>
           system.uid ??
           system.identifier ??
           `${system.sector_uid ?? "unknown"}:${system.galx ?? "?"}:${system.galy ?? "?"}:${system.name ?? ""}`
       ),
-    [mapSystems, sectorScopeSystemsData, systemSearchOptions]
+    [mapSystems, systemSearchOptions]
   );
-  const sectorScopeSystems = useMemo(
-    () =>
-      dedupeByKey(
-        sectorScopeSystemsData,
-        (system) =>
-          system.uid ??
-          system.identifier ??
-          `${system.sector_uid ?? "unknown"}:${system.galx ?? "?"}:${system.galy ?? "?"}:${system.name ?? ""}`
-      ),
-    [sectorScopeSystemsData]
-  );
-  const sectorScopeAnnotations = useMemo(
-    () =>
-      dedupeByKey(
-        sectorScopeAnnotationsData,
-        (annotation) => String(annotation.id ?? `${annotation.sector_uid}:${annotation.galx}:${annotation.galy}`)
-      ),
-    [sectorScopeAnnotationsData]
-  );
-  const sectorScopeSearchRecords = useMemo(
-    () =>
-      dedupeByKey(
-        sectorScopeSearchRecordsData,
-        (record) => String(record.id ?? `${record.galx}:${record.galy}`)
-      ),
-    [sectorScopeSearchRecordsData]
-  );
-  async function loadSectorScopeData(bounds: GalaxyBounds | null) {
-    if (!bounds) {
-      setSectorScopeSystemsData([]);
-      setSectorScopeAnnotationsData([]);
-      setSectorScopeSearchRecordsData([]);
-      return;
+
+  async function loadGalaxySnapshotData({ silent = false }: { silent?: boolean } = {}) {
+    const worker = galaxyWorkerRef.current;
+    const apiBase = getApiBaseUrl();
+    const requestId = ++galaxyWorkerRequestIdRef.current;
+
+    if (!silent) {
+      setGlobalMapDataLoading(true);
+    }
+    setError(null);
+
+    const cached = await readCachedGalaxySnapshot(GALAXY_SNAPSHOT_CACHE_KEY);
+    if (cached && galaxyWorkerRequestIdRef.current === requestId) {
+      applyGalaxySnapshotResult(cached);
+      setGlobalMapDataLoaded(true);
+      setGlobalMapDataLoading(false);
     }
 
-    const [systemsResponse, annotationsResponse, searchRecordsResponse] = await Promise.all([
-      getStoredMapSystemsInBounds(bounds),
-      getStoredCellAnnotations({ bounds }),
-      getStoredSearchRecordsInBounds(bounds),
-    ]);
-
-    const nextSystems = systemsResponse.data ?? [];
-    const nextAnnotations = annotationsResponse.data ?? [];
-    const nextSearchRecords = searchRecordsResponse.data ?? [];
-
-    setSectorScopeSystemsData(nextSystems);
-    setSectorScopeAnnotationsData(nextAnnotations);
-    setSectorScopeSearchRecordsData(nextSearchRecords);
-    setAnnotationCacheBySector((current) => {
-      const grouped = nextAnnotations.reduce<Record<string, SectorCellAnnotation[]>>((acc, annotation) => {
-        const sectorUid = annotation.sector_uid ?? "";
-        if (!sectorUid) {
-          return acc;
-        }
-
-        const existing = acc[sectorUid] ?? [];
-        acc[sectorUid] = [...existing, annotation];
-        return acc;
-      }, {});
-
-      return {
-        ...current,
-        ...grouped,
-      };
-    });
+    worker?.postMessage({ type: "load", requestId, apiBase } as GalaxyWorkerInbound);
   }
+
+  useEffect(() => {
+    if (!globalMapDataLoaded && !globalMapDataLoading) {
+      void loadGalaxySnapshotData().catch((e: any) => {
+        setError(e?.message ?? "Failed to load galaxy data.");
+        setGlobalMapDataLoading(false);
+      });
+    }
+  }, [globalMapDataLoaded, globalMapDataLoading]);
 
   async function ensureSystemSearchOptionsLoaded() {
     if (systemSearchLoadedRef.current) {
@@ -515,154 +543,6 @@ const MembersUniversePanel: React.FC = () => {
     }
 
     await systemSearchLoadPromiseRef.current;
-  }
-
-  useEffect(() => {
-    if (!selectedSectorUid) {
-      setSelectedSystemIdentifier("");
-      return;
-    }
-    setSelectedSystemIdentifier((current) => {
-      const matchingSystem = sectorScopeSystems.find(
-        (system: StoredMapSystem) => system.identifier === current || system.uid === current
-      );
-
-      if (matchingSystem) {
-        return current;
-      }
-
-      return (
-        sectorScopeSystems.find((system) => system.sector_uid === selectedSectorUid)?.identifier ??
-        sectorScopeSystems.find((system) => system.sector_uid === selectedSectorUid)?.uid ??
-        sectorScopeSystems[0]?.identifier ??
-        sectorScopeSystems[0]?.uid ??
-        ""
-      );
-    });
-  }, [sectorScopeSystems, selectedSectorUid]);
-
-  useEffect(() => {
-    if (mapScope !== "sector") {
-      return;
-    }
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        await loadSectorScopeData(selectedSectorClusterBounds);
-
-        if (!cancelled) {
-          setError(null);
-        }
-      } catch (e: any) {
-        if (!cancelled) {
-          setError(e?.message ?? "Failed to load connected sector detail.");
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [mapScope, selectedSectorClusterBoundsKey]);
-
-  async function handleEnableWholeGalaxy() {
-    if (mapScope === "galaxy" || globalMapDataLoading) {
-      return;
-    }
-
-    if (globalMapDataLoaded) {
-      setGlobalMapTransitioning(true);
-      setMapScope("galaxy");
-      return;
-    }
-
-    try {
-      setError(null);
-      setGlobalMapDataLoading(true);
-      setGlobalMapTransitioning(true);
-
-      await new Promise<void>((resolve) => {
-        window.requestAnimationFrame(() => {
-          window.requestAnimationFrame(() => resolve());
-        });
-      });
-
-      const [systemsResponse, searchRecordsResponse] = await Promise.all([
-        getStoredMapSystems(),
-        getStoredSearchRecords(),
-      ]);
-
-      startTransition(() => {
-        setMapSystems(systemsResponse.data ?? []);
-        setMapSearchRecords(searchRecordsResponse.data ?? []);
-        setGlobalMapDataLoaded(true);
-        setMapScope("galaxy");
-      });
-    } catch (e: any) {
-      setError(e?.message ?? "Failed to load full galaxy map data.");
-      setGlobalMapTransitioning(false);
-    } finally {
-      setGlobalMapDataLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (!(mapScope === "galaxy" && globalMapTransitioning)) {
-      return;
-    }
-
-    let cancelled = false;
-
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        if (!cancelled) {
-          setGlobalMapTransitioning(false);
-        }
-      });
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [globalMapTransitioning, mapScope]);
-
-  async function ensureSectorAnnotationsLoaded(sectorUid: string) {
-    if (!sectorUid) {
-      return [];
-    }
-
-    const cached =
-      mapScope === "sector"
-        ? sectorScopeAnnotations.filter((annotation) => annotation.sector_uid === sectorUid)
-        : annotationCacheBySector[sectorUid];
-    if (cached) {
-      return cached;
-    }
-
-    const pending = annotationLoadPromisesRef.current[sectorUid];
-    if (pending) {
-      return pending;
-    }
-
-    const nextPromise = getStoredCellAnnotations({ sectorUid })
-      .then((response) => response.data ?? [])
-      .finally(() => {
-        delete annotationLoadPromisesRef.current[sectorUid];
-      });
-
-    annotationLoadPromisesRef.current[sectorUid] = nextPromise;
-    return nextPromise;
-  }
-
-  async function refreshSelectedSectorDetail() {
-    if (!selectedSectorClusterBounds) {
-      return null;
-    }
-
-    await loadSectorScopeData(selectedSectorClusterBounds);
-    return null;
   }
 
   async function loadSystemDetailForMap(systemIdentifier: string) {
@@ -804,7 +684,8 @@ const MembersUniversePanel: React.FC = () => {
       galx: resolvedSystem.galx,
       galy: resolvedSystem.galy,
       nonce: Date.now(),
-      zoom: 1.2,
+      zoom: 4,
+      highlightCell: true,
     });
   }
 
@@ -823,7 +704,6 @@ const MembersUniversePanel: React.FC = () => {
 
     if (containingSector) {
       commitSectorSelection(containingSector);
-      setMapScope("sector");
     }
 
     setFocusRequest({
@@ -831,17 +711,14 @@ const MembersUniversePanel: React.FC = () => {
       galx,
       galy,
       nonce: Date.now(),
-      zoom: 1,
+      zoom: 4,
+      highlightCell: true,
     });
   }
 
   function handleMapSystemSelect(systemIdentifier: string, sectorUid?: string | null) {
-    const availableSystems =
-      mapScope === "sector"
-        ? sectorScopeSystems
-        : mapSystems;
     const mapSystem =
-      availableSystems.find(
+      mapSystems.find(
         (system: StoredMapSystem) => system.identifier === systemIdentifier || system.uid === systemIdentifier
       ) ?? null;
     const nextIdentifier = mapSystem?.identifier ?? mapSystem?.uid ?? systemIdentifier;
@@ -896,13 +773,6 @@ const MembersUniversePanel: React.FC = () => {
       };
     });
 
-    setSectorScopeAnnotationsData((current) => {
-      const filtered = current.filter(
-        (entry) => !(entry.galx === payload.galx && entry.galy === payload.galy)
-      );
-      return response.data ? [...filtered, response.data] : filtered;
-    });
-
     return response.data ?? null;
   }
 
@@ -935,35 +805,50 @@ const MembersUniversePanel: React.FC = () => {
 
       return next;
     });
-    setSectorScopeSearchRecordsData((current) => {
-      const next = [...current];
-      const index = next.findIndex(
-        (record) => record.galx === saved.galx && record.galy === saved.galy
-      );
-
-      if (index >= 0) {
-        next[index] = saved;
-      } else {
-        next.push(saved);
-      }
-
-      return next;
-    });
 
     return saved;
   }
 
-  async function refreshSearchRecords() {
-    if (mapScope === "sector") {
-      await refreshSelectedSectorDetail();
-      return;
-    }
+  async function refreshSearchRecords({ silent = false }: { silent?: boolean } = {}) {
+    await loadGalaxySnapshotData({ silent });
+  }
 
-    const searchRecordsResponse = await getStoredSearchRecords();
-    setMapSearchRecords(searchRecordsResponse.data ?? []);
+  function handleResyncSwcAccess() {
+    const backendOrigin = getBackendOrigin();
+    if (!backendOrigin) return;
+    const savedPreferences = swcAuth?.member_tool_preferences;
+    const selectedTools = [
+      savedPreferences?.galaxy !== false ? "galaxy" : null,
+      savedPreferences?.payments !== false ? "payments" : null,
+    ].filter((value): value is string => value !== null);
+    const query = new URLSearchParams({
+      return_to: "/members",
+      ...(selectedTools.length > 0 ? { tools: selectedTools.join(",") } : {}),
+    });
+    window.location.href = `${backendOrigin}/oauth/member-tools?${query.toString()}`;
+  }
+
+  async function loadImportLogs() {
+    setImportLogsLoading(true);
+    try {
+      const response = await getSwcImportLogs();
+      if (response?.ok) {
+        setImportLogs(response.data ?? []);
+      }
+    } catch {
+      // non-critical
+    } finally {
+      setImportLogsLoading(false);
+    }
   }
 
   async function handleImportPersonalEvents() {
+    if (!swcAuth?.has_personal_events_access) {
+      setEventsImportError(
+        "Astrogation access not granted. Please connect your SWC account and grant access before uploading data."
+      );
+      return;
+    }
     try {
       setEventsImportLoading(true);
       setEventsImportError(null);
@@ -978,10 +863,13 @@ const MembersUniversePanel: React.FC = () => {
 
       setEventsImportResult(response);
       await Promise.all([
-        refreshSearchRecords(),
+        refreshSearchRecords({ silent: true }),
         getSwcAuthorizationStatus().then((authResponse) => {
-          setSwcAuth(authResponse.data ?? null);
+          const nextAuthState = authResponse.data ?? null;
+          setSwcAuth(nextAuthState);
+          onSwcAuthChange?.(nextAuthState);
         }),
+        loadImportLogs(),
       ]);
     } catch (e: any) {
       const message = String(e?.message ?? "Failed to pull personal events.");
@@ -998,251 +886,250 @@ const MembersUniversePanel: React.FC = () => {
     }
   }
 
-  const mapElement = (
-    <GalaxySectorMap
-      sectors={
-        mapScope === "sector"
-          ? selectedSectorCluster
-          : sectors
-      }
-      systemMarkers={
-        mapScope === "sector"
-          ? sectorScopeSystems
-          : mapSystems
-      }
-      activeSectorUid={selectedSectorUid || undefined}
-      annotations={
-        mapScope === "sector"
-          ? sectorScopeAnnotations
-          : mapAnnotations
-      }
-      loadedAnnotationSectorUids={
-        mapScope === "sector"
-          ? selectedSectorClusterUids
-          : loadedAnnotationSectorUids
-      }
-      searchRecords={
-        mapScope === "sector"
-          ? sectorScopeSearchRecords
-          : mapSearchRecords
-      }
-      canViewCellIntel={canSeeAsteroidIntel}
-      canViewScanWindow={canSeeScanWindow}
-      onSelectSector={setSelectedSectorUid}
-      onSystemSelect={handleMapSystemSelect}
-      onLocationSelect={handleMapLocationSelect}
-      onSaveAnnotation={handleSaveMapAnnotation}
-      onSaveSearchRecord={handleSaveSearchRecord}
-      ensureSectorAnnotationsLoaded={ensureSectorAnnotationsLoaded}
-      canEditCellIntel={canAccessAdmin(viewer)}
-      loadSystemDetail={loadSystemDetailForMap}
-      focusRequest={focusRequest}
-      onClearFocusRequest={() => setFocusRequest(null)}
-      controlsOverlay={
-        <div className="members-universe__controllers-overlay">
-          <section className="members-universe__controller-section">
-            <div className="members-universe__top-actions-copy">
-              <p className="small" style={{ margin: 0 }}>
-                Astrogation Access: {swcAuth?.has_personal_events_access ? "Yes" : "No"}
-              </p>
-            </div>
-            <div className="members-universe__top-actions-controls">
-              <button
-                className="btn"
-                type="button"
-                onClick={handleImportPersonalEvents}
-                disabled={eventsImportLoading}
-              >
-                {eventsImportLoading ? "Uploading..." : "Upload Astrogation Data"}
+  const perfDebugStats = useMemo(() => {
+    return {
+      renderer: "DeckGL Galaxy Renderer",
+      sectorsLoaded: sectors.length,
+      systemsLoaded: mapSystems.length,
+      recordsLoaded: mapSearchRecords.length,
+      notesLoaded: mapAnnotations.length,
+      loading: globalMapDataLoading,
+    };
+  }, [
+    globalMapDataLoading,
+    mapAnnotations.length,
+    mapSearchRecords.length,
+    mapSystems.length,
+    sectors.length,
+  ]);
+
+  const controlsOverlay = (
+    <div className="members-universe__controllers-overlay">
+      <section className="members-universe__controller-section">
+        <div className="members-universe__top-actions-copy">
+          <p className="small" style={{ margin: 0 }}>
+            Astrogation Access: {swcAuth?.has_personal_events_access ? "Yes" : "No"}
+          </p>
+        </div>
+        <div className="members-universe__top-actions-controls">
+          <button
+            className="btn"
+            type="button"
+            onClick={handleImportPersonalEvents}
+            disabled={eventsImportLoading}
+          >
+            {eventsImportLoading ? "Uploading..." : "Upload Astrogation Data"}
+          </button>
+        </div>
+        {swcOauthError ? (
+          <p className="small" style={{ margin: 0 }}>
+            OAuth error: {swcOauthError}
+          </p>
+        ) : null}
+        {eventsImportError ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <p className="small" style={{ color: "salmon", margin: 0 }}>
+              {eventsImportError}
+            </p>
+            <button className="btn btn--small" type="button" onClick={handleResyncSwcAccess}>
+              Grant Astrogation Access
+            </button>
+          </div>
+        ) : null}
+        {eventsImportResult?.import ? (
+          <p className="small" style={{ margin: 0 }}>
+            Imported {eventsImportResult.import.created} new, updated {eventsImportResult.import.updated}, unchanged {eventsImportResult.import.unchanged}, skipped {eventsImportResult.import.skipped}.
+          </p>
+        ) : null}
+      </section>
+
+      {importLogs.length > 0 ? (
+        <section className="members-universe__controller-section">
+          <div className="members-universe__top-actions-copy">
+            <h4 className="admin-card__title">Upload History</h4>
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={async () => {
+                await clearSwcImportLogs();
+                setImportLogs([]);
+              }}
+            >
+              Clear history
+            </button>
+          </div>
+          <div className="members-universe__import-log">
+            {importLogsLoading ? (
+              <p className="small" style={{ margin: 0 }}>Loading…</p>
+            ) : importLogs.map((log) => (
+              <div key={log.id} className="members-universe__import-log-entry">
+                <button
+                  type="button"
+                  className="members-universe__import-log-header"
+                  onClick={() => setExpandedLogId(expandedLogId === log.id ? null : log.id)}
+                >
+                  <span className="small">
+                    {new Date(log.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+                  </span>
+                  <span className="small members-universe__import-log-counts">
+                    {log.created > 0 ? <span className="members-universe__import-log-new">+{log.created} new</span> : null}
+                    {log.updated > 0 ? <span className="members-universe__import-log-updated">{log.updated} updated</span> : null}
+                    {log.created === 0 && log.updated === 0 ? <span>{log.unchanged} unchanged</span> : null}
+                  </span>
+                </button>
+                {expandedLogId === log.id && log.areas.length > 0 ? (
+                  <ul className="members-universe__import-log-areas">
+                    {log.areas.map((area, i) => (
+                      <li key={i} className="small">
+                        <span className={`members-universe__import-log-action members-universe__import-log-action--${area.action}`}>
+                          {area.action === "created" ? "+" : "~"}
+                        </span>
+                        {area.square_name ?? `(${area.galx}, ${area.galy})`}
+                        <span className="members-universe__import-log-coords"> ({area.galx}, {area.galy})</span>
+                        {area.has_asteroids ? <span className="members-universe__import-log-asteroid"> ★</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="members-universe__controller-section">
+        <div className="members-universe__top-actions-copy">
+          <h4 className="admin-card__title">Navigation</h4>
+          <p className="small" style={{ margin: 0 }}>
+            Plot a course straight to a sector, system, or star chart coordinate.
+          </p>
+        </div>
+
+        <div className="members-universe__controls">
+          <div className="members-universe__field">
+            <label className="small" htmlFor="deck-universe-sector">
+              Sector
+            </label>
+            <div className="members-universe__inline members-universe__sector-picker">
+              <SearchSuggestionPicker
+                id="deck-universe-sector"
+                value={sectorQuery}
+                onChange={setSectorQuery}
+                onSubmit={handleGoToSector}
+                placeholder="Type a sector name"
+                suggestions={filteredSectors}
+                showSuggestions={showSectorMatches}
+                onShowSuggestions={setShowSectorMatches}
+                getKey={(sector) => sector.uid}
+                isActive={(sector) => sector.uid === selectedSectorUid}
+                onSelect={commitSectorSelection}
+                renderSuggestion={(sector) => (
+                  <>
+                    <strong>{sector.name ?? formatSwcDisplayId(sector.uid)}</strong>
+                    <span className="small">{formatSwcDisplayId(sector.uid)}</span>
+                  </>
+                )}
+              />
+              <button className="btn" type="button" onClick={handleGoToSector}>
+                Go to Sector
               </button>
             </div>
-            {swcOauthError ? (
-              <p className="small" style={{ margin: 0 }}>
-                OAuth error: {swcOauthError}
-              </p>
-            ) : null}
-            {eventsImportError ? (
-              <p className="small" style={{ color: "salmon", margin: 0 }}>
-                {eventsImportError}
-              </p>
-            ) : null}
-            {eventsImportResult?.import ? (
-              <p className="small" style={{ margin: 0 }}>
-                Imported {eventsImportResult.import.created} new, updated {eventsImportResult.import.updated}, unchanged {eventsImportResult.import.unchanged}, skipped {eventsImportResult.import.skipped}.
-              </p>
-            ) : null}
-          </section>
+          </div>
 
-          <section className="members-universe__controller-section">
-            <div className="members-universe__top-actions-copy">
-              <h4 className="admin-card__title">Navigation</h4>
-              <p className="small" style={{ margin: 0 }}>
-                Plot a course straight to a sector, system, or star chart coordinate.
-              </p>
+          <div className="members-universe__field">
+            <label className="small">Star Chart Coordinates</label>
+            <div className="members-universe__inline">
+              <input
+                className="input"
+                inputMode="numeric"
+                value={locationX}
+                onChange={(event) => setLocationX(event.target.value)}
+                placeholder="galx"
+              />
+              <input
+                className="input"
+                inputMode="numeric"
+                value={locationY}
+                onChange={(event) => setLocationY(event.target.value)}
+                placeholder="galy"
+              />
+              <button className="btn" type="button" onClick={handleGoToCoordinates}>
+                Go to Coordinates
+              </button>
             </div>
+          </div>
 
-            <div className="members-universe__field">
-              <label className="small">Map Scope</label>
-              <div className="members-universe__inline">
-                <button
-                  className={`btn${mapScope === "sector" ? "" : " btn--ghost"}`}
-                  type="button"
-                  onClick={() => setMapScope("sector")}
-                  disabled={globalMapDataLoading}
-                >
-                  Selected Sector
-                </button>
-                <button
-                  className={`btn${mapScope === "galaxy" ? "" : " btn--ghost"}`}
-                  type="button"
-                  onClick={() => {
-                    void handleEnableWholeGalaxy();
+          <div className="members-universe__field">
+            <label className="small" htmlFor="deck-universe-system">
+              System
+            </label>
+            <div className="members-universe__inline members-universe__sector-picker">
+              <div className="members-universe__typeahead">
+                <input
+                  id="deck-universe-system"
+                  className="input"
+                  value={systemQuery}
+                  onChange={(event) => {
+                    setSystemQuery(event.target.value);
+                    setShowSystemMatches(true);
+                    void ensureSystemSearchOptionsLoaded().catch(() => {});
                   }}
-                  disabled={globalMapDataLoading}
-                >
-                  {globalMapDataLoading ? "Loading Galaxy…" : "Whole Galaxy"}
-                </button>
-              </div>
-              <p className="small" style={{ margin: 0 }}>
-                {mapScope === "sector"
-                  ? "Selected Sector loads the active sector plus the sectors touching it, so edge cells keep their intel."
-                  : "Whole Galaxy loads the full map the way it works today."}
-              </p>
-              {globalMapDataLoading || globalMapTransitioning ? (
-                <p className="small" style={{ margin: 0 }}>
-                  Loading full galaxy systems and intel…
-                </p>
-              ) : null}
-            </div>
-
-            <div className="members-universe__controls">
-              <div className="members-universe__field">
-                <label className="small" htmlFor="members-universe-sector">
-                  Sector
-                </label>
-                <div className="members-universe__inline members-universe__sector-picker">
-                  <SearchSuggestionPicker
-                    id="members-universe-sector"
-                    value={sectorQuery}
-                    onChange={setSectorQuery}
-                    onSubmit={handleGoToSector}
-                    placeholder="Type a sector name"
-                    suggestions={filteredSectors}
-                    showSuggestions={showSectorMatches}
-                    onShowSuggestions={setShowSectorMatches}
-                    getKey={(sector) => sector.uid}
-                    isActive={(sector) => sector.uid === selectedSectorUid}
-                    onSelect={commitSectorSelection}
-                    renderSuggestion={(sector) => (
-                      <>
-                        <strong>{sector.name ?? formatSwcDisplayId(sector.uid)}</strong>
-                        <span className="small">{formatSwcDisplayId(sector.uid)}</span>
-                      </>
-                    )}
-                  />
-                  <button className="btn" type="button" onClick={handleGoToSector}>
-                    Go to Sector
-                  </button>
-                </div>
-              </div>
-
-              <div className="members-universe__field">
-                <label className="small">Star Chart Coordinates</label>
-                <div className="members-universe__inline">
-                  <input
-                    className="input"
-                    inputMode="numeric"
-                    value={locationX}
-                    onChange={(event) => setLocationX(event.target.value)}
-                    placeholder="galx"
-                  />
-                  <input
-                    className="input"
-                    inputMode="numeric"
-                    value={locationY}
-                    onChange={(event) => setLocationY(event.target.value)}
-                    placeholder="galy"
-                  />
-                  <button className="btn" type="button" onClick={handleGoToCoordinates}>
-                    Go to Coordinates
-                  </button>
-                </div>
-              </div>
-
-              <div className="members-universe__field">
-                <label className="small" htmlFor="members-universe-system">
-                  System
-                </label>
-                <div className="members-universe__inline members-universe__sector-picker">
-                  <div className="members-universe__typeahead">
-                    <input
-                      id="members-universe-system"
-                      className="input"
-                      value={systemQuery}
-                      onChange={(event) => {
-                        setSystemQuery(event.target.value);
-                        setShowSystemMatches(true);
-                        void ensureSystemSearchOptionsLoaded().catch(() => {});
-                      }}
-                      onFocus={() => {
-                        setShowSystemMatches(true);
-                        void ensureSystemSearchOptionsLoaded().catch(() => {});
-                      }}
-                      onBlur={() => {
-                        window.setTimeout(() => setShowSystemMatches(false), 120);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          handleGoToSystem();
-                        }
-                      }}
-                      placeholder="Type a system name"
-                      autoComplete="off"
-                    />
-                    {showSystemMatches && filteredSystems.length ? (
-                      <div className="members-universe__typeahead-list">
-                        {filteredSystems.map((system: StoredMapSystem) => {
-                          const systemKey = system.identifier ?? system.uid ?? "";
-                          return (
-                            <button
-                              key={systemKey}
-                              type="button"
-                              className={`members-universe__typeahead-option${
-                                systemKey === selectedSystemIdentifier ? " is-active" : ""
-                              }`}
-                              onMouseDown={(event) => {
-                                event.preventDefault();
-                                commitSystemSelection(system);
-                              }}
-                            >
-                              <strong>{system.name ?? systemKey}</strong>
-                              <span className="small">
-                                {system.sector_name ??
-                                  formatSwcDisplayId(system.sector_uid, "Unknown sector")}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : null}
+                  onFocus={() => {
+                    setShowSystemMatches(true);
+                    void ensureSystemSearchOptionsLoaded().catch(() => {});
+                  }}
+                  onBlur={() => {
+                    window.setTimeout(() => setShowSystemMatches(false), 120);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void handleGoToSystem();
+                    }
+                  }}
+                  placeholder="Type a system name"
+                  autoComplete="off"
+                />
+                {showSystemMatches && filteredSystems.length ? (
+                  <div className="members-universe__typeahead-list">
+                    {filteredSystems.map((system: StoredMapSystem) => {
+                      const systemKey = system.identifier ?? system.uid ?? "";
+                      return (
+                        <button
+                          key={systemKey}
+                          type="button"
+                          className={`members-universe__typeahead-option${
+                            systemKey === selectedSystemIdentifier ? " is-active" : ""
+                          }`}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            commitSystemSelection(system);
+                          }}
+                        >
+                          <strong>{system.name ?? systemKey}</strong>
+                          <span className="small">
+                            {system.sector_name ?? formatSwcDisplayId(system.sector_uid, "Unknown sector")}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
-                  <button className="btn" type="button" onClick={handleGoToSystem}>
-                    Go to System
-                  </button>
-                </div>
+                ) : null}
               </div>
+              <button className="btn" type="button" onClick={handleGoToSystem}>
+                Go to System
+              </button>
             </div>
-
-            {error ? (
-              <p className="small" style={{ color: "salmon", margin: 0 }}>
-                {error}
-              </p>
-            ) : null}
-          </section>
+          </div>
         </div>
-      }
-    />
+
+        {error ? (
+          <p className="small" style={{ color: "salmon", margin: 0 }}>
+            {error}
+          </p>
+        ) : null}
+      </section>
+    </div>
   );
 
   if (loading) {
@@ -1283,8 +1170,58 @@ const MembersUniversePanel: React.FC = () => {
   return (
     <div className="members-universe">
       <div style={{ position: "relative" }}>
-        {mapElement}
-        {globalMapDataLoading || globalMapTransitioning ? (
+        <Suspense
+          fallback={
+            <SpinnerLoadingCard
+              title="Loading Galaxy Renderer"
+              tip="Preparing DeckGL engine for whole-galaxy astrogation."
+            />
+          }
+        >
+          <DeckGalaxyMap
+            sectors={sectors}
+            systemMarkers={mapSystems}
+            searchRecords={mapSearchRecords}
+            annotations={mapAnnotations}
+            canViewCellIntel={canSeeAsteroidIntel}
+            canViewScanWindow={canSeeScanWindow}
+            canEditCellIntel={canAccessAdmin(viewer)}
+            activeSectorUid={selectedSectorUid || undefined}
+            focusRequest={focusRequest}
+            onClearFocusRequest={() => setFocusRequest(null)}
+            onCameraChange={(galx, galy, zoom) => setGalaxyCameraPosition({ galx, galy, zoom })}
+            onSelectSector={setSelectedSectorUid}
+            onSystemSelect={handleMapSystemSelect}
+            onLocationSelect={handleMapLocationSelect}
+            onSaveAnnotation={handleSaveMapAnnotation}
+            onSaveSearchRecord={handleSaveSearchRecord}
+            loadSystemDetail={loadSystemDetailForMap}
+            controlsOverlay={controlsOverlay}
+          />
+        </Suspense>
+        {showPerfDebug ? (
+          <div
+            className="members-universe-map__status"
+            style={{
+              left: "0.85rem",
+              right: "auto",
+              top: "0.85rem",
+              bottom: "auto",
+              zIndex: 5,
+              display: "grid",
+              gap: "0.2rem",
+            }}
+          >
+            <span className="small"><strong>Perf Debug Enabled</strong></span>
+            <span className="small">Renderer: {perfDebugStats.renderer}</span>
+            <span className="small">Sectors Loaded: {perfDebugStats.sectorsLoaded}</span>
+            <span className="small">Systems Loaded: {perfDebugStats.systemsLoaded}</span>
+            <span className="small">Search Records: {perfDebugStats.recordsLoaded}</span>
+            <span className="small">Notes Loaded: {perfDebugStats.notesLoaded}</span>
+            <span className="small">Loading: {perfDebugStats.loading ? "Yes" : "No"}</span>
+          </div>
+        ) : null}
+        {globalMapDataLoading ? (
           <div
             style={{
               position: "absolute",
@@ -1300,8 +1237,8 @@ const MembersUniversePanel: React.FC = () => {
           >
             <SpinnerLoadingCard
               compact
-              title="Building Full Galaxy View"
-              tip="Long-range astrogation charts are being stitched together. Selected Sector mode is lighter, but Whole Galaxy needs the full intel set."
+              title="Building Galaxy View"
+              tip="Long-range astrogation charts are being stitched together."
             />
           </div>
         ) : null}

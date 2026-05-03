@@ -117,8 +117,14 @@ export function getApiBaseUrl(): string {
  * Example: https://api.joe-swc.com
  */
 export function getBackendOrigin(): string {
+  const explicitOrigin = requireEnv("VITE_BACKEND_ORIGIN").replace(/\/+$/, "");
+  if (explicitOrigin) {
+    return explicitOrigin;
+  }
+
   const api = getApiBaseUrl();
   if (!api) return "";
+  if (api.startsWith("/")) return "";
   return api.replace(/\/api\/?$/, "");
 }
 
@@ -131,9 +137,9 @@ export function getSessionStreamUrl(): string {
 /** Hit Sanctum to ensure Laravel issues XSRF-TOKEN cookie */
 export async function ensureCsrfCookie(): Promise<void> {
   const origin = getBackendOrigin();
-  if (!origin) throw new Error("VITE_API_BASE_URL is missing");
+  const csrfUrl = origin ? `${origin}/sanctum/csrf-cookie` : "/sanctum/csrf-cookie";
 
-  await fetch(`${origin}/sanctum/csrf-cookie`, {
+  await fetch(csrfUrl, {
     method: "GET",
     credentials: "include",
   });

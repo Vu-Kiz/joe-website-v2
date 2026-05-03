@@ -14,6 +14,36 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes("node_modules")) {
+              return undefined;
+            }
+
+            if (
+              id.includes("/@deck.gl/core/") ||
+              id.includes("/@luma.gl/core/") ||
+              id.includes("/@luma.gl/engine/") ||
+              id.includes("/@math.gl/")
+            ) {
+              return "deck-core";
+            }
+
+            if (id.includes("/@deck.gl/layers/") || id.includes("/@deck.gl/extensions/")) {
+              return "deck-layers";
+            }
+
+            if (id.includes("/deck.gl/") || id.includes("/@deck.gl/react/")) {
+              return "deck-react";
+            }
+
+            return undefined;
+          },
+        },
+      },
+    },
     define: {
       __APP_VERSION__: JSON.stringify(packageJson.version ?? "0.0.0"),
     },
@@ -22,6 +52,18 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       strictPort: true,
       allowedHosts,
+      proxy: {
+        "/api": {
+          target: "http://backend",
+          changeOrigin: true,
+          secure: false,
+        },
+        "/sanctum": {
+          target: "http://backend",
+          changeOrigin: true,
+          secure: false,
+        },
+      },
     },
     hmr: {
       protocol: "wss",

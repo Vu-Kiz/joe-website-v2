@@ -94,6 +94,8 @@ Route::middleware(['auth:sanctum', 'require_any:is_admin'])->prefix('admin')->gr
     Route::get('/users', [UserController::class, 'index']);
     Route::patch('/users/{user}/permissions', [UserController::class, 'updatePermissions']);
     Route::post('/users/{user}/force-logout', [UserController::class, 'forceLogout']);
+    Route::post('/users/{user}/reset-system-updater-cursor', [UserController::class, 'resetSystemUpdaterCursor']);
+    Route::post('/users/{user}/full-reset-system-updater', [UserController::class, 'fullResetSystemUpdater']);
     Route::get('/member-changelog', [MemberChangelogAdminController::class, 'index']);
     Route::post('/member-changelog', [MemberChangelogAdminController::class, 'store']);
     Route::put('/member-changelog/{memberChangelogEntry}', [MemberChangelogAdminController::class, 'update']);
@@ -140,6 +142,9 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
     Route::post('/payment-transfers/{paymentTransfer}/verify', [\App\Http\Controllers\Api\PaymentController::class, 'verify']);
     Route::post('/payment-transfers/{paymentTransfer}/manual-verify', [\App\Http\Controllers\Api\PaymentController::class, 'manualVerify']);
     Route::get('/universe/sectors', [UniverseController::class, 'sectors']);
+    Route::get('/universe/cache-manifest', [UniverseController::class, 'cacheManifest']);
+    Route::get('/universe/galaxy-snapshot/meta', [UniverseController::class, 'galaxySnapshotMeta']);
+    Route::get('/universe/galaxy-snapshot/layer/{layer}', [UniverseController::class, 'galaxySnapshotLayer']);
     Route::get('/universe/map-systems', [UniverseController::class, 'mapSystems']);
     Route::get('/universe/archive/planets', [UniverseController::class, 'archivePlanets']);
     Route::get('/universe/archive/planets/{planet}', [UniverseController::class, 'archivePlanet']);
@@ -347,6 +352,8 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
     Route::get('/factions/mine', [FactionController::class, 'mine']);
     Route::get('/factions/mine/payable', [FactionController::class, 'minePayable']);
     Route::post('/universe/search-records/import-personal-events', [SearchRecordController::class, 'importPersonalEvents']);
+    Route::get('/universe/search-records/import-logs', [SearchRecordController::class, 'importLogs']);
+    Route::delete('/universe/search-records/import-logs', [SearchRecordController::class, 'clearImportLogs']);
     Route::get('/manual-payment-templates', [ManualPaymentTemplateController::class, 'index']);
     Route::get('/manual-payment-templates/options', [ManualPaymentTemplateController::class, 'options']);
     Route::post('/manual-payment-templates', [ManualPaymentTemplateController::class, 'store']);

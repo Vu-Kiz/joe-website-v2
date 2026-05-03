@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  fullResetAdminUserSystemUpdater,
   forceAdminUserLogout,
   listAdminUsers,
   updateAdminUserPermissions,
@@ -68,6 +69,7 @@ const AdminUsersPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<number | null>(null);
   const [forcingLogoutId, setForcingLogoutId] = useState<number | null>(null);
+  const [resettingSystemUpdaterId, setResettingSystemUpdaterId] = useState<number | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
   const [openScanWindowId, setOpenScanWindowId] = useState<number | null>(null);
   const [users, setUsers] = useState<EditableUserState[]>([]);
@@ -185,6 +187,32 @@ const AdminUsersPanel: React.FC = () => {
       setError(e?.message ?? "Failed to force logout.");
     } finally {
       setForcingLogoutId(null);
+    }
+  };
+
+  const handleFullResetSystemUpdater = async (user: EditableUserState) => {
+    const shouldReset = window.confirm(
+      `Full reset system updater for ${user.handle}? This preserves map data, resets cursor, and clears their legacy import linkage.`
+    );
+
+    if (!shouldReset) {
+      return;
+    }
+
+    try {
+      setResettingSystemUpdaterId(user.id);
+      setError(null);
+      setNotice(null);
+
+      const res = await fullResetAdminUserSystemUpdater(user.id);
+      setNotice(
+        res.message ||
+          `Full reset complete for ${user.handle}. Cleared ${res.legacy?.links_cleared ?? 0} legacy link(s).`
+      );
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to full-reset system updater.");
+    } finally {
+      setResettingSystemUpdaterId(null);
     }
   };
 
@@ -493,9 +521,27 @@ const AdminUsersPanel: React.FC = () => {
                         type="button"
                         className="btn btn--small btn--ghost"
                         onClick={() => handleForceLogout(user)}
-                        disabled={forcingLogoutId === user.id || savingId === user.id}
+                        disabled={
+                          forcingLogoutId === user.id ||
+                          savingId === user.id ||
+                          resettingSystemUpdaterId === user.id
+                        }
                       >
                         {forcingLogoutId === user.id ? "Forcing Logout…" : "Force Logout"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn--small btn--ghost"
+                        onClick={() => handleFullResetSystemUpdater(user)}
+                        disabled={
+                          resettingSystemUpdaterId === user.id ||
+                          savingId === user.id ||
+                          forcingLogoutId === user.id
+                        }
+                      >
+                        {resettingSystemUpdaterId === user.id
+                          ? "Resetting…"
+                          : "Full Reset System Updater"}
                       </button>
                       <button
                         type="button"

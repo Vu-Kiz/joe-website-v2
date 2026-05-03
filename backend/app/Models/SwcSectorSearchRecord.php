@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class SwcSectorSearchRecord extends Model
 {
     protected $fillable = [
+        'user_id',
         'sector_id',
         'sector_uid',
         'asteroid_uid',

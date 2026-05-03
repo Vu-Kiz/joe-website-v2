@@ -18,6 +18,7 @@ use App\Models\SwcRace;
 use App\Models\SwcSector;
 use App\Models\SwcSectorCellAnnotation;
 use App\Models\SwcSectorSearchRecord;
+use App\Models\User;
 use App\Models\SwcShipType;
 use App\Models\SwcStation;
 use App\Models\SwcStationType;
@@ -36,6 +37,10 @@ use Throwable;
 
 class UniverseController extends Controller
 {
+    private const SEARCH_RECORDS_CACHE_TTL_SECONDS = 120;
+    private const SEARCH_RECORDS_CACHE_VERSION_KEY = 'universe:search-records:version';
+    private const CELL_ANNOTATIONS_CACHE_VERSION_KEY = 'universe:cell-annotations:version';
+
     public function archivePlanets(Request $request): JsonResponse
     {
         $query = trim((string) $request->query('q', ''));
@@ -583,6 +588,26 @@ class UniverseController extends Controller
         ];
     }
 
+    private function resolveSearchRecordPlayerName(SwcSectorSearchRecord $record): ?string
+    {
+        $name = trim((string) ($record->legacy_player ?? $record->legacy_handle ?? ''));
+        if ($name !== '') {
+            return $name;
+        }
+
+        if ($record->user_id) {
+            $user = User::find($record->user_id, ['swc_handle', 'discord_global_name', 'discord_username']);
+            foreach ([$user?->swc_handle, $user?->discord_global_name, $user?->discord_username] as $candidate) {
+                $value = trim((string) ($candidate ?? ''));
+                if ($value !== '') {
+                    return $value;
+                }
+            }
+        }
+
+        return null;
+    }
+
     private function mapSearchRecord(SwcSectorSearchRecord $record): array
     {
         return [
@@ -607,7 +632,7 @@ class UniverseController extends Controller
             'is_rescan_due' => $record->rescan_due_at
                 ? $record->rescan_due_at->lte(Carbon::now())
                 : false,
-            'legacy_player' => $record->legacy_player,
+            'legacy_player' => $this->resolveSearchRecordPlayerName($record),
             'legacy_icon' => $record->legacy_icon,
             'handle' => $record->legacy_handle,
             'legacy_tag' => $record->legacy_tag,
@@ -670,6 +695,351 @@ class UniverseController extends Controller
                 ])
                 ->toArray();
         });
+    }
+
+    public function cacheManifest(): JsonResponse
+    {
+        $manifest = Cache::remember('universe:cache-manifest:v1', 15, function () {
+            $sectorLastPulledAt = SwcSector::query()->max('last_pulled_at');
+            $sectorUpdatedAt = SwcSector::query()->max('updated_at');
+            $systemLastPulledAt = SwcSystem::query()->max('last_pulled_at');
+            $systemUpdatedAt = SwcSystem::query()->max('updated_at');
+            $searchRecordUpdatedAt = SwcSectorSearchRecord::query()->max('updated_at');
+            $annotationUpdatedAt = SwcSectorCellAnnotation::query()->max('updated_at');
+
+            $sectorsCount = (int) SwcSector::query()->count();
+            $systemsCount = (int) SwcSystem::query()
+                ->whereNotNull('galx')
+                ->whereNotNull('galy')
+                ->count();
+            $searchRecordsCount = (int) SwcSectorSearchRecord::query()->count();
+            $annotationsCount = (int) SwcSectorCellAnnotation::query()->count();
+
+            $snapshot = [
+                'sectors' => [
+                    'count' => $sectorsCount,
+                    'last_pulled_at' => $sectorLastPulledAt ? Carbon::parse((string) $sectorLastPulledAt)->toISOString() : null,
+                    'updated_at' => $sectorUpdatedAt ? Carbon::parse((string) $sectorUpdatedAt)->toISOString() : null,
+                ],
+                'map_systems' => [
+                    'count' => $systemsCount,
+                    'last_pulled_at' => $systemLastPulledAt ? Carbon::parse((string) $systemLastPulledAt)->toISOString() : null,
+                    'updated_at' => $systemUpdatedAt ? Carbon::parse((string) $systemUpdatedAt)->toISOString() : null,
+                ],
+                'search_records' => [
+                    'count' => $searchRecordsCount,
+                    'updated_at' => $searchRecordUpdatedAt ? Carbon::parse((string) $searchRecordUpdatedAt)->toISOString() : null,
+                ],
+                'cell_annotations' => [
+                    'count' => $annotationsCount,
+                    'updated_at' => $annotationUpdatedAt ? Carbon::parse((string) $annotationUpdatedAt)->toISOString() : null,
+                ],
+            ];
+
+            return [
+                'revision' => sha1(json_encode($snapshot)),
+                'snapshot' => $snapshot,
+                'generated_at' => now()->toISOString(),
+            ];
+        });
+
+        return response()->json([
+            'ok' => true,
+            'data' => $manifest,
+        ]);
+    }
+
+    public function galaxySnapshotMeta(Request $request): JsonResponse
+    {
+        $canViewAsteroidIntel = $this->canViewAsteroidIntel($request);
+        $scanWindow = $this->resolveScanWindow($request);
+        $canViewScanWindow = $scanWindow !== null;
+        $manifest = $this->cacheManifest()->getData(true);
+        $manifestRevision = data_get($manifest, 'data.revision', 'none');
+        $scopeHash = sha1(json_encode([
+            'can_view_asteroid_intel' => $canViewAsteroidIntel,
+            'can_view_scan_window' => $canViewScanWindow,
+            'scan_window' => $scanWindow,
+        ], JSON_THROW_ON_ERROR));
+        $cacheKey = sprintf('universe:galaxy-snapshot:meta:%s:%s', $manifestRevision, $scopeHash);
+
+        $meta = Cache::remember($cacheKey, 30, function () use ($canViewAsteroidIntel, $canViewScanWindow, $scanWindow, $manifestRevision, $scopeHash) {
+            $systemsCount = (int) SwcSystem::query()
+                ->whereNotNull('galx')
+                ->whereNotNull('galy')
+                ->count();
+
+            $searchRecordBaseQuery = SwcSectorSearchRecord::query();
+            if (!$canViewAsteroidIntel && $canViewScanWindow && $scanWindow) {
+                $searchRecordBaseQuery
+                    ->whereBetween('galx', [$scanWindow['min_galx'], $scanWindow['max_galx']])
+                    ->whereBetween('galy', [$scanWindow['min_galy'], $scanWindow['max_galy']]);
+            }
+
+            $asteroidsCount = $canViewAsteroidIntel
+                ? (clone $searchRecordBaseQuery)->where('has_asteroids', true)->count()
+                : 0;
+            $scansCount = ($canViewAsteroidIntel || $canViewScanWindow)
+                ? (clone $searchRecordBaseQuery)->where(function ($q) {
+                    $q->where('is_system_searched', true)
+                      ->orWhereNotNull('legacy_recorded_at')
+                      ->orWhereNotNull('legacy_player');
+                })->count()
+                : 0;
+            $shipsCount = $canViewAsteroidIntel
+                ? (clone $searchRecordBaseQuery)->where('has_ships', true)->count()
+                : 0;
+            $stationsCount = $canViewAsteroidIntel
+                ? (clone $searchRecordBaseQuery)->where('has_stations', true)->count()
+                : 0;
+            $notesCount = $canViewAsteroidIntel
+                ? SwcSectorCellAnnotation::query()
+                    ->whereRaw("TRIM(COALESCE(notes, '')) <> ''")
+                    ->count()
+                : 0;
+
+            return [
+                'revision' => sha1($manifestRevision . ':' . $scopeHash),
+                'manifest_revision' => $manifestRevision,
+                'can_view_asteroid_intel' => $canViewAsteroidIntel,
+                'can_view_scan_window' => $canViewScanWindow,
+                'layers' => [
+                    ['name' => 'sectors', 'count' => (int) SwcSector::query()->count(), 'available' => true],
+                    ['name' => 'systems', 'count' => $systemsCount, 'available' => true],
+                    ['name' => 'asteroids', 'count' => $asteroidsCount, 'available' => $canViewAsteroidIntel],
+                    ['name' => 'scans', 'count' => $scansCount, 'available' => ($canViewAsteroidIntel || $canViewScanWindow)],
+                    ['name' => 'notes', 'count' => $notesCount, 'available' => $canViewAsteroidIntel],
+                    ['name' => 'ships', 'count' => $shipsCount, 'available' => $canViewAsteroidIntel],
+                    ['name' => 'stations', 'count' => $stationsCount, 'available' => $canViewAsteroidIntel],
+                ],
+                'generated_at' => now()->toISOString(),
+            ];
+        });
+
+        return response()->json([
+            'ok' => true,
+            'data' => $meta,
+        ]);
+    }
+
+    public function galaxySnapshotLayer(Request $request, string $layer): JsonResponse
+    {
+        $layer = trim(strtolower($layer));
+        $allowedLayers = ['sectors', 'systems', 'asteroids', 'scans', 'notes', 'ships', 'stations'];
+        if (!in_array($layer, $allowedLayers, true)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Unsupported layer.',
+                'data' => [],
+            ], 422);
+        }
+
+        $canViewAsteroidIntel = $this->canViewAsteroidIntel($request);
+        $scanWindow = $this->resolveScanWindow($request);
+        $canViewScanWindow = $scanWindow !== null;
+
+        $scopeHash = sha1(json_encode([
+            'can_view_asteroid_intel' => $canViewAsteroidIntel,
+            'can_view_scan_window' => $canViewScanWindow,
+            'scan_window' => $scanWindow,
+        ], JSON_THROW_ON_ERROR));
+        $searchRecordsVersion = (int) Cache::get(self::SEARCH_RECORDS_CACHE_VERSION_KEY, 1);
+        $annotationsVersion = (int) Cache::get(self::CELL_ANNOTATIONS_CACHE_VERSION_KEY, 1);
+
+        // Small layers (sectors, systems, notes) are safe to cache in the file store.
+        // Large record layers (asteroids, scans, ships, stations) can have 30k+ rows and
+        // serializing them to the file cache exhausts the PHP memory limit, so they are
+        // computed on every request (the DB query is fast and results are ~4s to build).
+        $cacheable = in_array($layer, ['sectors', 'systems', 'notes'], true);
+
+        $cacheVersion = match ($layer) {
+            'notes' => $annotationsVersion,
+            'asteroids', 'scans', 'ships', 'stations' => $searchRecordsVersion,
+            default => 1,
+        };
+        $cacheKey = sprintf(
+            'universe:galaxy-snapshot:layer:%s:v%d:%s',
+            $layer,
+            $cacheVersion,
+            $scopeHash
+        );
+
+        $buildPayload = function () use ($layer, $canViewAsteroidIntel, $canViewScanWindow, $scanWindow) {
+            if ($layer === 'sectors') {
+                return SwcSector::query()
+                    ->orderBy('name')
+                    ->get([
+                        'id',
+                        'uid',
+                        'name',
+                        'owner_uid',
+                        'owner_name',
+                        'population',
+                        'known_systems',
+                        'coordinate_count',
+                        'system_count',
+                        'color_r',
+                        'color_g',
+                        'color_b',
+                        'color_hex',
+                        'outline_coordinates',
+                        'bounds',
+                        'last_pulled_at',
+                    ])
+                    ->toArray();
+            }
+
+            if ($layer === 'systems') {
+                return SwcSystem::query()
+                    ->whereNotNull('galx')
+                    ->whereNotNull('galy')
+                    ->orderBy('name')
+                    ->get([
+                        'uid',
+                        'identifier',
+                        'name',
+                        'sector_uid',
+                        'sector_name',
+                        'galx',
+                        'galy',
+                        'last_pulled_at',
+                    ])
+                    ->toArray();
+            }
+
+            if ($layer === 'notes') {
+                if (!$canViewAsteroidIntel) {
+                    return [];
+                }
+
+                return SwcSectorCellAnnotation::query()
+                    ->whereRaw("TRIM(COALESCE(notes, '')) <> ''")
+                    ->orderBy('galy')
+                    ->orderBy('galx')
+                    ->get([
+                        'id',
+                        'sector_uid',
+                        'galx',
+                        'galy',
+                        'marker_type',
+                        'label',
+                        'notes',
+                        'created_at',
+                        'updated_at',
+                    ])
+                    ->toArray();
+            }
+
+            if (!$canViewAsteroidIntel && !$canViewScanWindow) {
+                return [];
+            }
+
+            $recordsQuery = DB::table('swc_sector_search_records');
+
+            if (!$canViewAsteroidIntel && $canViewScanWindow && $scanWindow) {
+                $recordsQuery
+                    ->whereBetween('galx', [$scanWindow['min_galx'], $scanWindow['max_galx']])
+                    ->whereBetween('galy', [$scanWindow['min_galy'], $scanWindow['max_galy']]);
+            }
+
+            match ($layer) {
+                'asteroids' => $recordsQuery->where('has_asteroids', true),
+                'scans' => $recordsQuery->where(function ($q) {
+                    $q->where('is_system_searched', true)
+                      ->orWhereNotNull('legacy_recorded_at')
+                      ->orWhereNotNull('legacy_player');
+                }),
+                'ships' => $recordsQuery->where('has_ships', true),
+                'stations' => $recordsQuery->where('has_stations', true),
+                default => null,
+            };
+
+            $records = $recordsQuery
+                ->orderBy('galy')
+                ->orderBy('galx')
+                ->get([
+                    'id',
+                    'user_id',
+                    'sector_uid',
+                    'asteroid_uid',
+                    'galx',
+                    'galy',
+                    'square_name',
+                    'is_system_searched',
+                    'has_asteroids',
+                    'planetoids_checked',
+                    'planetoid_1_size',
+                    'planetoid_2_size',
+                    'has_ships',
+                    'has_stations',
+                    'legacy_player',
+                    'legacy_handle',
+                    'legacy_recorded_at',
+                    'rescan_due_at',
+                    'updated_at',
+                ]);
+
+            $userIds = $records->pluck('user_id')->filter()->unique()->values()->all();
+            $userMap = count($userIds) > 0
+                ? User::whereIn('id', $userIds)->get(['id', 'swc_handle', 'discord_global_name', 'discord_username'])->keyBy('id')
+                : collect();
+
+            return $records
+                ->map(function ($record) use ($canViewAsteroidIntel, $userMap) {
+                    $handle = null;
+                    $rawName = trim((string) ($record->legacy_player ?? $record->legacy_handle ?? ''));
+                    if ($rawName !== '') {
+                        $handle = $rawName;
+                    } elseif ($record->user_id && $userMap->has($record->user_id)) {
+                        $user = $userMap->get($record->user_id);
+                        foreach ([$user?->swc_handle, $user?->discord_global_name, $user?->discord_username] as $candidate) {
+                            $value = trim((string) ($candidate ?? ''));
+                            if ($value !== '') {
+                                $handle = $value;
+                                break;
+                            }
+                        }
+                    }
+
+                    return [
+                        'id' => (int) $record->id,
+                        'sector_uid' => $record->sector_uid,
+                        'asteroid_uid' => $canViewAsteroidIntel ? $record->asteroid_uid : null,
+                        'galx' => (int) $record->galx,
+                        'galy' => (int) $record->galy,
+                        'square_name' => $record->square_name,
+                        'is_system_searched' => (bool) $record->is_system_searched,
+                        'has_asteroids' => $canViewAsteroidIntel ? (bool) $record->has_asteroids : false,
+                        'planetoids_checked' => $canViewAsteroidIntel ? $record->planetoids_checked : null,
+                        'planetoid_1_size' => $canViewAsteroidIntel ? $record->planetoid_1_size : null,
+                        'planetoid_2_size' => $canViewAsteroidIntel ? $record->planetoid_2_size : null,
+                        'has_ships' => $canViewAsteroidIntel ? ($record->has_ships === null ? null : (bool) $record->has_ships) : null,
+                        'has_stations' => $canViewAsteroidIntel ? ($record->has_stations === null ? null : (bool) $record->has_stations) : null,
+                        'legacy_player' => $handle,
+                        'handle' => $handle,
+                        'legacy_recorded_at' => $record->legacy_recorded_at
+                            ? Carbon::parse($record->legacy_recorded_at)->toISOString()
+                            : null,
+                        'rescan_due_at' => $record->rescan_due_at
+                            ? Carbon::parse($record->rescan_due_at)->toISOString()
+                            : null,
+                        'updated_at' => $record->updated_at
+                            ? Carbon::parse($record->updated_at)->toISOString()
+                            : null,
+                    ];
+                })
+                ->values()
+                ->all();
+        };
+
+        $payload = $cacheable
+            ? Cache::remember($cacheKey, 120, $buildPayload)
+            : $buildPayload();
+
+        return response()->json([
+            'ok' => true,
+            'data' => $payload,
+        ]);
     }
 
     public function hyperPlans(Request $request): JsonResponse
@@ -1401,6 +1771,7 @@ class UniverseController extends Controller
 
     public function searchRecords(Request $request): JsonResponse
     {
+        $compact = $request->boolean('compact', false);
         $canViewAsteroidIntel = $this->canViewAsteroidIntel($request);
         $scanWindow = $this->resolveScanWindow($request);
         $requestedBounds = $this->resolveRequestedBounds($request);
@@ -1412,97 +1783,170 @@ class UniverseController extends Controller
             ]);
         }
 
-        $now = Carbon::now();
-        $records = [];
-
-        foreach (
-            DB::table('swc_sector_search_records')
-                ->when($scanWindow !== null && !$canViewAsteroidIntel, function ($query) use ($scanWindow) {
-                    $query
-                        ->whereBetween('galx', [$scanWindow['min_galx'], $scanWindow['max_galx']])
-                        ->whereBetween('galy', [$scanWindow['min_galy'], $scanWindow['max_galy']]);
-                })
-                ->when($requestedBounds !== null, function ($query) use ($requestedBounds) {
-                    $query
-                        ->whereBetween('galx', [$requestedBounds['min_galx'], $requestedBounds['max_galx']])
-                        ->whereBetween('galy', [$requestedBounds['min_galy'], $requestedBounds['max_galy']]);
-                })
-                ->orderBy('galy')
-                ->orderBy('galx')
-                ->select([
-                    'id',
-                    'sector_uid',
-                    'asteroid_uid',
-                    'galx',
-                    'galy',
-                    'square_name',
-                    'is_system_searched',
-                    'has_asteroids',
-                    'planetoids_checked',
-                    'planetoid_1_type',
-                    'planetoid_1_size',
-                    'planetoid_2_type',
-                    'planetoid_2_size',
-                    'has_ships',
-                    'has_stations',
-                    'legacy_note',
-                    'legacy_recorded_at',
-                    'rescan_due_at',
-                    'legacy_player',
-                    'legacy_icon',
-                    'legacy_handle',
-                    'legacy_tag',
-                    'legacy_read',
-                    'updated_at',
-                ])
-                ->cursor() as $record
+        $cacheKey = $this->buildSearchRecordsCacheKey(
+            $compact,
+            $canViewAsteroidIntel,
+            $scanWindow,
+            $requestedBounds
+        );
+        $records = Cache::remember($cacheKey, self::SEARCH_RECORDS_CACHE_TTL_SECONDS, function () use (
+            $compact,
+            $scanWindow,
+            $canViewAsteroidIntel,
+            $requestedBounds
         ) {
-            $legacyRecordedAt = $record->legacy_recorded_at
-                ? Carbon::parse($record->legacy_recorded_at)->toISOString()
-                : null;
-            $rescanDueAt = $record->rescan_due_at
-                ? Carbon::parse($record->rescan_due_at)->toISOString()
-                : null;
+            $now = Carbon::now();
+            $results = [];
 
-            $records[] = [
-                'id' => (int) $record->id,
-                'sector_uid' => $record->sector_uid,
-                'asteroid_uid' => $canViewAsteroidIntel ? $record->asteroid_uid : null,
-                'galx' => (int) $record->galx,
-                'galy' => (int) $record->galy,
-                'square_name' => $record->square_name,
-                'is_system_searched' => (bool) $record->is_system_searched,
-                'has_asteroids' => $canViewAsteroidIntel ? (bool) $record->has_asteroids : false,
-                'planetoids_checked' => $canViewAsteroidIntel
-                    ? ($record->planetoids_checked === null ? null : (bool) $record->planetoids_checked)
-                    : null,
-                'planetoid_1_type' => $canViewAsteroidIntel ? $record->planetoid_1_type : null,
-                'planetoid_1_size' => $canViewAsteroidIntel ? $record->planetoid_1_size : null,
-                'planetoid_2_type' => $canViewAsteroidIntel ? $record->planetoid_2_type : null,
-                'planetoid_2_size' => $canViewAsteroidIntel ? $record->planetoid_2_size : null,
-                'has_ships' => $canViewAsteroidIntel ? ($record->has_ships === null ? null : (bool) $record->has_ships) : null,
-                'has_stations' => $canViewAsteroidIntel ? ($record->has_stations === null ? null : (bool) $record->has_stations) : null,
-                'legacy_note' => $canViewAsteroidIntel ? $record->legacy_note : null,
-                'legacy_recorded_at' => $legacyRecordedAt,
-                'rescan_due_at' => $rescanDueAt,
-                'is_rescan_due' => $record->rescan_due_at
+            foreach (
+                DB::table('swc_sector_search_records')
+                    ->when($scanWindow !== null && !$canViewAsteroidIntel, function ($query) use ($scanWindow) {
+                        $query
+                            ->whereBetween('galx', [$scanWindow['min_galx'], $scanWindow['max_galx']])
+                            ->whereBetween('galy', [$scanWindow['min_galy'], $scanWindow['max_galy']]);
+                    })
+                    ->when($requestedBounds !== null, function ($query) use ($requestedBounds) {
+                        $query
+                            ->whereBetween('galx', [$requestedBounds['min_galx'], $requestedBounds['max_galx']])
+                            ->whereBetween('galy', [$requestedBounds['min_galy'], $requestedBounds['max_galy']]);
+                    })
+                    ->orderBy('galy')
+                    ->orderBy('galx')
+                    ->select([
+                        'id',
+                        'sector_uid',
+                        'asteroid_uid',
+                        'galx',
+                        'galy',
+                        'square_name',
+                        'is_system_searched',
+                        'has_asteroids',
+                        'planetoids_checked',
+                        'planetoid_1_type',
+                        'planetoid_1_size',
+                        'planetoid_2_type',
+                        'planetoid_2_size',
+                        'has_ships',
+                        'has_stations',
+                        'legacy_note',
+                        'legacy_recorded_at',
+                        'rescan_due_at',
+                        'legacy_player',
+                        'legacy_icon',
+                        'legacy_handle',
+                        'legacy_tag',
+                        'legacy_read',
+                        'updated_at',
+                    ])
+                    ->cursor() as $record
+            ) {
+                $legacyRecordedAt = $record->legacy_recorded_at
+                    ? Carbon::parse($record->legacy_recorded_at)->toISOString()
+                    : null;
+                $rescanDueAt = $record->rescan_due_at
+                    ? Carbon::parse($record->rescan_due_at)->toISOString()
+                    : null;
+                $isRescanDue = $record->rescan_due_at
                     ? Carbon::parse($record->rescan_due_at)->lte($now)
-                    : false,
-                'legacy_player' => $canViewAsteroidIntel ? $record->legacy_player : null,
-                'legacy_icon' => $canViewAsteroidIntel ? $record->legacy_icon : null,
-                'handle' => $canViewAsteroidIntel ? $record->legacy_handle : null,
-                'legacy_tag' => $canViewAsteroidIntel ? $record->legacy_tag : null,
-                'legacy_read' => $canViewAsteroidIntel ? (bool) $record->legacy_read : false,
-                'updated_at' => $record->updated_at
-                    ? Carbon::parse($record->updated_at)->toISOString()
-                    : null,
-            ];
-        }
+                    : false;
+
+                if ($compact) {
+                    $flags = 0;
+                    if ((bool) $record->is_system_searched) {
+                        $flags |= 1;
+                    }
+                    if ($canViewAsteroidIntel && (bool) $record->has_asteroids) {
+                        $flags |= 2;
+                    }
+                    if ($canViewAsteroidIntel && $record->has_ships === 1) {
+                        $flags |= 4;
+                    }
+                    if ($canViewAsteroidIntel && $record->has_stations === 1) {
+                        $flags |= 8;
+                    }
+                    if ($isRescanDue) {
+                        $flags |= 16;
+                    }
+                    if ($canViewAsteroidIntel && (bool) $record->legacy_read) {
+                        $flags |= 32;
+                    }
+
+                    // Compact tuple:
+                    // [id, sector_uid, asteroid_uid, galx, galy, square_name, flags, p1_size, p2_size, legacy_recorded_at, rescan_due_at, handle]
+                    $results[] = [
+                        (int) $record->id,
+                        $record->sector_uid,
+                        $canViewAsteroidIntel ? $record->asteroid_uid : null,
+                        (int) $record->galx,
+                        (int) $record->galy,
+                        $record->square_name,
+                        $flags,
+                        $canViewAsteroidIntel ? $record->planetoid_1_size : null,
+                        $canViewAsteroidIntel ? $record->planetoid_2_size : null,
+                        $legacyRecordedAt,
+                        $rescanDueAt,
+                        $canViewAsteroidIntel ? $record->legacy_handle : null,
+                    ];
+                    continue;
+                }
+
+                $results[] = [
+                    'id' => (int) $record->id,
+                    'sector_uid' => $record->sector_uid,
+                    'asteroid_uid' => $canViewAsteroidIntel ? $record->asteroid_uid : null,
+                    'galx' => (int) $record->galx,
+                    'galy' => (int) $record->galy,
+                    'square_name' => $record->square_name,
+                    'is_system_searched' => (bool) $record->is_system_searched,
+                    'has_asteroids' => $canViewAsteroidIntel ? (bool) $record->has_asteroids : false,
+                    'planetoids_checked' => $canViewAsteroidIntel
+                        ? ($record->planetoids_checked === null ? null : (bool) $record->planetoids_checked)
+                        : null,
+                    'planetoid_1_type' => $canViewAsteroidIntel ? $record->planetoid_1_type : null,
+                    'planetoid_1_size' => $canViewAsteroidIntel ? $record->planetoid_1_size : null,
+                    'planetoid_2_type' => $canViewAsteroidIntel ? $record->planetoid_2_type : null,
+                    'planetoid_2_size' => $canViewAsteroidIntel ? $record->planetoid_2_size : null,
+                    'has_ships' => $canViewAsteroidIntel ? ($record->has_ships === null ? null : (bool) $record->has_ships) : null,
+                    'has_stations' => $canViewAsteroidIntel ? ($record->has_stations === null ? null : (bool) $record->has_stations) : null,
+                    'legacy_note' => $canViewAsteroidIntel ? $record->legacy_note : null,
+                    'legacy_recorded_at' => $legacyRecordedAt,
+                    'rescan_due_at' => $rescanDueAt,
+                    'is_rescan_due' => $isRescanDue,
+                    'legacy_player' => $canViewAsteroidIntel ? $record->legacy_player : null,
+                    'legacy_icon' => $canViewAsteroidIntel ? $record->legacy_icon : null,
+                    'handle' => $canViewAsteroidIntel ? $record->legacy_handle : null,
+                    'legacy_tag' => $canViewAsteroidIntel ? $record->legacy_tag : null,
+                    'legacy_read' => $canViewAsteroidIntel ? (bool) $record->legacy_read : false,
+                    'updated_at' => $record->updated_at
+                        ? Carbon::parse($record->updated_at)->toISOString()
+                        : null,
+                ];
+            }
+
+            return $results;
+        });
 
         return response()->json([
             'ok' => true,
             'data' => $records,
+            'compact' => $compact,
         ]);
+    }
+
+    protected function buildSearchRecordsCacheKey(bool $compact, bool $canViewAsteroidIntel, ?array $scanWindow, ?array $requestedBounds): string
+    {
+        $version = (int) Cache::get(self::SEARCH_RECORDS_CACHE_VERSION_KEY, 1);
+
+        return sprintf(
+            'universe:search-records:index:v%d:%s',
+            $version,
+            md5(json_encode([
+                'compact' => $compact,
+                'can_view_asteroid_intel' => $canViewAsteroidIntel,
+                'scan_window' => $scanWindow,
+                'requested_bounds' => $requestedBounds,
+            ], JSON_THROW_ON_ERROR))
+        );
     }
 
     protected function serializePlannerSystem(?object $system): ?array

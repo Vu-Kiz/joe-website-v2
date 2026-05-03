@@ -1697,6 +1697,65 @@
   gap: 0.65rem
   flex-wrap: wrap
 
+.members-universe__import-log
+  display: grid
+  gap: 0.3rem
+
+.members-universe__import-log-entry
+  display: grid
+  gap: 0.2rem
+
+.members-universe__import-log-header
+  display: flex
+  align-items: baseline
+  justify-content: space-between
+  gap: 0.5rem
+  background: none
+  border: none
+  padding: 0.3rem 0
+  cursor: pointer
+  color: inherit
+  text-align: left
+  width: 100%
+  border-bottom: 1px solid rgba(255,255,255,0.06)
+
+  &:hover
+    color: rgba(246,163,0,0.9)
+
+.members-universe__import-log-counts
+  display: flex
+  gap: 0.4rem
+  flex-shrink: 0
+
+.members-universe__import-log-new
+  color: rgb(100, 220, 120)
+
+.members-universe__import-log-updated
+  color: rgba(246,163,0,0.9)
+
+.members-universe__import-log-areas
+  list-style: none
+  padding: 0.3rem 0 0.3rem 0.5rem
+  margin: 0
+  display: grid
+  gap: 0.2rem
+  max-height: 180px
+  overflow-y: auto
+
+.members-universe__import-log-action
+  display: inline-block
+  width: 1rem
+  font-weight: 700
+  color: rgba(246,163,0,0.9)
+
+.members-universe__import-log-coords
+  opacity: 0.5
+  margin-left: 0.2rem
+
+.members-universe__import-log-asteroid
+  color: rgb(100, 200, 255)
+  margin-left: 0.2rem
+
 .members-universe-map__meta
   display: flex
   align-items: center
@@ -1830,7 +1889,7 @@
 .members-universe-map__overlays
   position: absolute
   inset: 0
-  z-index: 2
+  z-index: 4
   pointer-events: none
 
 .members-universe-map__scan-badge
@@ -2104,11 +2163,20 @@
   position: absolute
   top: 0
   left: 0
+  z-index: 1
   transform-origin: top left
   will-change: transform
 
 .members-universe-map__bitmap
   display: block
+
+.members-universe-map__webgl
+  position: absolute
+  inset: 0
+  display: block
+  width: 100%
+  height: 100%
+  pointer-events: none
 
 .members-universe-map__svg
   position: absolute

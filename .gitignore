@@ -27,5 +27,7 @@ discord-bot/.env.*
 db/data/
 db/
 
+.claude/
+
 .codex
 V1.zip

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { fetchAuthMe, getBackendOrigin, subscribeToAuthStateChange, type SwcUser } from "../api/auth";
 import {
@@ -22,7 +22,6 @@ import MyPostedJobsPanel from "../components/members/jobs/MyPostedJobsPanel";
 import MyTakenJobsPanel from "../components/members/jobs/MyTakenJobsPanel";
 import CreateJobPanel from "../components/members/jobs/CreateJobPanel";
 import JobsSubnav from "../components/members/jobs/JobsSubnav";
-import MembersUniversePanel from "../components/members/MembersUniversePanel";
 import MemberEntityStatsPanel from "../components/members/MemberEntityStatsPanel";
 import HyperPlannerPanel from "../components/members/HyperPlannerPanel";
 import MemberGalacticArchivePanel from "../components/members/MemberGalacticArchivePanel";
@@ -53,7 +52,6 @@ import {
   type SwcAuthorizationStatus,
 } from "../api/swcAuthorization";
 import { logMemberToolOpen, type MemberToolArea } from "../api/memberTools";
-
 import "../styles/main.sass";
 import "../styles/_admin.sass";
 import "../styles/_membersuniverse.sass";
@@ -85,6 +83,9 @@ function parseMembersView(value: string | null): MembersView | null {
       return null;
   }
 }
+
+const MembersUniversePanel = React.lazy(() => import("../components/members/MembersUniversePanel"));
+let prefetchedUniversePanel = false;
 
 const MembersPage: React.FC = () => {
   const location = useLocation();
@@ -120,6 +121,7 @@ const MembersPage: React.FC = () => {
   const [selectedJobId, setSelectedJobId] = useState<number | null>(
     Number.isFinite(requestedJobId) && requestedJobId > 0 ? requestedJobId : null
   );
+  const [mountUniversePanel, setMountUniversePanel] = useState<boolean>(requestedMembersView === "universe");
 
   useEffect(() => {
     if (requestedMembersView) {
@@ -131,6 +133,51 @@ const MembersPage: React.FC = () => {
       setMembersView("universe");
     }
   }, [location.state, requestedMembersView]);
+
+  useEffect(() => {
+    if (membersView !== "universe" || mountUniversePanel) {
+      return;
+    }
+
+    const mountTimer = window.setTimeout(() => {
+      setMountUniversePanel(true);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(mountTimer);
+    };
+  }, [membersView, mountUniversePanel]);
+
+  useEffect(() => {
+    if (prefetchedUniversePanel) {
+      return;
+    }
+
+    const prefetch = () => {
+      if (prefetchedUniversePanel) {
+        return;
+      }
+      prefetchedUniversePanel = true;
+      void import("../components/members/MembersUniversePanel");
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const id = (
+        window as Window & { requestIdleCallback: (callback: () => void, options?: { timeout: number }) => number }
+      ).requestIdleCallback(prefetch, { timeout: 1200 });
+
+      return () => {
+        if ("cancelIdleCallback" in window) {
+          (
+            window as Window & { cancelIdleCallback: (handle: number) => void }
+          ).cancelIdleCallback(id);
+        }
+      };
+    }
+
+    const timeout = globalThis.setTimeout(prefetch, 350);
+    return () => globalThis.clearTimeout(timeout);
+  }, []);
 
   useEffect(() => {
     if (Number.isFinite(requestedJobId) && requestedJobId > 0) {
@@ -903,15 +950,37 @@ const MembersPage: React.FC = () => {
         </>
       )}
 
-      {membersView === "universe" && (
-        <>
+      {(membersView === "universe" || mountUniversePanel) && (
+        <section style={{ display: membersView === "universe" ? "block" : "none" }}>
           <div className="members-tool-back">
             <button className="btn" type="button" onClick={() => setMembersView("overview")}>
               Back to Overview
             </button>
           </div>
-          <MembersUniversePanel />
-        </>
+          {!mountUniversePanel ? (
+            <section className="panel">
+              <p className="small" style={{ margin: 0 }}>
+                Opening Astrogation…
+              </p>
+            </section>
+          ) : (
+            <Suspense
+              fallback={
+                <section className="panel">
+                  <p className="small" style={{ margin: 0 }}>
+                    Opening Astrogation…
+                  </p>
+                </section>
+              }
+            >
+              <MembersUniversePanel
+                viewer={user}
+                swcAuthFromParent={swcAuth}
+                onSwcAuthChange={setSwcAuth}
+              />
+            </Suspense>
+          )}
+        </section>
       )}
 
       {membersView === "hyperplanner" && (
