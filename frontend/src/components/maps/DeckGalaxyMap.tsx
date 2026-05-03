@@ -100,18 +100,6 @@ type SectorPolygonDatum = {
   };
 };
 
-type SectorCell = {
-  galx: number;
-  galy: number;
-};
-
-type BoundarySegment = {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-};
-
 type SectorCellDatum = {
   id: string;
   uid: string;
@@ -485,111 +473,7 @@ function pointInPolygon(x: number, y: number, polygon: Array<[number, number]>) 
   return inside;
 }
 
-function bresenham(x0: number, y0: number, x1: number, y1: number) {
-  const points: SectorCell[] = [];
-  let currentX = x0;
-  let currentY = y0;
-  const dx = Math.abs(x1 - x0);
-  const dy = Math.abs(y1 - y0);
-  const sx = x0 < x1 ? 1 : -1;
-  const sy = y0 < y1 ? 1 : -1;
-  let err = dx - dy;
 
-  while (true) {
-    points.push({ galx: currentX, galy: currentY });
-    if (currentX === x1 && currentY === y1) {
-      break;
-    }
-    const e2 = err * 2;
-    if (e2 > -dy) {
-      err -= dy;
-      currentX += sx;
-    }
-    if (e2 < dx) {
-      err += dx;
-      currentY += sy;
-    }
-  }
-
-  return points;
-}
-
-function expandOutlinePoints(points: Array<[number, number]>) {
-  if (points.length === 0) {
-    return [];
-  }
-
-  const expanded: SectorCell[] = [];
-  for (let index = 0; index < points.length; index += 1) {
-    const [x0, y0] = points[index];
-    const [x1, y1] = points[(index + 1) % points.length];
-    for (const point of bresenham(x0, y0, x1, y1)) {
-      expanded.push(point);
-    }
-  }
-  return expanded;
-}
-
-function cellOverlapsPolygon(galx: number, galy: number, polygon: Array<[number, number]>) {
-  const samplePoints = [
-    [galx + 0.5, galy + 0.5],
-    [galx + 0.15, galy + 0.15],
-    [galx + 0.85, galy + 0.15],
-    [galx + 0.15, galy + 0.85],
-    [galx + 0.85, galy + 0.85],
-  ];
-  const hits = samplePoints.filter(([x, y]) => pointInPolygon(x, y, polygon)).length;
-  return hits >= 3;
-}
-
-function buildSectorCells(
-  polygon: Array<[number, number]>,
-  bounds: { minX: number; maxX: number; minY: number; maxY: number }
-) {
-  const areaSet = new Set<string>();
-  const expandedOutline = expandOutlinePoints(polygon);
-
-  if (polygon.length >= 3) {
-    for (let galx = bounds.minX; galx <= bounds.maxX; galx += 1) {
-      for (let galy = bounds.minY; galy <= bounds.maxY; galy += 1) {
-        if (cellOverlapsPolygon(galx, galy, polygon)) {
-          areaSet.add(toCellKey(galx, galy));
-        }
-      }
-    }
-  }
-
-  for (const point of expandedOutline) {
-    areaSet.add(toCellKey(point.galx, point.galy));
-  }
-
-  return Array.from(areaSet, (key) => {
-    const [galx, galy] = key.split(":").map(Number);
-    return { galx, galy };
-  });
-}
-
-function buildBoundarySegments(cells: SectorCell[]): BoundarySegment[] {
-  const cellSet = new Set(cells.map((cell) => toCellKey(cell.galx, cell.galy)));
-  const segments: BoundarySegment[] = [];
-  for (const cell of cells) {
-    const { galx, galy } = cell;
-
-    if (!cellSet.has(toCellKey(galx, galy + 1))) {
-      segments.push({ x1: galx, y1: galy + 1, x2: galx + 1, y2: galy + 1 });
-    }
-    if (!cellSet.has(toCellKey(galx + 1, galy))) {
-      segments.push({ x1: galx + 1, y1: galy, x2: galx + 1, y2: galy + 1 });
-    }
-    if (!cellSet.has(toCellKey(galx, galy - 1))) {
-      segments.push({ x1: galx, y1: galy, x2: galx + 1, y2: galy });
-    }
-    if (!cellSet.has(toCellKey(galx - 1, galy))) {
-      segments.push({ x1: galx, y1: galy, x2: galx, y2: galy + 1 });
-    }
-  }
-  return segments;
-}
 
 function isInsideRenderBounds(position: [number, number], bounds: RenderBounds | null) {
   if (!bounds) {
