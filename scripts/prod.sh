@@ -105,8 +105,8 @@ case "${cmd}" in
     ;;
 
   refresh)
-    echo "▶ Rebuilding and recreating backend + worker + frontend..."
-    ${DC} up -d --build --force-recreate --remove-orphans backend worker frontend
+    echo "▶ Rebuilding and recreating all services..."
+    ${DC} up -d --build --force-recreate --remove-orphans
     ;;
 
   logs)
