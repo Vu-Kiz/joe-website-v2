@@ -2,17 +2,124 @@
 
 namespace App\Support\DroidBrain;
 
+use App\Jobs\DroidBrainReindexJob;
+use App\Jobs\ProcessDroidBrainUploadJob;
+use App\Models\SwcSectorSearchRecord;
 use App\Models\SwcPlanetType;
 use App\Models\SwcRace;
 use App\Models\SwcShipType;
 use App\Models\SwcStationType;
+use App\Models\SwcSystem;
 use App\Models\SwcVehicleType;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Meilisearch\Client as MeilisearchClient;
 
 class DroidBrainUploadService
 {
+    public function enqueue(UploadedFile $file, User $user): array
+    {
+        $rawXml = $file->get();
+        if (!is_string($rawXml) || trim($rawXml) === '') {
+            throw new \RuntimeException('The uploaded file was empty.');
+        }
+
+        $fileHash = hash('sha256', $rawXml);
+        $existingImport = DB::table('droidbrain_files')->where('file_hash', $fileHash)->first();
+        if (
+            $existingImport
+            && $this->fileHasImportedData((int) $existingImport->id)
+            && !$this->shouldReimportLegacyBrokenDuplicate($existingImport, $rawXml)
+        ) {
+            $existingCounts = $this->getFileEntityCounts((int) $existingImport->id);
+
+            return [
+                'file_id' => (int) $existingImport->id,
+                'queue_id' => null,
+                'queued' => false,
+                'queue_status' => null,
+                'duplicate' => true,
+                'payload_type' => (string) ($existingImport->payload_type ?? 'unknown'),
+                'snapshot_unix' => $existingImport->snapshot_unix ? (int) $existingImport->snapshot_unix : null,
+                'counts' => array_filter($existingCounts, fn ($value) => $value > 0),
+                'message' => 'This upload was already imported previously.',
+                'duplicate_attempt_status' => 'no_change',
+                'duplicate_attempt_new_entities_count' => 0,
+                'duplicate_attempt_modified_entities_count' => 0,
+                'duplicate_attempt_unchanged_entities_count' => array_sum($existingCounts),
+                'existing_change_status' => $existingImport->change_status ? (string) $existingImport->change_status : null,
+                'existing_new_entities_count' => isset($existingImport->new_entities_count) ? (int) $existingImport->new_entities_count : 0,
+                'existing_modified_entities_count' => isset($existingImport->modified_entities_count) ? (int) $existingImport->modified_entities_count : 0,
+                'existing_unchanged_entities_count' => isset($existingImport->unchanged_entities_count) ? (int) $existingImport->unchanged_entities_count : 0,
+            ];
+        }
+
+        $existingQueueItem = DB::table('droidbrain_upload_queue_items')
+            ->where('file_hash', $fileHash)
+            ->whereIn('status', ['queued', 'processing'])
+            ->orderByDesc('id')
+            ->first();
+
+        if ($existingQueueItem) {
+            return [
+                'file_id' => null,
+                'queue_id' => (int) $existingQueueItem->id,
+                'queued' => true,
+                'queue_status' => (string) $existingQueueItem->status,
+                'duplicate' => false,
+                'payload_type' => 'unknown',
+                'snapshot_unix' => null,
+                'counts' => [],
+                'message' => 'This file is already queued for import.',
+                'duplicate_attempt_status' => null,
+                'duplicate_attempt_new_entities_count' => null,
+                'duplicate_attempt_modified_entities_count' => null,
+                'duplicate_attempt_unchanged_entities_count' => null,
+                'existing_change_status' => null,
+                'existing_new_entities_count' => null,
+                'existing_modified_entities_count' => null,
+                'existing_unchanged_entities_count' => null,
+            ];
+        }
+
+        $queueId = (int) DB::table('droidbrain_upload_queue_items')->insertGetId([
+            'user_id' => $user->id,
+            'file_name' => $file->getClientOriginalName() ?: 'droidbrain-upload.xml',
+            'file_extension' => strtolower($file->getClientOriginalExtension() ?: ''),
+            'file_mime_type' => $file->getClientMimeType(),
+            'file_hash' => $fileHash,
+            'status' => 'queued',
+            'raw_xml' => $rawXml,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        ProcessDroidBrainUploadJob::dispatch($queueId)
+            ->onConnection('database')
+            ->onQueue('default');
+
+        return [
+            'file_id' => null,
+            'queue_id' => $queueId,
+            'queued' => true,
+            'queue_status' => 'queued',
+            'duplicate' => false,
+            'payload_type' => 'unknown',
+            'snapshot_unix' => null,
+            'counts' => [],
+            'message' => 'Upload queued. It will keep importing even if you close this page.',
+            'duplicate_attempt_status' => null,
+            'duplicate_attempt_new_entities_count' => null,
+            'duplicate_attempt_modified_entities_count' => null,
+            'duplicate_attempt_unchanged_entities_count' => null,
+            'existing_change_status' => null,
+            'existing_new_entities_count' => null,
+            'existing_modified_entities_count' => null,
+            'existing_unchanged_entities_count' => null,
+        ];
+    }
+
     public function ingest(UploadedFile $file, User $user): array
     {
         $rawXml = $file->get();
@@ -52,7 +159,7 @@ class DroidBrainUploadService
         $uploaderId = $this->resolveUploaderId($user);
         $uploaderHandle = $this->resolveUserHandle($user);
 
-        return DB::transaction(function () use ($file, $fileHash, $rawXml, $xml, $snapshotUnix, $uploaderId, $uploaderHandle, $user) {
+        $result = DB::transaction(function () use ($file, $fileHash, $rawXml, $xml, $snapshotUnix, $uploaderId, $uploaderHandle, $user) {
             $collections = $this->extractCollections($xml);
             $payloadType = $this->detectPayloadType($collections, $file->getClientOriginalExtension());
 
@@ -130,6 +237,8 @@ class DroidBrainUploadService
                 $counts['system_scans'] = $scanImport['scan_count'];
             }
 
+            $searchRecordSync = $this->syncSearchRecordShipStationFlagsForFile($fileId);
+
             return [
                 'file_id' => $fileId,
                 'duplicate' => false,
@@ -145,8 +254,17 @@ class DroidBrainUploadService
                 'existing_new_entities_count' => null,
                 'existing_modified_entities_count' => null,
                 'existing_unchanged_entities_count' => null,
+                'search_record_sync' => $searchRecordSync,
             ];
         });
+
+        foreach (['ships', 'stations', 'planets', 'cities', 'vehicles', 'npcs'] as $tab) {
+            if (($result['counts'][$tab] ?? 0) > 0) {
+                DroidBrainReindexJob::dispatchForTab($tab);
+            }
+        }
+
+        return $result;
     }
 
     protected function fileHasImportedData(int $fileId): bool
@@ -191,6 +309,216 @@ class DroidBrainUploadService
         }
 
         return $counts;
+    }
+
+    protected function syncSearchRecordShipStationFlagsForFile(int $fileId): array
+    {
+        $coords = collect();
+
+        foreach (['droidbrain_system_scans', 'droidbrain_ships', 'droidbrain_stations'] as $table) {
+            $rows = DB::table($table)
+                ->where('file_id', $fileId)
+                ->whereNotNull('galx')
+                ->whereNotNull('galy')
+                ->select('galx', 'galy')
+                ->distinct()
+                ->get()
+                ->map(fn ($row) => [
+                    'galx' => (int) $row->galx,
+                    'galy' => (int) $row->galy,
+                ]);
+
+            $coords = $coords->merge($rows);
+        }
+
+        $coords = $coords
+            ->unique(fn (array $coord) => sprintf('%d:%d', $coord['galx'], $coord['galy']))
+            ->values();
+
+        if ($coords->isEmpty()) {
+            return [
+                'coordinates_seen' => 0,
+                'records_created' => 0,
+                'records_updated' => 0,
+            ];
+        }
+
+        $coordLookup = $coords->mapWithKeys(fn (array $coord) => [
+            sprintf('%d:%d', $coord['galx'], $coord['galy']) => true,
+        ]);
+        $galxValues = $coords->pluck('galx')->unique()->values();
+        $galyValues = $coords->pluck('galy')->unique()->values();
+        $droidBrainFlagsByCoord = $this->resolveDroidBrainFlagsFromMeilisearch($coords->all());
+        if ($droidBrainFlagsByCoord === []) {
+            $droidBrainFlagsByCoord = $this->resolveDroidBrainFlagsFromLatestTables($galxValues->all(), $galyValues->all());
+        }
+        $apiStationsByCoord = DB::table('swc_stations')
+            ->whereIn('galx', $galxValues)
+            ->whereIn('galy', $galyValues)
+            ->whereNotNull('galx')
+            ->whereNotNull('galy')
+            ->select('galx', 'galy')
+            ->distinct()
+            ->get()
+            ->mapWithKeys(fn ($row) => [sprintf('%d:%d', (int) $row->galx, (int) $row->galy) => true]);
+
+        $existingRecords = SwcSectorSearchRecord::query()
+            ->whereIn('galx', $galxValues)
+            ->whereIn('galy', $galyValues)
+            ->get()
+            ->keyBy(fn (SwcSectorSearchRecord $record) => sprintf('%d:%d', (int) $record->galx, (int) $record->galy));
+
+        $systemsByCoord = SwcSystem::query()
+            ->whereIn('galx', $galxValues)
+            ->whereIn('galy', $galyValues)
+            ->get(['sector_id', 'sector_uid', 'galx', 'galy'])
+            ->keyBy(fn (SwcSystem $system) => sprintf('%d:%d', (int) $system->galx, (int) $system->galy));
+
+        $recordsCreated = 0;
+        $recordsUpdated = 0;
+
+        foreach ($coords as $coord) {
+            $key = sprintf('%d:%d', $coord['galx'], $coord['galy']);
+            if (!isset($coordLookup[$key])) {
+                continue;
+            }
+
+            $flags = $droidBrainFlagsByCoord[$key] ?? ['has_ships' => false, 'has_stations' => false];
+            $hasShips = (bool) ($flags['has_ships'] ?? false);
+            $hasStations = (bool) ($flags['has_stations'] ?? false) || isset($apiStationsByCoord[$key]);
+            $existing = $existingRecords->get($key);
+
+            if ($existing) {
+                $changes = [];
+                if ($existing->has_ships === null || (bool) $existing->has_ships !== $hasShips) {
+                    $changes['has_ships'] = $hasShips;
+                }
+                if ($existing->has_stations === null || (bool) $existing->has_stations !== $hasStations) {
+                    $changes['has_stations'] = $hasStations;
+                }
+
+                if ($changes !== []) {
+                    $existing->fill($changes);
+                    $existing->save();
+                    $recordsUpdated++;
+                }
+
+                continue;
+            }
+
+            if (!$hasShips && !$hasStations) {
+                continue;
+            }
+
+            $system = $systemsByCoord->get($key);
+            SwcSectorSearchRecord::query()->create([
+                'user_id' => null,
+                'sector_id' => $system?->sector_id,
+                'sector_uid' => $system?->sector_uid,
+                'galx' => $coord['galx'],
+                'galy' => $coord['galy'],
+                'is_system_searched' => false,
+                'has_asteroids' => false,
+                'has_ships' => $hasShips,
+                'has_stations' => $hasStations,
+            ]);
+            $recordsCreated++;
+        }
+
+        return [
+            'coordinates_seen' => $coords->count(),
+            'records_created' => $recordsCreated,
+            'records_updated' => $recordsUpdated,
+        ];
+    }
+
+    protected function resolveDroidBrainFlagsFromMeilisearch(array $coords): array
+    {
+        if ($coords === []) {
+            return [];
+        }
+
+        try {
+            $client = app(MeilisearchClient::class);
+            $shipIndex = $client->index('droidbrain_ships');
+            $stationIndex = $client->index('droidbrain_stations');
+            $flags = [];
+
+            foreach ($coords as $coord) {
+                $galx = isset($coord['galx']) ? (int) $coord['galx'] : null;
+                $galy = isset($coord['galy']) ? (int) $coord['galy'] : null;
+                if ($galx === null || $galy === null) {
+                    continue;
+                }
+
+                $key = sprintf('%d:%d', $galx, $galy);
+                $flags[$key] = [
+                    'has_ships' => $this->meiliIndexHasCoordinate($shipIndex, $galx, $galy),
+                    'has_stations' => $this->meiliIndexHasCoordinate($stationIndex, $galx, $galy),
+                ];
+            }
+
+            return $flags;
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    protected function meiliIndexHasCoordinate(mixed $index, int $galx, int $galy): bool
+    {
+        $result = $index->search('', [
+            'filter' => [
+                sprintf('galx = %d', $galx),
+                sprintf('galy = %d', $galy),
+            ],
+            'attributesToRetrieve' => ['entity_uid'],
+            'hitsPerPage' => 1,
+            'page' => 1,
+        ]);
+
+        $hits = $result->getHits();
+        return is_array($hits) && count($hits) > 0;
+    }
+
+    protected function resolveDroidBrainFlagsFromLatestTables(array $galxValues, array $galyValues): array
+    {
+        if ($galxValues === [] || $galyValues === []) {
+            return [];
+        }
+
+        $shipsByCoord = DB::table('droidbrain_ships_latest')
+            ->whereIn('galx', $galxValues)
+            ->whereIn('galy', $galyValues)
+            ->whereNotNull('galx')
+            ->whereNotNull('galy')
+            ->select('galx', 'galy')
+            ->distinct()
+            ->get()
+            ->mapWithKeys(fn ($row) => [sprintf('%d:%d', (int) $row->galx, (int) $row->galy) => true]);
+
+        $stationsByCoord = DB::table('droidbrain_stations_latest')
+            ->whereIn('galx', $galxValues)
+            ->whereIn('galy', $galyValues)
+            ->whereNotNull('galx')
+            ->whereNotNull('galy')
+            ->select('galx', 'galy')
+            ->distinct()
+            ->get()
+            ->mapWithKeys(fn ($row) => [sprintf('%d:%d', (int) $row->galx, (int) $row->galy) => true]);
+
+        $flags = [];
+        foreach (array_keys($shipsByCoord->all()) as $key) {
+            $flags[$key] = ['has_ships' => true, 'has_stations' => false];
+        }
+        foreach (array_keys($stationsByCoord->all()) as $key) {
+            if (!isset($flags[$key])) {
+                $flags[$key] = ['has_ships' => false, 'has_stations' => true];
+                continue;
+            }
+            $flags[$key]['has_stations'] = true;
+        }
+
+        return $flags;
     }
 
     protected function resolveUploaderId(User $user): int

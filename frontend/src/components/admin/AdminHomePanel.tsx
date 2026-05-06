@@ -50,6 +50,20 @@ const AdminHomePanel: React.FC<Props> = ({ showSystemTools, canSeeLogs }) => {
         "Manage backend-driven member changelog entries and generate/update entries from README patch-note sections.",
     },
     {
+      key: "workerHealth",
+      title: "Worker Health",
+      description:
+        "Live sysadmin view of queue backlog and failed jobs, including DroidBrain import worker failures.",
+      hidden: !showSystemTools,
+    },
+    {
+      key: "droidbrainUploads",
+      title: "DroidBrain Uploads",
+      description:
+        "Browse imported DroidBrain files with per-upload summary results, user/date search, and queue status context.",
+      hidden: !showSystemTools,
+    },
+    {
       key: "websiteHealth",
       title: "Website Health",
       description:

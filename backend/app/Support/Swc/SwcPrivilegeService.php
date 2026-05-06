@@ -3,7 +3,6 @@
 namespace App\Support\Swc;
 
 use App\Models\Faction;
-use App\Models\SwcAuthorization;
 use App\Models\SwcFactionPrivilegeCache;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -12,6 +11,11 @@ use Illuminate\Support\Facades\Log;
 class SwcPrivilegeService
 {
     protected const CACHE_TTL_MINUTES = 5;
+
+    public function __construct(
+        protected SwcAuthorizationService $swcAuthorizationService
+    ) {
+    }
 
     public function checkFactionPrivilege(
         User $user,
@@ -37,15 +41,9 @@ class SwcPrivilegeService
             ];
         }
 
-        $auth = $user->swcAuthorizations()
-            ->whereIn('auth_context', [
-                SwcAuthorization::CONTEXT_MEMBER_TOOLS,
-                SwcAuthorization::CONTEXT_PAYMENTS,
-            ])
-            ->orderByRaw("case when auth_context = ? then 0 else 1 end", [SwcAuthorization::CONTEXT_MEMBER_TOOLS])
-            ->first();
+        $accessToken = $this->swcAuthorizationService->getAccessToken($user, \App\Models\SwcAuthorization::CONTEXT_PAYMENTS);
 
-        if (!$auth || empty($auth->access_token_encrypted)) {
+        if (!$accessToken) {
             return [
                 'ok' => false,
                 'allowed' => false,
@@ -53,7 +51,7 @@ class SwcPrivilegeService
             ];
         }
 
-        if (!$auth->has_character_privileges_access) {
+        if (!$this->swcAuthorizationService->hasCharacterPrivilegesAccess($user)) {
             return [
                 'ok' => false,
                 'allowed' => false,
@@ -77,7 +75,6 @@ class SwcPrivilegeService
             ];
         }
 
-        $accessToken = decrypt($auth->access_token_encrypted);
         $characterUid = '1:' . $user->swc_character_id;
 
         $url = rtrim((string) config('swc.api_base'), '/')

@@ -641,6 +641,206 @@ class UniverseController extends Controller
         ];
     }
 
+    private function resolveLocationAsteroidField(int $galx, int $galy): ?array
+    {
+        $candidates = DB::table('droidbrain_system_scan_objects as scan_object')
+            ->join('droidbrain_system_scans as scan', 'scan.id', '=', 'scan_object.scan_id')
+            ->where('scan_object.galx', $galx)
+            ->where('scan_object.galy', $galy)
+            ->whereNotNull('scan_object.raw_json')
+            ->where('scan_object.raw_json', 'like', '%fieldString%')
+            ->orderByDesc('scan.snapshot_unixtime')
+            ->orderByDesc('scan_object.id')
+            ->limit(50)
+            ->get([
+                'scan.snapshot_unixtime',
+                'scan_object.object_type',
+                'scan_object.object_name',
+                'scan_object.raw_json',
+            ]);
+
+        foreach ($candidates as $candidate) {
+            $fieldString = $this->extractFieldStringFromRawJson(
+                is_string($candidate->raw_json) ? $candidate->raw_json : null
+            );
+            if ($fieldString === null) {
+                continue;
+            }
+
+            $map = $this->parseAsteroidFieldString($fieldString);
+            if ($map === null) {
+                continue;
+            }
+
+            return [
+                ...$map,
+                'snapshot_unixtime' => is_numeric((string) $candidate->snapshot_unixtime)
+                    ? (int) $candidate->snapshot_unixtime
+                    : null,
+                'object_type' => is_string($candidate->object_type) ? $candidate->object_type : null,
+                'object_name' => is_string($candidate->object_name) ? $candidate->object_name : null,
+            ];
+        }
+
+        // Some scan exports only carry fieldString in the parent file XML, not in object raw_json.
+        $xmlCandidates = DB::table('droidbrain_system_scans as scan')
+            ->join('droidbrain_files as file', 'file.id', '=', 'scan.file_id')
+            ->where('scan.galx', $galx)
+            ->where('scan.galy', $galy)
+            ->whereNotNull('file.raw_xml')
+            ->whereRaw('LOWER(file.raw_xml) like ?', ['%fieldstring%'])
+            ->orderByDesc('scan.snapshot_unixtime')
+            ->orderByDesc('file.id')
+            ->limit(25)
+            ->get([
+                'scan.snapshot_unixtime',
+                'file.file_name',
+                'file.raw_xml',
+            ]);
+
+        foreach ($xmlCandidates as $candidate) {
+            $fieldString = $this->extractFieldStringFromRawXml(
+                is_string($candidate->raw_xml) ? $candidate->raw_xml : null
+            );
+            if ($fieldString === null) {
+                continue;
+            }
+
+            $map = $this->parseAsteroidFieldString($fieldString);
+            if ($map === null) {
+                continue;
+            }
+
+            return [
+                ...$map,
+                'snapshot_unixtime' => is_numeric((string) $candidate->snapshot_unixtime)
+                    ? (int) $candidate->snapshot_unixtime
+                    : null,
+                'object_type' => 'xml_upload',
+                'object_name' => is_string($candidate->file_name) ? $candidate->file_name : null,
+            ];
+        }
+
+        return null;
+    }
+
+    private function extractFieldStringFromRawJson(?string $rawJson): ?string
+    {
+        if (!$rawJson) {
+            return null;
+        }
+
+        $decoded = json_decode($rawJson, true);
+        if (!is_array($decoded)) {
+            return null;
+        }
+
+        return $this->findFieldStringInArray($decoded);
+    }
+
+    private function extractFieldStringFromRawXml(?string $rawXml): ?string
+    {
+        if (!$rawXml) {
+            return null;
+        }
+
+        if (!preg_match('/<fieldString[^>]*>(.*?)<\/fieldString>/is', $rawXml, $matches)) {
+            return null;
+        }
+
+        $value = trim(html_entity_decode(strip_tags((string) ($matches[1] ?? '')), ENT_QUOTES | ENT_HTML5));
+        return $value !== '' ? $value : null;
+    }
+
+    private function findFieldStringInArray(array $payload): ?string
+    {
+        foreach ($payload as $key => $value) {
+            if (is_string($key) && strtolower($key) === 'fieldstring') {
+                $string = $this->normalizeFieldStringValue($value);
+                if ($string !== null) {
+                    return $string;
+                }
+            }
+
+            if (is_array($value)) {
+                $nested = $this->findFieldStringInArray($value);
+                if ($nested !== null) {
+                    return $nested;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function normalizeFieldStringValue(mixed $value): ?string
+    {
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            return $trimmed !== '' ? $trimmed : null;
+        }
+
+        if (!is_array($value)) {
+            return null;
+        }
+
+        $parts = [];
+        array_walk_recursive($value, function (mixed $leaf) use (&$parts): void {
+            if (is_string($leaf)) {
+                $trimmed = trim($leaf);
+                if ($trimmed !== '') {
+                    $parts[] = $trimmed;
+                }
+            }
+        });
+
+        if ($parts === []) {
+            return null;
+        }
+
+        return implode("\n", $parts);
+    }
+
+    private function parseAsteroidFieldString(string $fieldString): ?array
+    {
+        $normalized = str_replace(["\r\n", "\r"], "\n", $fieldString);
+        $lines = array_values(array_filter(
+            array_map(static fn (string $line): string => trim($line), explode("\n", $normalized)),
+            static fn (string $line): bool => $line !== ''
+        ));
+
+        if ($lines === []) {
+            return null;
+        }
+
+        $width = max(array_map(static fn (string $line): int => strlen($line), $lines));
+        $rows = [];
+        $mask = [];
+
+        foreach ($lines as $line) {
+            $chars = str_split($line);
+            $rowChars = [];
+            $rowMask = [];
+
+            for ($x = 0; $x < $width; $x += 1) {
+                $char = strtolower($chars[$x] ?? '.');
+                $isAsteroid = $char === 'a';
+                $rowChars[] = $isAsteroid ? 'a' : '.';
+                $rowMask[] = $isAsteroid;
+            }
+
+            $rows[] = implode('', $rowChars);
+            $mask[] = $rowMask;
+        }
+
+        return [
+            'width' => $width,
+            'height' => count($rows),
+            'rows' => $rows,
+            'mask' => $mask,
+        ];
+    }
+
     public function sectors(): JsonResponse
     {
         return $this->cachedListResponse('universe:sectors:index', 300, function () {
@@ -2491,6 +2691,9 @@ class UniverseController extends Controller
                     ])->values();
                 })
             : collect();
+        $asteroidField = $canViewSearchRecord
+            ? $this->resolveLocationAsteroidField($galx, $galy)
+            : null;
 
         $primarySystem = $systems->first();
         $sectorUid = $searchRecord?->sector_uid
@@ -2543,6 +2746,7 @@ class UniverseController extends Controller
                     'notes' => $annotation->notes,
                     'updated_at' => $annotation->updated_at?->toISOString(),
                 ] : null,
+                'asteroid_field' => $asteroidField,
                 'ships' => $ships,
                 'stations' => $stations,
             ],
@@ -2559,44 +2763,30 @@ class UniverseController extends Controller
             $request->user(),
             ['is_intel', 'is_sysadmin']
         );
+        $canViewTerrainData = Permissions::hasAny(
+            $request->user(),
+            ['is_intel', 'is_admin', 'is_sysadmin']
+        );
 
-        $systemRecord = SwcSystem::query()
-            ->where('uid', $system)
-            ->orWhere('identifier', $system)
-            ->orWhere('name', $system)
-            ->firstOrFail();
+        $systemRecord = SwcSystem::query()->where('uid', $system)->first()
+            ?? SwcSystem::query()->where('identifier', $system)->first()
+            ?? SwcSystem::query()->where('name', $system)->firstOrFail();
 
+        $planetColumns = [
+            'uid', 'identifier', 'name', 'owner_uid', 'owner_name',
+            'planet_type_uid', 'planet_type_name', 'planet_type_href',
+            'size', 'population', 'previous_population', 'previous_population_recorded_at',
+            'galx', 'galy', 'sysx', 'sysy',
+            'image_small_url', 'image_large_url', 'image_atmosphere_url',
+            'image_stratosphere_url', 'image_loworbit_url', 'last_pulled_at',
+        ];
+        if ($canViewTerrainData) {
+            $planetColumns = array_merge($planetColumns, ['terrain_map', 'surface_bounds', 'terrain_grid', 'cities']);
+        }
         $planets = SwcPlanet::query()
             ->where('system_id', $systemRecord->id)
             ->orderBy('name')
-            ->get([
-                'uid',
-                'identifier',
-                'name',
-                'owner_uid',
-                'owner_name',
-                'planet_type_uid',
-                'planet_type_name',
-                'planet_type_href',
-                'size',
-                'population',
-                'previous_population',
-                'previous_population_recorded_at',
-                'galx',
-                'galy',
-                'sysx',
-                'sysy',
-                'terrain_map',
-                'surface_bounds',
-                'terrain_grid',
-                'cities',
-                'image_small_url',
-                'image_large_url',
-                'image_atmosphere_url',
-                'image_stratosphere_url',
-                'image_loworbit_url',
-                'last_pulled_at',
-            ]);
+            ->get($planetColumns);
 
         $stations = SwcStation::query()
             ->with('stationType')
@@ -2696,6 +2886,62 @@ class UniverseController extends Controller
                 ->values()
             : collect();
 
+        $droidbrainStationRows = $canViewDroidBrainShips
+            ? DB::table('droidbrain_stations_latest')
+                ->where('galx', $systemRecord->galx)
+                ->where('galy', $systemRecord->galy)
+                ->whereNotNull('sysx')
+                ->whereNotNull('sysy')
+                ->orderBy('name')
+                ->get([
+                    'entity_uid',
+                    'name',
+                    'owner_uid',
+                    'owner_name',
+                    'type_name',
+                    'galx',
+                    'galy',
+                    'sysx',
+                    'sysy',
+                    'snapshot_unixtime',
+                ])
+            : collect();
+
+        $droidbrainStationTypeNames = $droidbrainStationRows
+            ->pluck('type_name')
+            ->filter(fn ($value) => is_string($value) && trim($value) !== '')
+            ->map(fn (string $value) => trim($value))
+            ->unique()
+            ->values();
+
+        $droidbrainStationTypesByName = $droidbrainStationTypeNames->isEmpty()
+            ? collect()
+            : SwcStationType::query()
+                ->whereIn('name', $droidbrainStationTypeNames)
+                ->get(['name', 'image_url', 'icon_url'])
+                ->keyBy('name');
+
+        $droidbrainStations = $droidbrainStationRows
+            ->map(function ($station) use ($droidbrainStationTypesByName) {
+                $stationType = $droidbrainStationTypesByName->get($station->type_name);
+
+                return [
+                    'uid' => $station->entity_uid,
+                    'name' => $station->name,
+                    'owner_uid' => $station->owner_uid,
+                    'owner_name' => $station->owner_name,
+                    'type_name' => $station->type_name,
+                    'galx' => $station->galx,
+                    'galy' => $station->galy,
+                    'sysx' => $station->sysx,
+                    'sysy' => $station->sysy,
+                    'snapshot_unixtime' => $station->snapshot_unixtime,
+                    'image_url' => $stationType?->image_url,
+                    'icon_url' => $stationType?->icon_url,
+                ];
+            })
+            ->values();
+
         return response()->json([
             'ok' => true,
             'data' => [
@@ -2715,7 +2961,7 @@ class UniverseController extends Controller
                     'sysy' => $systemRecord->sysy,
                     'last_pulled_at' => $systemRecord->last_pulled_at,
                 ],
-                'planets' => $planets->map(function (SwcPlanet $planet) use ($canViewPreviousPopulation) {
+                'planets' => $planets->map(function (SwcPlanet $planet) use ($canViewPreviousPopulation, $canViewTerrainData) {
                     return [
                         'uid' => $planet->uid,
                         'identifier' => $planet->identifier,
@@ -2733,10 +2979,10 @@ class UniverseController extends Controller
                         'galy' => $planet->galy,
                         'sysx' => $planet->sysx,
                         'sysy' => $planet->sysy,
-                        'terrain_map' => $planet->terrain_map,
-                        'surface_bounds' => $planet->surface_bounds,
-                        'terrain_grid' => $planet->terrain_grid,
-                        'cities' => $planet->cities,
+                        'terrain_map' => $canViewTerrainData ? $planet->terrain_map : null,
+                        'surface_bounds' => $canViewTerrainData ? $planet->surface_bounds : null,
+                        'terrain_grid' => $canViewTerrainData ? $planet->terrain_grid : null,
+                        'cities' => $canViewTerrainData ? $planet->cities : null,
                         'image_small_url' => $planet->image_small_url,
                         'image_large_url' => $planet->image_large_url,
                         'image_atmosphere_url' => $planet->image_atmosphere_url,
@@ -2803,6 +3049,7 @@ class UniverseController extends Controller
                         ] : null,
                     ];
                 })->values(),
+                'droidbrain_stations' => $droidbrainStations,
                 'hyperlanes' => $hyperlanes,
                 'ships' => $ships,
             ],

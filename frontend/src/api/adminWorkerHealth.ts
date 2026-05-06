@@ -1,0 +1,53 @@
+import { apiFetch } from "./auth";
+
+export type AdminWorkerHealthState = {
+  status: "ok" | "warn" | "error" | string;
+  generated_at: string | null;
+  queue: {
+    status: "ok" | "warn" | "error" | string;
+    default_connection: string | null;
+    driver: string | null;
+    pending_total: number | null;
+    reserved_total: number | null;
+    oldest_pending_seconds: number | null;
+    by_queue: Array<{
+      queue: string;
+      pending: number;
+      reserved: number;
+      oldest_waiting_seconds: number | null;
+    }>;
+    error: string | null;
+  };
+  failed_jobs: {
+    status: "ok" | "warn" | "error" | string;
+    total: number | null;
+    recent: number | null;
+    recent_window_hours: number | null;
+    last_failed_at: string | null;
+    latest: Array<{
+      id: number;
+      connection: string;
+      queue: string;
+      failed_at: string | null;
+      job_name: string;
+      error_summary: string;
+    }>;
+    error: string | null;
+  };
+  droidbrain_upload_queue: {
+    status: "ok" | "warn" | "error" | string;
+    counts: Record<string, number>;
+    recent_failed: Array<{
+      id: number;
+      file_name: string;
+      error_message: string | null;
+      processed_at: string | null;
+      updated_at: string | null;
+    }>;
+    error: string | null;
+  };
+};
+
+export async function getAdminWorkerHealth() {
+  return apiFetch<{ ok: true; data: AdminWorkerHealthState }>("/admin/worker-health");
+}

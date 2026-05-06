@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\DroidBrainIndexStatus;
 use App\Support\Admin\AdminActionLogger;
 use App\Support\DroidBrain\DroidBrainBrowserService;
 use App\Support\DroidBrain\DroidBrainRewardService;
@@ -34,6 +35,7 @@ class DroidBrainController extends Controller
         return response()->json([
             'ok' => true,
             'data' => $this->browserService->buildContext($request->query(), !$fullAccess),
+            'index_status' => DroidBrainIndexStatus::allStatuses(),
         ]);
     }
 
@@ -76,10 +78,7 @@ class DroidBrainController extends Controller
             'file' => ['required', 'file', 'max:10240', 'mimetypes:text/xml,application/xml,text/plain,application/rss+xml,application/octet-stream'],
         ]);
 
-        $summary = $this->uploadService->ingest($validated['file'], $user);
-        if (!$summary['duplicate']) {
-            $summary['reward_summary'] = $this->rewardService->syncForFile((int) $summary['file_id'], null, true);
-        }
+        $summary = $this->uploadService->enqueue($validated['file'], $user);
 
         if (!(bool) $user->is_sysadmin) {
             unset($summary['reward_summary']);
@@ -88,6 +87,90 @@ class DroidBrainController extends Controller
         return response()->json([
             'ok' => true,
             'data' => $summary,
+        ]);
+    }
+
+    public function uploadQueueStatus(Request $request, int $queueId): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $queueItem = DB::table('droidbrain_upload_queue_items')->where('id', $queueId)->first();
+        if (!$queueItem) {
+            return response()->json(['message' => 'Upload queue item not found.'], 404);
+        }
+
+        $fullAccess = (bool) ($user->is_intel || $user->is_sysadmin);
+        if (
+            !$fullAccess
+            && $queueItem->user_id
+            && (int) $queueItem->user_id !== (int) $user->id
+        ) {
+            return response()->json(['message' => 'You do not have access to that upload queue item.'], 403);
+        }
+
+        $resultPayload = null;
+        if (is_string($queueItem->result_payload) && trim($queueItem->result_payload) !== '') {
+            $decoded = json_decode($queueItem->result_payload, true);
+            if (is_array($decoded)) {
+                $resultPayload = $decoded;
+            }
+        }
+
+        if (!is_array($resultPayload)) {
+            $resultPayload = [];
+        }
+
+        if (!(bool) $user->is_sysadmin) {
+            unset($resultPayload['reward_summary']);
+        }
+
+        $status = (string) ($queueItem->status ?? 'queued');
+        $isPending = in_array($status, ['queued', 'processing'], true);
+
+        $uploadResult = array_merge($resultPayload, [
+            'file_id' => isset($resultPayload['file_id'])
+                ? (int) $resultPayload['file_id']
+                : ($queueItem->result_file_id ? (int) $queueItem->result_file_id : null),
+            'queue_id' => (int) $queueItem->id,
+            'queued' => $isPending,
+            'queue_status' => $status,
+        ]);
+
+        if (!isset($uploadResult['duplicate'])) {
+            $uploadResult['duplicate'] = false;
+        }
+        if (!isset($uploadResult['payload_type'])) {
+            $uploadResult['payload_type'] = 'unknown';
+        }
+        if (!isset($uploadResult['counts'])) {
+            $uploadResult['counts'] = [];
+        }
+        if (!isset($uploadResult['message']) || !is_string($uploadResult['message']) || trim($uploadResult['message']) === '') {
+            if ($status === 'failed') {
+                $uploadResult['message'] = 'Upload failed.';
+            } elseif ($status === 'completed') {
+                $uploadResult['message'] = 'Upload imported successfully.';
+            } elseif ($status === 'processing') {
+                $uploadResult['message'] = 'Upload is processing.';
+            } else {
+                $uploadResult['message'] = 'Upload queued.';
+            }
+        }
+
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'queue_id' => (int) $queueItem->id,
+                'status' => $status,
+                'result_file_id' => $queueItem->result_file_id ? (int) $queueItem->result_file_id : null,
+                'processed_at' => $queueItem->processed_at,
+                'error_message' => $queueItem->error_message ? (string) $queueItem->error_message : null,
+                'upload_result' => $uploadResult,
+            ],
         ]);
     }
 

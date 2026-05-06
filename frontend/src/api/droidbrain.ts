@@ -46,6 +46,14 @@ export type DroidBrainResultRow = Record<string, unknown> & {
   uploader_handle?: string | null;
 };
 
+export type DroidBrainIndexTabStatus = {
+  is_dirty: boolean;
+  dirtied_at: string | null;
+  indexed_at: string | null;
+};
+
+export type DroidBrainIndexStatus = Partial<Record<Exclude<DroidBrainTab, "summary">, DroidBrainIndexTabStatus>>;
+
 export type DroidBrainContext = {
   tab: DroidBrainTab;
   tab_labels: Record<DroidBrainTab, string>;
@@ -68,11 +76,14 @@ export type DroidBrainContext = {
 };
 
 export type DroidBrainUploadResult = {
-  file_id: number;
+  file_id?: number | null;
+  queue_id?: number;
+  queued?: boolean;
+  queue_status?: string;
   duplicate: boolean;
-  payload_type: string;
-  snapshot_unix: number | null;
-  counts: Record<string, number>;
+  payload_type?: string;
+  snapshot_unix?: number | null;
+  counts?: Record<string, number>;
   message: string;
   duplicate_attempt_status?: string | null;
   duplicate_attempt_new_entities_count?: number | null;
@@ -100,6 +111,15 @@ export type DroidBrainUploadResult = {
       total_amount: number;
     }>;
   } | null;
+};
+
+export type DroidBrainUploadQueueStatus = {
+  queue_id: number;
+  status: string;
+  result_file_id: number | null;
+  processed_at: string | null;
+  error_message: string | null;
+  upload_result: DroidBrainUploadResult | null;
 };
 
 export type DroidBrainUploadDebug = {
@@ -162,7 +182,7 @@ export async function getDroidBrain(params?: Partial<Record<string, string | num
     query.set(key, String(value));
   });
 
-  return apiFetch<{ ok: true; data: DroidBrainContext }>(
+  return apiFetch<{ ok: true; data: DroidBrainContext; index_status: DroidBrainIndexStatus }>(
     `/droidbrain${query.toString() ? `?${query.toString()}` : ""}`
   );
 }
@@ -185,6 +205,10 @@ export async function uploadDroidBrainFile(file: File) {
     method: "POST",
     body: form,
   });
+}
+
+export async function getDroidBrainUploadQueueStatus(queueId: number) {
+  return apiFetch<{ ok: true; data: DroidBrainUploadQueueStatus }>(`/droidbrain/upload-queue/${queueId}`);
 }
 
 export async function getDroidBrainUploadDebug(fileId: number) {

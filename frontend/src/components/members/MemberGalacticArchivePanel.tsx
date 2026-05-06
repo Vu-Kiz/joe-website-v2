@@ -16,10 +16,11 @@ import {
   type StoredSystemDetail,
 } from "../../api/universe";
 
-type ArchiveTab = "sectors" | "systems" | "planets" | "factions";
+type ArchiveTab = "sectors" | "systems" | "planets" | "factions" | "system_ids";
 
 type Props = {
   onBack: () => void;
+  isAdmin?: boolean;
 };
 
 const tabLabels: Record<ArchiveTab, string> = {
@@ -27,6 +28,7 @@ const tabLabels: Record<ArchiveTab, string> = {
   systems: "Systems",
   planets: "Planets",
   factions: "Factions",
+  system_ids: "System Index",
 };
 
 const formatNumber = (value: number | null | undefined) =>
@@ -68,7 +70,7 @@ const buildSearchBlob = (values: Array<string | number | null | undefined>) =>
     .map((value) => String(value).toLowerCase())
     .join(" ");
 
-const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack }) => {
+const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }) => {
   const [activeTab, setActiveTab] = useState<ArchiveTab>("sectors");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -87,6 +89,7 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack }) => {
   const [selectedSectorKey, setSelectedSectorKey] = useState<string | null>(null);
   const [selectedSystemKey, setSelectedSystemKey] = useState<string | null>(null);
   const [selectedPlanetKey, setSelectedPlanetKey] = useState<string | null>(null);
+  const [showIdGaps, setShowIdGaps] = useState(false);
   const [selectedFactionKey, setSelectedFactionKey] = useState<string | null>(null);
 
   useEffect(() => {
@@ -103,7 +106,7 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack }) => {
           setSectors(response.data);
         }
 
-        if (activeTab === "systems" && systems.length === 0) {
+        if ((activeTab === "systems" || activeTab === "system_ids") && systems.length === 0) {
           const response = await getStoredMapSystems();
           if (cancelled) return;
           setSystems(response.data);
@@ -165,6 +168,44 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack }) => {
         system.galy,
       ]).includes(needle)
     );
+  }, [query, systems]);
+
+  const systemsByNumber = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    const filtered = needle
+      ? systems.filter((s) =>
+          buildSearchBlob([(s.uid ?? "").split(":")[1], s.name, s.sector_name, s.galx, s.galy]).includes(needle)
+        )
+      : systems;
+    return [...filtered].sort((a, b) => {
+      const na = parseInt((a.uid ?? "").split(":")[1] ?? "", 10);
+      const nb = parseInt((b.uid ?? "").split(":")[1] ?? "", 10);
+      if (isNaN(na) && isNaN(nb)) return 0;
+      if (isNaN(na)) return 1;
+      if (isNaN(nb)) return -1;
+      return na - nb;
+    });
+  }, [query, systems]);
+
+  const idGaps = useMemo(() => {
+    const ids = systems
+      .map((s) => parseInt((s.uid ?? "").split(":")[1] ?? "", 10))
+      .filter((n) => !isNaN(n))
+      .sort((a, b) => a - b);
+    const gaps: Array<{ start: number; end: number }> = [];
+    for (let i = 1; i < ids.length; i++) {
+      if (ids[i] - ids[i - 1] > 1) {
+        gaps.push({ start: ids[i - 1] + 1, end: ids[i] - 1 });
+      }
+    }
+    const needle = query.trim();
+    if (!needle) return gaps;
+    return gaps.filter((g) => {
+      for (let n = g.start; n <= g.end; n++) {
+        if (String(n).includes(needle)) return true;
+      }
+      return false;
+    });
   }, [query, systems]);
 
   const filteredPlanets = useMemo(() => {
@@ -257,6 +298,7 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack }) => {
     systems: filteredSystems.length,
     planets: filteredPlanets.length,
     factions: filteredFactions.length,
+    system_ids: systemsByNumber.length,
   }[activeTab];
 
   return (
@@ -276,20 +318,23 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack }) => {
             </p>
           </div>
           <div className="members-entity-stats__tabs">
-            {Object.entries(tabLabels).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                className={`btn btn--small${activeTab === key ? " active" : ""}`}
-                onClick={() => {
-                  setActiveTab(key as ArchiveTab);
-                  setQuery("");
-                  setError(null);
-                }}
-              >
-                {label}
-              </button>
-            ))}
+            {(Object.entries(tabLabels) as [ArchiveTab, string][])
+              .filter(([key]) => key !== "system_ids" || isAdmin)
+              .map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={`btn btn--small${activeTab === key ? " active" : ""}`}
+                  onClick={() => {
+                    setActiveTab(key);
+                    setQuery("");
+                    setError(null);
+                    setShowIdGaps(false);
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
           </div>
         </div>
 
@@ -301,8 +346,17 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack }) => {
             onChange={(event) => setQuery(event.target.value)}
             placeholder={`Search ${tabLabels[activeTab].toLowerCase()}...`}
           />
+          {activeTab === "system_ids" && (
+            <button
+              type="button"
+              className={`btn btn--small${showIdGaps ? " active" : ""}`}
+              onClick={() => { setShowIdGaps((v) => !v); setQuery(""); }}
+            >
+              {showIdGaps ? "Show Systems" : "Show Gaps"}
+            </button>
+          )}
           <p className="small" style={{ margin: 0 }}>
-            {loading ? "Loading archive data..." : `${currentResultsCount} result(s)`}
+            {loading ? "Loading archive data..." : `${showIdGaps && activeTab === "system_ids" ? idGaps.length : currentResultsCount} result(s)`}
           </p>
         </div>
 
@@ -362,6 +416,36 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack }) => {
                 );
               })}
 
+            {activeTab === "system_ids" && !showIdGaps &&
+              systemsByNumber.map((system) => {
+                const numericId = (system.uid ?? "").split(":")[1] ?? system.uid ?? "";
+                const key = system.uid ?? system.name ?? numericId;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`members-archive__item${selectedSystemKey === (system.identifier ?? system.uid ?? system.name ?? "system") ? " is-active" : ""}`}
+                    onClick={() => void handleSelectSystem(system)}
+                  >
+                    <strong>#{numericId}{system.name ? ` — ${system.name}` : ""}</strong>
+                    <span className="small">{system.sector_name ?? "Unknown sector"} · {system.galx}, {system.galy}</span>
+                  </button>
+                );
+              })}
+
+            {activeTab === "system_ids" && showIdGaps &&
+              idGaps.map((gap) => (
+                <div key={`${gap.start}-${gap.end}`} className="members-archive__item">
+                  {gap.start === gap.end
+                    ? <strong>#{gap.start}</strong>
+                    : <strong>#{gap.start} — #{gap.end}</strong>
+                  }
+                  <span className="small">
+                    {gap.end - gap.start + 1} missing ID{gap.end - gap.start > 0 ? "s" : ""}
+                  </span>
+                </div>
+              ))}
+
             {activeTab === "factions" &&
               filteredFactions.map((faction) => (
                 <button
@@ -403,7 +487,7 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack }) => {
               </>
             )}
 
-            {activeTab === "systems" && selectedSystem && (
+            {(activeTab === "systems" || activeTab === "system_ids") && selectedSystem && (
               <>
                 <h3 className="members-entity-stats__section-heading">{selectedSystem.system.name ?? selectedSystem.identifier}</h3>
                 <div className="members-entity-stats__stats-grid">
@@ -469,7 +553,7 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack }) => {
             )}
 
             {!selectedSector && activeTab === "sectors" ? <p className="small">Select a sector to view archive details.</p> : null}
-            {!selectedSystem && activeTab === "systems" ? <p className="small">Select a system to view archive details.</p> : null}
+            {!selectedSystem && (activeTab === "systems" || activeTab === "system_ids") ? <p className="small">Select a system to view archive details.</p> : null}
             {!selectedPlanet && activeTab === "planets" ? <p className="small">Select a planet to view archive details.</p> : null}
             {!selectedFaction && activeTab === "factions" ? <p className="small">Select a faction to view archive details.</p> : null}
           </div>

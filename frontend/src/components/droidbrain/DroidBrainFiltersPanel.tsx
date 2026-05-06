@@ -149,6 +149,17 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
     });
   };
 
+  const handleReset = () => {
+    setSearchQuery("");
+    setUidQuery("");
+    setTypeQuery("");
+    setClassQuery("");
+    setSystemQuery("");
+    setPlanetQuery("");
+    setOwnerQuery("");
+    onReset();
+  };
+
   return (
     <div
       className="panel"
@@ -433,7 +444,7 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
           <button className="btn" type="button" onClick={applyFilters}>
             Search
           </button>
-          <button className="btn btn-secondary" type="button" onClick={onReset}>
+          <button className="btn btn-secondary" type="button" onClick={handleReset}>
             Clear
           </button>
         </div>

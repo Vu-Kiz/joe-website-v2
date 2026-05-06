@@ -23,6 +23,7 @@ services:
     restart: unless-stopped
     depends_on:
       - db
+      - meilisearch
     environment:
       APP_ENV: local
       APP_DEBUG: "true"
@@ -35,6 +36,10 @@ services:
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       QUEUE_CONNECTION: database
+
+      SCOUT_DRIVER: meilisearch
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILISEARCH_KEY}
     volumes:
       - ./backend:/var/www/html
     ports:
@@ -49,6 +54,7 @@ services:
     depends_on:
       - db
       - backend
+      - meilisearch
     environment:
       APP_ENV: local
       APP_DEBUG: "true"
@@ -61,6 +67,10 @@ services:
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       QUEUE_CONNECTION: database
+
+      SCOUT_DRIVER: meilisearch
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILISEARCH_KEY}
     volumes:
       - ./backend:/var/www/html
     command: >
@@ -110,6 +120,18 @@ services:
     command: >
       sh -c "npm install && npm start"
 
+  meilisearch:
+    image: getmeili/meilisearch:v1.8
+    container_name: joe_meilisearch_v2_dev
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: ${MEILISEARCH_KEY}
+      MEILI_ENV: development
+    volumes:
+      - meilisearch_data:/meili_data
+    ports:
+      - "7700:7700"
+
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
     container_name: joe_phpmyadmin_v2_dev
@@ -120,3 +142,6 @@ services:
       PMA_HOST: db
     ports:
       - "9013:80"
+
+volumes:
+  meilisearch_data:

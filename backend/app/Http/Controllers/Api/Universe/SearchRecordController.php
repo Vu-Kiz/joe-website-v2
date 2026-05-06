@@ -10,6 +10,7 @@ use App\Models\SwcSectorSearchRecord;
 use App\Models\SwcSystem;
 use App\Models\User;
 use App\Support\Admin\AdminActionLogger;
+use App\Support\Swc\SwcAuthorizationService;
 use App\Support\Swc\SwcHttp;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Client\Response;
@@ -20,6 +21,11 @@ use Illuminate\Support\Facades\Cache;
 class SearchRecordController extends Controller
 {
     private const CACHE_VERSION_KEY = 'universe:search-records:version';
+
+    public function __construct(
+        protected SwcAuthorizationService $swcAuthorizationService
+    ) {
+    }
 
     protected function readSystemUpdaterCursor(User $user): array
     {
@@ -173,12 +179,22 @@ class SearchRecordController extends Controller
 
     protected function collectPersonalEventsHistory(
         Request $request,
+        User $user,
         SwcAuthorization $auth,
         ?int $stopBeforeTimestamp = null,
         ?string $stopBeforeEventUid = null
     ): array
     {
-        $accessToken = decrypt($auth->access_token_encrypted);
+        $accessToken = $this->swcAuthorizationService->getAccessToken($user, $auth->auth_context);
+
+        if (!$accessToken) {
+            return [
+                'ok' => false,
+                'status' => 401,
+                'message' => 'No active SWC access token is available for personal events.',
+            ];
+        }
+
         $url = rtrim((string) config('swc.api_base'), '/') . '/events/personal/xp/';
         $itemCount = 1000;
         $maxPages = 50;
@@ -590,6 +606,7 @@ class SearchRecordController extends Controller
 
         $historyResult = $this->collectPersonalEventsHistory(
             $request,
+            $user,
             $auth,
             $stopBeforeTimestamp,
             $stopBeforeEventUid

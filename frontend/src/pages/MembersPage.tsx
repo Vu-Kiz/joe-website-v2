@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { fetchAuthMe, getBackendOrigin, subscribeToAuthStateChange, type SwcUser } from "../api/auth";
 import {
@@ -14,7 +14,7 @@ import {
 } from "../api/jobs";
 import { getPayments } from "../api/payments";
 import { getMyPayableFactions, type PayableFaction } from "../api/factions";
-import { canAccessCombatCalculator, canAccessIntel, canAccessMembers, canAccessPayments, canAccessSysadmin, canAccessWreckingHelperExtension } from "../auth/permissions";
+import { canAccessAdmin, canAccessCombatCalculator, canAccessIntel, canAccessMembers, canAccessPayments, canAccessSysadmin, canAccessWreckingHelperExtension } from "../auth/permissions";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import OpenJobsPanel from "../components/members/jobs/OpenJobsPanel";
@@ -122,10 +122,17 @@ const MembersPage: React.FC = () => {
     Number.isFinite(requestedJobId) && requestedJobId > 0 ? requestedJobId : null
   );
   const [mountUniversePanel, setMountUniversePanel] = useState<boolean>(requestedMembersView === "universe");
+  const skipNextUrlSyncRef = useRef(false);
 
   useEffect(() => {
     if (requestedMembersView) {
       setMembersView(requestedMembersView);
+      return;
+    }
+
+    if (location.state?.resetToOverview) {
+      skipNextUrlSyncRef.current = true;
+      setMembersView("overview");
       return;
     }
 
@@ -198,6 +205,11 @@ const MembersPage: React.FC = () => {
   }, [requestedJobsView, requestedMembersView]);
 
   useEffect(() => {
+    if (skipNextUrlSyncRef.current) {
+      skipNextUrlSyncRef.current = false;
+      return;
+    }
+
     const nextParams = new URLSearchParams(searchParams.toString());
 
     if (membersView === "overview") {
@@ -375,7 +387,7 @@ const MembersPage: React.FC = () => {
   const isLoggedIn = !!user;
   const canSeeMembers = canAccessMembers(user) || canAccessIntel(user) || canAccessWreckingHelperExtension(user);
   const canSeeMemberOnlyTools = canAccessMembers(user);
-  const canSeeGalacticArchive = canAccessSysadmin(user);
+  const canSeeGalacticArchive = canAccessAdmin(user);
   const canSeeCombatCalculator = canAccessCombatCalculator(user);
   const canSeeWreckingHelperExtension = canAccessWreckingHelperExtension(user);
   const canSeeToolkitPrivilegePreview = canAccessSysadmin(user);
@@ -1024,7 +1036,7 @@ const MembersPage: React.FC = () => {
       )}
 
       {membersView === "archive" && canSeeGalacticArchive && (
-        <MemberGalacticArchivePanel onBack={() => setMembersView("overview")} />
+        <MemberGalacticArchivePanel onBack={() => setMembersView("overview")} isAdmin={canAccessAdmin(user)} />
       )}
 
       {membersView === "wreckingHelper" && canSeeWreckingHelperExtension && (

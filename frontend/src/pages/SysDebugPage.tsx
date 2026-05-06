@@ -16,6 +16,7 @@ import {
   pullDebugCreditLog,
   resetDebugSystemUpdaterCursor,
   runUniversePull,
+  testDebugRefreshToken,
   testFactionPrivilege,
   testManualPayment,
   testPaymentTransfer,
@@ -42,6 +43,7 @@ type PanelKey =
   | "rawSwc"
   | "privilegeTest"
   | "paymentTest"
+  | "refreshTokenTest"
   | "universePull";
 
 type UniverseResource = "system" | "sector" | "planet" | "station";
@@ -95,6 +97,7 @@ const initialPanels: Record<PanelKey, DebugPanelState> = {
   rawSwc: emptyPanel(),
   privilegeTest: emptyPanel(),
   paymentTest: emptyPanel(),
+  refreshTokenTest: emptyPanel(),
   universePull: emptyPanel(),
 };
 
@@ -176,6 +179,9 @@ const SysDebugPage: React.FC = () => {
   const [manualReference, setManualReference] = useState("");
   const [manualCommunicationPrefix, setManualCommunicationPrefix] = useState("");
   const [manualItemCount, setManualItemCount] = useState("100");
+  const [refreshTestContext, setRefreshTestContext] = useState<
+    "link_account" | "member_tools" | "payments" | "events" | "debug"
+  >("member_tools");
 
   const targetLabel = useMemo(() => {
     return activeTargetUserId ? `User #${activeTargetUserId}` : "Me";
@@ -549,6 +555,14 @@ const SysDebugPage: React.FC = () => {
     await runPanel(
       "paymentTest",
       () => pullDebugCreditLog(activeTargetUserId),
+      (res) => res
+    );
+  }
+
+  async function onRunRefreshTokenTest() {
+    await runPanel(
+      "refreshTokenTest",
+      () => testDebugRefreshToken(refreshTestContext, activeTargetUserId),
       (res) => res
     );
   }
@@ -1018,6 +1032,41 @@ const SysDebugPage: React.FC = () => {
                   >
                     Refresh SWC auth
                   </button>
+                </div>
+              )}
+
+              {renderPanel(
+                "refreshTokenTest",
+                "Refresh Token Test",
+                <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
+                  <p className="small" style={{ margin: 0 }}>
+                    Force the backend to use the stored SWC refresh token and inspect the authorization before and after renewal.
+                  </p>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <select
+                      className="input"
+                      value={refreshTestContext}
+                      onChange={(e) =>
+                        setRefreshTestContext(
+                          e.target.value as "link_account" | "member_tools" | "payments" | "events" | "debug"
+                        )
+                      }
+                    >
+                      <option value="member_tools">member_tools</option>
+                      <option value="payments">payments</option>
+                      <option value="events">events</option>
+                      <option value="debug">debug</option>
+                      <option value="link_account">link_account</option>
+                    </select>
+                    <button
+                      className="btn"
+                      type="button"
+                      onClick={onRunRefreshTokenTest}
+                      disabled={panels.refreshTokenTest.loading}
+                    >
+                      {panels.refreshTokenTest.loading ? "Refreshing Token..." : "Test Refresh Token"}
+                    </button>
+                  </div>
                 </div>
               )}
 

@@ -106,6 +106,36 @@ export type FullResetAdminUserSystemUpdaterResponse = {
   };
 };
 
+export type RevokeAdminUserSwcAuthorizationResponse = {
+  ok: boolean;
+  message: string;
+  result: {
+    processed: number;
+    remote_attempted: number;
+    remote_revoked: number;
+    remote_errors: number;
+    local_revoked: number;
+  };
+  user: {
+    id: number;
+    handle: string | null;
+    auth_version: number;
+  };
+};
+
+export type RevokeAllAdminUsersSwcAuthorizationResponse = {
+  ok: boolean;
+  message: string;
+  result: {
+    processed: number;
+    remote_attempted: number;
+    remote_revoked: number;
+    remote_errors: number;
+    local_revoked: number;
+    affected_users: number;
+  };
+};
+
 export async function listAdminUsers(): Promise<ListAdminUsersResponse> {
   return apiFetch<ListAdminUsersResponse>("/admin/users", {
     method: "GET",
@@ -154,6 +184,29 @@ export async function fullResetAdminUserSystemUpdater(
     `/admin/users/${userId}/full-reset-system-updater`,
     {
       method: "POST",
+    }
+  );
+}
+
+export async function revokeAdminUserSwcAuthorization(
+  userId: number
+): Promise<RevokeAdminUserSwcAuthorizationResponse> {
+  return apiFetch<RevokeAdminUserSwcAuthorizationResponse>(
+    `/admin/users/${userId}/revoke-swc-authorization`,
+    {
+      method: "POST",
+    }
+  );
+}
+
+export async function revokeAllAdminUsersSwcAuthorization(): Promise<RevokeAllAdminUsersSwcAuthorizationResponse> {
+  return apiFetch<RevokeAllAdminUsersSwcAuthorizationResponse>(
+    `/admin/users/revoke-swc-authorization-all`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        confirm: "REVOKE_ALL_SWC_AUTH",
+      }),
     }
   );
 }

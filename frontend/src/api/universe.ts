@@ -364,6 +364,20 @@ export type StoredSystemDetail = {
       last_pulled_at: string | null;
     } | null;
   }>;
+  droidbrain_stations: Array<{
+    uid: string | null;
+    name: string | null;
+    owner_uid: string | null;
+    owner_name: string | null;
+    type_name: string | null;
+    galx: number | null;
+    galy: number | null;
+    sysx: number | null;
+    sysy: number | null;
+    snapshot_unixtime: number | null;
+    image_url: string | null;
+    icon_url: string | null;
+  }>;
   hyperlanes: Array<{
     uid: string | null;
     name: string | null;
@@ -415,6 +429,15 @@ export type StoredLocationDetail = {
   }>;
   search_record: SectorSearchRecord | null;
   annotation: SectorCellAnnotation | null;
+  asteroid_field: {
+    width: number;
+    height: number;
+    rows: string[];
+    mask: boolean[][];
+    snapshot_unixtime: number | null;
+    object_type: string | null;
+    object_name: string | null;
+  } | null;
   ships: Array<{
     uid: string | null;
     name: string | null;

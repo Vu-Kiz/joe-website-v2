@@ -148,6 +148,7 @@ const Navbar: React.FC = () => {
               <li>
                 <Link
                   to="/members"
+                  state={{ resetToOverview: true }}
                   className={`btn${hasPendingPayments && showMembersTools ? " btn--payments-alert" : ""}`}
                 >
                   Tools

@@ -2,20 +2,18 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../api/auth";
 import {
-  buildBulkPayment,
-  buildSinglePayment,
   getDroidBrainPaymentSettings,
   getPaymentTransfers,
   getPayments,
   getPaymentsOwedToMe,
+  sendBulkPayment,
+  sendSinglePayment,
   getUnverifiedSupportTransfers,
   manualVerifyPaymentTransfer,
-  pullCreditLog,
   updateDroidBrainPaymentSettings,
   verifyPaymentTransfer,
   type PaymentItem,
   type PaymentTransfer,
-  type PullCreditLogResponse,
 } from "../api/payments";
 import {
   createManualPaymentTemplate,
@@ -29,10 +27,6 @@ import {
   type ManualPaymentTemplateOptionsResponse,
 } from "../api/manualPayments";
 import {
-  getSwcAuthorizationStatus,
-  type SwcAuthorizationStatus,
-} from "../api/swcAuthorization";
-import {
   getMyFactionPrivileges,
   type FactionPrivilegeCheckResult,
 } from "../api/factionPrivileges";
@@ -40,7 +34,6 @@ import { logMemberToolOpen } from "../api/memberTools";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import PaymentsNav from "../components/payments/PaymentsNav";
-import PaymentsStatusPanel from "../components/payments/PaymentsStatusPanel";
 import PendingPaymentsPanel from "../components/payments/PendingPaymentsPanel";
 import OwedPaymentsPanel from "../components/payments/OwedPaymentsPanel";
 import PaymentHistoryPanel from "../components/payments/PaymentHistoryPanel";
@@ -65,7 +58,6 @@ const PaymentsPage: React.FC = () => {
   const [transfers, setTransfers] = useState<PaymentTransfer[]>([]);
   const [supportTransfers, setSupportTransfers] = useState<PaymentTransfer[]>([]);
   const [supportTransfersError, setSupportTransfersError] = useState<string | null>(null);
-  const [swcAuth, setSwcAuth] = useState<SwcAuthorizationStatus | null>(null);
   const [privileges, setPrivileges] = useState<FactionPrivilegeCheckResult[]>([]);
   const [templates, setTemplates] = useState<ManualPaymentTemplate[]>([]);
   const [templateOptions, setTemplateOptions] = useState<ManualPaymentTemplateOptionsResponse["data"] | null>(null);
@@ -75,10 +67,7 @@ const PaymentsPage: React.FC = () => {
   const [selected, setSelected] = useState<number[]>([]);
   const [bulkLines, setBulkLines] = useState("");
   const [bulkUrl, setBulkUrl] = useState<string | null>(null);
-  const [pullCreditLogLoading, setPullCreditLogLoading] = useState(false);
   const [templatesWorking, setTemplatesWorking] = useState(false);
-  const [lastSyncResult, setLastSyncResult] = useState<PullCreditLogResponse["data"] | null>(null);
-  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [actionState, setActionState] = useState<PaymentsActionState>({
     working: false,
     message: null,
@@ -190,7 +179,6 @@ const PaymentsPage: React.FC = () => {
         setUser(currentUser);
 
         if (!currentUser) {
-          setSwcAuth(null);
           setPendingItems([]);
           setOwedItems([]);
           setTransfers([]);
@@ -204,7 +192,6 @@ const PaymentsPage: React.FC = () => {
         }
 
         if (!currentUser.is_joe_member) {
-          setSwcAuth(null);
           setPendingItems([]);
           setOwedItems([]);
           setTransfers([]);
@@ -218,7 +205,6 @@ const PaymentsPage: React.FC = () => {
         }
 
         const [
-          swcAuthRes,
           pendingRes,
           owedRes,
           transferRes,
@@ -228,7 +214,6 @@ const PaymentsPage: React.FC = () => {
           supportTransferRes,
           droidBrainSettingsRes,
         ] = await Promise.all([
-          getSwcAuthorizationStatus(),
           getPayments(),
           getPaymentsOwedToMe(),
           getPaymentTransfers(),
@@ -247,7 +232,6 @@ const PaymentsPage: React.FC = () => {
 
         if (cancelled) return;
 
-        setSwcAuth(swcAuthRes?.data ?? null);
         setPendingItems(pendingRes?.data ?? []);
         setOwedItems(owedRes?.data ?? []);
         setTransfers(transferRes?.data ?? []);
@@ -269,7 +253,6 @@ const PaymentsPage: React.FC = () => {
 
         setError(e?.message ?? "Failed to load payments");
         setUser(null);
-        setSwcAuth(null);
         setPendingItems([]);
         setOwedItems([]);
         setTransfers([]);
@@ -303,11 +286,11 @@ const PaymentsPage: React.FC = () => {
 
   function normalizeVerifyError(message: string): string {
     if (/timed out|expired|reconnect|not connected|401/i.test(message)) {
-      return "Your Chain Code Verification for payments has timed out. Please use Resync Chain Code Verification and try again.";
+      return "We could not verify this payment right now. Please try again in a moment.";
     }
 
     if (/could not confirm this payment|no matching swc credit log transaction/i.test(message)) {
-      return "We could not confirm this payment from SWC yet. Try SWC Sync again in a moment. If you have already confirmed it in SWC, a sysadmin can override it with the SWC transaction ID.";
+      return "We could not confirm this payment from SWC yet. Try again in a moment. If you have already confirmed it in SWC, a sysadmin can override it with the SWC transaction ID.";
     }
 
     return message;
@@ -319,15 +302,9 @@ const PaymentsPage: React.FC = () => {
     );
   }
 
-  function dismissLastSync() {
-    setLastSyncResult(null);
-    setLastSyncAt(null);
-  }
-
   async function reloadPayments() {
-    const [swcAuthRes, pendingRes, owedRes, transferRes, privilegeRes, templatesRes, templateOptionsRes, supportTransferRes] =
+    const [pendingRes, owedRes, transferRes, privilegeRes, templatesRes, templateOptionsRes, supportTransferRes] =
       await Promise.all([
-        getSwcAuthorizationStatus(),
         getPayments(),
         getPaymentsOwedToMe(),
         getPaymentTransfers(),
@@ -343,7 +320,6 @@ const PaymentsPage: React.FC = () => {
           : Promise.resolve({ ok: true as const, data: [] as PaymentTransfer[] }),
       ]);
 
-    setSwcAuth(swcAuthRes.data);
     setPendingItems(pendingRes.data);
     setOwedItems(owedRes.data);
     setTransfers(transferRes.data);
@@ -354,22 +330,21 @@ const PaymentsPage: React.FC = () => {
     setTemplateOptions(templateOptionsRes.data);
   }
 
-  async function onPayRecipient(ids: number[]) {
+  async function onPayRecipient(ids: number[], payerType: "user" | "faction") {
     try {
       setActionState({
         working: true,
-        message: "Opening payment link…",
+        message: payerType === "faction" ? "Sending faction credits…" : "Sending personal credits…",
         error: null,
       });
 
-      const res = await buildSinglePayment(ids);
-      window.open(res.data.url, "_blank", "noopener,noreferrer");
+      const res = await sendSinglePayment(ids);
 
       await reloadPayments();
 
       setActionState({
         working: false,
-        message: "Payment link opened.",
+        message: res.data.message || "Credits sent successfully via website.",
         error: null,
       });
     } catch (e: any) {
@@ -387,30 +362,27 @@ const PaymentsPage: React.FC = () => {
     try {
       setActionState({
         working: true,
-        message: "Building bulk payment lines…",
+        message: "Running batch payment…",
         error: null,
       });
 
-      const res = await buildBulkPayment(selected);
-      setBulkLines(res.data.pipe_lines);
-      setBulkUrl(res.data.bulk_page_url);
-
-      if (res.data.pipe_lines) {
-        await navigator.clipboard.writeText(res.data.pipe_lines);
-      }
+      const res = await sendBulkPayment(selected);
+      setBulkLines("");
+      setBulkUrl(null);
+      setSelected([]);
 
       await reloadPayments();
 
       setActionState({
         working: false,
-        message: "Bulk payment lines copied to clipboard.",
+        message: res.data.message,
         error: null,
       });
     } catch (e: any) {
       setActionState({
         working: false,
         message: null,
-        error: e?.message ?? "Failed to build bulk payment",
+        error: e?.message ?? "Failed to run batch payment",
       });
     }
   }
@@ -513,44 +485,6 @@ const PaymentsPage: React.FC = () => {
         message: null,
         error: String(e?.message ?? "Failed to save the sysadmin verification override."),
       });
-    }
-  }
-
-  async function onPullCreditLog() {
-    try {
-      setPullCreditLogLoading(true);
-      setActionState({
-        working: true,
-        message: "Pulling SWC credit log…",
-        error: null,
-      });
-
-      const res = await pullCreditLog();
-      await reloadPayments();
-      setLastSyncResult(res.data);
-      setLastSyncAt(new Date().toLocaleString());
-
-      setActionState({
-        working: false,
-        message: `SWC payment sync complete. ${res.data.message}`,
-        error: null,
-      });
-    } catch (e: any) {
-      const message = String(e?.message ?? "Failed to pull SWC credit log.");
-      const statusCode = Number(e?.status ?? 0);
-      const isReconnectStatus = statusCode === 401 || statusCode === 403 || statusCode === 422;
-      const normalizedMessage =
-        isReconnectStatus || /timed out|expired|reconnect|not connected|unauthenticated|forbidden/i.test(message)
-          ? "Your Chain Code Verification for payments has timed out. Please reconnect it and try again."
-          : message;
-
-      setActionState({
-        working: false,
-        message: null,
-        error: normalizedMessage,
-      });
-    } finally {
-      setPullCreditLogLoading(false);
     }
   }
 
@@ -739,10 +673,6 @@ const PaymentsPage: React.FC = () => {
               Back to Overview
             </button>
           </div>
-          <p className="small">
-            Transfers are tracked locally and can be resynced against SWC credit logs for
-            live payment verification by transfer reference, amount, and recipient.
-          </p>
 
           {(actionState.message || actionState.error) && (
             <div className="panel">
@@ -762,16 +692,6 @@ const PaymentsPage: React.FC = () => {
             </div>
           )}
 
-          <PaymentsStatusPanel
-            user={user}
-            swcAuth={swcAuth}
-            onPullCreditLog={onPullCreditLog}
-            onDismissLastSync={dismissLastSync}
-            pullCreditLogLoading={pullCreditLogLoading}
-            lastSyncResult={lastSyncResult}
-            lastSyncAt={lastSyncAt}
-          />
-
           <PaymentsNav
             activeView={activeView}
             onChange={setActiveView}
@@ -787,7 +707,6 @@ const PaymentsPage: React.FC = () => {
               selectedPayerLabel={selectedPayerContext?.label ?? null}
               bulkLines={bulkLines}
               bulkUrl={bulkUrl}
-              swcAuth={swcAuth}
               privileges={privileges}
               privilegeGroup={privilegeGroup}
               privilegeName={privilegeName}

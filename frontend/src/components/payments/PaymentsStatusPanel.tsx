@@ -90,6 +90,12 @@ const PaymentsStatusPanel: React.FC<Props> = ({
         Keep local payment history aligned with SWC and verify transfers by reference, amount, and recipient.
       </p>
 
+      {swcAuth?.connected && (!swcAuth?.has_character_credits_write_access || !swcAuth?.has_faction_credits_write_access) && (
+        <p className="small payments-note payments-note--warn">
+          Direct website credit sending needs `character_credits_write` and `faction_credits_write` scopes. Use Resync Chain Code Verification to refresh payment scopes.
+        </p>
+      )}
+
       {!user?.swc_character_id && (
         <>
           <p className="small">

@@ -2,6 +2,7 @@ import React from "react";
 
 export type AdminView =
   | "home"
+  | "workerHealth"
   | "websiteHealth"
   | "tips"
   | "tenets"
@@ -15,7 +16,8 @@ export type AdminView =
   | "entityStats"
   | "memberChangelog"
   | "logs"
-  | "memberAccessLogs";
+  | "memberAccessLogs"
+  | "droidbrainUploads";
 
 type NavItem = {
   key: AdminView;
@@ -38,6 +40,7 @@ const AdminNav: React.FC<Props> = ({
 }) => {
   const items: NavItem[] = [
     { key: "home", label: "Overview" },
+    { key: "workerHealth", label: "Worker Health", hidden: !showSystemTools },
     { key: "websiteHealth", label: "Website Health", hidden: !showSystemTools },
     { key: "tips", label: "Tips" },
     { key: "tenets", label: "Tenets" },
@@ -50,6 +53,7 @@ const AdminNav: React.FC<Props> = ({
     { key: "combatValues", label: "Combat Values", hidden: !showSystemTools },
     { key: "entityStats", label: "Entity Stats", hidden: !showSystemTools },
     { key: "memberChangelog", label: "Change Log" },
+    { key: "droidbrainUploads", label: "DroidBrain Uploads", hidden: !showSystemTools },
     { key: "logs", label: "Action Logs", hidden: !canSeeLogs },
     { key: "memberAccessLogs", label: "Member Access", hidden: !canSeeLogs },
   ];

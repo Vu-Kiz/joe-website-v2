@@ -6,6 +6,7 @@ import { canAccessAdmin, canAccessSysadmin } from "../auth/permissions";
 import AdminHeader from "../components/admin/AdminHeader";
 import AdminNav, { type AdminView } from "../components/admin/AdminNav";
 import AdminHomePanel from "../components/admin/AdminHomePanel";
+import AdminWorkerHealthPanel from "../components/admin/AdminWorkerHealthPanel";
 import AdminWebsiteHealthPanel from "../components/admin/AdminWebsiteHealthPanel";
 import AdminTipsPanel from "../components/admin/AdminTipsPanel";
 import AdminTenetsPanel from "../components/admin/AdminTenetsPanel";
@@ -15,6 +16,7 @@ import AdminUsersPanel from "../components/admin/AdminUsersPanel";
 import AdminWeatherPanel from "../components/admin/AdminWeatherPanel";
 import AdminActionLogPanel from "../components/admin/AdminActionLogPanel";
 import AdminMemberAccessLogPanel from "../components/admin/AdminMemberAccessLogPanel";
+import AdminDroidBrainUploadsPanel from "../components/admin/AdminDroidBrainUploadsPanel";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import AdminSiteLockPanel from "../components/admin/AdminSiteLockPanel";
@@ -75,7 +77,7 @@ const AdminPage: React.FC = () => {
   const canSeeLogs = useMemo(() => canAccessSysadmin(user), [user]);
 
   useEffect(() => {
-    if (!showSystemTools && (activeView === "websiteHealth" || activeView === "system" || activeView === "discordBot" || activeView === "combatValues" || activeView === "logs" || activeView === "entityStats" || activeView === "memberAccessLogs")) {
+    if (!showSystemTools && (activeView === "workerHealth" || activeView === "websiteHealth" || activeView === "system" || activeView === "discordBot" || activeView === "combatValues" || activeView === "logs" || activeView === "entityStats" || activeView === "memberAccessLogs" || activeView === "droidbrainUploads")) {
       setActiveView("home");
     }
   }, [showSystemTools, canSeeLogs, activeView]);
@@ -160,6 +162,7 @@ const AdminPage: React.FC = () => {
               canSeeLogs={canSeeLogs}
             />
           )}
+          {activeView === "workerHealth" && showSystemTools && <AdminWorkerHealthPanel />}
           {activeView === "websiteHealth" && showSystemTools && <AdminWebsiteHealthPanel />}
           {activeView === "tips" && <AdminTipsPanel />}
           {activeView === "tenets" && <AdminTenetsPanel />}
@@ -173,6 +176,7 @@ const AdminPage: React.FC = () => {
           {activeView === "combatValues" && showSystemTools && <AdminCombatValuesPanel />}
           {activeView === "entityStats" && showSystemTools && <AdminEntityStatsPanel user={user} />}
           {activeView === "memberChangelog" && <AdminMemberChangelogPanel />}
+          {activeView === "droidbrainUploads" && showSystemTools && <AdminDroidBrainUploadsPanel />}
           {activeView === "siteLock" && showSystemTools && <AdminSiteLockPanel />}
         </main>
       </div>

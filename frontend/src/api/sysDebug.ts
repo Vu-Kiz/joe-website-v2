@@ -30,6 +30,332 @@ export type DebugSwcAuthResponse = {
         has_access_token: boolean;
         has_refresh_token: boolean;
       };
+      last_oauth_exchange?: {
+        link_account?: {
+          captured_at: string;
+          requested_access_type: string | null;
+          has_access_token: boolean;
+          has_refresh_token: boolean;
+          expires_in: number | null;
+          scope: string | null;
+          response_keys: string[];
+        } | null;
+        member_tools?: {
+          captured_at: string;
+          requested_access_type: string | null;
+          has_access_token: boolean;
+          has_refresh_token: boolean;
+          expires_in: number | null;
+          scope: string | null;
+          response_keys: string[];
+        } | null;
+        payments?: {
+          captured_at: string;
+          requested_access_type: string | null;
+          has_access_token: boolean;
+          has_refresh_token: boolean;
+          expires_in: number | null;
+          scope: string | null;
+          response_keys: string[];
+        } | null;
+        events?: {
+          captured_at: string;
+          requested_access_type: string | null;
+          has_access_token: boolean;
+          has_refresh_token: boolean;
+          expires_in: number | null;
+          scope: string | null;
+          response_keys: string[];
+        } | null;
+        debug?: {
+          captured_at: string;
+          requested_access_type: string | null;
+          has_access_token: boolean;
+          has_refresh_token: boolean;
+          expires_in: number | null;
+          scope: string | null;
+          response_keys: string[];
+        } | null;
+      };
+      last_oauth_authorize_request?: {
+        link_account?: {
+          captured_at: string;
+          access_type: string | null;
+          renew_previously_granted?: string | null;
+          scope: string | null;
+          redirect_uri: string | null;
+          response_type: string | null;
+          param_keys: string[];
+        } | null;
+        member_tools?: {
+          captured_at: string;
+          access_type: string | null;
+          renew_previously_granted?: string | null;
+          scope: string | null;
+          redirect_uri: string | null;
+          response_type: string | null;
+          param_keys: string[];
+        } | null;
+        payments?: {
+          captured_at: string;
+          access_type: string | null;
+          renew_previously_granted?: string | null;
+          scope: string | null;
+          redirect_uri: string | null;
+          response_type: string | null;
+          param_keys: string[];
+        } | null;
+        events?: {
+          captured_at: string;
+          access_type: string | null;
+          renew_previously_granted?: string | null;
+          scope: string | null;
+          redirect_uri: string | null;
+          response_type: string | null;
+          param_keys: string[];
+        } | null;
+        debug?: {
+          captured_at: string;
+          access_type: string | null;
+          renew_previously_granted?: string | null;
+          scope: string | null;
+          redirect_uri: string | null;
+          response_type: string | null;
+          param_keys: string[];
+        } | null;
+      };
+      oauth_trace?: {
+        link_account?: {
+          authorize_request?: {
+            captured_at: string;
+            access_type: string | null;
+            renew_previously_granted?: string | null;
+            scope: string | null;
+            redirect_uri: string | null;
+            response_type: string | null;
+            param_keys: string[];
+          } | null;
+          callback?: {
+            captured_at: string;
+            code_present: boolean;
+            state_present: boolean;
+            error: string | null;
+            error_description: string | null;
+          } | null;
+          token_request?: {
+            captured_at: string;
+            token_url: string | null;
+            grant_type: string | null;
+            access_type?: string | null;
+            redirect_uri: string | null;
+            code_present: boolean;
+            client_id_suffix: string | null;
+            has_client_secret: boolean;
+          } | null;
+          token_exchange?: {
+            captured_at: string;
+            requested_access_type: string | null;
+            has_access_token: boolean;
+            has_refresh_token: boolean;
+            expires_in: number | null;
+            scope: string | null;
+            response_keys: string[];
+          } | null;
+          stored_authorization?: {
+            captured_at: string;
+            authorization_exists: boolean;
+            has_access_token: boolean;
+            has_refresh_token: boolean;
+            token_expires_at: string | null;
+            revoked_at: string | null;
+            granted_scopes: string | null;
+          } | null;
+        } | null;
+        member_tools?: {
+          authorize_request?: {
+            captured_at: string;
+            access_type: string | null;
+            renew_previously_granted?: string | null;
+            scope: string | null;
+            redirect_uri: string | null;
+            response_type: string | null;
+            param_keys: string[];
+          } | null;
+          callback?: {
+            captured_at: string;
+            code_present: boolean;
+            state_present: boolean;
+            error: string | null;
+            error_description: string | null;
+          } | null;
+          token_request?: {
+            captured_at: string;
+            token_url: string | null;
+            grant_type: string | null;
+            access_type?: string | null;
+            redirect_uri: string | null;
+            code_present: boolean;
+            client_id_suffix: string | null;
+            has_client_secret: boolean;
+          } | null;
+          token_exchange?: {
+            captured_at: string;
+            requested_access_type: string | null;
+            has_access_token: boolean;
+            has_refresh_token: boolean;
+            expires_in: number | null;
+            scope: string | null;
+            response_keys: string[];
+          } | null;
+          stored_authorization?: {
+            captured_at: string;
+            authorization_exists: boolean;
+            has_access_token: boolean;
+            has_refresh_token: boolean;
+            token_expires_at: string | null;
+            revoked_at: string | null;
+            granted_scopes: string | null;
+          } | null;
+        } | null;
+        payments?: {
+          authorize_request?: {
+            captured_at: string;
+            access_type: string | null;
+            renew_previously_granted?: string | null;
+            scope: string | null;
+            redirect_uri: string | null;
+            response_type: string | null;
+            param_keys: string[];
+          } | null;
+          callback?: {
+            captured_at: string;
+            code_present: boolean;
+            state_present: boolean;
+            error: string | null;
+            error_description: string | null;
+          } | null;
+          token_request?: {
+            captured_at: string;
+            token_url: string | null;
+            grant_type: string | null;
+            access_type?: string | null;
+            redirect_uri: string | null;
+            code_present: boolean;
+            client_id_suffix: string | null;
+            has_client_secret: boolean;
+          } | null;
+          token_exchange?: {
+            captured_at: string;
+            requested_access_type: string | null;
+            has_access_token: boolean;
+            has_refresh_token: boolean;
+            expires_in: number | null;
+            scope: string | null;
+            response_keys: string[];
+          } | null;
+          stored_authorization?: {
+            captured_at: string;
+            authorization_exists: boolean;
+            has_access_token: boolean;
+            has_refresh_token: boolean;
+            token_expires_at: string | null;
+            revoked_at: string | null;
+            granted_scopes: string | null;
+          } | null;
+        } | null;
+        events?: {
+          authorize_request?: {
+            captured_at: string;
+            access_type: string | null;
+            renew_previously_granted?: string | null;
+            scope: string | null;
+            redirect_uri: string | null;
+            response_type: string | null;
+            param_keys: string[];
+          } | null;
+          callback?: {
+            captured_at: string;
+            code_present: boolean;
+            state_present: boolean;
+            error: string | null;
+            error_description: string | null;
+          } | null;
+          token_request?: {
+            captured_at: string;
+            token_url: string | null;
+            grant_type: string | null;
+            access_type?: string | null;
+            redirect_uri: string | null;
+            code_present: boolean;
+            client_id_suffix: string | null;
+            has_client_secret: boolean;
+          } | null;
+          token_exchange?: {
+            captured_at: string;
+            requested_access_type: string | null;
+            has_access_token: boolean;
+            has_refresh_token: boolean;
+            expires_in: number | null;
+            scope: string | null;
+            response_keys: string[];
+          } | null;
+          stored_authorization?: {
+            captured_at: string;
+            authorization_exists: boolean;
+            has_access_token: boolean;
+            has_refresh_token: boolean;
+            token_expires_at: string | null;
+            revoked_at: string | null;
+            granted_scopes: string | null;
+          } | null;
+        } | null;
+        debug?: {
+          authorize_request?: {
+            captured_at: string;
+            access_type: string | null;
+            renew_previously_granted?: string | null;
+            scope: string | null;
+            redirect_uri: string | null;
+            response_type: string | null;
+            param_keys: string[];
+          } | null;
+          callback?: {
+            captured_at: string;
+            code_present: boolean;
+            state_present: boolean;
+            error: string | null;
+            error_description: string | null;
+          } | null;
+          token_request?: {
+            captured_at: string;
+            token_url: string | null;
+            grant_type: string | null;
+            access_type?: string | null;
+            redirect_uri: string | null;
+            code_present: boolean;
+            client_id_suffix: string | null;
+            has_client_secret: boolean;
+          } | null;
+          token_exchange?: {
+            captured_at: string;
+            requested_access_type: string | null;
+            has_access_token: boolean;
+            has_refresh_token: boolean;
+            expires_in: number | null;
+            scope: string | null;
+            response_keys: string[];
+          } | null;
+          stored_authorization?: {
+            captured_at: string;
+            authorization_exists: boolean;
+            has_access_token: boolean;
+            has_refresh_token: boolean;
+            token_expires_at: string | null;
+            revoked_at: string | null;
+            granted_scopes: string | null;
+          } | null;
+        } | null;
+      };
     };
     factions: Array<{
       id: number;
@@ -44,14 +370,19 @@ export type DebugSwcAuthResponse = {
       };
     }>;
     config: {
+      client_id?: string | null;
       authorize_url: string | null;
       token_url: string | null;
       api_base: string | null;
       redirect_uri: string | null;
       default_scope: string | null;
+      member_tools_scope?: string | null;
+      creditlog_scope?: string | null;
       events_scope: string | null;
       debug_scope?: string | null;
       access_type: string | null;
+      member_tools_access_type?: string | null;
+      creditlog_access_type?: string | null;
       events_access_type: string | null;
       debug_access_type?: string | null;
     };
@@ -282,6 +613,36 @@ export type DebugPullCreditLogResponse = {
     matches: any[];
     failures: any[];
   };
+};
+
+export type DebugRefreshTokenTestResponse = {
+  ok: boolean;
+  message: string;
+  requested_context: string;
+  resolved_context?: string | null;
+  target_user?: {
+    id: number;
+    swc_handle: string | null;
+    swc_character_id: number | null;
+  };
+  before?: {
+    authorization_id: number;
+    auth_context: string;
+    has_access_token: boolean;
+    has_refresh_token: boolean;
+    token_expires_at: string | null;
+    revoked_at: string | null;
+    updated_at: string | null;
+  } | null;
+  after?: {
+    authorization_id: number;
+    auth_context: string;
+    has_access_token: boolean;
+    has_refresh_token: boolean;
+    token_expires_at: string | null;
+    revoked_at: string | null;
+    updated_at: string | null;
+  } | null;
 };
 
 export type DebugUniversePullResponse = {
@@ -523,6 +884,29 @@ export function pullDebugCreditLog(userId?: number) {
     `/sys/debug/pull-credit-log${qs ? `?${qs}` : ""}`,
     {
       method: "POST",
+    }
+  );
+}
+
+export function testDebugRefreshToken(
+  authContext:
+    | "link_account"
+    | "member_tools"
+    | "payments"
+    | "events"
+    | "debug" = "member_tools",
+  userId?: number
+) {
+  const params = withOptionalUserId(new URLSearchParams(), userId);
+  const qs = params.toString();
+
+  return apiFetch<DebugRefreshTokenTestResponse>(
+    `/sys/debug/test-refresh-token${qs ? `?${qs}` : ""}`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        auth_context: authContext,
+      }),
     }
   );
 }

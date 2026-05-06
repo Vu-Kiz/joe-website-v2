@@ -3,7 +3,6 @@
 namespace App\Support\Swc;
 
 use App\Models\Faction;
-use App\Models\SwcAuthorization;
 use App\Models\User;
 use Illuminate\Http\Client\Response;
 use RuntimeException;
@@ -234,21 +233,9 @@ class SwcCreditLogService
 
     protected function requestCreditLogPage(User $user, string $url, int $itemCount, ?int $startIndex = null): array
     {
-        $auth = $user->swcAuthorizations()
-            ->whereIn('auth_context', [
-                SwcAuthorization::CONTEXT_MEMBER_TOOLS,
-                SwcAuthorization::CONTEXT_PAYMENTS,
-            ])
-            ->orderByRaw('case when auth_context = ? then 0 else 1 end', [SwcAuthorization::CONTEXT_MEMBER_TOOLS])
-            ->first();
+        $accessToken = $this->swcAuthorizationService->getAccessToken($user, \App\Models\SwcAuthorization::CONTEXT_PAYMENTS);
 
-        if (!$auth || empty($auth->access_token_encrypted)) {
-            throw new RuntimeException('Missing SWC OAuth access token.');
-        }
-
-        try {
-            $accessToken = decrypt($auth->access_token_encrypted);
-        } catch (\Throwable) {
+        if (!$accessToken) {
             throw new RuntimeException('Missing SWC OAuth access token.');
         }
 

@@ -40,7 +40,8 @@ class SwcAuthController extends Controller
             returnTo: null,
             redirectUri: (string) Config::get('swc.redirect_uri', ''),
             scope: (string) Config::get('swc.default_scope', 'character_read'),
-            accessType: (string) Config::get('swc.access_type', 'online')
+            accessType: (string) Config::get('swc.access_type', 'offline'),
+            authContext: SwcAuthorization::CONTEXT_LINK_ACCOUNT
         );
     }
 
@@ -59,9 +60,10 @@ class SwcAuthController extends Controller
             redirectUri: (string) Config::get('swc.redirect_uri', ''),
             scope: (string) Config::get(
                 'swc.creditlog_scope',
-                'character_read character_credits faction_credits_read character_privileges'
+                'character_read character_credits character_credits_write faction_credits_read faction_credits_write character_privileges'
             ),
-            accessType: (string) Config::get('swc.creditlog_access_type', 'offline')
+            accessType: (string) Config::get('swc.creditlog_access_type', 'offline'),
+            authContext: SwcAuthorization::CONTEXT_PAYMENTS
         );
     }
 
@@ -86,7 +88,8 @@ class SwcAuthController extends Controller
             returnTo: $returnTo,
             redirectUri: (string) Config::get('swc.redirect_uri', ''),
             scope: $scope,
-            accessType: (string) Config::get('swc.member_tools_access_type', 'offline')
+            accessType: (string) Config::get('swc.member_tools_access_type', 'offline'),
+            authContext: SwcAuthorization::CONTEXT_MEMBER_TOOLS
         );
     }
 
@@ -115,7 +118,8 @@ class SwcAuthController extends Controller
             returnTo: $returnTo,
             redirectUri: (string) Config::get('swc.redirect_uri', ''),
             scope: $scope,
-            accessType: (string) Config::get('swc.events_access_type', 'offline')
+            accessType: (string) Config::get('swc.events_access_type', 'offline'),
+            authContext: SwcAuthorization::CONTEXT_EVENTS
         );
     }
 
@@ -133,7 +137,8 @@ class SwcAuthController extends Controller
             returnTo: null,
             redirectUri: (string) Config::get('swc.redirect_uri', ''),
             scope: (string) Config::get('swc.debug_scope', 'character_all faction_all messages_all'),
-            accessType: (string) Config::get('swc.debug_access_type', 'offline')
+            accessType: (string) Config::get('swc.debug_access_type', 'offline'),
+            authContext: SwcAuthorization::CONTEXT_DEBUG
         );
     }
 
@@ -182,11 +187,28 @@ class SwcAuthController extends Controller
 
                 $grantedScopes = $this->swcAuthorizationService->normalizeScopeValue($tokenData['scope'] ?? null);
 
-                $this->swcAuthorizationService->upsertAuthorization(
+                $authorization = $this->swcAuthorizationService->upsertAuthorization(
                     $oauthUser,
                     $tokenData,
                     $grantedScopes,
                     SwcAuthorization::CONTEXT_MEMBER_TOOLS
+                );
+                $this->recordOauthTraceSteps(
+                    $request,
+                    $oauthUser,
+                    SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+                    (string) Config::get('swc.redirect_uri', '')
+                );
+                $this->swcAuthorizationService->recordOauthTokenExchangeMetadata(
+                    $oauthUser,
+                    SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+                    $tokenData,
+                    $this->normalizeAccessType((string) Config::get('swc.member_tools_access_type', 'offline'))
+                );
+                $this->swcAuthorizationService->recordOauthStoredAuthorizationMetadata(
+                    $oauthUser,
+                    SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+                    $authorization
                 );
 
                 return redirect()->away($frontend . $this->appendQueryParam(
@@ -216,11 +238,28 @@ class SwcAuthController extends Controller
 
                 $grantedScopes = $this->swcAuthorizationService->normalizeScopeValue($tokenData['scope'] ?? null);
 
-                $this->swcAuthorizationService->upsertAuthorization(
+                $authorization = $this->swcAuthorizationService->upsertAuthorization(
                     $oauthUser,
                     $tokenData,
                     $grantedScopes,
                     SwcAuthorization::CONTEXT_PAYMENTS
+                );
+                $this->recordOauthTraceSteps(
+                    $request,
+                    $oauthUser,
+                    SwcAuthorization::CONTEXT_PAYMENTS,
+                    (string) Config::get('swc.redirect_uri', '')
+                );
+                $this->swcAuthorizationService->recordOauthTokenExchangeMetadata(
+                    $oauthUser,
+                    SwcAuthorization::CONTEXT_PAYMENTS,
+                    $tokenData,
+                    $this->normalizeAccessType((string) Config::get('swc.creditlog_access_type', 'offline'))
+                );
+                $this->swcAuthorizationService->recordOauthStoredAuthorizationMetadata(
+                    $oauthUser,
+                    SwcAuthorization::CONTEXT_PAYMENTS,
+                    $authorization
                 );
 
                 return redirect()->away($frontend . '/payments');
@@ -255,13 +294,35 @@ class SwcAuthController extends Controller
 
                 $grantedScopes = $this->swcAuthorizationService->normalizeScopeValue($tokenData['scope'] ?? null);
 
-                $this->swcAuthorizationService->upsertAuthorization(
+                $context = $eventsState !== '' && hash_equals($eventsState, $state)
+                    ? SwcAuthorization::CONTEXT_EVENTS
+                    : SwcAuthorization::CONTEXT_DEBUG;
+
+                $authorization = $this->swcAuthorizationService->upsertAuthorization(
                     $oauthUser,
                     $tokenData,
                     $grantedScopes,
-                    $eventsState !== '' && hash_equals($eventsState, $state)
-                        ? SwcAuthorization::CONTEXT_EVENTS
-                        : SwcAuthorization::CONTEXT_DEBUG
+                    $context
+                );
+                $this->recordOauthTraceSteps(
+                    $request,
+                    $oauthUser,
+                    $context,
+                    (string) Config::get('swc.redirect_uri', '')
+                );
+                $this->swcAuthorizationService->recordOauthTokenExchangeMetadata(
+                    $oauthUser,
+                    $context,
+                    $tokenData,
+                    $this->normalizeAccessType((string) Config::get(
+                        $context === SwcAuthorization::CONTEXT_EVENTS ? 'swc.events_access_type' : 'swc.debug_access_type',
+                        'offline'
+                    ))
+                );
+                $this->swcAuthorizationService->recordOauthStoredAuthorizationMetadata(
+                    $oauthUser,
+                    $context,
+                    $authorization
                 );
 
                 return redirect()->away($frontend . $this->appendQueryParam(
@@ -271,7 +332,7 @@ class SwcAuthController extends Controller
                 ));
             }
 
-            [, $profile] = $this->handleCallbackForFlow(
+            [$tokenData, $profile] = $this->handleCallbackForFlow(
                 request: $request,
                 stateSessionKey: 'swc_oauth_state',
                 redirectUri: (string) Config::get('swc.redirect_uri', '')
@@ -288,6 +349,32 @@ class SwcAuthController extends Controller
             Auth::login($user);
             $request->session()->regenerate();
             $request->session()->put('auth_version', (int) ($user->auth_version ?? 1));
+
+            $grantedScopes = $this->swcAuthorizationService->normalizeScopeValue($tokenData['scope'] ?? null);
+
+            $authorization = $this->swcAuthorizationService->upsertAuthorization(
+                $user,
+                $tokenData,
+                $grantedScopes,
+                SwcAuthorization::CONTEXT_LINK_ACCOUNT
+            );
+            $this->recordOauthTraceSteps(
+                $request,
+                $user,
+                SwcAuthorization::CONTEXT_LINK_ACCOUNT,
+                (string) Config::get('swc.redirect_uri', '')
+            );
+            $this->swcAuthorizationService->recordOauthTokenExchangeMetadata(
+                $user,
+                SwcAuthorization::CONTEXT_LINK_ACCOUNT,
+                $tokenData,
+                $this->normalizeAccessType((string) Config::get('swc.access_type', 'offline'))
+            );
+            $this->swcAuthorizationService->recordOauthStoredAuthorizationMetadata(
+                $user,
+                SwcAuthorization::CONTEXT_LINK_ACCOUNT,
+                $authorization
+            );
 
             return redirect()->away($frontend . '/aboutme?swc_linked=1');
         } catch (\Throwable $e) {
@@ -330,10 +417,12 @@ class SwcAuthController extends Controller
         ?string $returnTo,
         string $redirectUri,
         string $scope,
-        string $accessType
+        string $accessType,
+        string $authContext
     ): RedirectResponse {
         $clientId     = (string) Config::get('swc.client_id', '');
         $authorizeUrl = rtrim((string) Config::get('swc.authorize_url', ''), '/');
+        $accessType = $this->normalizeAccessType($accessType);
 
         if ($clientId === '' || $authorizeUrl === '' || $redirectUri === '') {
             Log::error('SWC OAuth misconfigured', [
@@ -350,16 +439,77 @@ class SwcAuthController extends Controller
             $request->session()->put($returnToSessionKey, (string) $returnTo);
         }
 
-        $query = http_build_query([
+        $queryParams = [
             'response_type' => 'code',
             'client_id'     => $clientId,
             'redirect_uri'  => $redirectUri,
             'scope'         => $scope,
             'state'         => $state,
             'access_type'   => $accessType,
-        ]);
+            'renew_previously_granted' => 'yes',
+        ];
+
+        $query = http_build_query($queryParams);
+
+        $user = $request->user();
+        if ($user) {
+            $this->swcAuthorizationService->recordOauthAuthorizeRequestMetadata(
+                $user,
+                $authContext,
+                $queryParams
+            );
+        }
 
         return redirect()->away("{$authorizeUrl}/?{$query}");
+    }
+
+    protected function normalizeAccessType(string $accessType): string
+    {
+        $normalized = strtolower(trim($accessType));
+
+        if ($normalized !== 'offline') {
+            Log::warning('SWC OAuth access_type coerced to offline', [
+                'requested_access_type' => $accessType,
+            ]);
+        }
+
+        // Force offline for every OAuth flow to support refresh tokens everywhere.
+        return 'offline';
+    }
+
+    protected function recordOauthTraceSteps(
+        Request $request,
+        User $user,
+        string $context,
+        string $redirectUri
+    ): void {
+        $this->swcAuthorizationService->recordOauthCallbackMetadata($user, $context, [
+            'code_present' => trim((string) $request->query('code', '')) !== '',
+            'state_present' => trim((string) $request->query('state', '')) !== '',
+            'error' => (string) $request->query('error', ''),
+            'error_description' => (string) $request->query('error_description', ''),
+        ]);
+
+        $clientId = (string) Config::get('swc.client_id', '');
+        $clientSecret = (string) Config::get('swc.client_secret', '');
+        $tokenUrl = rtrim((string) Config::get('swc.token_url', ''), '/');
+        $requestedAccessType = $this->normalizeAccessType((string) Config::get(match ($context) {
+            SwcAuthorization::CONTEXT_MEMBER_TOOLS => 'swc.member_tools_access_type',
+            SwcAuthorization::CONTEXT_PAYMENTS => 'swc.creditlog_access_type',
+            SwcAuthorization::CONTEXT_EVENTS => 'swc.events_access_type',
+            SwcAuthorization::CONTEXT_DEBUG => 'swc.debug_access_type',
+            default => 'swc.access_type',
+        }, 'offline'));
+
+        $this->swcAuthorizationService->recordOauthTokenRequestMetadata($user, $context, [
+            'token_url' => $tokenUrl !== '' ? $tokenUrl . '/' : null,
+            'grant_type' => 'authorization_code',
+            'access_type' => $requestedAccessType,
+            'redirect_uri' => $redirectUri,
+            'code_present' => trim((string) $request->query('code', '')) !== '',
+            'client_id' => $clientId,
+            'has_client_secret' => trim($clientSecret) !== '',
+        ]);
     }
 
     protected function sanitizeFrontendReturnPath(string $path, string $fallback): string
@@ -445,7 +595,7 @@ class SwcAuthController extends Controller
 
         return (string) Config::get(
             'swc.member_tools_scope',
-            'character_read character_events character_credits faction_credits_read character_privileges'
+            'character_read character_events character_credits character_credits_write faction_credits_read faction_credits_write character_privileges'
         );
     }
 
@@ -477,8 +627,16 @@ class SwcAuthController extends Controller
         $clientId     = (string) Config::get('swc.client_id', '');
         $clientSecret = (string) Config::get('swc.client_secret', '');
         $tokenUrl     = rtrim((string) Config::get('swc.token_url', ''), '/');
+        $requestedAccessType = $this->normalizeAccessType((string) Config::get(match ($stateSessionKey) {
+            'swc_member_tools_oauth_state' => 'swc.member_tools_access_type',
+            'swc_creditlog_oauth_state' => 'swc.creditlog_access_type',
+            'swc_events_oauth_state' => 'swc.events_access_type',
+            'swc_debug_oauth_state' => 'swc.debug_access_type',
+            default => 'swc.access_type',
+        }, 'offline'));
 
         $tokenRes = SwcHttp::make()
+            ->acceptJson()
             ->asForm()
             ->post($tokenUrl . '/', [
                 'grant_type'    => 'authorization_code',
@@ -486,6 +644,7 @@ class SwcAuthController extends Controller
                 'redirect_uri'  => $redirectUri,
                 'client_id'     => $clientId,
                 'client_secret' => $clientSecret,
+                'access_type'   => $requestedAccessType,
             ]);
 
         if (!$tokenRes->ok()) {

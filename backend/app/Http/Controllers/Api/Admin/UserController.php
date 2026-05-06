@@ -6,11 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Models\SwcSectorSearchRecord;
 use App\Models\User;
 use App\Support\Admin\AdminActionLogger;
+use App\Support\Swc\SwcAuthorizationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
+    public function __construct(
+        protected SwcAuthorizationService $swcAuthorizationService
+    ) {
+    }
+
     protected function readSystemUpdaterCursor(User $user): array
     {
         $prefs = is_array($user->member_tool_preferences) ? $user->member_tool_preferences : [];
@@ -417,6 +423,130 @@ class UserController extends Controller
             'legacy' => [
                 'handle' => $handle,
                 'links_cleared' => $clearedLegacyLinks,
+            ],
+        ]);
+    }
+
+    public function revokeSwcAuthorization(Request $request, User $user): JsonResponse
+    {
+        $actor = $request->user();
+
+        if (!$actor || !(bool) $actor->is_sysadmin) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Only sysadmins can revoke SWC authorizations.',
+            ], 403);
+        }
+
+        $result = $this->swcAuthorizationService->revokeAuthorizationsForUser($user, true);
+        $user->invalidateActiveSessions();
+        $user->refresh();
+
+        AdminActionLogger::log(
+            $request,
+            'users',
+            'revoke_swc_authorization',
+            'Revoked SWC authorizations for ' . $this->resolveDisplayHandle($user),
+            'user',
+            $user->id,
+            null,
+            [
+                'processed' => $result['processed'],
+                'remote_attempted' => $result['remote_attempted'],
+                'remote_revoked' => $result['remote_revoked'],
+                'remote_errors' => $result['remote_errors'],
+                'local_revoked' => $result['local_revoked'],
+                'auth_version' => $user->auth_version,
+            ]
+        );
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'SWC authorization revoked. User must reconnect Chain Code Verification.',
+            'result' => [
+                'processed' => $result['processed'],
+                'remote_attempted' => $result['remote_attempted'],
+                'remote_revoked' => $result['remote_revoked'],
+                'remote_errors' => $result['remote_errors'],
+                'local_revoked' => $result['local_revoked'],
+            ],
+            'user' => [
+                'id' => $user->id,
+                'handle' => $this->resolveDisplayHandle($user),
+                'auth_version' => $user->auth_version,
+            ],
+        ]);
+    }
+
+    public function revokeAllSwcAuthorizations(Request $request): JsonResponse
+    {
+        $actor = $request->user();
+
+        if (!$actor || !(bool) $actor->is_sysadmin) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Only sysadmins can revoke all SWC authorizations.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'confirm' => ['required', 'string', 'in:REVOKE_ALL_SWC_AUTH'],
+        ]);
+
+        if (($validated['confirm'] ?? '') !== 'REVOKE_ALL_SWC_AUTH') {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Confirmation token is invalid.',
+            ], 422);
+        }
+
+        $result = $this->swcAuthorizationService->revokeAllAuthorizations(true);
+
+        $affectedUserIds = collect($result['details'] ?? [])
+            ->pluck('user_id')
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($affectedUserIds !== []) {
+            User::query()
+                ->whereIn('id', $affectedUserIds)
+                ->get()
+                ->each(function (User $user): void {
+                    $user->invalidateActiveSessions();
+                });
+        }
+
+        AdminActionLogger::log(
+            $request,
+            'users',
+            'revoke_all_swc_authorizations',
+            'Revoked all SWC authorizations.',
+            'swc_authorization',
+            null,
+            null,
+            [
+                'processed' => $result['processed'],
+                'remote_attempted' => $result['remote_attempted'],
+                'remote_revoked' => $result['remote_revoked'],
+                'remote_errors' => $result['remote_errors'],
+                'local_revoked' => $result['local_revoked'],
+                'affected_users' => count($affectedUserIds),
+            ]
+        );
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'All SWC authorizations revoked. Users must reconnect Chain Code Verification.',
+            'result' => [
+                'processed' => $result['processed'],
+                'remote_attempted' => $result['remote_attempted'],
+                'remote_revoked' => $result['remote_revoked'],
+                'remote_errors' => $result['remote_errors'],
+                'local_revoked' => $result['local_revoked'],
+                'affected_users' => count($affectedUserIds),
             ],
         ]);
     }

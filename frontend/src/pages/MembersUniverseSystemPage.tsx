@@ -43,6 +43,10 @@ type UniverseSystemLocationState = {
   galy?: number | null;
 };
 
+type ApiSystemStation = StoredSystemDetail["stations"][number];
+type DroidBrainSystemStation = StoredSystemDetail["droidbrain_stations"][number];
+type SystemMapStation = ApiSystemStation | DroidBrainSystemStation;
+
 function formatSwcDisplayId(value: string | null | undefined, fallback = "Unknown") {
   if (!value) {
     return fallback;
@@ -83,16 +87,32 @@ function bestPlanetImage(planet: StoredSystemDetail["planets"][number]): string 
   );
 }
 
-function bestStationImage(station: StoredSystemDetail["stations"][number]): string | null {
-  return (
-    station.station_type?.icon_url ??
-    station.station_type?.images?.small ??
-    station.station_type?.image_url ??
-    null
-  );
+function isApiSystemStation(station: SystemMapStation): station is ApiSystemStation {
+  return "station_type" in station;
 }
 
-function firstStationAtCell(stations: StoredSystemDetail["stations"]) {
+function stationTypeName(station: SystemMapStation): string {
+  if (isApiSystemStation(station)) {
+    return station.station_type?.name ?? station.type_name ?? "Unknown type";
+  }
+
+  return station.type_name ?? "Unknown type";
+}
+
+function bestStationImage(station: SystemMapStation): string | null {
+  if (isApiSystemStation(station)) {
+    return (
+      station.station_type?.icon_url ??
+      station.station_type?.images?.small ??
+      station.station_type?.image_url ??
+      null
+    );
+  }
+
+  return station.icon_url ?? station.image_url ?? null;
+}
+
+function firstStationAtCell(stations: SystemMapStation[]) {
   return stations[0] ?? null;
 }
 
@@ -165,7 +185,7 @@ const MembersUniverseSystemPage: React.FC = () => {
     top: number;
     transform: string;
     planets: StoredSystemDetail["planets"];
-    stations: StoredSystemDetail["stations"];
+    stations: SystemMapStation[];
     ships: StoredSystemDetail["ships"];
   } | null>(null);
   const systemFitKey = detail?.system.uid ?? detail?.system.identifier ?? null;
@@ -276,9 +296,18 @@ const MembersUniverseSystemPage: React.FC = () => {
     const planets = detail?.planets.filter(
       (planet) => planet.sysx != null && planet.sysy != null
     ) ?? [];
-    const stations = detail?.stations.filter(
+    const apiStations = detail?.stations.filter(
       (station) => station.sysx != null && station.sysy != null
     ) ?? [];
+    const droidbrainStations = (detail?.droidbrain_stations ?? []).filter(
+      (station) => station.sysx != null && station.sysy != null
+    );
+    const stationKey = (station: SystemMapStation): string =>
+      `${Number(station.sysx)}:${Number(station.sysy)}:${station.uid ?? ""}:${String(station.name ?? "").trim().toLowerCase()}:${String(station.type_name ?? "").trim().toLowerCase()}`;
+    const stations = [...apiStations, ...droidbrainStations].filter((station, index, array) => {
+      const key = stationKey(station);
+      return array.findIndex((entry) => stationKey(entry) === key) === index;
+    });
     const ships = detail?.ships.filter(
       (ship) => ship.sysx != null && ship.sysy != null
     ) ?? [];
@@ -507,7 +536,7 @@ const MembersUniverseSystemPage: React.FC = () => {
                                   <img
                                     key={`member-station-preview-${station.uid ?? station.name}`}
                                     src={bestStationImage(station) ?? ""}
-                                    alt={station.station_type?.name ?? station.type_name ?? station.name ?? "Station"}
+                                    alt={stationTypeName(station)}
                                     className="members-universe-system__grid-cell-station-icon"
                                   />
                                 ) : null}
@@ -558,7 +587,7 @@ const MembersUniverseSystemPage: React.FC = () => {
                           <span key={`${station.uid ?? station.name ?? index}`} className="small">
                             {station.name ?? formatSwcDisplayId(station.uid) ?? `Station ${index + 1}`}
                             {" · "}
-                            {station.station_type?.name ?? station.type_name ?? "Unknown type"}
+                            {stationTypeName(station)}
                           </span>
                         ))}
                       </div>
@@ -631,10 +660,17 @@ const MembersUniverseSystemPage: React.FC = () => {
                           key={`${station.uid ?? station.name ?? index}`}
                           className="members-universe-system__cell-chip"
                         >
+                          {bestStationImage(station) ? (
+                            <img
+                              src={bestStationImage(station) ?? ""}
+                              alt={stationTypeName(station)}
+                              className="members-universe-system__selection-ship-icon"
+                            />
+                          ) : null}
                           <div>
                             <strong>{station.name ?? formatSwcDisplayId(station.uid) ?? `Station ${index + 1}`}</strong>
                             <span className="small">
-                              {station.station_type?.name ?? station.type_name ?? "Unknown type"}
+                              {stationTypeName(station)}
                             </span>
                           </div>
                         </div>

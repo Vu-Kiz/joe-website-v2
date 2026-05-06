@@ -1446,6 +1446,17 @@
   height: 100%
   z-index: 1
 
+.members-universe-system__grid-cell-asteroid
+  position: absolute
+  inset: 0
+  background-repeat: no-repeat
+  background-size: cover
+  background-position: center
+  opacity: 0.74
+  z-index: 0
+  pointer-events: none
+  filter: saturate(1.08) contrast(1.02)
+
 .members-universe-system__grid-cell-thumb
   width: 90%
   height: 90%
@@ -1696,6 +1707,21 @@
   align-items: center
   gap: 0.65rem
   flex-wrap: wrap
+
+.members-universe__droidbrain-upload
+  .members-universe__droidbrain-file-input
+    position: absolute
+    width: 1px
+    height: 1px
+    padding: 0
+    margin: -1px
+    overflow: hidden
+    clip: rect(0, 0, 0, 0)
+    white-space: nowrap
+    border: 0
+
+  .members-universe__top-actions-controls input[type="file"]
+    color: rgba(255,255,255,0.86)
 
 .members-universe__import-log
   display: grid

@@ -72,6 +72,34 @@ export type BuildSinglePaymentResponse = {
   };
 };
 
+export type SendSinglePaymentResponse = {
+  ok: true;
+  data: {
+    message: string;
+    transaction_id: number | null;
+  };
+  transfer: PaymentTransfer;
+};
+
+export type SendBulkPaymentResponse = {
+  ok: true;
+  data: {
+    processed: number;
+    sent: number;
+    failed: number;
+    message: string;
+    results: Array<{
+      transfer_id: number;
+      reference: string;
+      payee: string | null;
+      amount: number;
+      ok: boolean;
+      transaction_id?: number | null;
+      error?: string;
+    }>;
+  };
+};
+
 export type BuildBulkPaymentResponse = {
   ok: true;
   data: {
@@ -159,6 +187,20 @@ export async function getUnverifiedSupportTransfers() {
 
 export async function buildSinglePayment(payment_item_ids: number[]) {
   return apiFetch<BuildSinglePaymentResponse>("/payments/build-single", {
+    method: "POST",
+    body: JSON.stringify({ payment_item_ids }),
+  });
+}
+
+export async function sendSinglePayment(payment_item_ids: number[]) {
+  return apiFetch<SendSinglePaymentResponse>("/payments/send-single", {
+    method: "POST",
+    body: JSON.stringify({ payment_item_ids }),
+  });
+}
+
+export async function sendBulkPayment(payment_item_ids: number[]) {
+  return apiFetch<SendBulkPaymentResponse>("/payments/send-bulk", {
     method: "POST",
     body: JSON.stringify({ payment_item_ids }),
   });

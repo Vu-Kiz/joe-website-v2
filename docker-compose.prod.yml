@@ -15,6 +15,19 @@ services:
     networks:
       - joe_prod_net
 
+  meilisearch:
+    image: getmeili/meilisearch:v1.8
+    container_name: joe_meilisearch_v2_prod
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: ${MEILISEARCH_KEY}
+      MEILI_ENV: production
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - meili_data:/meili_data
+    networks:
+      - joe_prod_net
+
   backend:
     build:
       context: ./backend
@@ -24,6 +37,7 @@ services:
     restart: unless-stopped
     depends_on:
       - db
+      - meilisearch
     env_file:
       - ./backend/.env
     environment:
@@ -38,6 +52,11 @@ services:
       DB_USERNAME: joe
       DB_PASSWORD: ${DB_PASSWORD}
       QUEUE_CONNECTION: database
+      SCOUT_DRIVER: meilisearch
+      SCOUT_QUEUE: "false"
+      SCOUT_PREFIX: ${SCOUT_PREFIX}
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILISEARCH_KEY}
     volumes:
       - backend_public_uploads:/var/www/html/storage/app/public
     networks:
@@ -51,6 +70,7 @@ services:
     depends_on:
       - db
       - backend
+      - meilisearch
     env_file:
       - ./backend/.env
     environment:
@@ -65,6 +85,11 @@ services:
       DB_USERNAME: joe
       DB_PASSWORD: ${DB_PASSWORD}
       QUEUE_CONNECTION: database
+      SCOUT_DRIVER: meilisearch
+      SCOUT_QUEUE: "false"
+      SCOUT_PREFIX: ${SCOUT_PREFIX}
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILISEARCH_KEY}
     command: >
       php artisan queue:work database
       --queue=swc-sync,default
@@ -117,6 +142,7 @@ services:
 volumes:
   db_data:
   backend_public_uploads:
+  meili_data:
 
 networks:
   joe_prod_net:

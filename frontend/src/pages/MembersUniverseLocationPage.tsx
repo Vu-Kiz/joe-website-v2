@@ -10,6 +10,7 @@ import UniverseDetailHero from "../components/common/UniverseDetailHero";
 import UniverseDetailImmersive from "../components/common/UniverseDetailImmersive";
 import useUniverseViewport from "../components/common/useUniverseViewport";
 import SystemIcon from "../assets/map/SystemIcon.png";
+import AsteroidsBackground from "../assets/map/AsteroidsBackground.png";
 import StationsDuelcon from "../assets/map/StationsDuelcon.png";
 import ShipIconBomber from "../assets/map/ships/Bomber.png";
 import ShipIconCapital from "../assets/map/ships/Capital.png";
@@ -30,6 +31,7 @@ import "../styles/_sysuniverse.sass";
 
 const LOCATION_GRID_SIZE = 20;
 const LOCATION_CELL_SIZE = 78;
+const LOCATION_GRID_PIXEL_SIZE = LOCATION_GRID_SIZE * LOCATION_CELL_SIZE;
 const LOCATION_CANVAS_PADDING = 16;
 const LOCATION_VIEW_PADDING = 24;
 const LOCATION_MIN_ZOOM = 0.2;
@@ -234,6 +236,7 @@ const MembersUniverseLocationPage: React.FC = () => {
   const [authChecked, setAuthChecked] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [canSeeMembers, setCanSeeMembers] = useState(false);
+  const [isSysadmin, setIsSysadmin] = useState(false);
   const [canSeeDroidBrain, setCanSeeDroidBrain] = useState(false);
   const [showDroidBrainIntel, setShowDroidBrainIntel] = useState(false);
   const [authRefreshNonce, setAuthRefreshNonce] = useState(0);
@@ -248,6 +251,7 @@ const MembersUniverseLocationPage: React.FC = () => {
     left: number;
     top: number;
     transform: string;
+    hasAsteroid: boolean;
     stations: StoredLocationDetail["stations"];
     ships: StoredLocationDetail["ships"];
   } | null>(null);
@@ -298,6 +302,7 @@ const MembersUniverseLocationPage: React.FC = () => {
         if (cancelled) return;
         setIsLoggedIn(!!auth?.user);
         setCanSeeMembers(canAccessMembers(auth?.user ?? null));
+        setIsSysadmin(!!auth?.user?.is_sysadmin);
         setCanSeeDroidBrain(
           canAccessDroidBrainFull(auth?.user ?? null) || canAccessAdmin(auth?.user ?? null)
         );
@@ -305,6 +310,7 @@ const MembersUniverseLocationPage: React.FC = () => {
         if (!cancelled) {
           setIsLoggedIn(false);
           setCanSeeMembers(false);
+          setIsSysadmin(false);
           setCanSeeDroidBrain(false);
         }
       } finally {
@@ -388,6 +394,7 @@ const MembersUniverseLocationPage: React.FC = () => {
   }, [error]);
 
   const mapCells = useMemo(() => {
+    const asteroidMask = detail?.asteroid_field?.mask ?? null;
     const stations = detail?.stations
       .map((station) => ({
         ...station,
@@ -411,6 +418,7 @@ const MembersUniverseLocationPage: React.FC = () => {
         return {
           x,
           y,
+          hasAsteroid: !!asteroidMask?.[y]?.[x],
           stations: stations.filter(
             (station) => Number(station.placementX) === x && Number(station.placementY) === y
           ),
@@ -572,7 +580,7 @@ const MembersUniverseLocationPage: React.FC = () => {
                       return (
                         <button
                           key={`location-cell-${cell.x}-${cell.y}`}
-                          className={`btn members-universe-system__grid-cell ${occupancy > 0 ? "has-content" : ""} ${isSelected ? "is-active" : ""}`}
+                          className={`btn members-universe-system__grid-cell ${cell.hasAsteroid ? "has-asteroid" : ""} ${occupancy > 0 ? "has-content" : ""} ${isSelected ? "is-active" : ""}`}
                           type="button"
                           onClick={() => setSelectedLocationCell({ x: cell.x, y: cell.y })}
                           onMouseEnter={(event) => {
@@ -598,6 +606,7 @@ const MembersUniverseLocationPage: React.FC = () => {
                               left: clampedLeft,
                               top: tooltipTop,
                               transform: canRenderAbove ? "translate(-50%, -100%)" : "translate(-50%, 0)",
+                              hasAsteroid: cell.hasAsteroid,
                               stations: cell.stations,
                               ships: canSeeDroidBrain ? cell.ships : [],
                             });
@@ -613,6 +622,17 @@ const MembersUniverseLocationPage: React.FC = () => {
                           }}
                         >
                           <div className="members-universe-system__grid-cell-body">
+                            {cell.hasAsteroid ? (
+                              <span
+                                className="members-universe-system__grid-cell-asteroid"
+                                style={{
+                                  backgroundImage: `url(${AsteroidsBackground})`,
+                                  backgroundSize: `${LOCATION_GRID_PIXEL_SIZE}px ${LOCATION_GRID_PIXEL_SIZE}px`,
+                                  backgroundPosition: `-${cell.x * LOCATION_CELL_SIZE}px -${cell.y * LOCATION_CELL_SIZE}px`,
+                                }}
+                                aria-hidden="true"
+                              />
+                            ) : null}
                             {showDroidBrainIntel ? cell.stations.slice(0, 1).map((station, index) => (
                               <img
                                 key={`${station.uid ?? station.name ?? index}-station`}
@@ -669,7 +689,15 @@ const MembersUniverseLocationPage: React.FC = () => {
                       </span>
                     </div>
                   ) : null}
-                  {hoveredLocationCell.stations.length === 0 && hoveredLocationCell.ships.length === 0 ? (
+                  {hoveredLocationCell.hasAsteroid ? (
+                    <div className="members-universe-system__grid-hover-group">
+                      <span className="small members-universe-system__grid-hover-label">Asteroid</span>
+                      <span className="small" style={{ color: "#ff6b6b", fontWeight: 700 }}>
+                        Warning: Asteroids detected
+                      </span>
+                    </div>
+                  ) : null}
+                  {hoveredLocationCell.stations.length === 0 && hoveredLocationCell.ships.length === 0 && !hoveredLocationCell.hasAsteroid ? (
                     <span className="small">Empty coordinate</span>
                   ) : null}
                 </div>
@@ -768,6 +796,19 @@ const MembersUniverseLocationPage: React.FC = () => {
                       <div className="members-universe-location__line">
                         <span className="small">Rescan Due</span>
                         <strong>{formatTimestamp(detail.search_record.rescan_due_at)}</strong>
+                      </div>
+                    ) : null}
+                    {isSysadmin && detail.asteroid_field ? (
+                      <div className="members-universe-location__line">
+                        <span className="small">Asteroid Grid Source</span>
+                        <strong>
+                          {detail.asteroid_field.object_name
+                            ?? detail.asteroid_field.object_type
+                            ?? "XML fieldString"}
+                          {detail.asteroid_field.snapshot_unixtime
+                            ? ` · ${formatTimestamp(new Date(detail.asteroid_field.snapshot_unixtime * 1000).toISOString())}`
+                            : ""}
+                        </strong>
                       </div>
                     ) : null}
                   </div>
@@ -882,6 +923,7 @@ const MembersUniverseLocationPage: React.FC = () => {
             ) : null}
 
             {selectedCellData &&
+            !selectedCellData.hasAsteroid &&
             (!showDroidBrainIntel ||
               (selectedCellData.stations.length === 0 &&
                 selectedCellData.ships.length === 0)) ? (

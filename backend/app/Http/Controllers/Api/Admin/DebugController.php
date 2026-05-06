@@ -14,6 +14,7 @@ use App\Support\Admin\AdminActionLogger;
 use App\Support\Payments\PaymentVerificationService;
 use App\Support\Payments\SwcPaymentUrlBuilder;
 use App\Support\Combat\CombatMathSettings;
+use App\Support\Swc\SwcAuthorizationService;
 use App\Support\Swc\SwcHttp;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Client\Response;
@@ -26,7 +27,8 @@ class DebugController extends Controller
 {
     public function __construct(
         protected PaymentVerificationService $paymentVerificationService,
-        protected SwcPaymentUrlBuilder $swcPaymentUrlBuilder
+        protected SwcPaymentUrlBuilder $swcPaymentUrlBuilder,
+        protected SwcAuthorizationService $swcAuthorizationService
     ) {
     }
 
@@ -590,10 +592,12 @@ class DebugController extends Controller
             ], 404);
         }
 
+        $memberToolsAuth = $this->resolveAuthorizationForContext($user, SwcAuthorization::CONTEXT_MEMBER_TOOLS);
         $paymentsAuth = $this->resolveAuthorizationForContext($user, SwcAuthorization::CONTEXT_PAYMENTS);
         $eventsAuth = $this->resolveAuthorizationForContext($user, SwcAuthorization::CONTEXT_EVENTS);
+        $primaryAuth = $memberToolsAuth ?? $paymentsAuth;
 
-        $paymentGrantedScopes = trim((string) ($paymentsAuth?->granted_scopes ?? ''));
+        $paymentGrantedScopes = trim((string) ($primaryAuth?->granted_scopes ?? ''));
         $scopes = $paymentGrantedScopes !== ''
             ? preg_split('/\s+/', $paymentGrantedScopes) ?: []
             : [];
@@ -629,18 +633,19 @@ class DebugController extends Controller
                     'is_sysadmin' => (bool) $user->is_sysadmin,
                 ],
                 'authorization' => [
-                    'exists' => (bool) $paymentsAuth || (bool) $eventsAuth,
-                    'granted_scopes' => $paymentsAuth?->granted_scopes,
+                    'exists' => (bool) $memberToolsAuth || (bool) $paymentsAuth || (bool) $eventsAuth,
+                    'granted_scopes' => $primaryAuth?->granted_scopes,
                     'has_personal_events_access' => $hasPersonalEventsAccess,
                     'has_faction_events_access' => false,
                     'has_personal_credit_log_access' => $hasPersonalCreditLogAccess,
                     'has_faction_credit_log_access' => $hasFactionCreditLogAccess,
                     'has_character_privileges_access' => $hasCharacterPrivilegesAccess,
-                    'token_expires_at' => $paymentsAuth?->token_expires_at?->toIso8601String(),
-                    'last_verified_at' => $paymentsAuth?->last_verified_at?->toIso8601String(),
-                    'revoked_at' => $paymentsAuth?->revoked_at?->toIso8601String(),
-                    'has_access_token' => !empty($paymentsAuth?->access_token_encrypted),
-                    'has_refresh_token' => !empty($paymentsAuth?->refresh_token_encrypted),
+                    'token_expires_at' => $primaryAuth?->token_expires_at?->toIso8601String(),
+                    'last_verified_at' => $primaryAuth?->last_verified_at?->toIso8601String(),
+                    'revoked_at' => $primaryAuth?->revoked_at?->toIso8601String(),
+                    'has_access_token' => !empty($primaryAuth?->access_token_encrypted),
+                    'has_refresh_token' => !empty($primaryAuth?->refresh_token_encrypted),
+                    'primary_auth_context' => $primaryAuth?->auth_context,
                     'events_authorization' => [
                         'exists' => (bool) $eventsAuth,
                         'granted_scopes' => $eventsAuth?->granted_scopes,
@@ -649,6 +654,162 @@ class DebugController extends Controller
                         'revoked_at' => $eventsAuth?->revoked_at?->toIso8601String(),
                         'has_access_token' => !empty($eventsAuth?->access_token_encrypted),
                         'has_refresh_token' => !empty($eventsAuth?->refresh_token_encrypted),
+                    ],
+                    'last_oauth_exchange' => [
+                        SwcAuthorization::CONTEXT_LINK_ACCOUNT => $this->swcAuthorizationService->getOauthTokenExchangeMetadata(
+                            $user,
+                            SwcAuthorization::CONTEXT_LINK_ACCOUNT
+                        ),
+                        SwcAuthorization::CONTEXT_MEMBER_TOOLS => $this->swcAuthorizationService->getOauthTokenExchangeMetadata(
+                            $user,
+                            SwcAuthorization::CONTEXT_MEMBER_TOOLS
+                        ),
+                        SwcAuthorization::CONTEXT_PAYMENTS => $this->swcAuthorizationService->getOauthTokenExchangeMetadata(
+                            $user,
+                            SwcAuthorization::CONTEXT_PAYMENTS
+                        ),
+                        SwcAuthorization::CONTEXT_EVENTS => $this->swcAuthorizationService->getOauthTokenExchangeMetadata(
+                            $user,
+                            SwcAuthorization::CONTEXT_EVENTS
+                        ),
+                        SwcAuthorization::CONTEXT_DEBUG => $this->swcAuthorizationService->getOauthTokenExchangeMetadata(
+                            $user,
+                            SwcAuthorization::CONTEXT_DEBUG
+                        ),
+                    ],
+                    'last_oauth_authorize_request' => [
+                        SwcAuthorization::CONTEXT_LINK_ACCOUNT => $this->swcAuthorizationService->getOauthAuthorizeRequestMetadata(
+                            $user,
+                            SwcAuthorization::CONTEXT_LINK_ACCOUNT
+                        ),
+                        SwcAuthorization::CONTEXT_MEMBER_TOOLS => $this->swcAuthorizationService->getOauthAuthorizeRequestMetadata(
+                            $user,
+                            SwcAuthorization::CONTEXT_MEMBER_TOOLS
+                        ),
+                        SwcAuthorization::CONTEXT_PAYMENTS => $this->swcAuthorizationService->getOauthAuthorizeRequestMetadata(
+                            $user,
+                            SwcAuthorization::CONTEXT_PAYMENTS
+                        ),
+                        SwcAuthorization::CONTEXT_EVENTS => $this->swcAuthorizationService->getOauthAuthorizeRequestMetadata(
+                            $user,
+                            SwcAuthorization::CONTEXT_EVENTS
+                        ),
+                        SwcAuthorization::CONTEXT_DEBUG => $this->swcAuthorizationService->getOauthAuthorizeRequestMetadata(
+                            $user,
+                            SwcAuthorization::CONTEXT_DEBUG
+                        ),
+                    ],
+                    'oauth_trace' => [
+                        SwcAuthorization::CONTEXT_LINK_ACCOUNT => [
+                            'authorize_request' => $this->swcAuthorizationService->getOauthAuthorizeRequestMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_LINK_ACCOUNT
+                            ),
+                            'callback' => $this->swcAuthorizationService->getOauthCallbackMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_LINK_ACCOUNT
+                            ),
+                            'token_request' => $this->swcAuthorizationService->getOauthTokenRequestMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_LINK_ACCOUNT
+                            ),
+                            'token_exchange' => $this->swcAuthorizationService->getOauthTokenExchangeMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_LINK_ACCOUNT
+                            ),
+                            'stored_authorization' => $this->swcAuthorizationService->getOauthStoredAuthorizationMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_LINK_ACCOUNT
+                            ),
+                        ],
+                        SwcAuthorization::CONTEXT_MEMBER_TOOLS => [
+                            'authorize_request' => $this->swcAuthorizationService->getOauthAuthorizeRequestMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_MEMBER_TOOLS
+                            ),
+                            'callback' => $this->swcAuthorizationService->getOauthCallbackMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_MEMBER_TOOLS
+                            ),
+                            'token_request' => $this->swcAuthorizationService->getOauthTokenRequestMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_MEMBER_TOOLS
+                            ),
+                            'token_exchange' => $this->swcAuthorizationService->getOauthTokenExchangeMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_MEMBER_TOOLS
+                            ),
+                            'stored_authorization' => $this->swcAuthorizationService->getOauthStoredAuthorizationMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_MEMBER_TOOLS
+                            ),
+                        ],
+                        SwcAuthorization::CONTEXT_PAYMENTS => [
+                            'authorize_request' => $this->swcAuthorizationService->getOauthAuthorizeRequestMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_PAYMENTS
+                            ),
+                            'callback' => $this->swcAuthorizationService->getOauthCallbackMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_PAYMENTS
+                            ),
+                            'token_request' => $this->swcAuthorizationService->getOauthTokenRequestMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_PAYMENTS
+                            ),
+                            'token_exchange' => $this->swcAuthorizationService->getOauthTokenExchangeMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_PAYMENTS
+                            ),
+                            'stored_authorization' => $this->swcAuthorizationService->getOauthStoredAuthorizationMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_PAYMENTS
+                            ),
+                        ],
+                        SwcAuthorization::CONTEXT_EVENTS => [
+                            'authorize_request' => $this->swcAuthorizationService->getOauthAuthorizeRequestMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_EVENTS
+                            ),
+                            'callback' => $this->swcAuthorizationService->getOauthCallbackMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_EVENTS
+                            ),
+                            'token_request' => $this->swcAuthorizationService->getOauthTokenRequestMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_EVENTS
+                            ),
+                            'token_exchange' => $this->swcAuthorizationService->getOauthTokenExchangeMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_EVENTS
+                            ),
+                            'stored_authorization' => $this->swcAuthorizationService->getOauthStoredAuthorizationMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_EVENTS
+                            ),
+                        ],
+                        SwcAuthorization::CONTEXT_DEBUG => [
+                            'authorize_request' => $this->swcAuthorizationService->getOauthAuthorizeRequestMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_DEBUG
+                            ),
+                            'callback' => $this->swcAuthorizationService->getOauthCallbackMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_DEBUG
+                            ),
+                            'token_request' => $this->swcAuthorizationService->getOauthTokenRequestMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_DEBUG
+                            ),
+                            'token_exchange' => $this->swcAuthorizationService->getOauthTokenExchangeMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_DEBUG
+                            ),
+                            'stored_authorization' => $this->swcAuthorizationService->getOauthStoredAuthorizationMetadata(
+                                $user,
+                                SwcAuthorization::CONTEXT_DEBUG
+                            ),
+                        ],
                     ],
                 ],
                 'factions' => $user->factions->map(function ($faction) {
@@ -666,14 +827,19 @@ class DebugController extends Controller
                     ];
                 })->values(),
                 'config' => [
+                    'client_id' => Config::get('swc.client_id'),
                     'authorize_url' => Config::get('swc.authorize_url'),
                     'token_url' => Config::get('swc.token_url'),
                     'api_base' => Config::get('swc.api_base'),
                     'redirect_uri' => Config::get('swc.redirect_uri'),
                     'default_scope' => Config::get('swc.default_scope'),
+                    'member_tools_scope' => Config::get('swc.member_tools_scope'),
+                    'creditlog_scope' => Config::get('swc.creditlog_scope'),
                     'events_scope' => Config::get('swc.events_scope'),
                     'debug_scope' => Config::get('swc.debug_scope'),
                     'access_type' => Config::get('swc.access_type'),
+                    'member_tools_access_type' => Config::get('swc.member_tools_access_type'),
+                    'creditlog_access_type' => Config::get('swc.creditlog_access_type'),
                     'events_access_type' => Config::get('swc.events_access_type'),
                     'debug_access_type' => Config::get('swc.debug_access_type'),
                 ],
@@ -1301,5 +1467,44 @@ class DebugController extends Controller
             ],
             'data' => $result,
         ]);
+    }
+
+    public function testRefreshToken(Request $request): JsonResponse
+    {
+        $user = $this->resolveTargetUser($request, ['swcAuthorizations']);
+
+        if (!$user) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'User not found.',
+            ], 404);
+        }
+
+        $context = trim((string) $request->input('auth_context', SwcAuthorization::CONTEXT_MEMBER_TOOLS));
+        $allowedContexts = [
+            SwcAuthorization::CONTEXT_LINK_ACCOUNT,
+            SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+            SwcAuthorization::CONTEXT_PAYMENTS,
+            SwcAuthorization::CONTEXT_EVENTS,
+            SwcAuthorization::CONTEXT_DEBUG,
+        ];
+
+        if (!in_array($context, $allowedContexts, true)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Unsupported auth_context.',
+            ], 422);
+        }
+
+        $result = $this->swcAuthorizationService->forceRefreshForUser($user, $context);
+
+        return response()->json([
+            ...$result,
+            'target_user' => [
+                'id' => $user->id,
+                'swc_handle' => $user->swc_handle,
+                'swc_character_id' => $user->swc_character_id,
+            ],
+        ], ($result['ok'] ?? false) ? 200 : 422);
     }
 }

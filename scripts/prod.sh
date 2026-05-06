@@ -59,6 +59,8 @@ Usage:
   ./scripts/prod.sh ps            Show container status
   ./scripts/prod.sh pma           Show phpMyAdmin prod service info
   ./scripts/prod.sh queue-restart Restart Laravel queue workers
+  ./scripts/prod.sh warm-cache       Pre-warm DroidBrain options cache (all tabs)
+  ./scripts/prod.sh reindex-dirty    Reindex any DroidBrain tabs still marked dirty
 
   ./scripts/prod.sh migrate       Run DB migrations (php artisan migrate --force)
   ./scripts/prod.sh optimize-clear Clear Laravel runtime caches
@@ -129,6 +131,16 @@ case "${cmd}" in
     ${DC} exec backend php artisan queue:restart
     ;;
 
+  warm-cache)
+    echo "▶ Warming DroidBrain options cache..."
+    ${DC} exec backend php artisan droidbrain:warm-cache
+    ;;
+
+  reindex-dirty)
+    echo "▶ Reindexing dirty DroidBrain tabs..."
+    ${DC} exec backend php artisan droidbrain:reindex-dirty
+    ;;
+
   migrate)
     echo "▶ Running Laravel migrations in production (--force)..."
     run_migrations_with_retry
@@ -158,22 +170,31 @@ case "${cmd}" in
     echo "▶ Deploying latest version from GitHub (branch: ${GIT_BRANCH})..."
     (
       cd "${ROOT_DIR}"
-      echo "▶ Step 1/5: git fetch + pull..."
+      echo "▶ Step 1/8: git fetch + pull..."
       git fetch origin
       git pull origin "${GIT_BRANCH}"
 
-      echo "▶ Step 2/5: docker compose build (backend + frontend)..."
+      echo "▶ Step 2/7: docker compose build (backend + frontend)..."
       ${DC} build
 
-      echo "▶ Step 3/5: restart stack..."
+      echo "▶ Step 3/7: restart stack..."
       ${DC} up -d --force-recreate --remove-orphans
 
-      echo "▶ Step 4/5: run database migrations..."
+      echo "▶ Step 4/7: run database migrations..."
       run_migrations_with_retry
 
-      echo "▶ Step 5/5: restart queue workers..."
+      echo "▶ Step 5/7: sync Scout index settings..."
+      ${DC} exec backend php artisan scout:sync-index-settings
+
+      echo "▶ Step 6/7: restart queue workers..."
       ${DC} exec backend php artisan optimize:clear
       ${DC} exec backend php artisan queue:restart
+
+      echo "▶ Step 7/8: reindex any dirty DroidBrain tabs..."
+      ${DC} exec backend php artisan droidbrain:reindex-dirty
+
+      echo "▶ Step 8/8: warm DroidBrain options cache..."
+      ${DC} exec backend php artisan droidbrain:warm-cache
     )
     echo "✔ Deploy complete."
     ;;

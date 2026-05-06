@@ -28,6 +28,8 @@ use App\Http\Controllers\Api\Admin\SiteLockController;
 use App\Http\Controllers\Api\Admin\EntityStatsController;
 use App\Http\Controllers\Api\Admin\DiscordBotAdminController;
 use App\Http\Controllers\Api\Admin\WebsiteHealthController;
+use App\Http\Controllers\Api\Admin\WorkerHealthController;
+use App\Http\Controllers\Api\Admin\DroidBrainUploadAuditController;
 use App\Http\Controllers\Api\SiteLockStatusController;
 use App\Http\Controllers\Api\SwcAuthorizationController;
 use App\Http\Controllers\Api\TenetOfSalvageController;
@@ -94,6 +96,8 @@ Route::middleware(['auth:sanctum', 'require_any:is_admin'])->prefix('admin')->gr
     Route::get('/users', [UserController::class, 'index']);
     Route::patch('/users/{user}/permissions', [UserController::class, 'updatePermissions']);
     Route::post('/users/{user}/force-logout', [UserController::class, 'forceLogout']);
+    Route::post('/users/{user}/revoke-swc-authorization', [UserController::class, 'revokeSwcAuthorization']);
+    Route::post('/users/revoke-swc-authorization-all', [UserController::class, 'revokeAllSwcAuthorizations']);
     Route::post('/users/{user}/reset-system-updater-cursor', [UserController::class, 'resetSystemUpdaterCursor']);
     Route::post('/users/{user}/full-reset-system-updater', [UserController::class, 'fullResetSystemUpdater']);
     Route::get('/member-changelog', [MemberChangelogAdminController::class, 'index']);
@@ -135,6 +139,8 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
     Route::get('/payment-transfers', [\App\Http\Controllers\Api\PaymentController::class, 'transfers']);
     Route::get('/payment-transfers/unverified-support', [\App\Http\Controllers\Api\PaymentController::class, 'unverifiedSupportQueue']);
     Route::post('/payments/build-single', [\App\Http\Controllers\Api\PaymentController::class, 'buildSingle']);
+    Route::post('/payments/send-single', [\App\Http\Controllers\Api\PaymentController::class, 'sendSingle']);
+    Route::post('/payments/send-bulk', [\App\Http\Controllers\Api\PaymentController::class, 'sendBulk']);
     Route::post('/payments/build-bulk', [\App\Http\Controllers\Api\PaymentController::class, 'buildBulk']);
     Route::post('/payments/pull-credit-log', [\App\Http\Controllers\Api\PaymentController::class, 'pullCreditLog']);
     Route::get('/payments/droidbrain-settings', [\App\Http\Controllers\Api\PaymentController::class, 'droidBrainSettings']);
@@ -280,9 +286,11 @@ Route::get('/site-lock-status', [SiteLockStatusController::class, 'show']);
 
 Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('admin')->group(function () {
     Route::get('/member-access-logs', [MemberAccessLogController::class, 'index']);
+    Route::get('/droidbrain-uploads', [DroidBrainUploadAuditController::class, 'index']);
     Route::get('/discord-bot', [DiscordBotAdminController::class, 'show']);
     Route::post('/discord-bot/contact-recipient', [ContactRequestSettingsController::class, 'update']);
     Route::get('/website-health', [WebsiteHealthController::class, 'show']);
+    Route::get('/worker-health', [WorkerHealthController::class, 'show']);
     Route::get('/site-lock', [SiteLockController::class, 'show']);
     Route::post('/site-lock', [SiteLockController::class, 'update']);
     Route::get('/entity-stats/{entityType}/export.csv', [EntityStatsController::class, 'exportCsv']);
@@ -312,6 +320,7 @@ Route::middleware(['auth:sanctum', 'require_any:is_joe_member,is_intel,is_sysadm
 
 Route::middleware(['auth:sanctum', 'require_any:is_joe_member,is_intel,is_sysadmin'])->group(function () {
     Route::post('/droidbrain/upload', [DroidBrainController::class, 'upload']);
+    Route::get('/droidbrain/upload-queue/{queueId}', [DroidBrainController::class, 'uploadQueueStatus']);
 });
 
 Route::middleware(['auth:sanctum', 'require_any:is_intel,is_sysadmin'])->group(function () {
@@ -346,6 +355,7 @@ Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('sys/debug')->group
     Route::get('/test-faction-privilege', [DebugController::class, 'testFactionPrivilege']);
     Route::post('/test-payment', [DebugController::class, 'testPayment']);
     Route::post('/pull-credit-log', [DebugController::class, 'pullCreditLog']);
+    Route::post('/test-refresh-token', [DebugController::class, 'testRefreshToken']);
 });
 
 Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {

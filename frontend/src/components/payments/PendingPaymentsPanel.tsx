@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { FactionPrivilegeCheckResult } from "../../api/factionPrivileges";
-import type { PaymentItem } from "../../api/payments";
-import type { SwcAuthorizationStatus } from "../../api/swcAuthorization";
+import type { PaymentItem, PaymentSubjectType } from "../../api/payments";
 import type { PaymentGroup } from "./types";
 
 type Props = {
@@ -12,13 +11,12 @@ type Props = {
   selectedPayerLabel: string | null;
   bulkLines: string;
   bulkUrl: string | null;
-  swcAuth: SwcAuthorizationStatus | null;
   privileges: FactionPrivilegeCheckResult[];
   privilegeGroup: string;
   privilegeName: string;
   onPayerFilterChange: (value: "all" | "user" | "faction") => void;
   onToggleItem: (id: number) => void;
-  onPayRecipient: (ids: number[]) => Promise<void>;
+  onPayRecipient: (ids: number[], payerType: PaymentSubjectType) => Promise<void>;
   onBuildBulk: () => Promise<void>;
 };
 
@@ -45,7 +43,6 @@ const PendingPaymentsPanel: React.FC<Props> = ({
   selectedPayerLabel,
   bulkLines,
   bulkUrl,
-  swcAuth,
   privileges,
   privilegeGroup,
   privilegeName,
@@ -129,10 +126,6 @@ const PendingPaymentsPanel: React.FC<Props> = ({
             : null;
 
         const hasFactionPrivilege = !!factionPrivilege?.check?.allowed;
-        const canPayPersonally = group.payerType === "user";
-        const canPayAsFaction = group.payerType === "faction";
-
-        const canPay = canPayPersonally || canPayAsFaction;
         const selectionLockedToAnotherPayer =
           !!selectedPayerContextKey && selectedPayerContextKey !== groupPayerContextKey;
 
@@ -160,43 +153,21 @@ const PendingPaymentsPanel: React.FC<Props> = ({
               </p>
             </div>
 
-            {group.payerType === "user" &&
-              !swcAuth?.has_personal_credit_log_access && (
-                <p className="small payments-note">
-                  This payment can still be made, but it will not auto-verify until
-                  personal credit log access is connected.
-                </p>
-              )}
-
             {group.payerType === "faction" && (
-              <>
-                <p className="small payments-note">
-                  SWC privilege ({privilegeGroup}/{privilegeName}):{" "}
-                  {factionPrivilege?.check?.ok
-                    ? factionPrivilege.check.allowed
-                      ? "Allowed"
-                      : "Denied"
-                    : factionPrivilege?.check?.message ?? "Not checked"}
-                </p>
+              <p className="small payments-note">
+                SWC privilege ({privilegeGroup}/{privilegeName}):{" "}
+                {factionPrivilege?.check?.ok
+                  ? factionPrivilege.check.allowed
+                    ? "Allowed"
+                    : "Denied"
+                  : factionPrivilege?.check?.message ?? "Not checked"}
+              </p>
+            )}
 
-                {!swcAuth?.has_faction_credit_log_access && (
-                  <p className="small payments-note">
-                    You can still open this payment now, but faction sync stays limited until faction credit log access is connected.
-                  </p>
-                )}
-
-                {!swcAuth?.has_character_privileges_access && (
-                  <p className="small payments-note">
-                    Live faction privilege checks are limited until character privileges access is connected.
-                  </p>
-                )}
-
-                {!hasFactionPrivilege && swcAuth?.has_character_privileges_access && (
-                  <p className="small payments-note payments-note--warn">
-                    SWC faction privilege check did not currently show this action as allowed, but the backend will still validate on open.
-                  </p>
-                )}
-              </>
+            {group.payerType === "faction" && !hasFactionPrivilege && (
+              <p className="small payments-note payments-note--warn">
+                SWC faction privilege check did not currently show this action as allowed, but the backend will still validate on send.
+              </p>
             )}
 
             <div className="payments-item-list">
@@ -226,10 +197,9 @@ const PendingPaymentsPanel: React.FC<Props> = ({
               <button
                 className="btn"
                 type="button"
-                onClick={() => onPayRecipient(group.items.map((i) => i.id))}
-                disabled={!canPay}
+                onClick={() => onPayRecipient(group.items.map((i) => i.id), group.payerType)}
               >
-                Pay Recipient
+                Send Credits
               </button>
             </div>
           </div>
@@ -237,10 +207,9 @@ const PendingPaymentsPanel: React.FC<Props> = ({
       })}
 
       <div className="admin-card payments-card">
-        <strong>Bulk Payment</strong>
+        <strong>Batch Payment</strong>
         <p className="small">
-          Faction bulk payments are handled one payer at a time. If you have pending items from multiple factions,
-          build each faction's bulk payment separately.
+          Selected payments run from this site one recipient transfer at a time.
         </p>
 
         {selectedPayerLabel && (
@@ -256,7 +225,7 @@ const PendingPaymentsPanel: React.FC<Props> = ({
             onClick={onBuildBulk}
             disabled={selected.length === 0}
           >
-            Copy Bulk Payment Lines
+            Run Batch Payment
           </button>
 
           {bulkUrl && (

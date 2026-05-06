@@ -1018,13 +1018,25 @@ function buildGroupedDetailSections(detail: EntityDetail): Array<{
     ["production_modifier", "Production Mod"],
   ]);
 
+  const matchingWeapon = asRecord.matching_weapon;
+  if (matchingWeapon && typeof matchingWeapon === "object" && !Array.isArray(matchingWeapon)) {
+    const weaponEntries = buildWeaponStatEntries(matchingWeapon as EntityDetail);
+    if (weaponEntries.length > 0) {
+      sections.push({
+        title: "Weapon Stats",
+        entries: weaponEntries.map(([label, value]) => [label, formatGroupedStatValue(label, value)] as [string, string]),
+      });
+    }
+  }
+
   return sections.filter((section) =>
     (section.title === "Description" ||
       section.title === "Material Types" ||
       section.title === "Hiring Locations" ||
       section.title === "Terrain Restrictions" ||
       section.title === "Spawn Terrain Types" ||
-      section.title === "Skills") ||
+      section.title === "Skills" ||
+      section.title === "Weapon Stats") ||
     section.entries.some(([, value]) => value !== "")
   );
 }
@@ -1630,6 +1642,7 @@ const MemberEntityStatsPanel: React.FC = () => {
       "recommended_workers",
       "recycling_xp",
       "production_modifier",
+      "matching_weapon",
     ]);
     const concise: Array<[string, unknown]> = [];
     const expanded: Array<[string, unknown]> = [];

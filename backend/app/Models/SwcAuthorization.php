@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SwcAuthorization extends Model
 {
+    public const CONTEXT_LINK_ACCOUNT = 'link_account';
     public const CONTEXT_MEMBER_TOOLS = 'member_tools';
     public const CONTEXT_PAYMENTS = 'payments';
     public const CONTEXT_EVENTS = 'events';

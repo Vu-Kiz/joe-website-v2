@@ -7,6 +7,7 @@ use App\Models\DroidBrainPaymentSetting;
 use App\Models\Faction;
 use App\Models\PaymentItem;
 use App\Models\PaymentTransfer;
+use App\Models\User;
 use App\Support\Admin\AdminActionLogger;
 use App\Support\Factions\FactionPermissionService;
 use App\Support\Payments\BulkPaymentExportService;
@@ -15,8 +16,10 @@ use App\Support\Payments\PaymentVerificationService;
 use App\Support\Payments\SwcPaymentUrlBuilder;
 use App\Support\Payments\ManualPaymentTemplateService;
 use App\Support\Swc\SwcAuthorizationService;
+use App\Support\Swc\SwcCreditTransferService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PaymentController extends Controller
 {
@@ -27,7 +30,8 @@ class PaymentController extends Controller
         protected SwcAuthorizationService $swcAuthorizationService,
         protected FactionPermissionService $factionPermissionService,
         protected PaymentVerificationService $paymentVerificationService,
-        protected ManualPaymentTemplateService $manualPaymentTemplateService
+        protected ManualPaymentTemplateService $manualPaymentTemplateService,
+        protected SwcCreditTransferService $swcCreditTransferService
     ) {
     }
 
@@ -313,6 +317,205 @@ class PaymentController extends Controller
         ]);
     }
 
+    public function sendSingle(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $data = $request->validate([
+            'payment_item_ids' => ['required', 'array', 'min:1'],
+            'payment_item_ids.*' => ['integer'],
+        ]);
+
+        $items = PaymentItem::query()
+            ->whereIn('id', $data['payment_item_ids'])
+            ->where('status', 'pending')
+            ->get();
+
+        if ($items->isEmpty()) {
+            return response()->json([
+                'message' => 'No pending payment items were found.',
+            ], 404);
+        }
+
+        $distinctPayers = $items
+            ->map(fn (PaymentItem $item) => $item->payer_subject_type . ':' . ($item->payer_subject_id ?? ''))
+            ->unique();
+
+        if ($distinctPayers->count() !== 1) {
+            return response()->json([
+                'message' => 'Selected payment items must share the same payer context.',
+            ], 422);
+        }
+
+        $payerType = $items->first()->payer_subject_type;
+        $payerSubjectId = (int) ($items->first()->payer_subject_id ?? 0);
+
+        $accessError = $this->validateDirectSendAccess($user, (string) $payerType, $payerSubjectId);
+        if ($accessError) {
+            return $accessError;
+        }
+
+        $transfers = $this->transferBuilder->createGroupedTransfers($items, 'swc_api');
+
+        if ($transfers->count() !== 1) {
+            return response()->json([
+                'message' => 'Single payment must target exactly one recipient group.',
+            ], 422);
+        }
+
+        /** @var PaymentTransfer $transfer */
+        $transfer = $transfers->first();
+        $transfer->update([
+            'status' => 'opened',
+            'opened_at' => now(),
+        ]);
+
+        try {
+            $sendResult = $this->swcCreditTransferService->transferForUserContext($user, $transfer);
+            $this->markTransferPaidFromDirectSend($transfer, $sendResult);
+        } catch (\Throwable $e) {
+            $transfer->update([
+                'status' => 'failed',
+                'meta' => array_merge($transfer->meta ?? [], [
+                    'swc_api_send' => [
+                        'failed_at' => now()->toIso8601String(),
+                        'error' => $e->getMessage(),
+                    ],
+                ]),
+            ]);
+
+            return response()->json([
+                'message' => $e->getMessage(),
+                'transfer' => $transfer->fresh('items'),
+            ], 422);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'message' => 'Credits sent successfully via website.',
+                'transaction_id' => $transfer->verified_transaction_id,
+            ],
+            'transfer' => $transfer->fresh('items'),
+        ]);
+    }
+
+    public function sendBulk(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $data = $request->validate([
+            'payment_item_ids' => ['required', 'array', 'min:1'],
+            'payment_item_ids.*' => ['integer'],
+        ]);
+
+        $items = PaymentItem::query()
+            ->whereIn('id', $data['payment_item_ids'])
+            ->where('status', 'pending')
+            ->get();
+
+        if ($items->isEmpty()) {
+            return response()->json([
+                'message' => 'No pending payment items were found.',
+            ], 404);
+        }
+
+        $distinctPayers = $items
+            ->map(fn (PaymentItem $item) => $item->payer_subject_type . ':' . ($item->payer_subject_id ?? ''))
+            ->unique();
+
+        if ($distinctPayers->count() !== 1) {
+            return response()->json([
+                'message' => 'Selected payment items must share the same payer context.',
+            ], 422);
+        }
+
+        $payerType = (string) $items->first()->payer_subject_type;
+        $payerSubjectId = (int) ($items->first()->payer_subject_id ?? 0);
+
+        $accessError = $this->validateDirectSendAccess($user, $payerType, $payerSubjectId);
+        if ($accessError) {
+            return $accessError;
+        }
+
+        $transfers = $this->transferBuilder->createGroupedTransfers($items, 'swc_api_batch');
+
+        $results = [];
+        $processed = 0;
+        $sent = 0;
+        $failed = 0;
+
+        foreach ($transfers as $transfer) {
+            if (!$transfer instanceof PaymentTransfer) {
+                continue;
+            }
+
+            $processed += 1;
+
+            $transfer->update([
+                'status' => 'opened',
+                'opened_at' => now(),
+            ]);
+
+            try {
+                $sendResult = $this->swcCreditTransferService->transferForUserContext($user, $transfer);
+                $this->markTransferPaidFromDirectSend($transfer, $sendResult);
+                $sent += 1;
+
+                $results[] = [
+                    'transfer_id' => $transfer->id,
+                    'reference' => $transfer->reference,
+                    'payee' => $transfer->payee_handle ?: $transfer->payee_label,
+                    'amount' => (int) $transfer->total_amount,
+                    'ok' => true,
+                    'transaction_id' => is_numeric(data_get($sendResult, 'transaction_id'))
+                        ? (int) data_get($sendResult, 'transaction_id')
+                        : null,
+                ];
+            } catch (\Throwable $e) {
+                $failed += 1;
+
+                $transfer->update([
+                    'status' => 'failed',
+                    'meta' => array_merge($transfer->meta ?? [], [
+                        'swc_api_send' => [
+                            'failed_at' => now()->toIso8601String(),
+                            'error' => $e->getMessage(),
+                        ],
+                    ]),
+                ]);
+
+                $results[] = [
+                    'transfer_id' => $transfer->id,
+                    'reference' => $transfer->reference,
+                    'payee' => $transfer->payee_handle ?: $transfer->payee_label,
+                    'amount' => (int) $transfer->total_amount,
+                    'ok' => false,
+                    'error' => $e->getMessage(),
+                ];
+            }
+        }
+
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'processed' => $processed,
+                'sent' => $sent,
+                'failed' => $failed,
+                'message' => "Batch send complete. Sent {$sent} transfer(s), {$failed} failed.",
+                'results' => $results,
+            ],
+        ]);
+    }
+
     public function droidBrainSettings(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -529,5 +732,69 @@ class PaymentController extends Controller
             'ok' => true,
             'data' => $result,
         ]);
+    }
+
+    protected function markTransferPaidFromDirectSend(PaymentTransfer $transfer, array $sendResult): void
+    {
+        DB::transaction(function () use ($transfer, $sendResult) {
+            $now = now();
+            $transactionId = data_get($sendResult, 'transaction_id');
+
+            $transfer->update([
+                'status' => 'verified',
+                'verified_at' => $now,
+                'paid_at' => $now,
+                'verified_transaction_id' => is_numeric($transactionId) ? (int) $transactionId : null,
+                'meta' => array_merge($transfer->meta ?? [], [
+                    'swc_api_send' => [
+                        'sent_at' => $now->toIso8601String(),
+                        'auth_mode' => (string) data_get($sendResult, 'auth_mode', 'oauth'),
+                        'http_status' => (int) data_get($sendResult, 'status', 0),
+                        'transaction_id' => is_numeric($transactionId) ? (int) $transactionId : null,
+                        'response' => data_get($sendResult, 'response', []),
+                    ],
+                ]),
+            ]);
+
+            foreach ($transfer->items as $item) {
+                $item->update([
+                    'status' => 'paid',
+                    'paid_at' => $now,
+                ]);
+            }
+        });
+    }
+
+    protected function validateDirectSendAccess(User $user, string $payerType, int $payerSubjectId): ?JsonResponse
+    {
+        if ($payerType === 'faction') {
+            if (!$this->factionPermissionService->canPayFromFaction($user, $payerSubjectId)) {
+                return response()->json([
+                    'message' => 'You are not allowed to send this faction payment.',
+                ], 403);
+            }
+
+            if (!$this->swcAuthorizationService->hasFactionCreditsWriteAccess($user)) {
+                return response()->json([
+                    'message' => 'SWC faction credits transfer access is required. Please resync your Chain Code Verification and include payment scopes.',
+                ], 403);
+            }
+
+            return null;
+        }
+
+        if ($payerType !== 'user' || $payerSubjectId !== (int) $user->id) {
+            return response()->json([
+                'message' => 'You are not allowed to send this personal payment.',
+            ], 403);
+        }
+
+        if (!$this->swcAuthorizationService->hasCharacterCreditsWriteAccess($user)) {
+            return response()->json([
+                'message' => 'SWC personal credits transfer access is required. Please resync your Chain Code Verification and include payment scopes.',
+            ], 403);
+        }
+
+        return null;
     }
 }

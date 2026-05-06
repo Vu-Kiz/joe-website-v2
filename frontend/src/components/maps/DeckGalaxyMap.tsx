@@ -16,6 +16,7 @@ import shipsDuelconUrl from "../../assets/map/ShipsDuelcon.png";
 import stationsDuelconUrl from "../../assets/map/StationsDuelcon.png";
 import hasNotesIconUrl from "../../assets/map/HasNotesIcon.png";
 import BBCodeView from "../bbcode/BBCodeView";
+import SearchSuggestionPicker from "../common/SearchSuggestionPicker";
 import type {
   SectorCellAnnotation,
   SectorSearchRecord,
@@ -156,6 +157,7 @@ type PlanetoidEntry = {
 
 type LegendFilterKey =
   | "system"
+  | "system_id"
   | "asteroid_unknown"
   | "asteroid_none"
   | "asteroid_1x1"
@@ -172,6 +174,7 @@ type LegendFilters = Record<LegendFilterKey, boolean>;
 
 const DEFAULT_LEGEND_FILTERS: LegendFilters = {
   system: true,
+  system_id: false,
   asteroid_unknown: true,
   asteroid_none: true,
   asteroid_1x1: true,
@@ -191,8 +194,6 @@ type IntelDraft = {
   planetoids_checked: boolean | null;
   planetoid_1_size: "" | "1x1" | "2x2";
   planetoid_2_size: "" | "1x1" | "2x2";
-  has_ships: boolean;
-  has_stations: boolean;
 };
 
 function formatSwcDisplayId(value: string | null | undefined): string | null {
@@ -200,6 +201,12 @@ function formatSwcDisplayId(value: string | null | undefined): string | null {
   const [prefix, rest] = value.split(":", 2);
   if (rest && /^\d+$/.test(prefix)) return rest;
   return value;
+}
+
+function uidToDisplayId(uid: string | null | undefined): string | null {
+  if (!uid) return null;
+  const colon = uid.indexOf(":");
+  return colon >= 0 ? uid.slice(colon + 1) : uid;
 }
 
 function formatRelativeAge(value: string | null | undefined): string | null {
@@ -299,8 +306,10 @@ const PERF_DEBUG_STYLE: React.CSSProperties = {
   display: "grid",
 };
 
+
 const LEGEND_ITEMS: Array<{ key: LegendFilterKey; label: string; icon: string }> = [
   { key: "system", label: "System", icon: systemIconUrl },
+  { key: "system_id", label: "System IDs", icon: "#" },
   { key: "asteroid_unknown", label: "Planetoids", icon: asteroidFieldIconUnknownUrl },
   { key: "asteroid_none", label: "No Planetoids", icon: asteroidFieldIconUrl },
   { key: "asteroid_1x1", label: "1x1", icon: asteroidFieldIcon1x1Url },
@@ -488,7 +497,7 @@ function toCellKey(galx: number, galy: number) {
 }
 
 function isImageIcon(icon: string) {
-  return icon.startsWith("http") || icon.startsWith("/");
+  return /^(https?:\/\/|\/|data:image\/|blob:)/i.test(icon);
 }
 
 const CAMERA_STORAGE_KEY = "joe-galaxy-camera-v1";
@@ -563,6 +572,8 @@ const DeckGalaxyMap: React.FC<DeckGalaxyMapProps> = ({
   const [legendMaxHeight, setLegendMaxHeight] = useState<number | null>(null);
   const [legendShouldScroll, setLegendShouldScroll] = useState(false);
   const [selectedCell, setSelectedCell] = useState<SelectedCellState | null>(null);
+  const [sysIdSearch, setSysIdSearch] = useState("");
+  const [showSysIdSuggestions, setShowSysIdSuggestions] = useState(false);
   const [viewportSize, setViewportSize] = useState<ViewportSize>({ width: 1, height: 1 });
   const hoverFrameRef = useRef<number | null>(null);
   const pendingHoverRef = useRef<HoverState | null>(null);
@@ -596,8 +607,6 @@ const DeckGalaxyMap: React.FC<DeckGalaxyMapProps> = ({
     planetoids_checked: null,
     planetoid_1_size: "",
     planetoid_2_size: "",
-    has_ships: false,
-    has_stations: false,
   });
   const [isEditingIntel, setIsEditingIntel] = useState(false);
   const [savingIntel, setSavingIntel] = useState(false);
@@ -844,7 +853,7 @@ const DeckGalaxyMap: React.FC<DeckGalaxyMapProps> = ({
     if (pixelCellSize >= ASTEROID_ICONS_MIN_CELL_PX) return [];
     return visibleSectorPolygons
       .map((sector) => {
-        const text = sector.name ?? sector.uid;
+        const text = sector.name ?? uidToDisplayId(sector.uid) ?? sector.uid;
         const width = sector.bounds.maxX - sector.bounds.minX + 1;
         const height = sector.bounds.maxY - sector.bounds.minY + 1;
         const sizeByWidth = (width * 0.85) / (Math.max(1, text.length) * 0.58);
@@ -870,6 +879,17 @@ const DeckGalaxyMap: React.FC<DeckGalaxyMapProps> = ({
         .filter((system) => isInsideRenderBounds(system.position, renderBounds)),
     [legendFilters.system, renderBounds, systemMarkers]
   );
+
+  const systemLabels = useMemo(() => {
+    if (!legendFilters.system_id) return [];
+    return systemPoints
+      .map((s) => {
+        const parts = (s.uid ?? "").split(":");
+        const numericId = parts[1] && /^\d+$/.test(parts[1]) ? parts[1] : null;
+        return { ...s, text: numericId ?? "" };
+      })
+      .filter((s) => s.text);
+  }, [legendFilters.system_id, systemPoints]);
 
   const systemsByKey = useMemo(() => {
     const map = new Map<string, StoredMapSystem[]>();
@@ -1068,7 +1088,7 @@ const intelIcons = useMemo<IntelIconDatum[]>(() => {
         const sector = sectorByUid.get(ownerUid);
         return {
           uid: ownerUid,
-          name: sector?.name ?? ownerUid,
+          name: sector?.name ?? uidToDisplayId(ownerUid) ?? ownerUid,
         };
       }
 
@@ -1088,7 +1108,7 @@ const intelIcons = useMemo<IntelIconDatum[]>(() => {
         }
         return {
           uid: sector.uid,
-          name: sector.name ?? sector.uid,
+          name: sector.name ?? uidToDisplayId(sector.uid) ?? sector.uid,
         };
       }
       return {
@@ -1365,6 +1385,28 @@ new PolygonLayer({
           getColor: [activeSectorUid],
         },
       }),
+      new TextLayer({
+        id: "deck-galaxy-system-labels",
+        data: systemLabels,
+        pickable: false,
+        getPosition: (d: { position: [number, number] }) => d.position,
+        getText: (d: { text: string }) => d.text,
+        getSize: 0.55,
+        sizeUnits: "meters",
+        sizeMinPixels: 10,
+        sizeMaxPixels: 18,
+        getColor: [210, 220, 255, 230] as [number, number, number, number],
+        getOutlineColor: [0, 0, 0, 220] as [number, number, number, number],
+        outlineWidth: 2.5,
+        getTextAnchor: "middle",
+        getAlignmentBaseline: "top",
+        getPixelOffset: () => [0, markerSizePx * 0.5 + 2] as [number, number],
+        fontFamily: "Tektur, Orbitron, sans-serif",
+        billboard: false,
+        updateTriggers: {
+          getPixelOffset: [markerSizePx],
+        },
+      }),
     ];
 
     const buildMs =
@@ -1382,6 +1424,7 @@ new PolygonLayer({
       scanBadges,
       scanOffsetPx,
       sectorLabels,
+      systemLabels,
       visibleSectorBoundaries,
       visibleSectorFillCells,
       systemPoints,
@@ -1413,7 +1456,7 @@ new PolygonLayer({
     const sections: Array<{ label: string; items: Array<{ key: LegendFilterKey; label: string; icon: string }> }> = [];
     sections.push({
       label: "Map",
-      items: LEGEND_ITEMS.filter((item) => item.key === "system"),
+      items: LEGEND_ITEMS.filter((item) => item.key === "system" || (item.key === "system_id" && canEditCellIntel)),
     });
 
     if (canViewCellIntel) {
@@ -1494,8 +1537,6 @@ new PolygonLayer({
       planetoids_checked: selectedCell?.searchRecord?.planetoids_checked ?? null,
       planetoid_1_size: selectedCell?.searchRecord?.planetoid_1_size ?? "",
       planetoid_2_size: selectedCell?.searchRecord?.planetoid_2_size ?? "",
-      has_ships: selectedCell?.searchRecord?.has_ships === true,
-      has_stations: selectedCell?.searchRecord?.has_stations === true,
     });
     setIsEditingNote(false);
     setIsEditingIntel(false);
@@ -1503,7 +1544,7 @@ new PolygonLayer({
 
   useEffect(() => {
     const system = selectedCell?.systems[0] ?? null;
-    const systemIdentifier = system?.identifier ?? system?.uid ?? null;
+    const systemIdentifier = system?.uid ?? system?.identifier ?? null;
 
     if (!system || !systemIdentifier || !loadSystemDetail) {
       setSelectedSystemDetail(null);
@@ -1679,8 +1720,8 @@ new PolygonLayer({
               y: info.y,
               galx,
               galy,
-              title: object.name ?? object.uid ?? null,
-              subtitle: object.identifier ?? null,
+              title: object.name ?? uidToDisplayId(object.uid) ?? null,
+              subtitle: object.uid ? (object.uid.split(":")[1] ?? object.uid) : null,
             });
           }}
           onClick={(info: PickingInfo<SectorPolygonDatum | SystemPointDatum>) => {
@@ -1786,7 +1827,7 @@ new PolygonLayer({
           ) : null}
         </div>
 
-        {controlsOverlay ? (
+        {(controlsOverlay || canEditCellIntel) ? (
           <div className={`members-universe-map__controls-panel${controlsOpen ? " is-open" : ""}`}>
             <button
               className="btn btn--small members-universe-map__controls-toggle"
@@ -1806,6 +1847,82 @@ new PolygonLayer({
                 onWheelCapture={(event) => event.stopPropagation()}
               >
                 {controlsOverlay}
+                {canEditCellIntel && (
+                  <div className="members-universe__field">
+                    <label className="small">Go to System ID</label>
+                    <div className="members-universe__inline members-universe__sector-picker">
+                      <SearchSuggestionPicker<StoredMapSystem>
+                        placeholder="e.g. 1524"
+                        value={sysIdSearch}
+                        onChange={setSysIdSearch}
+                        showSuggestions={showSysIdSuggestions}
+                        onShowSuggestions={setShowSysIdSuggestions}
+                        suggestions={sysIdSearch.trim().length > 0
+                          ? systemMarkers.filter((s) => {
+                              const numericId = (s.uid ?? "").split(":")[1] ?? "";
+                              return numericId.startsWith(sysIdSearch.trim());
+                            }).slice(0, 10)
+                          : []
+                        }
+                        getKey={(s) => s.uid ?? s.name ?? ""}
+                        onSelect={(s) => {
+                          if (s.galx != null && s.galy != null) {
+                            setViewState((prev) => ({
+                              ...prev,
+                              target: [s.galx! + 0.5, s.galy! + 0.5, 0],
+                              zoom: 2,
+                            }));
+                          }
+                          setSysIdSearch("");
+                          setShowSysIdSuggestions(false);
+                        }}
+                        onSubmit={() => {
+                          const query = sysIdSearch.trim();
+                          if (!query) return;
+                          const system = systemMarkers.find((s) => (s.uid ?? "").split(":")[1] === query);
+                          if (system && system.galx != null && system.galy != null) {
+                            setViewState((prev) => ({
+                              ...prev,
+                              target: [system.galx! + 0.5, system.galy! + 0.5, 0],
+                              zoom: 2,
+                            }));
+                          }
+                          setSysIdSearch("");
+                          setShowSysIdSuggestions(false);
+                        }}
+                        renderSuggestion={(s) => {
+                          const numericId = (s.uid ?? "").split(":")[1] ?? "";
+                          return (
+                            <>
+                              <strong>{numericId}{s.name ? ` — ${s.name}` : ""}</strong>
+                              {s.sector_name ? <span className="small">{s.sector_name}</span> : null}
+                            </>
+                          );
+                        }}
+                      />
+                      <button
+                        className="btn"
+                        type="button"
+                        onClick={() => {
+                          const query = sysIdSearch.trim();
+                          if (!query) return;
+                          const system = systemMarkers.find((s) => (s.uid ?? "").split(":")[1] === query);
+                          if (system && system.galx != null && system.galy != null) {
+                            setViewState((prev) => ({
+                              ...prev,
+                              target: [system.galx! + 0.5, system.galy! + 0.5, 0],
+                              zoom: 2,
+                            }));
+                          }
+                          setSysIdSearch("");
+                          setShowSysIdSuggestions(false);
+                        }}
+                      >
+                        Go to System
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : null}
           </div>
@@ -1877,7 +1994,7 @@ new PolygonLayer({
                 <strong>{selectedCell.galx}, {selectedCell.galy}</strong>
                 {selectedCell.sectorUid ? (
                   <span className="members-universe-map__selection-label">
-                    {selectedCell.sectorName ?? `Sector ${formatSwcDisplayId(selectedCell.sectorUid) ?? selectedCell.sectorUid}`}
+                    {selectedCell.sectorName ?? `Sector ${uidToDisplayId(selectedCell.sectorUid) ?? selectedCell.sectorUid}`}
                   </span>
                 ) : null}
                 {getPrimaryCellName(selectedCell.systems[0], selectedCell.searchRecord, canViewCellIntel) ? (
@@ -2001,26 +2118,6 @@ new PolygonLayer({
                             <option value="no">No planetoids found</option>
                           </select>
                         </label>
-                        <label className="members-universe-map__intel-check">
-                          <input
-                            type="checkbox"
-                            checked={intelDraft.has_ships}
-                            onChange={(event) =>
-                              setIntelDraft((current) => ({ ...current, has_ships: event.target.checked }))
-                            }
-                          />
-                          <span>Has Ships</span>
-                        </label>
-                        <label className="members-universe-map__intel-check">
-                          <input
-                            type="checkbox"
-                            checked={intelDraft.has_stations}
-                            onChange={(event) =>
-                              setIntelDraft((current) => ({ ...current, has_stations: event.target.checked }))
-                            }
-                          />
-                          <span>Has Stations</span>
-                        </label>
                       </div>
                       {intelDraft.planetoids_checked === true ? (
                         <div className="members-universe-map__intel-grid">
@@ -2081,8 +2178,6 @@ new PolygonLayer({
                                 planetoids_checked: intelDraft.planetoids_checked,
                                 planetoid_1_size: intelDraft.planetoid_1_size || null,
                                 planetoid_2_size: intelDraft.planetoid_2_size || null,
-                                has_ships: intelDraft.has_ships,
-                                has_stations: intelDraft.has_stations,
                               });
                               setSelectedCell((current) =>
                                 current ? { ...current, searchRecord: saved } : current
@@ -2219,12 +2314,12 @@ new PolygonLayer({
                   type="button"
                   onClick={() => {
                     const system = selectedCell.systems[0];
-                    const identifier = system?.identifier ?? system?.uid ?? null;
+                    const identifier = system?.uid ?? system?.identifier ?? null;
                     if (!system || !identifier || !onSystemSelect) return;
                     onSystemSelect(identifier, system.sector_uid ?? selectedCell.sectorUid);
                   }}
                 >
-                  Open {selectedCell.systems[0].name ?? selectedCell.systems[0].identifier ?? "System"}
+                  Open {selectedCell.systems[0].name ?? "System"}
                 </button>
               ) : (
                 <button

@@ -5,6 +5,7 @@ import {
   getDroidBrain,
   uploadDroidBrainFile,
   type DroidBrainContext,
+  type DroidBrainIndexStatus,
   type DroidBrainTab,
   type DroidBrainUploadResult,
 } from "../../api/droidbrain";
@@ -100,6 +101,7 @@ const MemberDroidBrainPanel: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [uploadResults, setUploadResults] = useState<DroidBrainUploadResult[]>([]);
+  const [indexStatus, setIndexStatus] = useState<DroidBrainIndexStatus>({});
 
   const activeTab = normalizeTab(searchParams.get("tab"));
   const requestParams = useMemo(() => {
@@ -173,6 +175,7 @@ const MemberDroidBrainPanel: React.FC = () => {
         if (cancelled) return;
 
         setContext(response.data);
+        setIndexStatus(response.index_status ?? {});
         setError(null);
       } catch (e: any) {
         if (cancelled) return;
@@ -315,6 +318,7 @@ const MemberDroidBrainPanel: React.FC = () => {
           )}
 
           <DroidBrainUploadPanel
+            compact
             uploading={uploading}
             uploadStatus={uploadStatus}
             uploadResults={uploadResults}
@@ -344,6 +348,7 @@ const MemberDroidBrainPanel: React.FC = () => {
 
                 const refreshed = await getDroidBrain(requestParams);
                 setContext(refreshed.data);
+                setIndexStatus(refreshed.index_status ?? {});
               } catch (e: any) {
                 setError(e?.message ?? "Failed to upload DroidBrain file.");
               } finally {
@@ -365,6 +370,17 @@ const MemberDroidBrainPanel: React.FC = () => {
               updateParams({ tab, page: null });
             }}
           />
+
+          {effectiveTab !== "summary" && indexStatus[effectiveTab]?.is_dirty && (
+            <div className="panel" style={{ borderLeft: "3px solid goldenrod", padding: "0.5rem 0.75rem", marginBottom: "0.5rem" }}>
+              <p className="small" style={{ margin: 0, color: "goldenrod" }}>
+                Search index is updating — results may not reflect the most recent upload yet.
+                {indexStatus[effectiveTab]?.dirtied_at && (
+                  <> Upload received at {new Date(indexStatus[effectiveTab]!.dirtied_at!).toLocaleTimeString()}.</>
+                )}
+              </p>
+            </div>
+          )}
 
           <DroidBrainFiltersPanel
             activeTab={effectiveTab}

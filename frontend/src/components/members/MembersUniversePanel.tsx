@@ -14,7 +14,8 @@ import {
 } from "../../api/universe";
 import { getApiBaseUrl, getBackendOrigin } from "../../api/auth";
 import type { SwcUser } from "../../api/auth";
-import { canAccessAdmin, canViewAsteroidIntel, canViewScanWindow } from "../../auth/permissions";
+import { canAccessAdmin, canAccessDroidBrain, canViewAsteroidIntel, canViewScanWindow } from "../../auth/permissions";
+import { uploadDroidBrainFile, type DroidBrainUploadResult } from "../../api/droidbrain";
 import {
   getSwcAuthorizationStatus,
   getSwcImportLogs,
@@ -27,10 +28,12 @@ import {
 } from "../../api/swcAuthorization";
 import SpinnerLoadingCard from "../common/SpinnerLoadingCard";
 import SearchSuggestionPicker from "../common/SearchSuggestionPicker";
+import DroidBrainUploadPanel from "../droidbrain/DroidBrainUploadPanel";
 import "../../styles/_membersuniverse.sass";
 
 const DeckGalaxyMap = lazy(() => import("../maps/DeckGalaxyMap"));
 const SHOW_PERF_QUERY = "map_perf";
+const MAX_DROIDBRAIN_UPLOAD_FILES = 10;
 
 type GalaxySnapshotResult = {
   systems: StoredMapSystem[];
@@ -267,6 +270,9 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
   const [eventsImportLoading, setEventsImportLoading] = useState(false);
   const [eventsImportError, setEventsImportError] = useState<string | null>(null);
   const [eventsImportResult, setEventsImportResult] = useState<SwcPersonalEventsImportResponse | null>(null);
+  const [droidbrainUploading, setDroidbrainUploading] = useState(false);
+  const [droidbrainUploadStatus, setDroidbrainUploadStatus] = useState<string | null>(null);
+  const [droidbrainUploadResults, setDroidbrainUploadResults] = useState<DroidBrainUploadResult[]>([]);
   const [importLogs, setImportLogs] = useState<ImportLogEntry[]>([]);
   const [importLogsLoading, setImportLogsLoading] = useState(false);
   const [expandedLogId, setExpandedLogId] = useState<number | null>(null);
@@ -721,7 +727,7 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
       mapSystems.find(
         (system: StoredMapSystem) => system.identifier === systemIdentifier || system.uid === systemIdentifier
       ) ?? null;
-    const nextIdentifier = mapSystem?.identifier ?? mapSystem?.uid ?? systemIdentifier;
+    const nextIdentifier = mapSystem?.uid ?? mapSystem?.identifier ?? systemIdentifier;
 
     navigate(`/members/universe/system/${encodeURIComponent(nextIdentifier)}`, {
       state: {
@@ -994,6 +1000,43 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
               </div>
             ))}
           </div>
+        </section>
+      ) : null}
+
+      {canAccessDroidBrain(viewer) ? (
+        <section className="members-universe__controller-section">
+          <DroidBrainUploadPanel
+            compact
+            uploading={droidbrainUploading}
+            uploadStatus={droidbrainUploadStatus}
+            uploadResults={droidbrainUploadResults}
+            isSysadmin={Boolean(viewer?.is_sysadmin)}
+            onUpload={async (files) => {
+              try {
+                setDroidbrainUploading(true);
+                setDroidbrainUploadStatus(null);
+                setDroidbrainUploadResults([]);
+                const batch = files.slice(0, MAX_DROIDBRAIN_UPLOAD_FILES);
+                const results: DroidBrainUploadResult[] = [];
+
+                for (let index = 0; index < batch.length; index += 1) {
+                  const file = batch[index];
+                  setDroidbrainUploadStatus(`Uploading file ${index + 1} of ${batch.length}: ${file.name}`);
+                  const response = await uploadDroidBrainFile(file);
+                  results.push(response.data);
+                  setDroidbrainUploadResults([...results]);
+                }
+
+                setDroidbrainUploadStatus("Refreshing map intel after upload…");
+                await refreshSearchRecords({ silent: true });
+              } catch (e: any) {
+                setError(e?.message ?? "Failed to upload DroidBrain file.");
+              } finally {
+                setDroidbrainUploading(false);
+                setDroidbrainUploadStatus(null);
+              }
+            }}
+          />
         </section>
       ) : null}
 

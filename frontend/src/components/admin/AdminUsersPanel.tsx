@@ -3,6 +3,8 @@ import {
   fullResetAdminUserSystemUpdater,
   forceAdminUserLogout,
   listAdminUsers,
+  revokeAdminUserSwcAuthorization,
+  revokeAllAdminUsersSwcAuthorization,
   updateAdminUserPermissions,
   type AdminManageableUser,
 } from "../../api/adminUsers";
@@ -69,6 +71,8 @@ const AdminUsersPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<number | null>(null);
   const [forcingLogoutId, setForcingLogoutId] = useState<number | null>(null);
+  const [revokingSwcId, setRevokingSwcId] = useState<number | null>(null);
+  const [revokingAllSwc, setRevokingAllSwc] = useState(false);
   const [resettingSystemUpdaterId, setResettingSystemUpdaterId] = useState<number | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
   const [openScanWindowId, setOpenScanWindowId] = useState<number | null>(null);
@@ -216,6 +220,58 @@ const AdminUsersPanel: React.FC = () => {
     }
   };
 
+  const handleRevokeSwcAuthorization = async (user: EditableUserState) => {
+    const shouldRevoke = window.confirm(
+      `Revoke SWC authorization for ${user.handle}? They will be forced to reconnect Chain Code Verification.`
+    );
+
+    if (!shouldRevoke) {
+      return;
+    }
+
+    try {
+      setRevokingSwcId(user.id);
+      setError(null);
+      setNotice(null);
+
+      const res = await revokeAdminUserSwcAuthorization(user.id);
+      setNotice(
+        res.message ||
+          `Revoked SWC access for ${user.handle}.`
+      );
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to revoke SWC authorization.");
+    } finally {
+      setRevokingSwcId(null);
+    }
+  };
+
+  const handleRevokeAllSwcAuthorizations = async () => {
+    const confirmation = window.prompt(
+      "Type REVOKE_ALL_SWC_AUTH to revoke SWC authorization for all users."
+    );
+
+    if (confirmation !== "REVOKE_ALL_SWC_AUTH") {
+      return;
+    }
+
+    try {
+      setRevokingAllSwc(true);
+      setError(null);
+      setNotice(null);
+
+      const res = await revokeAllAdminUsersSwcAuthorization();
+      setNotice(
+        res.message ||
+          `Revoked SWC authorization for ${res.result.affected_users} user(s).`
+      );
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to revoke SWC authorization for all users.");
+    } finally {
+      setRevokingAllSwc(false);
+    }
+  };
+
   if (loading) {
     return (
       <section className="panel admin-panel">
@@ -246,6 +302,14 @@ const AdminUsersPanel: React.FC = () => {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        <button
+          type="button"
+          className="btn btn--small btn--ghost"
+          onClick={handleRevokeAllSwcAuthorizations}
+          disabled={revokingAllSwc}
+        >
+          {revokingAllSwc ? "Revoking All SWC…" : "Revoke All SWC Auth"}
+        </button>
       </div>
 
       {notice && (
@@ -520,9 +584,23 @@ const AdminUsersPanel: React.FC = () => {
                       <button
                         type="button"
                         className="btn btn--small btn--ghost"
+                        onClick={() => handleRevokeSwcAuthorization(user)}
+                        disabled={
+                          revokingSwcId === user.id ||
+                          forcingLogoutId === user.id ||
+                          savingId === user.id ||
+                          resettingSystemUpdaterId === user.id
+                        }
+                      >
+                        {revokingSwcId === user.id ? "Revoking SWC…" : "Revoke SWC Auth"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn--small btn--ghost"
                         onClick={() => handleForceLogout(user)}
                         disabled={
                           forcingLogoutId === user.id ||
+                          revokingSwcId === user.id ||
                           savingId === user.id ||
                           resettingSystemUpdaterId === user.id
                         }
@@ -535,6 +613,7 @@ const AdminUsersPanel: React.FC = () => {
                         onClick={() => handleFullResetSystemUpdater(user)}
                         disabled={
                           resettingSystemUpdaterId === user.id ||
+                          revokingSwcId === user.id ||
                           savingId === user.id ||
                           forcingLogoutId === user.id
                         }

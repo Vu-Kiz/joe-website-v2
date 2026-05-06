@@ -10,7 +10,9 @@ use App\Models\SwcStationType;
 use App\Models\SwcSystem;
 use App\Models\SwcVehicleType;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Meilisearch\Client as MeilisearchClient;
 
 class DroidBrainBrowserService
 {
@@ -18,6 +20,10 @@ class DroidBrainBrowserService
     protected array $restrictedTabs = ['ships', 'stations', 'vehicles'];
     protected int $perPageDefault = 50;
     protected int $perPageMax = 100;
+    protected int $optionCacheTtlSeconds = 3600;
+    protected int $meiliFacetOptionLimit = 500;
+    protected array $columnExistsCache = [];
+    protected array $meiliFacetRuntimeCache = [];
 
     public function buildContext(array $query, bool $restricted = false): array
     {
@@ -48,14 +54,20 @@ class DroidBrainBrowserService
             ? ($filters['owner'] !== '')
             : collect($filters)->contains(fn ($value) => $value !== '');
 
-        $options = [
-            'uploader_options' => [],
-            'type_options' => $this->getTypeOptions($tab),
-            'class_options' => $this->getClassOptions($tab),
-            'system_options' => $this->getSystemOptions($tab),
-            'planet_options' => $this->getPlanetOptions($tab),
-            'owner_options' => $restricted ? [] : $this->getOwnerOptions(),
-        ];
+        $options = $restricted
+            ? ['uploader_options' => [], 'type_options' => [], 'class_options' => [], 'system_options' => [], 'planet_options' => [], 'owner_options' => []]
+            : Cache::remember(
+                'droidbrain_options_' . $tab,
+                $this->optionCacheTtlSeconds,
+                fn () => [
+                    'uploader_options' => [],
+                    'type_options'     => $this->getTypeOptions($tab),
+                    'class_options'    => $this->getClassOptions($tab),
+                    'system_options'   => $this->getSystemOptions($tab),
+                    'planet_options'   => $this->getPlanetOptions($tab),
+                    'owner_options'    => $this->getOwnerOptions(),
+                ]
+            );
 
         $result = $tab === 'summary'
             ? $this->buildSummary($filters['owner'])
@@ -181,42 +193,177 @@ class DroidBrainBrowserService
 
     protected function search(string $tab, array $filters, int $page, int $perPage): array
     {
+        // uid-only exact lookup — skip Meilisearch entirely
+        $hasUid     = $filters['uid'] !== '';
+        $hasQ       = $filters['q'] !== '';
+        $hasFilters = $filters['type'] !== '' || $filters['class'] !== ''
+            || $filters['system'] !== '' || $filters['planet'] !== ''
+            || $filters['owner'] !== '';
+
+        if ($hasUid && !$hasQ && !$hasFilters) {
+            return $this->searchByUidOnly($tab, $filters['uid'], $page, $perPage);
+        }
+
+        // Meilisearch handles text search + all structured filters + pagination
+        $meiliResult = $this->queryMeilisearch($tab, $filters, $page, $perPage);
+
+        if ($meiliResult === null) {
+            // Meilisearch unavailable — fall back to DB LIKE
+            return $this->searchFallback($tab, $filters, $page, $perPage);
+        }
+
+        ['entity_uids' => $entityUids, 'total' => $total] = $meiliResult;
+
+        if ($entityUids === []) {
+            return ['rows' => [], 'total' => $total];
+        }
+
+        // Fetch full display columns for this page only from the _latest view
         $table = $this->tableForTab($tab);
-        $query = DB::table($table);
+        $dbQuery = DB::table($table)->whereIn('entity_uid', $entityUids);
 
-        if ($filters['q'] !== '') {
-            $needle = $filters['q'];
-            $uidFilter = $this->normalizeEntityUidFilter($needle);
-
-            $query->where(function ($inner) use ($needle, $uidFilter) {
-                $inner
-                    ->where('name', 'like', '%' . $needle . '%')
-                    ->orWhere('entity_uid', $needle)
-                    ->orWhere('identifier', $needle);
-
-                if ($uidFilter['exact'] !== null || $uidFilter['numeric'] !== null) {
-                    $inner->orWhere(function ($uidInner) use ($uidFilter) {
-                    if ($uidFilter['exact'] !== null) {
-                            $uidInner->where('entity_uid', $uidFilter['exact']);
-                    }
-
-                    if ($uidFilter['numeric'] !== null) {
-                        $method = $uidFilter['exact'] !== null ? 'orWhere' : 'where';
-                            $uidInner->{$method}('entity_uid', 'like', '%:' . $uidFilter['numeric']);
-                        }
-                    });
+        // Apply uid exact filter in DB if also set alongside q/other filters
+        if ($hasUid) {
+            $uidFilter = $this->normalizeEntityUidFilter($filters['uid']);
+            $dbQuery->where(function ($inner) use ($uidFilter) {
+                if ($uidFilter['exact'] !== null) {
+                    $inner->where('entity_uid', $uidFilter['exact']);
+                }
+                if ($uidFilter['numeric'] !== null) {
+                    $method = $uidFilter['exact'] !== null ? 'orWhere' : 'where';
+                    $inner->{$method}('entity_uid', 'like', '%:' . $uidFilter['numeric']);
                 }
             });
         }
 
+        // Preserve Meilisearch relevance order within this page
+        $rowsByUid = $dbQuery->get()->keyBy('entity_uid');
+        $rows = collect($entityUids)
+            ->map(fn ($uid) => $rowsByUid->get($uid))
+            ->filter()
+            ->map(fn ($row) => $this->normalizeResultRow($tab, (array) $row))
+            ->values()
+            ->all();
+
+        return ['rows' => $rows, 'total' => $total];
+    }
+
+    protected function queryMeilisearch(string $tab, array $filters, int $page, int $perPage): ?array
+    {
+        try {
+            $client     = app(MeilisearchClient::class);
+            $index      = $client->index($this->indexForTab($tab));
+            $filterParts = $this->buildMeilisearchFilter($tab, $filters);
+
+            $options = [
+                'attributesToRetrieve' => ['entity_uid'],
+                'hitsPerPage'          => $perPage,
+                'page'                 => $page,
+                'sort'                 => ['name:asc'],
+            ];
+
+            if ($filterParts !== []) {
+                $options['filter'] = $filterParts;
+            }
+
+            $result = $index->search($filters['q'], $options);
+            // Scout overrides entity_uid with getScoutKey() (colon→underscore); reverse it
+            $entityUids = array_map(
+                fn ($uid) => str_replace('_', ':', (string) $uid),
+                array_column($result->getHits(), 'entity_uid')
+            );
+            $total = $result->getTotalHits() ?? $result->getEstimatedTotalHits() ?? 0;
+
+            return ['entity_uids' => $entityUids, 'total' => $total];
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    protected function buildMeilisearchFilter(string $tab, array $filters): array
+    {
+        $parts = [];
+
+        $typeField = match ($tab) {
+            'planets' => 'planet_type_name',
+            'npcs'    => 'race_name',
+            default   => 'type_name',
+        };
+        $ownerField = $tab === 'planets' ? 'government' : 'owner_name';
+
+        if ($filters['type'] !== '') {
+            $parts[] = $typeField . ' = ' . $this->meiliQuote($filters['type']);
+        }
+        if ($filters['class'] !== '' && in_array($tab, ['ships', 'stations', 'vehicles', 'npcs'], true)) {
+            $parts[] = 'class_name = ' . $this->meiliQuote($filters['class']);
+        }
+        if ($filters['system'] !== '' && in_array($tab, ['ships', 'stations', 'planets'], true)) {
+            $parts[] = 'system_name = ' . $this->meiliQuote($filters['system']);
+        }
+        if ($filters['planet'] !== '' && in_array($tab, ['ships', 'stations', 'cities', 'vehicles', 'npcs'], true)) {
+            $parts[] = 'planet_name = ' . $this->meiliQuote($filters['planet']);
+        }
+        if ($filters['owner'] !== '') {
+            $parts[] = $ownerField . ' = ' . $this->meiliQuote($filters['owner']);
+        }
+
+        return $parts;
+    }
+
+    protected function meiliQuote(string $value): string
+    {
+        return '"' . str_replace('"', '\\"', $value) . '"';
+    }
+
+    protected function indexForTab(string $tab): string
+    {
+        return match ($tab) {
+            'ships'    => 'droidbrain_ships',
+            'stations' => 'droidbrain_stations',
+            'planets'  => 'droidbrain_planets',
+            'cities'   => 'droidbrain_cities',
+            'vehicles' => 'droidbrain_vehicles',
+            'npcs'     => 'droidbrain_npcs',
+            default    => 'droidbrain_ships',
+        };
+    }
+
+    protected function searchByUidOnly(string $tab, string $uid, int $page, int $perPage): array
+    {
+        $uidFilter = $this->normalizeEntityUidFilter($uid);
+        $table     = $this->tableForTab($tab);
+        $query     = DB::table($table)->where(function ($inner) use ($uidFilter) {
+            if ($uidFilter['exact'] !== null) {
+                $inner->where('entity_uid', $uidFilter['exact']);
+            }
+            if ($uidFilter['numeric'] !== null) {
+                $method = $uidFilter['exact'] !== null ? 'orWhere' : 'where';
+                $inner->{$method}('entity_uid', 'like', '%:' . $uidFilter['numeric']);
+            }
+        });
+
+        $total = (clone $query)->count();
+        $rows  = $query->orderBy('name')->forPage($page, $perPage)->get()
+            ->map(fn ($row) => $this->normalizeResultRow($tab, (array) $row))->all();
+
+        return ['rows' => $rows, 'total' => $total];
+    }
+
+    protected function searchFallback(string $tab, array $filters, int $page, int $perPage): array
+    {
+        $table = $this->tableForTab($tab);
+        $query = DB::table($table);
+
+        if ($filters['q'] !== '') {
+            $query->where('name', 'like', '%' . $filters['q'] . '%');
+        }
+
         if ($filters['uid'] !== '') {
             $uidFilter = $this->normalizeEntityUidFilter($filters['uid']);
-
             $query->where(function ($inner) use ($uidFilter) {
                 if ($uidFilter['exact'] !== null) {
                     $inner->where('entity_uid', $uidFilter['exact']);
                 }
-
                 if ($uidFilter['numeric'] !== null) {
                     $method = $uidFilter['exact'] !== null ? 'orWhere' : 'where';
                     $inner->{$method}('entity_uid', 'like', '%:' . $uidFilter['numeric']);
@@ -227,17 +374,10 @@ class DroidBrainBrowserService
         $this->applyTabSpecificFilters($query, $tab, $filters);
 
         $total = (clone $query)->count();
-        $rows = $query
-            ->orderBy('name')
-            ->forPage($page, $perPage)
-            ->get()
-            ->map(fn ($row) => $this->normalizeResultRow($tab, (array) $row))
-            ->all();
+        $rows  = $query->orderBy('name')->forPage($page, $perPage)->get()
+            ->map(fn ($row) => $this->normalizeResultRow($tab, (array) $row))->all();
 
-        return [
-            'rows' => $rows,
-            'total' => $total,
-        ];
+        return ['rows' => $rows, 'total' => $total];
     }
 
     protected function normalizeEntityUidFilter(string $value): array
@@ -732,8 +872,27 @@ class DroidBrainBrowserService
             ->all();
     }
 
+    public function warmOptionsCache(string $tab): void
+    {
+        $key = 'droidbrain_options_' . $tab;
+        Cache::forget($key);
+        Cache::remember($key, $this->optionCacheTtlSeconds, fn () => [
+            'uploader_options' => [],
+            'type_options'     => $this->getTypeOptions($tab),
+            'class_options'    => $this->getClassOptions($tab),
+            'system_options'   => $this->getSystemOptions($tab),
+            'planet_options'   => $this->getPlanetOptions($tab),
+            'owner_options'    => $this->getOwnerOptions(),
+        ]);
+    }
+
     protected function getDistinctOptions(string $tab, string $column): array
     {
+        $meiliValues = $this->getDistinctOptionsFromMeilisearch($tab, $column);
+        if ($meiliValues !== null) {
+            return $meiliValues;
+        }
+
         if (!$this->tableHasColumn($tab, $column)) {
             return [];
         }
@@ -748,6 +907,50 @@ class DroidBrainBrowserService
             ->map(fn ($value) => (string) $value)
             ->values()
             ->all();
+    }
+
+    protected function getDistinctOptionsFromMeilisearch(string $tab, string $column): ?array
+    {
+        $index = $this->indexForTab($tab);
+        $cacheKey = $index . ':' . $column;
+
+        if (array_key_exists($cacheKey, $this->meiliFacetRuntimeCache)) {
+            $cached = $this->meiliFacetRuntimeCache[$cacheKey];
+            return is_array($cached) ? $cached : null;
+        }
+
+        try {
+            $client = app(MeilisearchClient::class);
+            $result = $client->index($index)->search('', [
+                'hitsPerPage' => 0,
+                'page' => 1,
+                'facets' => [$column],
+            ]);
+
+            $distribution = $result->getFacetDistribution();
+            $facetValues = $distribution[$column] ?? [];
+
+            if (!is_array($facetValues)) {
+                $this->meiliFacetRuntimeCache[$cacheKey] = [];
+                return [];
+            }
+
+            $values = collect(array_keys($facetValues))
+                ->map(fn ($value) => trim((string) $value))
+                ->filter(fn ($value) => $value !== '')
+                ->unique()
+                ->sort()
+                ->take($this->meiliFacetOptionLimit)
+                ->values()
+                ->all();
+
+            $this->meiliFacetRuntimeCache[$cacheKey] = $values;
+            return $values;
+        } catch (\Throwable) {
+            // Fall back to DB distinct queries when Meilisearch is unavailable
+            $this->meiliFacetRuntimeCache[$cacheKey] = null;
+            return null;
+        }
     }
 
     protected function tableForTab(string $tab): string
@@ -766,6 +969,15 @@ class DroidBrainBrowserService
     protected function tableHasColumn(string $tab, string $column): bool
     {
         $table = $this->tableForTab($tab);
-        return DB::getSchemaBuilder()->hasColumn($table, $column);
+        $cacheKey = $table . ':' . $column;
+
+        if (array_key_exists($cacheKey, $this->columnExistsCache)) {
+            return (bool) $this->columnExistsCache[$cacheKey];
+        }
+
+        $exists = DB::getSchemaBuilder()->hasColumn($table, $column);
+        $this->columnExistsCache[$cacheKey] = $exists;
+
+        return $exists;
     }
 }
