@@ -732,7 +732,7 @@ export function getDebugRawSwc(
   path: string,
   queryParams?: Record<string, string>,
   userId?: number,
-  authContext?: "member_tools" | "payments" | "events" | "debug"
+  authContext?: "member_tools" | "payments" | "events" | "debug" | "market_faction"
 ) {
   const params = withOptionalUserId(new URLSearchParams(), userId);
   params.set("path", path);
@@ -819,7 +819,7 @@ export function testFactionPrivilege(
   group: string,
   privilege: string,
   factionId: number | string,
-  authContext?: "member_tools" | "payments" | "events" | "debug",
+  authContext?: "member_tools" | "payments" | "events" | "debug" | "market_faction",
   userId?: number
 ) {
   const params = withOptionalUserId(new URLSearchParams(), userId);
@@ -894,7 +894,8 @@ export function testDebugRefreshToken(
     | "member_tools"
     | "payments"
     | "events"
-    | "debug" = "member_tools",
+    | "debug"
+    | "market_faction" = "member_tools",
   userId?: number
 ) {
   const params = withOptionalUserId(new URLSearchParams(), userId);
@@ -906,6 +907,31 @@ export function testDebugRefreshToken(
       method: "POST",
       body: JSON.stringify({
         auth_context: authContext,
+      }),
+    }
+  );
+}
+
+export function testDebugTag(payload: {
+  entity_type: string;
+  entity_uid: string;
+  tag?: string;
+  method?: "PUT" | "DELETE";
+  auth_context?: string;
+  user_id?: number;
+}) {
+  const params = withOptionalUserId(new URLSearchParams(), payload.user_id);
+  const qs = params.toString();
+  return apiFetch<{ ok: boolean; status: number; url_called: string; method: string; entity_type: string; entity_uid: string; tag: string; body: string; json: any }>(
+    `/sys/debug/test-tag${qs ? `?${qs}` : ""}`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        entity_type: payload.entity_type,
+        entity_uid: payload.entity_uid,
+        tag: payload.tag ?? "joe-test",
+        method: payload.method ?? "PUT",
+        auth_context: payload.auth_context ?? "member_tools",
       }),
     }
   );

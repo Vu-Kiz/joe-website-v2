@@ -471,14 +471,14 @@ const MembersUniverseLocationPage: React.FC = () => {
   }
 
   if (!Number.isFinite(parsedGalx) || !Number.isFinite(parsedGaly)) {
-    return <Navigate to="/members" replace />;
+    return <Navigate to="/tools" replace />;
   }
 
   const heading = detail?.location.primary_label ?? "Chart Location";
   return (
     <section className="members-universe-system members-universe-location">
       <div className="members-tool-back">
-        <Link className="btn btn--small" to="/members">
+        <Link className="btn btn--small" to="/tools">
           Back To Tools Overview
         </Link>
       </div>
@@ -505,7 +505,7 @@ const MembersUniverseLocationPage: React.FC = () => {
           </>
         }
         backLabel="Back to Astrogation"
-        backTo="/members"
+        backTo="/tools"
         backState={{ membersView: "universe" }}
       />
 

@@ -1,57 +1,10 @@
 import { apiFetch } from "./auth";
 
-export type SwcAuthorizationStatus = {
-  member_tool_preferences?: {
-    galaxy: boolean;
-    payments: boolean;
-    universe?: {
-      map_scope?: "sector" | "galaxy";
-      selected_sector_uid: string | null;
-      selected_system_identifier: string | null;
-      focus_request:
-        | {
-            kind: "sector";
-            sectorUid: string;
-            zoom?: number | null;
-          }
-        | {
-            kind: "coords";
-            galx: number;
-            galy: number;
-            zoom?: number | null;
-          }
-        | null;
-    };
-  };
-  connected: boolean;
-  member_tools_connected?: boolean;
-  payments_connected?: boolean;
-  events_connected?: boolean;
-  has_personal_events_access: boolean;
-  has_personal_credit_log_access: boolean;
-  has_faction_credit_log_access: boolean;
-  has_faction_credits_write_access?: boolean;
-  has_character_privileges_access: boolean;
-  has_character_credits_write_access?: boolean;
-  granted_scopes: string | null;
-  token_expires_at: string | null;
-  last_verified_at: string | null;
-  revoked_at: string | null;
-  events_granted_scopes?: string | null;
-  events_token_expires_at?: string | null;
-  events_last_verified_at?: string | null;
-  events_revoked_at?: string | null;
-};
-
-export async function getSwcAuthorizationStatus() {
-  return apiFetch<{ ok: true; data: SwcAuthorizationStatus }>(
-    `/swc/authorization`
-  );
-}
-
-export async function updateSwcAuthorizationPreferences(memberToolPreferences: {
+export type MemberToolPreferences = {
   galaxy: boolean;
   payments: boolean;
+  market_personal?: boolean;
+  market_faction?: boolean;
   universe?: {
     map_scope?: "sector" | "galaxy";
     selected_sector_uid: string | null;
@@ -70,37 +23,70 @@ export async function updateSwcAuthorizationPreferences(memberToolPreferences: {
         }
       | null;
   };
-}) {
+};
+
+export type PublicToolPreferences = {
+  payments: boolean;
+};
+
+export type SwcAuthorizationStatus = {
+  member_tool_preferences?: MemberToolPreferences;
+  public_tool_preferences?: PublicToolPreferences;
+  connected: boolean;
+  member_tools_connected?: boolean;
+  public_tools_connected?: boolean;
+  payments_connected?: boolean;
+  events_connected?: boolean;
+  has_personal_events_access: boolean;
+  has_personal_credit_log_access: boolean;
+  has_faction_credit_log_access: boolean;
+  has_faction_credits_write_access?: boolean;
+  has_character_privileges_access: boolean;
+  has_character_credits_write_access?: boolean;
+  has_personal_inventory_access?: boolean;
+  has_faction_inventory_access?: boolean;
+  granted_scopes: string | null;
+  token_expires_at: string | null;
+  last_verified_at: string | null;
+  revoked_at: string | null;
+  events_granted_scopes?: string | null;
+  events_token_expires_at?: string | null;
+  events_last_verified_at?: string | null;
+  events_revoked_at?: string | null;
+};
+
+export async function getSwcAuthorizationStatus() {
+  return apiFetch<{ ok: true; data: SwcAuthorizationStatus }>(
+    `/swc/authorization`
+  );
+}
+
+export async function updateSwcAuthorizationPreferences(memberToolPreferences: MemberToolPreferences) {
   return apiFetch<{
     ok: true;
     data: {
-      member_tool_preferences: {
-        galaxy: boolean;
-        payments: boolean;
-        universe?: {
-          map_scope?: "sector" | "galaxy";
-          selected_sector_uid: string | null;
-          selected_system_identifier: string | null;
-          focus_request:
-            | {
-                kind: "sector";
-                sectorUid: string;
-                zoom?: number | null;
-              }
-            | {
-                kind: "coords";
-                galx: number;
-                galy: number;
-                zoom?: number | null;
-              }
-            | null;
-        };
-      };
+      member_tool_preferences: MemberToolPreferences;
+      public_tool_preferences: PublicToolPreferences;
     };
   }>(`/swc/authorization/preferences`, {
     method: "PUT",
     body: JSON.stringify({
       member_tool_preferences: memberToolPreferences,
+    }),
+  });
+}
+
+export async function updateSwcPublicAuthorizationPreferences(publicToolPreferences: PublicToolPreferences) {
+  return apiFetch<{
+    ok: true;
+    data: {
+      member_tool_preferences: MemberToolPreferences;
+      public_tool_preferences: PublicToolPreferences;
+    };
+  }>(`/swc/authorization/preferences`, {
+    method: "PUT",
+    body: JSON.stringify({
+      public_tool_preferences: publicToolPreferences,
     }),
   });
 }

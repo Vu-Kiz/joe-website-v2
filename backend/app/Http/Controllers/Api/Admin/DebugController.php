@@ -1199,6 +1199,7 @@ class DebugController extends Controller
             SwcAuthorization::CONTEXT_PAYMENTS,
             SwcAuthorization::CONTEXT_EVENTS,
             SwcAuthorization::CONTEXT_DEBUG,
+            SwcAuthorization::CONTEXT_MARKET_FACTION,
         ];
 
         if (!in_array($context, $allowedContexts, true)) {
@@ -1217,8 +1218,8 @@ class DebugController extends Controller
             ], 422);
         }
 
-        $group = trim((string) $request->query('group', 'finance'));
-        $privilege = trim((string) $request->query('privilege', 'send_credits'));
+        $group = trim((string) $request->query('group', ''));
+        $privilege = trim((string) $request->query('privilege', ''));
         $factionId = trim((string) $request->query('faction_id', ''));
 
         if ($factionId === '') {
@@ -1234,11 +1235,14 @@ class DebugController extends Controller
         $url = rtrim((string) config('swc.api_base'), '/')
             . '/character/'
             . urlencode($characterUid)
-            . '/privileges/'
-            . urlencode($group)
-            . '/'
-            . urlencode($privilege)
-            . '/';
+            . '/privileges/';
+
+        if ($group !== '') {
+            $url .= urlencode($group) . '/';
+            if ($privilege !== '') {
+                $url .= urlencode($privilege) . '/';
+            }
+        }
 
         $modes = ['oauth', 'bearer'];
 
@@ -1487,6 +1491,7 @@ class DebugController extends Controller
             SwcAuthorization::CONTEXT_PAYMENTS,
             SwcAuthorization::CONTEXT_EVENTS,
             SwcAuthorization::CONTEXT_DEBUG,
+            SwcAuthorization::CONTEXT_MARKET_FACTION,
         ];
 
         if (!in_array($context, $allowedContexts, true)) {
@@ -1506,5 +1511,57 @@ class DebugController extends Controller
                 'swc_character_id' => $user->swc_character_id,
             ],
         ], ($result['ok'] ?? false) ? 200 : 422);
+    }
+
+    public function testTag(Request $request): JsonResponse
+    {
+        $user = $this->resolveTargetUser($request, ['swcAuthorizations']);
+
+        if (!$user) {
+            return response()->json(['ok' => false, 'message' => 'User not found.'], 404);
+        }
+
+        $context = trim((string) $request->input('auth_context', SwcAuthorization::CONTEXT_MEMBER_TOOLS));
+        $auth = $this->resolveAuthorizationForContext($user, $context);
+
+        if (!$auth || empty($auth->access_token_encrypted)) {
+            return response()->json(['ok' => false, 'message' => 'No SWC token for that context.'], 422);
+        }
+
+        $entityType = trim((string) $request->input('entity_type', ''));
+        $entityUid  = trim((string) $request->input('entity_uid', ''));
+        $tag        = trim((string) $request->input('tag', 'joe-test'));
+        $method     = strtoupper(trim((string) $request->input('method', 'PUT')));
+
+        if ($entityType === '' || $entityUid === '') {
+            return response()->json(['ok' => false, 'message' => 'entity_type and entity_uid are required.'], 422);
+        }
+
+        $accessToken = decrypt($auth->access_token_encrypted);
+        $apiBase = rtrim((string) config('swc.api_base'), '/');
+
+        $swcInventory = app(\App\Support\Swc\SwcInventoryService::class);
+        $pluralType = $swcInventory->pluralType($entityType);
+
+        $url = $apiBase . '/inventory/' . rawurlencode($pluralType) . '/' . rawurlencode($entityUid) . '/tag/' . rawurlencode($tag) . '/';
+
+        $http = SwcHttp::make($accessToken);
+        $response = match ($method) {
+            'DELETE' => $http->delete($url),
+            default  => $http->put($url),
+        };
+
+        return response()->json([
+            'ok'          => $response->ok(),
+            'status'      => $response->status(),
+            'url_called'  => $url,
+            'method'      => $method,
+            'entity_type' => $entityType,
+            'plural_type' => $pluralType,
+            'entity_uid'  => $entityUid,
+            'tag'         => $tag,
+            'body'        => $response->body(),
+            'json'        => $response->json(),
+        ]);
     }
 }

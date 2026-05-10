@@ -144,7 +144,7 @@ const AdminPage: React.FC = () => {
           <AdminHeader user={user} />
 
           <div className="members-tool-back">
-            <button className="btn" type="button" onClick={() => navigate("/members")}>
+            <button className="btn" type="button" onClick={() => navigate("/tools")}>
               Back to Tools Overview
             </button>
           </div>

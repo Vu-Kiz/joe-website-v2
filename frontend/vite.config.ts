@@ -63,6 +63,11 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
+        "/share": {
+          target: "http://backend",
+          changeOrigin: true,
+          secure: false,
+        },
       },
     },
     hmr: {

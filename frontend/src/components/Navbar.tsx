@@ -112,6 +112,7 @@ const Navbar: React.FC = () => {
   const displayName = user?.handle || "Guest";
   const showMembersTools = canAccessMembers(user);
   const showToolsButton = canAccessAdmin(user) || showMembersTools;
+  const showMarketButton = Boolean(user);
 
   return (
     <nav className="main-nav">
@@ -144,10 +145,17 @@ const Navbar: React.FC = () => {
               </Link>
             </li>
 
+            {showMarketButton && (
+              <li>
+                <Link to="/market" className={`btn ${isActive("/market") ? "active" : ""}`}>
+                  Market
+                </Link>
+              </li>
+            )}
             {showToolsButton && (
               <li>
                 <Link
-                  to="/members"
+                  to="/tools"
                   state={{ resetToOverview: true }}
                   className={`btn${hasPendingPayments && showMembersTools ? " btn--payments-alert" : ""}`}
                 >

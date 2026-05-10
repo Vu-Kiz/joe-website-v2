@@ -2,6 +2,12 @@
 
 use Illuminate\Support\Facades\Route;
 
+use App\Http\Controllers\Api\Market\FactionStoreController;
+use App\Http\Controllers\Api\Market\MarketCustomImageController;
+use App\Http\Controllers\Api\Market\MarketEntityTypeSearchController;
+use App\Http\Controllers\Api\Market\MarketInventoryController;
+use App\Http\Controllers\Api\Market\MarketListingController;
+use App\Http\Controllers\Api\Market\MarketOrderController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\MetaController;
 use App\Http\Controllers\Api\JobsController;
@@ -72,6 +78,7 @@ Route::prefix('discord-bot')->middleware(['discord_bot'])->group(function () {
     Route::post('/outbox/{messageId}/failed', [DiscordBotController::class, 'markFailed']);
     Route::post('/jobs', [DiscordBotController::class, 'createJob']);
     Route::post('/jen', [DiscordBotController::class, 'createJen']);
+    Route::post('/market/orders/{orderId}/fulfill', [DiscordBotController::class, 'fulfillMarketOrder']);
 });
 
 // Blog (public read)
@@ -299,7 +306,7 @@ Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('admin')->group(fun
     Route::put('/entity-stats/{entityType}/{entityId}', [EntityStatsController::class, 'update']);
 });
 
-Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
+Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/swc/authorization', [SwcAuthorizationController::class, 'show']);
     Route::put('/swc/authorization/preferences', [SwcAuthorizationController::class, 'updatePreferences']);
 });
@@ -356,9 +363,40 @@ Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('sys/debug')->group
     Route::post('/test-payment', [DebugController::class, 'testPayment']);
     Route::post('/pull-credit-log', [DebugController::class, 'pullCreditLog']);
     Route::post('/test-refresh-token', [DebugController::class, 'testRefreshToken']);
+    Route::post('/test-tag', [DebugController::class, 'testTag']);
+});
+
+Route::middleware(['auth:sanctum'])->group(function () {
+    // Market — all logged-in users
+    Route::get('/market/listings', [MarketListingController::class, 'index']);
+    Route::get('/market/faction-store', [FactionStoreController::class, 'index']);
+    Route::get('/market/orders/mine', [MarketOrderController::class, 'myOrders']);
+    Route::post('/market/listings/{marketListing}/orders', [MarketOrderController::class, 'store']);
+    Route::post('/market/orders/{marketOrder}/pay', [MarketOrderController::class, 'pay']);
+    Route::post('/market/orders/{marketOrder}/cancel', [MarketOrderController::class, 'cancel']);
+    Route::post('/market/orders/{marketOrder}/dispute', [MarketOrderController::class, 'dispute']);
 });
 
 Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
+    // Market — JOE member tools access required
+    Route::get('/market/listings/mine', [MarketListingController::class, 'myListings']);
+    Route::get('/market/listings/{marketListing}', [MarketListingController::class, 'show']);
+    Route::post('/market/listings', [MarketListingController::class, 'store']);
+    Route::post('/market/listings/{marketListing}/cancel', [MarketListingController::class, 'cancel']);
+    Route::post('/market/faction-store', [FactionStoreController::class, 'store']);
+    Route::get('/market/orders/to-fulfill', [MarketOrderController::class, 'pendingFulfillment']);
+    Route::get('/market/orders/{marketOrder}', [MarketOrderController::class, 'show']);
+    Route::post('/market/orders/{marketOrder}/fulfill', [MarketOrderController::class, 'fulfill']);
+    Route::post('/market/orders/{marketOrder}/confirm-material', [MarketOrderController::class, 'confirmMaterial']);
+    Route::post('/market/orders/{marketOrder}/refund', [MarketOrderController::class, 'refund']);
+    Route::post('/market/orders/{marketOrder}/retry-transfer', [MarketOrderController::class, 'retryTransfer']);
+    Route::post('/market/orders/{marketOrder}/mark-complete', [MarketOrderController::class, 'markComplete']);
+    Route::get('/market/inventory/personal', [MarketInventoryController::class, 'personalInventory']);
+    Route::get('/market/inventory/faction', [MarketInventoryController::class, 'factionInventory']);
+    Route::get('/market/inventory/entity', [MarketInventoryController::class, 'entityDetail']);
+    Route::get('/market/entity-types/search', [MarketEntityTypeSearchController::class, 'search']);
+    Route::post('/market/custom-image/upload', [MarketCustomImageController::class, 'upload']);
+
     Route::get('/factions/mine', [FactionController::class, 'mine']);
     Route::get('/factions/mine/payable', [FactionController::class, 'minePayable']);
     Route::post('/universe/search-records/import-personal-events', [SearchRecordController::class, 'importPersonalEvents']);

@@ -12,6 +12,8 @@ class SwcAuthorization extends Model
     public const CONTEXT_PAYMENTS = 'payments';
     public const CONTEXT_EVENTS = 'events';
     public const CONTEXT_DEBUG = 'debug';
+    public const CONTEXT_MARKET_FACTION = 'market_faction';
+    public const CONTEXT_PUBLIC_TOOLS = 'public_tools';
 
     protected $table = 'swc_authorizations';
 

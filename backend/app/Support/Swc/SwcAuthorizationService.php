@@ -72,6 +72,7 @@ class SwcAuthorizationService
     {
         return (bool) $this->firstActiveForContexts($user, [
             SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+            SwcAuthorization::CONTEXT_PUBLIC_TOOLS,
             SwcAuthorization::CONTEXT_PAYMENTS,
         ])?->has_personal_credit_log_access;
     }
@@ -80,6 +81,7 @@ class SwcAuthorizationService
     {
         return (bool) $this->firstActiveForContexts($user, [
             SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+            SwcAuthorization::CONTEXT_PUBLIC_TOOLS,
             SwcAuthorization::CONTEXT_EVENTS,
         ])?->has_personal_events_access;
     }
@@ -93,6 +95,7 @@ class SwcAuthorizationService
     {
         return (bool) $this->firstActiveForContexts($user, [
             SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+            SwcAuthorization::CONTEXT_PUBLIC_TOOLS,
             SwcAuthorization::CONTEXT_PAYMENTS,
         ])?->has_faction_credit_log_access;
     }
@@ -101,6 +104,7 @@ class SwcAuthorizationService
     {
         return (bool) $this->firstActiveForContexts($user, [
             SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+            SwcAuthorization::CONTEXT_PUBLIC_TOOLS,
             SwcAuthorization::CONTEXT_PAYMENTS,
         ])?->has_character_privileges_access;
     }
@@ -109,6 +113,7 @@ class SwcAuthorizationService
     {
         $auth = $this->firstActiveForContexts($user, [
             SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+            SwcAuthorization::CONTEXT_PUBLIC_TOOLS,
             SwcAuthorization::CONTEXT_PAYMENTS,
         ]);
 
@@ -128,6 +133,7 @@ class SwcAuthorizationService
     {
         $auth = $this->firstActiveForContexts($user, [
             SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+            SwcAuthorization::CONTEXT_PUBLIC_TOOLS,
             SwcAuthorization::CONTEXT_PAYMENTS,
         ]);
 
@@ -142,6 +148,46 @@ class SwcAuthorizationService
             || in_array('faction_all', $grantedScopes, true);
     }
 
+    public function hasPersonalInventoryAccess(User $user): bool
+    {
+        $auth = $this->firstActiveForContexts($user, [
+            SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+            SwcAuthorization::CONTEXT_PUBLIC_TOOLS,
+            SwcAuthorization::CONTEXT_MARKET_FACTION,
+        ]);
+
+        if (!$auth) {
+            return false;
+        }
+
+        $grantedScopes = $this->normalizeScopeValue($auth->granted_scopes);
+
+        return
+            in_array('personal_inv_ships_all', $grantedScopes, true)
+            || in_array('personal_inv_overview', $grantedScopes, true)
+            || in_array('character_all', $grantedScopes, true);
+    }
+
+    public function hasFactionInventoryAccess(User $user): bool
+    {
+        $auth = $this->firstActiveForContexts($user, [
+            SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+            SwcAuthorization::CONTEXT_PUBLIC_TOOLS,
+            SwcAuthorization::CONTEXT_MARKET_FACTION,
+        ]);
+
+        if (!$auth) {
+            return false;
+        }
+
+        $grantedScopes = $this->normalizeScopeValue($auth->granted_scopes);
+
+        return
+            in_array('faction_inv_ships_all', $grantedScopes, true)
+            || in_array('faction_inv_overview', $grantedScopes, true)
+            || in_array('faction_all', $grantedScopes, true);
+    }
+
     public function getAccessToken(User $user, string $context = SwcAuthorization::CONTEXT_MEMBER_TOOLS): ?string
     {
         $auth = match ($context) {
@@ -151,6 +197,7 @@ class SwcAuthorizationService
             ]),
             SwcAuthorization::CONTEXT_PAYMENTS => $this->firstForContexts($user, [
                 SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+                SwcAuthorization::CONTEXT_PUBLIC_TOOLS,
                 SwcAuthorization::CONTEXT_PAYMENTS,
             ]),
             SwcAuthorization::CONTEXT_MEMBER_TOOLS => $this->forUser($user, SwcAuthorization::CONTEXT_MEMBER_TOOLS),
@@ -402,6 +449,15 @@ class SwcAuthorizationService
                 'updated_at' => $fresh->updated_at?->toIso8601String(),
             ] : null,
         ];
+    }
+
+    public function revokeAuthorizationForContext(User $user, string $context, bool $revokeRemote = true): array
+    {
+        $authorizations = $user->swcAuthorizations()
+            ->where('auth_context', $context)
+            ->get();
+
+        return $this->revokeAuthorizationCollection($authorizations, $revokeRemote);
     }
 
     public function revokeAuthorizationsForUser(User $user, bool $revokeRemote = true): array

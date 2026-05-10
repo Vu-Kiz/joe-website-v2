@@ -340,7 +340,7 @@ const MembersUniverseSystemPage: React.FC = () => {
         .find((cell) => cell.x === selectedSystemCell.x && cell.y === selectedSystemCell.y) ?? null
     : null;
   if (!routeState?.fromUniverseMap) {
-    return <Navigate to="/members" replace />;
+    return <Navigate to="/tools" replace />;
   }
 
   if (!authChecked || loading) {

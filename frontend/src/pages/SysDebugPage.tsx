@@ -17,6 +17,7 @@ import {
   resetDebugSystemUpdaterCursor,
   runUniversePull,
   testDebugRefreshToken,
+  testDebugTag,
   testFactionPrivilege,
   testManualPayment,
   testPaymentTransfer,
@@ -44,6 +45,7 @@ type PanelKey =
   | "privilegeTest"
   | "paymentTest"
   | "refreshTokenTest"
+  | "tagTest"
   | "universePull";
 
 type UniverseResource = "system" | "sector" | "planet" | "station";
@@ -98,6 +100,7 @@ const initialPanels: Record<PanelKey, DebugPanelState> = {
   privilegeTest: emptyPanel(),
   paymentTest: emptyPanel(),
   refreshTokenTest: emptyPanel(),
+  tagTest: emptyPanel(),
   universePull: emptyPanel(),
 };
 
@@ -154,14 +157,14 @@ const SysDebugPage: React.FC = () => {
 
   const [rawSwcPath, setRawSwcPath] = useState("character/");
   const [rawSwcQuery, setRawSwcQuery] = useState("");
-  const [rawSwcAuthContext, setRawSwcAuthContext] = useState<"member_tools" | "payments" | "events" | "debug">("member_tools");
+  const [rawSwcAuthContext, setRawSwcAuthContext] = useState<"member_tools" | "payments" | "events" | "debug" | "market_faction">("member_tools");
   const [eventsPath, setEventsPath] = useState("events/personal/");
   const [eventsQuery, setEventsQuery] = useState("start_index=0&item_count=1000&max_pages=50");
 
   const [privGroup, setPrivGroup] = useState("finance");
   const [privName, setPrivName] = useState("send_credits");
   const [privFactionId, setPrivFactionId] = useState("");
-  const [privAuthContext, setPrivAuthContext] = useState<"member_tools" | "payments" | "events" | "debug">("member_tools");
+  const [privAuthContext, setPrivAuthContext] = useState<"member_tools" | "payments" | "events" | "debug" | "market_faction">("member_tools");
 
   const [paymentTransferId, setPaymentTransferId] = useState("");
   const [pullResource, setPullResource] = useState<UniverseResource>("system");
@@ -180,8 +183,14 @@ const SysDebugPage: React.FC = () => {
   const [manualCommunicationPrefix, setManualCommunicationPrefix] = useState("");
   const [manualItemCount, setManualItemCount] = useState("100");
   const [refreshTestContext, setRefreshTestContext] = useState<
-    "link_account" | "member_tools" | "payments" | "events" | "debug"
+    "link_account" | "member_tools" | "payments" | "events" | "debug" | "market_faction"
   >("member_tools");
+
+  const [tagTestEntityType, setTagTestEntityType] = useState("ship");
+  const [tagTestEntityUid, setTagTestEntityUid] = useState("");
+  const [tagTestTag, setTagTestTag] = useState("joe-test");
+  const [tagTestMethod, setTagTestMethod] = useState<"PUT" | "DELETE">("PUT");
+  const [tagTestContext, setTagTestContext] = useState("member_tools");
 
   const targetLabel = useMemo(() => {
     return activeTargetUserId ? `User #${activeTargetUserId}` : "Me";
@@ -563,6 +572,21 @@ const SysDebugPage: React.FC = () => {
     await runPanel(
       "refreshTokenTest",
       () => testDebugRefreshToken(refreshTestContext, activeTargetUserId),
+      (res) => res
+    );
+  }
+
+  async function onRunTagTest() {
+    await runPanel(
+      "tagTest",
+      () => testDebugTag({
+        entity_type: tagTestEntityType,
+        entity_uid: tagTestEntityUid,
+        tag: tagTestTag,
+        method: tagTestMethod,
+        auth_context: tagTestContext,
+        user_id: activeTargetUserId,
+      }),
       (res) => res
     );
   }
@@ -981,6 +1005,9 @@ const SysDebugPage: React.FC = () => {
                   <a className="btn" href={`${getBackendOrigin()}/oauth/debug`}>
                     Re-auth with debug scopes
                   </a>
+                  <a className="btn" href={`${getBackendOrigin()}/oauth/market-faction`}>
+                    Re-auth with market_faction scopes
+                  </a>
                 </div>
               </div>
 
@@ -1048,7 +1075,7 @@ const SysDebugPage: React.FC = () => {
                       value={refreshTestContext}
                       onChange={(e) =>
                         setRefreshTestContext(
-                          e.target.value as "link_account" | "member_tools" | "payments" | "events" | "debug"
+                          e.target.value as "link_account" | "member_tools" | "payments" | "events" | "debug" | "market_faction"
                         )
                       }
                     >
@@ -1057,6 +1084,7 @@ const SysDebugPage: React.FC = () => {
                       <option value="events">events</option>
                       <option value="debug">debug</option>
                       <option value="link_account">link_account</option>
+                      <option value="market_faction">market_faction</option>
                     </select>
                     <button
                       className="btn"
@@ -1065,6 +1093,33 @@ const SysDebugPage: React.FC = () => {
                       disabled={panels.refreshTokenTest.loading}
                     >
                       {panels.refreshTokenTest.loading ? "Refreshing Token..." : "Test Refresh Token"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {renderPanel(
+                "tagTest",
+                "Test SWC Tag",
+                <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
+                  <p className="small" style={{ margin: 0 }}>
+                    Test applying or removing a tag on a specific SWC entity. Use this to diagnose tag failures from the market listing flow.
+                  </p>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <input className="input" placeholder="entity_type (e.g. ship)" value={tagTestEntityType} onChange={(e) => setTagTestEntityType(e.target.value)} style={{ width: 130 }} />
+                    <input className="input" placeholder="entity_uid" value={tagTestEntityUid} onChange={(e) => setTagTestEntityUid(e.target.value)} style={{ width: 200 }} />
+                    <input className="input" placeholder="tag" value={tagTestTag} onChange={(e) => setTagTestTag(e.target.value)} style={{ width: 120 }} />
+                    <select className="input" value={tagTestMethod} onChange={(e) => setTagTestMethod(e.target.value as "PUT" | "DELETE")}>
+                      <option value="PUT">PUT (apply)</option>
+                      <option value="DELETE">DELETE (remove)</option>
+                    </select>
+                    <select className="input" value={tagTestContext} onChange={(e) => setTagTestContext(e.target.value)}>
+                      <option value="member_tools">member_tools</option>
+                      <option value="market_faction">market_faction</option>
+                      <option value="payments">payments</option>
+                    </select>
+                    <button className="btn" type="button" onClick={onRunTagTest} disabled={panels.tagTest.loading || !tagTestEntityUid}>
+                      {panels.tagTest.loading ? "Testing…" : "Test Tag"}
                     </button>
                   </div>
                 </div>
@@ -1247,7 +1302,7 @@ const SysDebugPage: React.FC = () => {
                     value={rawSwcAuthContext}
                     onChange={(e) =>
                       setRawSwcAuthContext(
-                        e.target.value as "member_tools" | "payments" | "events" | "debug"
+                        e.target.value as "member_tools" | "payments" | "events" | "debug" | "market_faction"
                       )
                     }
                   >
@@ -1255,6 +1310,7 @@ const SysDebugPage: React.FC = () => {
                     <option value="payments">payments</option>
                     <option value="events">events</option>
                     <option value="debug">debug</option>
+                    <option value="market_faction">market_faction</option>
                   </select>
                   <input
                     className="input"
@@ -1291,7 +1347,7 @@ const SysDebugPage: React.FC = () => {
                     value={privAuthContext}
                     onChange={(e) =>
                       setPrivAuthContext(
-                        e.target.value as "member_tools" | "payments" | "events" | "debug"
+                        e.target.value as "member_tools" | "payments" | "events" | "debug" | "market_faction"
                       )
                     }
                   >
@@ -1299,6 +1355,7 @@ const SysDebugPage: React.FC = () => {
                     <option value="payments">payments</option>
                     <option value="events">events</option>
                     <option value="debug">debug</option>
+                    <option value="market_faction">market_faction</option>
                   </select>
                   <input
                     className="input"

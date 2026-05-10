@@ -828,7 +828,7 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
       savedPreferences?.payments !== false ? "payments" : null,
     ].filter((value): value is string => value !== null);
     const query = new URLSearchParams({
-      return_to: "/members",
+      return_to: "/tools",
       ...(selectedTools.length > 0 ? { tools: selectedTools.join(",") } : {}),
     });
     window.location.href = `${backendOrigin}/oauth/member-tools?${query.toString()}`;

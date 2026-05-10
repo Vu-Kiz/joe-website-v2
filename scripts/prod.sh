@@ -61,6 +61,7 @@ Usage:
   ./scripts/prod.sh queue-restart Restart Laravel queue workers
   ./scripts/prod.sh warm-cache       Pre-warm DroidBrain options cache (all tabs)
   ./scripts/prod.sh reindex-dirty    Reindex any DroidBrain tabs still marked dirty
+  ./scripts/prod.sh scout-import     Import all DroidBrain models into Meilisearch + backfill search flags
 
   ./scripts/prod.sh migrate       Run DB migrations (php artisan migrate --force)
   ./scripts/prod.sh optimize-clear Clear Laravel runtime caches
@@ -139,6 +140,19 @@ case "${cmd}" in
   reindex-dirty)
     echo "▶ Reindexing dirty DroidBrain tabs..."
     ${DC} exec backend php artisan droidbrain:reindex-dirty
+    ;;
+
+  scout-import)
+    echo "▶ Importing all DroidBrain models into Meilisearch..."
+    ${DC} exec backend php artisan scout:import "App\Models\DroidBrainShip"
+    ${DC} exec backend php artisan scout:import "App\Models\DroidBrainVehicle"
+    ${DC} exec backend php artisan scout:import "App\Models\DroidBrainCity"
+    ${DC} exec backend php artisan scout:import "App\Models\DroidBrainNpc"
+    ${DC} exec backend php artisan scout:import "App\Models\DroidBrainPlanet"
+    ${DC} exec backend php artisan scout:import "App\Models\DroidBrainStation"
+    echo "▶ Backfilling search record flags from Meilisearch..."
+    ${DC} exec backend php artisan droidbrain:backfill-search-record-flags-from-meili
+    echo "✔ Scout import complete."
     ;;
 
   migrate)

@@ -91,7 +91,7 @@ const MembersPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const requestedMembersView = parseMembersView(searchParams.get("members_view"));
+  const requestedMembersView = parseMembersView(searchParams.get("tools_view"));
   const requestedChangelogVersion = searchParams.get("changelog_version");
   const requestedJobsView = searchParams.get("jobs_view");
   const requestedJobId = Number(searchParams.get("job_id") ?? "");
@@ -213,12 +213,12 @@ const MembersPage: React.FC = () => {
     const nextParams = new URLSearchParams(searchParams.toString());
 
     if (membersView === "overview") {
-      nextParams.delete("members_view");
+      nextParams.delete("tools_view");
       nextParams.delete("jobs_view");
       nextParams.delete("job_id");
       nextParams.delete("changelog_version");
     } else {
-      nextParams.set("members_view", membersView);
+      nextParams.set("tools_view", membersView);
 
       if (membersView === "jobs") {
         nextParams.set("jobs_view", jobsView);
@@ -245,7 +245,7 @@ const MembersPage: React.FC = () => {
 
     navigate(
       {
-        pathname: "/members",
+        pathname: "/tools",
         search: nextQuery ? `?${nextQuery}` : "",
       },
       { replace: true }
@@ -264,7 +264,7 @@ const MembersPage: React.FC = () => {
     const nextQuery = nextParams.toString();
     navigate(
       {
-        pathname: "/members",
+        pathname: "/tools",
         search: nextQuery ? `?${nextQuery}` : "",
       },
       { replace: true }
@@ -299,7 +299,7 @@ const MembersPage: React.FC = () => {
       return;
     }
 
-    void logMemberToolOpen(area, "/members").catch(() => {});
+    void logMemberToolOpen(area, "/tools").catch(() => {});
   }, [membersView, user]);
 
   useEffect(() => {
@@ -436,8 +436,8 @@ const MembersPage: React.FC = () => {
 
     navigate(
       {
-        pathname: "/members",
-        search: `?members_view=jobs&jobs_view=${nextJobsView}&job_id=${jobId}`,
+        pathname: "/tools",
+        search: `?tools_view=jobs&jobs_view=${nextJobsView}&job_id=${jobId}`,
       },
       { replace: false }
     );
@@ -447,8 +447,8 @@ const MembersPage: React.FC = () => {
     setSelectedJobId(null);
     navigate(
       {
-        pathname: "/members",
-        search: "?members_view=jobs",
+        pathname: "/tools",
+        search: "?tools_view=jobs",
       },
       { replace: false }
     );
@@ -465,7 +465,7 @@ const MembersPage: React.FC = () => {
     ].filter((value): value is string => value !== null);
 
     const query = new URLSearchParams({
-      return_to: "/members",
+      return_to: "/tools",
       ...(selectedTools.length > 0 ? { tools: selectedTools.join(",") } : {}),
     });
 
@@ -1050,6 +1050,7 @@ const MembersPage: React.FC = () => {
           onBack={() => setMembersView("overview")}
         />
       )}
+
     </main>
   );
 };

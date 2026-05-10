@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Support\Admin\AdminActionLogger;
 use App\Support\Swc\SwcAuthorizationService;
 use App\Support\Swc\SwcHttp;
+use App\Support\Universe\AstrogationRewardService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Client\Response;
 use Illuminate\Http\Request;
@@ -23,7 +24,8 @@ class SearchRecordController extends Controller
     private const CACHE_VERSION_KEY = 'universe:search-records:version';
 
     public function __construct(
-        protected SwcAuthorizationService $swcAuthorizationService
+        protected SwcAuthorizationService $swcAuthorizationService,
+        protected AstrogationRewardService $astrogationRewardService,
     ) {
     }
 
@@ -409,6 +411,11 @@ class SearchRecordController extends Controller
                     'sector_uid' => $payload['sector_uid'],
                     'has_asteroids' => (bool) $payload['has_asteroids'],
                     'action' => 'updated',
+                    'previous_legacy_recorded_at' => $record->getOriginal('legacy_recorded_at')
+                        ? Carbon::parse((string) $record->getOriginal('legacy_recorded_at'))->toIso8601String()
+                        : null,
+                    'imported_recorded_at' => $recordedAt?->toIso8601String(),
+                    'effective_legacy_recorded_at' => $payload['legacy_recorded_at']?->toIso8601String(),
                 ];
                 continue;
             }
@@ -426,6 +433,9 @@ class SearchRecordController extends Controller
                 'sector_uid' => $payload['sector_uid'],
                 'has_asteroids' => (bool) $payload['has_asteroids'],
                 'action' => 'created',
+                'previous_legacy_recorded_at' => null,
+                'imported_recorded_at' => $recordedAt?->toIso8601String(),
+                'effective_legacy_recorded_at' => $payload['legacy_recorded_at']?->toIso8601String(),
             ];
         }
 
@@ -637,6 +647,11 @@ class SearchRecordController extends Controller
             $this->bumpCacheVersion();
         }
 
+        $rewardPaymentItem = $this->astrogationRewardService->rewardForNewGrids(
+            $user,
+            $import['areas'] ?? []
+        );
+
         SwcMemberImportLog::create([
             'user_id' => $user->id,
             'events_seen' => (int) data_get($historyResult, 'history.events_seen', 0),
@@ -691,6 +706,13 @@ class SearchRecordController extends Controller
         return response()->json([
             ...$historyResult,
             'import' => $import,
+            'reward' => $rewardPaymentItem ? [
+                'payment_item_id' => $rewardPaymentItem->id,
+                'total_amount' => $rewardPaymentItem->total_amount,
+                'normal_grid_count' => $rewardPaymentItem->meta['normal_grid_count'] ?? 0,
+                'asteroid_grid_count' => $rewardPaymentItem->meta['asteroid_grid_count'] ?? 0,
+                'communication_prefix' => $rewardPaymentItem->meta['communication_prefix'] ?? null,
+            ] : null,
             'cursor' => [
                 'before' => [
                     'timestamp' => $stopBeforeTimestamp,

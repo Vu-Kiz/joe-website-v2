@@ -13,12 +13,18 @@ class SwcAuthorizationController extends Controller
     protected const DEFAULT_MEMBER_TOOL_PREFERENCES = [
         'galaxy' => true,
         'payments' => true,
+        'market_personal' => false,
+        'market_faction' => false,
         'universe' => [
             'map_scope' => 'sector',
             'selected_sector_uid' => null,
             'selected_system_identifier' => null,
             'focus_request' => null,
         ],
+    ];
+
+    protected const DEFAULT_PUBLIC_TOOL_PREFERENCES = [
+        'payments' => true,
     ];
 
     public function __construct(
@@ -45,6 +51,10 @@ class SwcAuthorizationController extends Controller
             ->first();
 
         $memberToolsConnected = $this->swcAuthorizationService->isAuthorizationActive($memberToolsAuth);
+        $publicToolsAuth = $user->swcAuthorizations()
+            ->where('auth_context', SwcAuthorization::CONTEXT_PUBLIC_TOOLS)
+            ->first();
+        $publicToolsConnected = $this->swcAuthorizationService->isAuthorizationActive($publicToolsAuth);
         $paymentsConnected = $memberToolsConnected || $this->swcAuthorizationService->isAuthorizationActive($paymentsAuth);
         $eventsConnected = $memberToolsConnected || $this->swcAuthorizationService->isAuthorizationActive($eventsAuth);
 
@@ -52,8 +62,10 @@ class SwcAuthorizationController extends Controller
             'ok' => true,
             'data' => [
                 'member_tool_preferences' => $this->normalizeMemberToolPreferences($user->member_tool_preferences),
-                'connected' => $memberToolsConnected || $paymentsConnected || $eventsConnected,
+                'public_tool_preferences' => $this->normalizePublicToolPreferences($user->public_tool_preferences),
+                'connected' => $memberToolsConnected || $publicToolsConnected || $paymentsConnected || $eventsConnected,
                 'member_tools_connected' => $memberToolsConnected,
+                'public_tools_connected' => $publicToolsConnected,
                 'payments_connected' => $paymentsConnected,
                 'events_connected' => $eventsConnected,
                 'has_personal_events_access' => $this->swcAuthorizationService->hasPersonalEventsAccess($user),
@@ -63,6 +75,8 @@ class SwcAuthorizationController extends Controller
                 'has_faction_credits_write_access' => $this->swcAuthorizationService->hasFactionCreditsWriteAccess($user),
                 'has_character_privileges_access' => $this->swcAuthorizationService->hasCharacterPrivilegesAccess($user),
                 'has_character_credits_write_access' => $this->swcAuthorizationService->hasCharacterCreditsWriteAccess($user),
+                'has_personal_inventory_access' => $this->swcAuthorizationService->hasPersonalInventoryAccess($user),
+                'has_faction_inventory_access' => $this->swcAuthorizationService->hasFactionInventoryAccess($user),
                 'granted_scopes' => $memberToolsAuth?->granted_scopes ?? $paymentsAuth?->granted_scopes,
                 'token_expires_at' => $memberToolsAuth?->token_expires_at?->toIso8601String() ?? $paymentsAuth?->token_expires_at?->toIso8601String(),
                 'last_verified_at' => $memberToolsAuth?->last_verified_at?->toIso8601String() ?? $paymentsAuth?->last_verified_at?->toIso8601String(),
@@ -84,9 +98,11 @@ class SwcAuthorizationController extends Controller
         }
 
         $validated = $request->validate([
-            'member_tool_preferences' => ['required', 'array'],
-            'member_tool_preferences.galaxy' => ['required', 'boolean'],
-            'member_tool_preferences.payments' => ['required', 'boolean'],
+            'member_tool_preferences' => ['nullable', 'array'],
+            'member_tool_preferences.galaxy' => ['nullable', 'boolean'],
+            'member_tool_preferences.payments' => ['nullable', 'boolean'],
+            'member_tool_preferences.market_personal' => ['nullable', 'boolean'],
+            'member_tool_preferences.market_faction' => ['nullable', 'boolean'],
             'member_tool_preferences.universe' => ['nullable', 'array'],
             'member_tool_preferences.universe.map_scope' => ['nullable', 'in:sector,galaxy'],
             'member_tool_preferences.universe.selected_sector_uid' => ['nullable', 'string', 'max:255'],
@@ -97,16 +113,49 @@ class SwcAuthorizationController extends Controller
             'member_tool_preferences.universe.focus_request.galx' => ['nullable', 'integer'],
             'member_tool_preferences.universe.focus_request.galy' => ['nullable', 'integer'],
             'member_tool_preferences.universe.focus_request.zoom' => ['nullable', 'numeric'],
+            'public_tool_preferences' => ['nullable', 'array'],
+            'public_tool_preferences.payments' => ['nullable', 'boolean'],
         ]);
 
-        $preferences = $this->normalizeMemberToolPreferences($validated['member_tool_preferences'] ?? []);
-        $user->member_tool_preferences = $preferences;
+        $hasMemberPayload = array_key_exists('member_tool_preferences', $validated);
+        $hasPublicPayload = array_key_exists('public_tool_preferences', $validated);
+
+        if (!$hasMemberPayload && !$hasPublicPayload) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'At least one preference group is required.',
+            ], 422);
+        }
+
+        $currentMemberPreferences = $this->normalizeMemberToolPreferences($user->member_tool_preferences);
+        $incomingMemberPreferences = ($hasMemberPayload && is_array($validated['member_tool_preferences'] ?? null))
+            ? $validated['member_tool_preferences']
+            : [];
+        $memberPreferences = $this->normalizeMemberToolPreferences(
+            $hasMemberPayload
+                ? array_replace_recursive($currentMemberPreferences, $incomingMemberPreferences)
+                : $currentMemberPreferences
+        );
+
+        $currentPublicPreferences = $this->normalizePublicToolPreferences($user->public_tool_preferences);
+        $incomingPublicPreferences = ($hasPublicPayload && is_array($validated['public_tool_preferences'] ?? null))
+            ? $validated['public_tool_preferences']
+            : [];
+        $publicPreferences = $this->normalizePublicToolPreferences(
+            $hasPublicPayload
+                ? array_replace_recursive($currentPublicPreferences, $incomingPublicPreferences)
+                : $currentPublicPreferences
+        );
+
+        $user->member_tool_preferences = $memberPreferences;
+        $user->public_tool_preferences = $publicPreferences;
         $user->save();
 
         return response()->json([
             'ok' => true,
             'data' => [
-                'member_tool_preferences' => $preferences,
+                'member_tool_preferences' => $memberPreferences,
+                'public_tool_preferences' => $publicPreferences,
             ],
         ]);
     }
@@ -122,6 +171,12 @@ class SwcAuthorizationController extends Controller
             'payments' => array_key_exists('payments', $current)
                 ? (bool) $current['payments']
                 : self::DEFAULT_MEMBER_TOOL_PREFERENCES['payments'],
+            'market_personal' => array_key_exists('market_personal', $current)
+                ? (bool) $current['market_personal']
+                : self::DEFAULT_MEMBER_TOOL_PREFERENCES['market_personal'],
+            'market_faction' => array_key_exists('market_faction', $current)
+                ? (bool) $current['market_faction']
+                : self::DEFAULT_MEMBER_TOOL_PREFERENCES['market_faction'],
             'universe' => $this->normalizeUniversePreferences($current['universe'] ?? null),
         ];
     }
@@ -162,6 +217,17 @@ class SwcAuthorizationController extends Controller
                 ? (string) $current['selected_system_identifier']
                 : null,
             'focus_request' => $normalizedFocus,
+        ];
+    }
+
+    protected function normalizePublicToolPreferences(mixed $preferences): array
+    {
+        $current = is_array($preferences) ? $preferences : [];
+
+        return [
+            'payments' => array_key_exists('payments', $current)
+                ? (bool) $current['payments']
+                : self::DEFAULT_PUBLIC_TOOL_PREFERENCES['payments'],
         ];
     }
 }

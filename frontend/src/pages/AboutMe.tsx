@@ -1,22 +1,23 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { fetchAuthMe, getBackendOrigin } from "../api/auth";
 import type { SwcUser } from "../api/auth";
 import {
   getSwcAuthorizationStatus,
   updateSwcAuthorizationPreferences,
+  updateSwcPublicAuthorizationPreferences,
   type SwcAuthorizationStatus,
 } from "../api/swcAuthorization";
+import SwcToolAccessSection from "../components/aboutme/SwcToolAccessSection";
 import "../styles/_aboutme.sass";
 
 type Pill = { key: string; label: string };
-type ToolKey = "galaxy" | "payments";
-type ToolCard = {
-  key: ToolKey;
+type MemberToolKey = "galaxy" | "payments" | "market_personal" | "market_faction";
+type PublicToolKey = "payments";
+type ToolCard<K extends string> = {
+  key: K;
   title: string;
   description: string;
-  route: string;
-  routeLabel: string;
   enabled: boolean;
   accessNow: boolean;
 };
@@ -26,8 +27,13 @@ const AboutMe: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<SwcUser | null>(null);
   const [swcAuth, setSwcAuth] = useState<SwcAuthorizationStatus | null>(null);
-  const [selectedTools, setSelectedTools] = useState<Record<ToolKey, boolean>>({
+  const [selectedMemberTools, setSelectedMemberTools] = useState<Record<MemberToolKey, boolean>>({
     galaxy: true,
+    payments: true,
+    market_personal: false,
+    market_faction: false,
+  });
+  const [selectedPublicTools, setSelectedPublicTools] = useState<Record<PublicToolKey, boolean>>({
     payments: true,
   });
   const [error, setError] = useState<string | null>(null);
@@ -43,8 +49,13 @@ const AboutMe: React.FC = () => {
         if (!cancelled) {
           setUser(res.user ?? null);
           setSwcAuth(null);
-          setSelectedTools({
+          setSelectedMemberTools({
             galaxy: true,
+            payments: true,
+            market_personal: false,
+            market_faction: false,
+          });
+          setSelectedPublicTools({
             payments: true,
           });
           setError(null);
@@ -59,16 +70,26 @@ const AboutMe: React.FC = () => {
 
           if (!cancelled) {
             setSwcAuth(swcAuthRes.data ?? null);
-            setSelectedTools({
+            setSelectedMemberTools({
               galaxy: swcAuthRes.data?.member_tool_preferences?.galaxy ?? true,
               payments: swcAuthRes.data?.member_tool_preferences?.payments ?? true,
+              market_personal: swcAuthRes.data?.member_tool_preferences?.market_personal ?? false,
+              market_faction: swcAuthRes.data?.member_tool_preferences?.market_faction ?? false,
+            });
+            setSelectedPublicTools({
+              payments: swcAuthRes.data?.public_tool_preferences?.payments ?? true,
             });
           }
         } catch {
           if (!cancelled) {
             setSwcAuth(null);
-            setSelectedTools({
+            setSelectedMemberTools({
               galaxy: true,
+              payments: true,
+              market_personal: false,
+              market_faction: false,
+            });
+            setSelectedPublicTools({
               payments: true,
             });
           }
@@ -97,30 +118,54 @@ const AboutMe: React.FC = () => {
     window.location.href = `${backendOrigin}/oauth`;
   }
 
-  function onConnectToolAccess() {
+  function onConnectMemberToolAccess() {
+    redirectMemberToolAccess(selectedMemberTools);
+  }
+
+  function redirectMemberToolAccess(preferences: Record<MemberToolKey, boolean>) {
     const backendOrigin = getBackendOrigin();
     if (!backendOrigin) return;
 
-    const tools = (Object.entries(selectedTools) as Array<[ToolKey, boolean]>)
+    const tools = (Object.entries(preferences) as Array<[MemberToolKey, boolean]>)
       .filter(([, enabled]) => enabled)
       .map(([tool]) => tool);
 
     const query = new URLSearchParams({
       return_to: "/aboutme",
-      ...(tools.length > 0 ? { tools: tools.join(",") } : {}),
+      tools: tools.length > 0 ? tools.join(",") : "none",
     });
 
     window.location.href = `${backendOrigin}/oauth/member-tools?${query.toString()}`;
   }
 
-  async function toggleTool(tool: ToolKey) {
-    const previous = selectedTools;
+  function onConnectPublicToolAccess() {
+    redirectPublicToolAccess(selectedPublicTools);
+  }
+
+  function redirectPublicToolAccess(preferences: Record<PublicToolKey, boolean>) {
+    const backendOrigin = getBackendOrigin();
+    if (!backendOrigin) return;
+
+    const tools = (Object.entries(preferences) as Array<[PublicToolKey, boolean]>)
+      .filter(([, enabled]) => enabled)
+      .map(([tool]) => tool);
+
+    const query = new URLSearchParams({
+      return_to: "/aboutme",
+      tools: tools.length > 0 ? tools.join(",") : "none",
+    });
+
+    window.location.href = `${backendOrigin}/oauth/public-tools?${query.toString()}`;
+  }
+
+  async function toggleMemberTool(tool: MemberToolKey) {
+    const previous = selectedMemberTools;
     const nextPreferences = {
-      ...selectedTools,
-      [tool]: !selectedTools[tool],
+      ...selectedMemberTools,
+      [tool]: !selectedMemberTools[tool],
     };
 
-    setSelectedTools(nextPreferences);
+    setSelectedMemberTools(nextPreferences);
 
     try {
       const response = await updateSwcAuthorizationPreferences(nextPreferences);
@@ -135,11 +180,47 @@ const AboutMe: React.FC = () => {
           token_expires_at: null,
           last_verified_at: null,
           revoked_at: null,
+          member_tool_preferences: { galaxy: true, payments: true, market_personal: false, market_faction: false },
+          public_tool_preferences: { payments: true },
         }),
         member_tool_preferences: response.data.member_tool_preferences,
+        public_tool_preferences: response.data.public_tool_preferences,
       }));
     } catch {
-      setSelectedTools(previous);
+      setSelectedMemberTools(previous);
+    }
+  }
+
+  async function togglePublicTool(tool: PublicToolKey) {
+    const previous = selectedPublicTools;
+    const nextPreferences = {
+      ...selectedPublicTools,
+      [tool]: !selectedPublicTools[tool],
+    };
+
+    setSelectedPublicTools(nextPreferences);
+
+    try {
+      const response = await updateSwcPublicAuthorizationPreferences(nextPreferences);
+      setSwcAuth((current) => ({
+        ...(current ?? {
+          connected: false,
+          has_personal_events_access: false,
+          has_personal_credit_log_access: false,
+          has_faction_credit_log_access: false,
+          has_character_privileges_access: false,
+          granted_scopes: null,
+          token_expires_at: null,
+          last_verified_at: null,
+          revoked_at: null,
+          member_tool_preferences: { galaxy: true, payments: true, market_personal: false, market_faction: false },
+          public_tool_preferences: { payments: true },
+        }),
+        member_tool_preferences: response.data.member_tool_preferences,
+        public_tool_preferences: response.data.public_tool_preferences,
+      }));
+    } catch {
+      setSelectedPublicTools(previous);
     }
   }
 
@@ -158,35 +239,55 @@ const AboutMe: React.FC = () => {
     return possible.filter(p => p.enabled).map(({ enabled, ...rest }) => rest);
   }, [user]);
 
-  const hasSelectedTools = useMemo(
-    () => Object.values(selectedTools).some(Boolean),
-    [selectedTools]
+  const hasSelectedMemberTools = useMemo(
+    () => Object.values(selectedMemberTools).some(Boolean),
+    [selectedMemberTools]
+  );
+  const hasSelectedPublicTools = useMemo(
+    () => Object.values(selectedPublicTools).some(Boolean),
+    [selectedPublicTools]
   );
 
-  const toolCards = useMemo<ToolCard[]>(() => [
+  const memberToolCards = useMemo<Array<ToolCard<MemberToolKey>>>(() => [
     {
       key: "galaxy",
       title: "Astrogation",
       description: "Pull your personal SWC travel arrivals into the shared astrogation intel map.",
-      route: "/members?members_view=universe",
-      routeLabel: "Go to Astrogation",
-      enabled: selectedTools.galaxy,
+      enabled: selectedMemberTools.galaxy,
       accessNow: Boolean(swcAuth?.has_personal_events_access),
     },
     {
       key: "payments",
       title: "Payments",
       description: "Verify logs and run faction payment checks from the payments tools.",
-      route: "/payments",
-      routeLabel: "Go to Payments",
-      enabled: selectedTools.payments,
-      accessNow: Boolean(
-        swcAuth?.has_personal_credit_log_access
-          || swcAuth?.has_faction_credit_log_access
-          || swcAuth?.has_character_privileges_access
-      ),
+      enabled: selectedMemberTools.payments,
+      accessNow: Boolean(swcAuth?.has_character_credits_write_access),
     },
-  ], [selectedTools.galaxy, selectedTools.payments, swcAuth?.has_character_privileges_access, swcAuth?.has_faction_credit_log_access, swcAuth?.has_personal_credit_log_access, swcAuth?.has_personal_events_access]);
+    {
+      key: "market_personal",
+      title: "Market (Personal Inventory)",
+      description: "Grant access to your personal SWC inventory for browsing and listing in the internal market.",
+      enabled: selectedMemberTools.market_personal,
+      accessNow: Boolean(swcAuth?.has_personal_inventory_access),
+    },
+    {
+      key: "market_faction",
+      title: "Market (Faction Store)",
+      description: "Grant access to faction inventory for the internal market. Requires faction privileges.",
+      enabled: selectedMemberTools.market_faction,
+      accessNow: Boolean(swcAuth?.has_faction_inventory_access),
+    },
+  ], [selectedMemberTools.galaxy, selectedMemberTools.payments, selectedMemberTools.market_personal, selectedMemberTools.market_faction, swcAuth?.has_character_credits_write_access, swcAuth?.has_faction_inventory_access, swcAuth?.has_personal_inventory_access, swcAuth?.has_personal_events_access]);
+
+  const publicToolCards = useMemo<Array<ToolCard<PublicToolKey>>>(() => [
+    {
+      key: "payments",
+      title: "Payments",
+      description: "Grant SWC payments access so you can buy items through market checkout.",
+      enabled: selectedPublicTools.payments,
+      accessNow: Boolean(swcAuth?.has_character_credits_write_access),
+    },
+  ], [selectedPublicTools.payments, swcAuth?.has_character_credits_write_access]);
 
   if (loading) {
     return (
@@ -260,54 +361,40 @@ const AboutMe: React.FC = () => {
       {user.is_joe_member ? (
         <>
           <hr className="divider" />
-
-          <h2 className="h2">SWC Tool Access</h2>
-
-          <p className="muted">
-            Turn tools on or off here, then sync once to grant only the access you want.
-          </p>
-
-          <button className="btn" type="button" onClick={onConnectToolAccess} disabled={!hasSelectedTools}>
-            {swcAuth?.member_tools_connected ? "Resync Selected Tool Access" : "Connect Selected Tool Access"}
-          </button>
-
-          {!hasSelectedTools && (
-            <p className="small">Turn on at least one tool before syncing SWC access.</p>
-          )}
-
-          <div className="aboutme-access-grid">
-            {toolCards.map((tool) => (
-              <section key={tool.key} className="aboutme-access-card">
-                <div className="aboutme-access-row">
-                  <h3 className="aboutme-access-title">{tool.title}</h3>
-                </div>
-
-                <p className="muted aboutme-access-copy">{tool.description}</p>
-
-                <div className="aboutme-access-status-row">
-                  <span className="small">Access now</span>
-                  <strong>{tool.accessNow ? "Yes" : "No"}</strong>
-                </div>
-
-                <div className="aboutme-access-actions">
-                  <button
-                    className={`aboutme-access-toggle${tool.enabled ? " aboutme-access-toggle--on" : ""}`}
-                    type="button"
-                    aria-pressed={tool.enabled}
-                    onClick={() => toggleTool(tool.key)}
-                  >
-                    {tool.enabled ? "Enabled" : "Disabled"}
-                  </button>
-
-                  <Link className="btn" to={tool.route}>
-                    {tool.routeLabel}
-                  </Link>
-                </div>
-              </section>
-            ))}
-          </div>
+          <SwcToolAccessSection
+            title="SWC Tool Access"
+            description="Turn tools on or off here, then sync once to grant only the access you want."
+            cards={memberToolCards}
+            hasSelectedTools={hasSelectedMemberTools}
+            isConnected={Boolean(swcAuth?.member_tools_connected)}
+            onConnect={onConnectMemberToolAccess}
+            onToggle={toggleMemberTool}
+            connectLabel="Connect Selected Tool Access"
+            resyncLabel="Resync Selected Tool Access"
+            allowConnectWhenEmpty
+            emptySelectionActionLabel="Disable All SWC Tool Access"
+            emptySelectionMessage="All tools are off. Click the button above to resync and remove tool access."
+          />
         </>
-      ) : null}
+      ) : (
+        <>
+          <hr className="divider" />
+          <SwcToolAccessSection
+            title="Public Tool Access"
+            description="Enable public tools and sync SWC access for the tools you want to use."
+            cards={publicToolCards}
+            hasSelectedTools={hasSelectedPublicTools}
+            isConnected={Boolean(swcAuth?.public_tools_connected || swcAuth?.payments_connected)}
+            onConnect={onConnectPublicToolAccess}
+            onToggle={togglePublicTool}
+            connectLabel="Connect Selected Public Access"
+            resyncLabel="Resync Selected Public Access"
+            allowConnectWhenEmpty
+            emptySelectionActionLabel="Disable All Public Tool Access"
+            emptySelectionMessage="All public tools are off. Click the button above to resync and remove public tool access."
+          />
+        </>
+      )}
 
       <hr className="divider" />
 

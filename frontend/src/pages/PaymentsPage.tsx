@@ -669,7 +669,7 @@ const PaymentsPage: React.FC = () => {
         <main className="board admin-board">
           <h1>Payments</h1>
           <div className="members-tool-back">
-            <button className="btn" type="button" onClick={() => navigate("/members")}>
+            <button className="btn" type="button" onClick={() => navigate("/tools")}>
               Back to Overview
             </button>
           </div>

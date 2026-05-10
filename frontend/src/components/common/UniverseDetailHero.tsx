@@ -15,7 +15,7 @@ const UniverseDetailHero: React.FC<UniverseDetailHeroProps> = ({
   title,
   meta,
   backLabel = "Back to Astrogation",
-  backTo = "/members",
+  backTo = "/tools",
   backState = { membersView: "universe" },
 }) => {
   return (

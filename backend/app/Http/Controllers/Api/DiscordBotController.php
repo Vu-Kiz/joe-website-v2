@@ -7,11 +7,13 @@ use App\Models\DiscordChannelConfig;
 use App\Models\DiscordBotGuild;
 use App\Models\DiscordMessageDelivery;
 use App\Models\DiscordOutboxMessage;
+use App\Models\MarketOrder;
 use App\Models\MemberChangelogEntry;
 use App\Models\User;
 use App\Support\Discord\DiscordNotifier;
 use App\Support\Discord\JenPostService;
 use App\Support\Jobs\JobService;
+use App\Support\Market\MarketFulfillmentService;
 use App\Support\Swc\Auth\Permissions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,7 +24,8 @@ class DiscordBotController extends Controller
 {
     public function __construct(
         protected JobService $jobService,
-        protected JenPostService $jenPostService
+        protected JenPostService $jenPostService,
+        protected MarketFulfillmentService $marketFulfillmentService,
     ) {
     }
 
@@ -179,6 +182,7 @@ class DiscordBotController extends Controller
     {
         return $this->claimOutboxForKeys($request, [
             DiscordNotifier::KEY_CONTACT_REQUESTS,
+            DiscordNotifier::KEY_MARKET_SALE,
         ]);
     }
 
@@ -236,13 +240,15 @@ class DiscordBotController extends Controller
             ]);
         }
 
+        $dmKeys = [DiscordNotifier::KEY_CONTACT_REQUESTS, DiscordNotifier::KEY_MARKET_SALE];
+
         $configs = DiscordChannelConfig::query()
             ->whereIn('notification_key', $messages->pluck('notification_key')->unique()->values())
             ->get()
             ->keyBy('notification_key');
 
         $channelPayload = $messages
-            ->filter(fn (DiscordOutboxMessage $message) => $message->notification_key !== DiscordNotifier::KEY_CONTACT_REQUESTS)
+            ->filter(fn (DiscordOutboxMessage $message) => !in_array($message->notification_key, $dmKeys, true))
             ->filter(fn (DiscordOutboxMessage $message) => isset($configs[$message->notification_key]))
             ->map(function (DiscordOutboxMessage $message) use ($configs) {
                 $config = $configs[$message->notification_key];
@@ -283,7 +289,7 @@ class DiscordBotController extends Controller
             });
 
         $dmPayload = $messages
-            ->filter(fn (DiscordOutboxMessage $message) => $message->notification_key === DiscordNotifier::KEY_CONTACT_REQUESTS)
+            ->filter(fn (DiscordOutboxMessage $message) => in_array($message->notification_key, $dmKeys, true))
             ->map(function (DiscordOutboxMessage $message) {
                 $meta = is_array($message->meta) ? $message->meta : [];
 
@@ -437,6 +443,48 @@ class DiscordBotController extends Controller
             'ok' => true,
             'data' => $post,
         ], 201);
+    }
+
+    public function fulfillMarketOrder(Request $request, int $orderId): JsonResponse
+    {
+        $data = $request->validate([
+            'discord_user_id' => ['required', 'string', 'max:40'],
+        ]);
+
+        $user = $this->resolveDiscordLinkedUser($data['discord_user_id']);
+        if (!$user) {
+            return response()->json(['ok' => false, 'message' => 'No site user linked to that Discord account.'], 404);
+        }
+
+        $order = MarketOrder::with('listing')->find($orderId);
+        if (!$order) {
+            return response()->json(['ok' => false, 'message' => 'Order not found.'], 404);
+        }
+
+        if ((int) $order->listing->listed_by_user_id !== (int) $user->id) {
+            return response()->json(['ok' => false, 'message' => 'You are not the seller of this order.'], 403);
+        }
+
+        if ($order->status !== MarketOrder::STATUS_PAID) {
+            return response()->json(['ok' => false, 'message' => 'Order is not awaiting fulfilment.'], 422);
+        }
+
+        $sellerToken = $this->marketFulfillmentService->resolveSellerTokenPublic($order->listing);
+        if (!$sellerToken) {
+            return response()->json(['ok' => false, 'message' => 'No SWC inventory token found. Link Market inventory access on the site.'], 422);
+        }
+
+        try {
+            $result = $this->marketFulfillmentService->fulfillOrder($order, $sellerToken);
+        } catch (\RuntimeException $e) {
+            return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
+        }
+
+        if ($result['manual'] ?? false) {
+            return response()->json(['ok' => true, 'manual' => true, 'message' => 'Materials order marked as transfer pending. Send the items manually in SWC.']);
+        }
+
+        return response()->json(['ok' => true, 'message' => 'Transfer complete. Order marked as completed.']);
     }
 
     private function resolveDiscordLinkedUser(string $discordUserId): ?User

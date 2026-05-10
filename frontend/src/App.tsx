@@ -8,6 +8,7 @@ import AboutMe from "./pages/AboutMe";
 import JenPage from "./pages/JenPage";
 import AdminPage from "./pages/AdminPage";
 import MembersPage from "./pages/MembersPage";
+import MarketPage from "./pages/MarketPage";
 import PaymentsPage from "./pages/PaymentsPage";
 import DroidBrainPage from "./pages/DroidBrainPage";
 import AdminRoute from "./components/auth/AdminRoute";
@@ -89,9 +90,10 @@ function App() {
           <Route path="/home" element={<HomePage />} />
           <Route path="/aboutme" element={<AboutMe />} />
           <Route path="/jen" element={<JenPage />} />
-          <Route path="/members" element={<MembersPage />} />
-          <Route path="/members/universe/location/:galx/:galy" element={<MembersUniverseLocationPage />} />
-          <Route path="/members/universe/system/:systemIdentifier" element={<MembersUniverseSystemPage />} />
+          <Route path="/tools" element={<MembersPage />} />
+          <Route path="/market" element={<MarketPage />} />
+          <Route path="/tools/universe/location/:galx/:galy" element={<MembersUniverseLocationPage />} />
+          <Route path="/tools/universe/system/:systemIdentifier" element={<MembersUniverseSystemPage />} />
           <Route path="/payments" element={<PaymentsPage />} />
           <Route path="/intel/droidbrain" element={<DroidBrainPage />} />
           <Route path="/sys/debug" element={<SysDebugPage />} />

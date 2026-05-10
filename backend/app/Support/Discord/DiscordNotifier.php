@@ -12,6 +12,7 @@ class DiscordNotifier
     public const KEY_JOBS = 'jobs';
     public const KEY_JEN = 'jen';
     public const KEY_CONTACT_REQUESTS = 'contact_requests';
+    public const KEY_MARKET_SALE = 'market_sale';
 
     public function postJobCreated(Job $job): bool
     {
@@ -80,6 +81,47 @@ class DiscordNotifier
         return true;
     }
 
+    public function notifyMarketSale(
+        string $sellerDiscordUserId,
+        string $buyerHandle,
+        string $entityName,
+        int $quantity,
+        int $totalCredits,
+        string $orderReference,
+        int $orderId
+    ): bool {
+        $baseUrl = $this->frontendBaseUrl();
+        $link = $baseUrl !== '' ? $baseUrl . '/members?members_view=market&market_tab=orders' : '';
+
+        $lines = [
+            '**Market Sale — Payment Received**',
+            "**Item:** {$entityName}" . ($quantity > 1 ? " (x{$quantity})" : ''),
+            '**Buyer:** ' . $buyerHandle,
+            '**Amount:** ' . number_format($totalCredits) . ' Credits',
+            "**Reference:** {$orderReference}",
+            'Please transfer the item(s) to the buyer in SWC.',
+        ];
+
+        if ($link !== '') {
+            $lines[] = $link;
+        }
+
+        $content = implode("\n", $lines);
+
+        DiscordOutboxMessage::create([
+            'notification_key' => self::KEY_MARKET_SALE,
+            'status' => DiscordOutboxMessage::STATUS_PENDING,
+            'content' => $content,
+            'meta' => [
+                'delivery_type' => 'dm',
+                'target_discord_user_id' => $sellerDiscordUserId,
+                'order_id' => $orderId,
+            ],
+        ]);
+
+        return true;
+    }
+
     public function buildJobCreatedContent(Job $job): string
     {
         $baseUrl = $this->frontendBaseUrl();
@@ -104,7 +146,7 @@ class DiscordNotifier
             }
         }
 
-        $linkPath = '/members?members_view=jobs&jobs_view=open&job_id=' . $job->id;
+        $linkPath = '/tools?tools_view=jobs&jobs_view=open&job_id=' . $job->id;
         $link = $baseUrl !== '' ? $baseUrl . $linkPath : $linkPath;
 
         return sprintf(

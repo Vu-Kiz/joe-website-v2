@@ -303,7 +303,7 @@ const MemberDroidBrainPanel: React.FC = () => {
         <main className="board admin-board">
           <h1>DroidBrain</h1>
           <div className="members-tool-back">
-            <button className="btn" type="button" onClick={() => navigate("/members")}>
+            <button className="btn" type="button" onClick={() => navigate("/tools")}>
               Back to Overview
             </button>
           </div>

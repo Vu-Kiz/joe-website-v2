@@ -1,0 +1,1319 @@
+// Market panel layout
+.market-page,
+.market-page__panel,
+.market-panel
+  font-family: 'Tektur', sans-serif
+
+.market-page button,
+.market-page input,
+.market-page select,
+.market-page textarea
+  font-family: 'Tektur', sans-serif
+
+.market-page__banner
+  display: block
+  width: min(100%, 780px)
+  height: auto
+  margin: 0 auto 1.25rem
+  object-fit: contain
+
+.market-panel
+  display: flex
+  flex-direction: column
+  gap: 1.5rem
+
+.market-tabs
+  display: flex
+  gap: 0.5rem
+  flex-wrap: wrap
+  border-bottom: 1px solid rgba(255,255,255,0.08)
+  padding-bottom: 0.75rem
+
+.market-tab
+  background: none
+  border: 1px solid rgba(255,255,255,0.12)
+  border-radius: 8px
+  color: rgba(255,255,255,0.65)
+  cursor: pointer
+  font-size: 0.85rem
+  padding: 0.4rem 0.9rem
+  transition: background 0.15s, color 0.15s, border-color 0.15s
+
+  &:hover
+    background: rgba(255,255,255,0.06)
+    color: rgba(255,255,255,0.9)
+
+  &.is-active
+    background: rgba(255,255,255,0.1)
+    border-color: rgba(255,255,255,0.3)
+    color: #fff
+
+// Shared filter bar used outside the browse rail
+.market-filter-bar
+  display: flex
+  gap: 0.4rem
+  flex-wrap: wrap
+  align-items: center
+
+.market-browse
+  display: grid
+  gap: 1.25rem
+  grid-template-columns: minmax(240px, 280px) minmax(0, 1fr)
+
+  &.is-filters-collapsed
+    grid-template-columns: 2.9rem minmax(0, 1fr)
+
+  @media (max-width: 920px)
+    grid-template-columns: 1fr
+
+.market-browse__sidebar
+  min-width: 0
+  grid-column: 1
+
+  @media (max-width: 920px)
+    grid-column: auto
+
+.market-browse__rail-toggle-wrap
+  display: flex
+  justify-content: flex-start
+
+.market-browse__rail-toggle
+  display: inline-flex
+  align-items: center
+  justify-content: flex-start
+  gap: 0.45rem
+  width: 100%
+  border: 1px solid rgba(255,255,255,0.08)
+  border-radius: 10px
+  background: rgba(255,255,255,0.02)
+  color: rgba(255,255,255,0.82)
+  cursor: pointer
+  font-size: 0.78rem
+  font-weight: 700
+  letter-spacing: 0.03em
+  min-height: 2.6rem
+  padding: 0.55rem 0.7rem
+  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease
+
+  &:hover
+    border-color: rgba(255,255,255,0.16)
+    background: rgba(255,255,255,0.05)
+    color: rgba(255,255,255,0.96)
+
+.market-browse__rail-toggle-label
+  min-width: 0
+  transition: opacity 0.16s ease
+
+.market-browse__rail-toggle-count
+  display: inline-flex
+  align-items: center
+  justify-content: center
+  min-width: 1.25rem
+  height: 1.25rem
+  padding: 0 0.28rem
+  border-radius: 999px
+  background: rgba(183, 138, 67, 0.16)
+  color: #e7c37d
+  font-size: 0.68rem
+  font-weight: 700
+  line-height: 1
+
+.market-browse__rail-toggle-icon
+  width: 0.8rem
+  height: 0.8rem
+  object-fit: contain
+  flex-shrink: 0
+
+.market-browse__filters-body
+  display: flex
+  flex-direction: column
+  gap: 1rem
+
+.market-browse__filters
+  position: sticky
+  top: 1rem
+  display: flex
+  flex-direction: column
+  gap: 1rem
+  padding: 1rem
+  border: 1px solid rgba(255,255,255,0.08)
+  border-radius: 14px
+  background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.02))
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04)
+
+  @media (max-width: 920px)
+    position: static
+
+.market-browse.is-filters-collapsed .market-browse__filters
+  padding: 0.45rem
+  align-items: stretch
+  border-color: rgba(255,255,255,0.06)
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))
+
+.market-browse.is-filters-collapsed .market-browse__rail-toggle-wrap
+  justify-content: center
+
+.market-browse.is-filters-collapsed .market-browse__rail-toggle
+  width: 2rem
+  min-height: 8.75rem
+  padding: 0.55rem 0.1rem
+  flex-direction: column
+  justify-content: center
+  text-align: center
+  border-radius: 999px
+  border-color: rgba(255,255,255,0.07)
+  background: rgba(255,255,255,0.015)
+  color: rgba(255,255,255,0.72)
+
+  &:hover
+    border-color: rgba(255,255,255,0.14)
+    background: rgba(255,255,255,0.04)
+    color: rgba(255,255,255,0.92)
+
+.market-browse.is-filters-collapsed .market-browse__rail-toggle-label
+  writing-mode: vertical-rl
+  text-orientation: mixed
+  transform: rotate(180deg)
+  font-size: 0.64rem
+  font-weight: 700
+  letter-spacing: 0.12em
+
+.market-browse.is-filters-collapsed .market-browse__rail-toggle-icon
+  width: 0.72rem
+  height: 0.72rem
+  opacity: 0.8
+
+@media (max-width: 920px)
+  .market-browse.is-filters-collapsed .market-browse__filters
+    padding: 1rem
+
+  .market-browse.is-filters-collapsed .market-browse__rail-toggle
+    min-height: 2.6rem
+    padding: 0.55rem 0.7rem
+    flex-direction: row
+    justify-content: flex-start
+    text-align: left
+
+  .market-browse.is-filters-collapsed .market-browse__rail-toggle-label
+    writing-mode: initial
+    text-orientation: initial
+    transform: none
+
+.market-browse__filters-top
+  display: flex
+  flex-direction: column
+  gap: 0.45rem
+
+.market-browse__results
+  min-width: 0
+  grid-column: 2
+  display: flex
+  flex-direction: column
+  gap: 1rem
+
+  @media (max-width: 920px)
+    grid-column: auto
+
+.market-browse__eyebrow
+  margin: 0
+  color: rgba(255,255,255,0.5)
+  font-size: 0.72rem
+  font-weight: 700
+  letter-spacing: 0.08em
+  text-transform: uppercase
+
+.market-browse__heading
+  margin: 0
+  color: rgba(255,255,255,0.92)
+  font-size: 1rem
+  font-weight: 600
+  line-height: 1.35
+
+.market-browse__filters-meta
+  margin: 0.2rem 0 0
+  color: rgba(255,255,255,0.56)
+  font-size: 0.82rem
+
+.market-browse__reset
+  display: inline-flex
+  align-items: center
+  justify-content: center
+  align-self: flex-start
+  min-height: 1.6rem
+  padding: 0.18rem 0.55rem
+  border: 1px solid rgba(255,255,255,0.12)
+  border-radius: 999px
+  background: rgba(255,255,255,0.03)
+  color: rgba(255,255,255,0.68)
+  cursor: pointer
+  font-size: 0.7rem
+  font-weight: 600
+  letter-spacing: 0.02em
+  white-space: nowrap
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease
+
+  &:hover
+    background: rgba(255,255,255,0.06)
+    border-color: rgba(255,255,255,0.18)
+    color: rgba(255,255,255,0.92)
+
+.market-browse__search
+  display: flex
+  flex-direction: column
+  gap: 0.45rem
+
+.market-browse__search-top
+  display: flex
+  align-items: center
+  justify-content: space-between
+  gap: 0.75rem
+
+.market-browse__search-label
+  color: rgba(255,255,255,0.62)
+  font-size: 0.74rem
+  font-weight: 700
+  letter-spacing: 0.06em
+  text-transform: uppercase
+
+.market-browse__facet-list
+  display: flex
+  flex-direction: column
+  gap: 0.9rem
+
+.market-browse-facet
+  display: flex
+  flex-direction: column
+  gap: 0.65rem
+  padding-top: 0.1rem
+
+.market-browse-facet + .market-browse-facet
+  padding-top: 0.9rem
+  border-top: 1px solid rgba(255,255,255,0.06)
+
+.market-browse-facet__header
+  display: flex
+  align-items: flex-start
+  justify-content: space-between
+  gap: 0.75rem
+
+.market-browse-facet__toggle
+  display: flex
+  align-items: flex-start
+  justify-content: space-between
+  gap: 0.75rem
+  flex: 1
+  min-width: 0
+  background: none
+  border: 0
+  color: inherit
+  cursor: pointer
+  padding: 0
+  text-align: left
+
+.market-browse-facet__title
+  margin: 0
+  color: rgba(255,255,255,0.88)
+  font-size: 0.8rem
+  font-weight: 700
+  letter-spacing: 0.04em
+  text-transform: uppercase
+
+.market-browse-facet__meta
+  margin: 0.18rem 0 0
+  color: rgba(255,255,255,0.45)
+  font-size: 0.76rem
+
+.market-browse-facet__chevron
+  color: rgba(255,255,255,0.52)
+  font-size: 1rem
+  font-weight: 700
+  line-height: 1
+  padding-top: 0.1rem
+
+.market-browse-facet__clear
+  display: inline-flex
+  align-items: center
+  justify-content: center
+  min-height: 1.45rem
+  padding: 0.12rem 0.45rem
+  border: 1px solid rgba(255,255,255,0.1)
+  border-radius: 999px
+  background: rgba(255,255,255,0.025)
+  color: rgba(255,255,255,0.58)
+  cursor: pointer
+  font-size: 0.68rem
+  font-weight: 600
+  letter-spacing: 0.02em
+  white-space: nowrap
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease
+
+  &:hover
+    background: rgba(255,255,255,0.05)
+    border-color: rgba(255,255,255,0.16)
+    color: rgba(255,255,255,0.9)
+
+.market-browse-facet.is-collapsed
+  gap: 0
+
+.market-browse-facet__options
+  display: flex
+  flex-direction: column
+  gap: 0.45rem
+
+.market-browse-facet-option
+  display: flex
+  align-items: center
+  gap: 0.65rem
+  min-height: 2.25rem
+  padding: 0.3rem 0.2rem
+  color: rgba(255,255,255,0.62)
+  cursor: pointer
+  transition: color 0.16s ease
+
+  &:hover
+    color: rgba(255,255,255,0.9)
+
+  &.is-selected
+    color: rgba(255,255,255,0.96)
+
+.market-browse-facet-option__input
+  position: absolute
+  opacity: 0
+  pointer-events: none
+
+.market-browse-facet-option__check
+  width: 1rem
+  height: 1rem
+  border: 1px solid rgba(255,255,255,0.22)
+  border-radius: 0.28rem
+  background: rgba(255,255,255,0.015)
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03)
+  flex-shrink: 0
+  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease
+
+  .market-browse-facet-option.is-selected &
+    border-color: rgba(183, 138, 67, 0.78)
+    background: rgba(183, 138, 67, 0.22)
+    box-shadow: inset 0 0 0 2px rgba(19, 18, 15, 0.82)
+
+.market-browse-facet-option__label
+  font-size: 0.88rem
+  line-height: 1.3
+
+.market-filter-chip
+  background: none
+  border: 1px solid rgba(255,255,255,0.1)
+  border-radius: 20px
+  color: rgba(255,255,255,0.55)
+  cursor: pointer
+  font-size: 0.78rem
+  padding: 0.25rem 0.7rem
+  transition: background 0.15s, color 0.15s, border-color 0.15s
+
+  &:hover
+    background: rgba(255,255,255,0.05)
+    color: rgba(255,255,255,0.85)
+
+  &.is-active
+    background: rgba(255,255,255,0.1)
+    border-color: rgba(255,255,255,0.28)
+    color: #fff
+
+// Listing grid
+.market-grid
+  display: grid
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr))
+  gap: 0.75rem
+
+// Listing card
+.market-card
+  background: rgba(255,255,255,0.03)
+  border: 1px solid rgba(255,255,255,0.08)
+  border-radius: 12px
+  display: flex
+  flex-direction: column
+  gap: 0.45rem
+  padding: 0.82rem
+
+  &:hover
+    border-color: rgba(255,255,255,0.14)
+
+.market-card--custom
+  gap: 0.4rem
+
+.market-card__eyebrow
+  display: flex
+  align-items: center
+  gap: 0.4rem
+  flex-wrap: wrap
+  font-size: 0.72rem
+  opacity: 0.6
+  text-transform: uppercase
+  letter-spacing: 0.06em
+
+.market-card__image-wrap
+  width: 100%
+  height: 102px
+  border-radius: 6px
+  background: rgba(255,255,255,0.02)
+  overflow: hidden
+  flex-shrink: 0
+  display: flex
+  align-items: center
+  justify-content: center
+
+.market-card__image-wrap--custom
+  height: auto
+  aspect-ratio: auto
+  background: rgba(255,255,255,0.015)
+  padding: 0.2rem
+
+.market-card__image
+  width: 100%
+  height: 100%
+  object-fit: contain
+  display: block
+
+.market-card__image--custom
+  width: 100%
+  height: auto
+  max-height: 240px
+  object-fit: contain
+
+.market-card__image-placeholder
+  width: 100%
+  height: 100%
+
+
+.market-card__name
+  font-size: 0.95rem
+  font-weight: 600
+  line-height: 1.2
+  margin: 0
+
+.market-card__meta
+  color: rgba(255,255,255,0.55)
+  font-size: 0.78rem
+
+.market-card__info-row
+  display: flex
+  flex-wrap: wrap
+  gap: 0.4rem 0.75rem
+  min-height: 1rem
+
+.market-card__details
+  display: flex
+  flex-direction: column
+  gap: 0.22rem
+  flex: 1
+
+.market-card__detail-row
+  display: flex
+  align-items: center
+  gap: 0.4rem
+  font-size: 0.76rem
+  min-height: 1.05rem
+
+  &--notes
+    margin-top: 0.05rem
+
+.market-card__detail-label
+  color: rgba(255,255,255,0.4)
+  flex-shrink: 0
+  width: 3rem
+
+.market-card__detail-value
+  color: rgba(255,255,255,0.75)
+  flex: 1
+  overflow: hidden
+  text-overflow: ellipsis
+  white-space: nowrap
+
+  &--notes
+    color: rgba(255,255,255,0.55)
+    white-space: normal
+    line-height: 1.4
+
+.market-card__stat-bar-wrap
+  background: rgba(255,255,255,0.08)
+  border-radius: 3px
+  flex: 1
+  height: 4px
+  overflow: hidden
+
+.market-card__stat-bar
+  border-radius: 3px
+  height: 100%
+  transition: width 0.3s
+
+.market-card__stat-val
+  color: rgba(255,255,255,0.5)
+  flex-shrink: 0
+  font-size: 0.7rem
+  width: 4rem
+  text-align: right
+
+.market-card__price-row
+  margin-top: auto
+
+.market-card__price
+  font-size: 1.12rem
+  font-weight: 700
+
+.market-card__price-sub
+  font-size: 0.75rem
+  opacity: 0.6
+
+.market-card__actions
+  display: flex
+  flex-direction: column
+  gap: 0.42rem
+  padding-top: 0.15rem
+
+.market-card__actions-row
+  display: flex
+  gap: 0.42rem
+
+  .btn
+    flex: 1
+
+// Channel badge
+.market-badge
+  border-radius: 4px
+  font-size: 0.7rem
+  font-weight: 600
+  padding: 0.15rem 0.45rem
+  text-transform: uppercase
+  letter-spacing: 0.05em
+
+.market-badge--faction
+  background: rgba(100, 180, 255, 0.12)
+  color: #7cc4ff
+
+.market-badge--member
+  background: rgba(140, 220, 140, 0.12)
+  color: #8fe1a8
+
+.market-badge--public
+  background: rgba(255, 255, 255, 0.08)
+  color: rgba(255, 255, 255, 0.82)
+
+.market-badge--restricted
+  background: rgba(245, 158, 11, 0.14)
+  color: #fbbf24
+
+// Entity type badge
+.market-badge--entity
+  background: rgba(255,255,255,0.07)
+  color: rgba(255,255,255,0.7)
+
+// Custom art badge
+.market-badge--custom
+  background: rgba(200, 150, 255, 0.12)
+  color: #c9a0ff
+
+// Order / listing form
+.market-form
+  background: rgba(255,255,255,0.02)
+  border: 1px solid rgba(255,255,255,0.08)
+  border-radius: 12px
+  display: flex
+  flex-direction: column
+  gap: 1rem
+  padding: 1.25rem
+
+.market-form__grid
+  display: grid
+  gap: 1rem
+  grid-template-columns: 1fr 1fr
+  @media (max-width: 640px)
+    grid-template-columns: 1fr
+
+.market-form__col
+  display: flex
+  flex-direction: column
+  gap: 1rem
+
+.market-form__row
+  display: flex
+  flex-direction: column
+  gap: 0.35rem
+
+.market-form__row--span
+  grid-column: 1 / -1
+
+.market-form__label
+  font-size: 0.82rem
+  opacity: 0.75
+
+.market-form__checkbox-row
+  align-items: center
+  cursor: pointer
+  display: flex
+  gap: 0.5rem
+  font-size: 0.88rem
+
+// Order confirmation box
+.market-order-box
+  background: rgba(255, 200, 80, 0.06)
+  border: 1px solid rgba(255, 200, 80, 0.2)
+  border-radius: 12px
+  display: flex
+  flex-direction: column
+  gap: 0.75rem
+  max-width: 520px
+  padding: 1.25rem
+
+.market-order-box__ref
+  font-family: monospace
+  font-size: 1rem
+  font-weight: 700
+  color: #ffd875
+
+// Empty / loading states
+.market-empty
+  color: rgba(255,255,255,0.4)
+  font-size: 0.9rem
+  padding: 2rem 0
+
+// Inventory picker
+.market-inventory-picker
+  display: flex
+  flex-direction: column
+  gap: 0.5rem
+  max-height: 320px
+  overflow-y: auto
+
+.market-inventory-item
+  align-items: center
+  background: rgba(255,255,255,0.02)
+  border: 1px solid rgba(255,255,255,0.07)
+  border-radius: 8px
+  cursor: pointer
+  display: flex
+  gap: 0.75rem
+  padding: 0.6rem 0.75rem
+  transition: background 0.12s, border-color 0.12s
+
+  &:hover
+    background: rgba(255,255,255,0.05)
+    border-color: rgba(255,255,255,0.14)
+
+  &.is-selected
+    background: rgba(255,255,255,0.08)
+    border-color: rgba(255,255,255,0.25)
+
+.market-inventory-item__name
+  flex: 1
+  font-size: 0.88rem
+  font-weight: 500
+
+.market-inventory-item__uid
+  color: rgba(255,255,255,0.4)
+  font-family: monospace
+  font-size: 0.75rem
+
+// Material quantity selector on listing card
+.market-card__qty-row
+  display: flex
+  flex-direction: column
+  gap: 0.4rem
+  padding: 0.6rem 0
+  border-top: 1px solid rgba(255,255,255,0.06)
+
+.market-card__qty-controls
+  display: flex
+  align-items: center
+  gap: 0.35rem
+
+.market-card__qty-input
+  background: rgba(255,255,255,0.06)
+  border: 1px solid rgba(255,255,255,0.12)
+  border-radius: 6px
+  color: #fff
+  font-size: 0.9rem
+  padding: 0.3rem 0.5rem
+  text-align: center
+  width: 70px
+  -moz-appearance: textfield
+  &::-webkit-inner-spin-button, &::-webkit-outer-spin-button
+    -webkit-appearance: none
+
+.market-card__qty-btn
+  background: rgba(255,255,255,0.06)
+  border: 1px solid rgba(255,255,255,0.12)
+  border-radius: 6px
+  color: rgba(255,255,255,0.7)
+  cursor: pointer
+  font-size: 0.9rem
+  line-height: 1
+  padding: 0.3rem 0.6rem
+  transition: background 0.12s
+  &:hover:not(:disabled)
+    background: rgba(255,255,255,0.12)
+    color: #fff
+  &:disabled
+    opacity: 0.35
+    cursor: default
+
+  &--all
+    font-size: 0.75rem
+    padding: 0.3rem 0.5rem
+
+// Entity detail popup
+.entity-popup-backdrop
+  align-items: center
+  background: rgba(0,0,0,0.65)
+  bottom: 0
+  display: flex
+  justify-content: center
+  left: 0
+  position: fixed
+  right: 0
+  top: 0
+  z-index: 1200
+
+.entity-popup
+  background: #1a1c22
+  border: 1px solid rgba(255,255,255,0.12)
+  border-radius: 12px
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6)
+  display: flex
+  flex-direction: column
+  gap: 1rem
+  max-height: 90vh
+  max-width: 480px
+  overflow-y: auto
+  padding: 1.25rem
+  position: relative
+  width: calc(100vw - 2rem)
+
+.entity-popup__close
+  background: rgba(255,255,255,0.06)
+  border: none
+  border-radius: 6px
+  color: rgba(255,255,255,0.5)
+  cursor: pointer
+  font-size: 0.85rem
+  padding: 0.25rem 0.5rem
+  position: absolute
+  right: 0.75rem
+  top: 0.75rem
+
+  &:hover
+    background: rgba(255,255,255,0.1)
+    color: rgba(255,255,255,0.9)
+
+.entity-popup__header
+  align-items: flex-start
+  display: flex
+  gap: 1rem
+  padding-right: 2rem
+
+.entity-popup__image-wrap
+  background: rgba(255,255,255,0.04)
+  border: 1px solid rgba(255,255,255,0.08)
+  border-radius: 8px
+  flex-shrink: 0
+  height: 80px
+  overflow: hidden
+  width: 80px
+
+.entity-popup__image
+  height: 100%
+  object-fit: contain
+  width: 100%
+
+.entity-popup__title-block
+  display: flex
+  flex-direction: column
+  gap: 0.2rem
+  min-width: 0
+
+.entity-popup__name
+  font-size: 1rem
+  font-weight: 600
+  line-height: 1.3
+  margin: 0
+  word-break: break-word
+
+.entity-popup__body
+  border-top: 1px solid rgba(255,255,255,0.07)
+  display: flex
+  flex-direction: column
+  gap: 0.75rem
+  padding-top: 0.75rem
+
+.entity-popup__row
+  align-items: baseline
+  display: flex
+  gap: 0.5rem
+  justify-content: space-between
+
+.entity-popup__footer
+  border-top: 1px solid rgba(255,255,255,0.07)
+  padding-top: 0.75rem
+
+// Entity type picker
+.entity-type-picker
+  position: relative
+
+.entity-type-picker__input-wrap
+  align-items: center
+  display: flex
+  gap: 0.5rem
+
+.entity-type-picker__thumb
+  border-radius: 4px
+  height: 32px
+  object-fit: contain
+  width: 32px
+
+.entity-type-picker__clear
+  flex-shrink: 0
+
+.entity-type-picker__selected-label
+  margin-top: 0.25rem
+
+.entity-type-picker__dropdown
+  background: #1a1a2e
+  border: 1px solid rgba(255,255,255,0.12)
+  border-radius: 6px
+  left: 0
+  list-style: none
+  margin: 0.25rem 0 0
+  max-height: 280px
+  overflow-y: auto
+  padding: 0.25rem 0
+  position: absolute
+  right: 0
+  top: 100%
+  z-index: 50
+
+.entity-type-picker__option
+  align-items: center
+  cursor: pointer
+  display: flex
+  gap: 0.5rem
+  padding: 0.5rem 0.75rem
+  &:hover
+    background: rgba(255,255,255,0.07)
+
+.entity-type-picker__option-img
+  border-radius: 3px
+  flex-shrink: 0
+  height: 28px
+  object-fit: contain
+  width: 28px
+
+.entity-type-picker__option-name
+  flex: 1
+  font-size: 0.875rem
+
+.entity-type-picker__option-cat
+  flex-shrink: 0
+
+.entity-type-picker__empty
+  padding: 0.5rem 0.75rem
+
+// Custom art form
+.market-custom-form__dropzone
+  background: rgba(255,255,255,0.03)
+  border: 2px dashed rgba(255,255,255,0.15)
+  border-radius: 8px
+  cursor: pointer
+  min-height: 160px
+  display: flex
+  align-items: center
+  justify-content: center
+  padding: 1rem
+  transition: border-color 0.15s
+  &:hover
+    border-color: rgba(255,255,255,0.3)
+  &.is-loading
+    opacity: 0.6
+    pointer-events: none
+
+.market-custom-form__dropzone-placeholder
+  align-items: center
+  display: flex
+  flex-direction: column
+  gap: 0.5rem
+  text-align: center
+
+.market-custom-form__preview-wrap
+  align-items: center
+  display: flex
+  flex-direction: column
+  gap: 0.5rem
+  width: 100%
+
+.market-custom-form__preview
+  border-radius: 6px
+  max-height: 320px
+  max-width: 100%
+  object-fit: contain
+
+.market-focus-overlay
+  align-items: center
+  background: rgba(0, 0, 0, 0.75)
+  bottom: 0
+  display: flex
+  justify-content: center
+  left: 0
+  padding: 1rem
+  position: fixed
+  right: 0
+  top: 0
+  z-index: 1200
+
+.market-focus-overlay__card
+  background: var(--bg-panel, #1a1c22)
+  border-radius: 10px
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6)
+  max-height: 90vh
+  max-width: 380px
+  overflow-y: auto
+  padding: 1rem
+  position: relative
+  width: 100%
+
+.market-focus-overlay__close
+  display: block
+  margin: 0 0 0.75rem auto
+
+.market-confirm-overlay
+  align-items: center
+  background: rgba(0, 0, 0, 0.75)
+  bottom: 0
+  display: flex
+  justify-content: center
+  left: 0
+  padding: 1rem
+  position: fixed
+  right: 0
+  top: 0
+  z-index: 1200
+
+.market-confirm-overlay__card
+  background: linear-gradient(180deg, rgba(26, 28, 34, 0.98), rgba(19, 20, 25, 0.98))
+  border: 1px solid rgba(255,255,255,0.1)
+  border-radius: 14px
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.5)
+  display: flex
+  flex-direction: column
+  gap: 1rem
+  max-width: 460px
+  padding: 1rem
+  width: 100%
+
+.market-confirm-overlay__header
+  align-items: flex-start
+  display: flex
+  gap: 0.75rem
+  justify-content: space-between
+
+.market-confirm-overlay__eyebrow
+  margin: 0 0 0.25rem
+  color: rgba(255,255,255,0.5)
+  font-size: 0.72rem
+  font-weight: 700
+  letter-spacing: 0.08em
+  text-transform: uppercase
+
+.market-confirm-overlay__title
+  margin: 0
+  font-size: 1.1rem
+  line-height: 1.2
+
+.market-confirm-overlay__close
+  flex-shrink: 0
+
+.market-confirm-overlay__body
+  color: rgba(255,255,255,0.82)
+
+.market-confirm-overlay__actions
+  display: flex
+  gap: 0.6rem
+  justify-content: flex-end
+
+  .btn
+    min-width: 8.5rem
+
+@media (max-width: 640px)
+  .market-confirm-overlay__actions
+    flex-direction: column
+
+    .btn
+      width: 100%
+
+.market-cart-btn
+  align-items: center
+  background: none
+  border: 1px solid rgba(255,255,255,0.15)
+  border-radius: 6px
+  color: var(--text-muted)
+  cursor: pointer
+  display: flex
+  font-size: 0.85rem
+  gap: 0.4rem
+  margin-left: auto
+  padding: 0.35rem 0.75rem
+  transition: border-color 0.15s, color 0.15s
+  &:hover
+    border-color: rgba(255,255,255,0.35)
+    color: var(--text)
+
+.market-cart-btn__badge
+  align-items: center
+  background: var(--accent, #f5c842)
+  border-radius: 999px
+  color: #000
+  display: flex
+  font-size: 0.7rem
+  font-weight: 700
+  justify-content: center
+  min-width: 1.2rem
+  padding: 0 0.3rem
+
+.cart-overlay
+  position: fixed
+  inset: 0
+  z-index: 1200
+  display: flex
+  align-items: center
+  justify-content: center
+  padding: 1rem
+
+.cart-overlay__panel
+  position: relative
+  z-index: 1201
+  width: min(100%, 760px)
+  max-height: min(86vh, 920px)
+
+.cart-backdrop
+  position: absolute
+  inset: 0
+  background: rgba(0,0,0,0.5)
+
+.cart-sidebar
+  background: var(--bg-panel, #1a1c22)
+  border: 1px solid rgba(255,255,255,0.1)
+  border-radius: 16px
+  box-shadow: 0 20px 44px rgba(0,0,0,0.5)
+  display: flex
+  flex-direction: column
+  gap: 0.75rem
+  max-height: min(86vh, 920px)
+  overflow: hidden
+  padding: 1rem
+  position: relative
+  width: 100%
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015))
+
+.cart-sidebar__header
+  align-items: center
+  display: flex
+  justify-content: space-between
+
+.cart-sidebar__title
+  font-size: 1.1rem
+  font-weight: 600
+  margin: 0
+
+.cart-sidebar__empty
+  color: var(--text-muted)
+  font-size: 0.9rem
+  text-align: center
+
+.cart-sidebar__items
+  display: flex
+  flex-direction: column
+  flex: 1
+  gap: 0.75rem
+  min-height: 0
+  overflow-y: auto
+  padding-right: 0.15rem
+
+.cart-item
+  align-items: flex-start
+  background: rgba(255,255,255,0.03)
+  border-radius: 8px
+  display: flex
+  gap: 0.75rem
+  padding: 0.75rem
+
+.cart-item__image
+  border-radius: 4px
+  flex-shrink: 0
+  height: 48px
+  object-fit: contain
+  width: 48px
+
+.cart-item__info
+  display: flex
+  flex: 1
+  flex-direction: column
+  gap: 0.15rem
+  min-width: 0
+
+.cart-item__name
+  font-size: 0.9rem
+  font-weight: 500
+  margin: 0
+  overflow: hidden
+  text-overflow: ellipsis
+  white-space: nowrap
+
+.cart-item__remove
+  background: none
+  border: none
+  color: var(--text-muted)
+  cursor: pointer
+  flex-shrink: 0
+  font-size: 0.8rem
+  padding: 0.1rem 0.25rem
+  &:hover
+    color: #f87171
+
+.cart-sidebar__footer
+  border-top: 1px solid rgba(255,255,255,0.08)
+  display: flex
+  flex-direction: column
+  gap: 0.75rem
+  padding-top: 0.75rem
+
+.cart-sidebar__total
+  font-size: 1rem
+  margin: 0
+
+.cart-sidebar__results
+  display: flex
+  flex-direction: column
+  flex: 1
+  gap: 0.75rem
+  min-height: 0
+  overflow-y: auto
+  padding-right: 0.15rem
+
+@media (max-width: 640px)
+  .cart-overlay
+    padding: 0.75rem
+
+  .cart-overlay__panel
+    width: 100%
+    max-height: 88vh
+
+  .cart-sidebar
+    max-height: 88vh
+    border-radius: 14px
+
+.cart-result-item
+  background: rgba(255,255,255,0.03)
+  border-radius: 8px
+  padding: 0.75rem
+
+.cart-result-item__actions
+  display: flex
+  gap: 0.5rem
+  margin-top: 0.65rem
+
+  .btn
+    width: 100%
+
+.cart-result-item__access-note
+  display: flex
+  flex-direction: column
+  gap: 0.6rem
+  padding: 0.8rem
+  border: 1px solid rgba(255,255,255,0.08)
+  border-radius: 10px
+  background: rgba(255,255,255,0.025)
+
+.market-post-queue__global-price
+  display: flex
+  gap: 0.5rem
+  align-items: center
+
+.market-post-queue
+  display: flex
+  flex-direction: column
+  gap: 1rem
+
+.market-post-queue__item
+  background: rgba(255,255,255,0.02)
+  border: 1px solid rgba(255,255,255,0.08)
+  border-radius: 10px
+  display: flex
+  flex-direction: column
+  gap: 0.75rem
+  padding: 1rem
+
+.market-post-queue__item-header
+  align-items: center
+  display: flex
+  justify-content: space-between
+
+.market-post-queue__remove
+  background: none
+  border: none
+  color: var(--text-muted)
+  cursor: pointer
+  font-size: 0.8rem
+  padding: 0.1rem 0.3rem
+  &:hover
+    color: #f87171
+
+.market-post-queue__item-fields
+  display: grid
+  gap: 0.75rem
+  grid-template-columns: 1fr 1fr
+  @media (max-width: 640px)
+    grid-template-columns: 1fr
+
+.market-post-queue__results
+  background: rgba(255,255,255,0.03)
+  border-radius: 8px
+  display: flex
+  flex-direction: column
+  gap: 0.35rem
+  padding: 0.75rem
+
+.market-badge--bundle
+  background: rgba(255, 180, 80, 0.12)
+  color: #ffc166
+
+.market-card__bundle-items
+  display: flex
+  flex-direction: column
+  gap: 0.3rem
+  border-top: 1px solid rgba(255,255,255,0.06)
+  padding-top: 0.5rem
+  max-height: calc(5 * (24px + 0.3rem))
+  overflow-y: auto
+  scrollbar-width: thin
+  scrollbar-color: rgba(255,255,255,0.15) transparent
+
+.market-card__bundle-item
+  align-items: center
+  display: flex
+  gap: 0.5rem
+
+.market-card__bundle-item-img
+  border-radius: 3px
+  flex-shrink: 0
+  height: 24px
+  object-fit: contain
+  width: 24px
+
+.market-card__bundle-item-name
+  flex: 1
+  font-size: 0.78rem
+  overflow: hidden
+  text-overflow: ellipsis
+  white-space: nowrap
+
+.market-card__bundle-item-price
+  color: rgba(255,255,255,0.5)
+  font-size: 0.72rem
+  flex-shrink: 0

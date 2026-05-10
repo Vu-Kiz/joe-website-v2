@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\DB;
 
 class DroidBrainRewardService
 {
+    private const MODIFIED_ENTITY_MIN_AGE_SECONDS = 14 * 24 * 60 * 60;
+
     public function syncForFile(int $fileId, ?int $payerFactionId = null, bool $createPaymentItem = false): ?array
     {
         $file = DB::table('droidbrain_files')->where('id', $fileId)->first();
@@ -70,7 +72,11 @@ class DroidBrainRewardService
                     $status = 'rewarded';
 
                     if ($isNewSystem) {
-                        $amount = 1000000;
+                        if ($this->isOwnerOnlyNonSystem($system, $fileId, $file)) {
+                            $status = 'no_reward';
+                        } else {
+                            $amount = 1000000;
+                        }
                     } else {
                         $amount = ($system['new_entities_count'] * 5000) + ($system['modified_entities_count'] * 1000);
                         if ($amount <= 0) {
@@ -96,6 +102,7 @@ class DroidBrainRewardService
                     'meta' => json_encode([
                         'previous_reward_file_id' => $previousReward->file_id ?? null,
                         'cooldown_days' => 7,
+                        'modified_too_recent_count' => (int) ($system['modified_too_recent_count'] ?? 0),
                     ], JSON_UNESCAPED_SLASHES),
                     'updated_at' => now(),
                 ];
@@ -243,6 +250,7 @@ class DroidBrainRewardService
                     'is_new_system' => $known && (int) $known->first_seen_file_id === $fileId,
                     'new_entities_count' => $counts['new'],
                     'modified_entities_count' => $counts['modified'],
+                    'modified_too_recent_count' => $counts['modified_too_recent'],
                     'unchanged_entities_count' => $counts['unchanged'],
                 ];
             });
@@ -270,7 +278,7 @@ class DroidBrainRewardService
                     ->map(fn ($row) => ['table' => 'droidbrain_stations'] + (array) $row)
             );
 
-        $counts = ['new' => 0, 'modified' => 0, 'unchanged' => 0];
+        $counts = ['new' => 0, 'modified' => 0, 'modified_too_recent' => 0, 'unchanged' => 0];
 
         foreach ($rows as $row) {
             $state = $this->classifyEntityState(
@@ -321,7 +329,48 @@ class DroidBrainRewardService
             return 'unchanged';
         }
 
+        if ($snapshotUnix === null || !is_numeric((string) $latest->snapshot_unixtime)) {
+            return 'modified_too_recent';
+        }
+
+        $ageSeconds = (int) $snapshotUnix - (int) $latest->snapshot_unixtime;
+        if ($ageSeconds < self::MODIFIED_ENTITY_MIN_AGE_SECONDS) {
+            return 'modified_too_recent';
+        }
+
         return 'modified';
+    }
+
+    protected function isOwnerOnlyNonSystem(array $system, int $fileId, object $file): bool
+    {
+        $galx = $system['galx'];
+        $galy = $system['galy'];
+
+        $isRealSystem = DB::table('swc_systems')
+            ->where('galx', $galx)
+            ->where('galy', $galy)
+            ->exists();
+
+        if ($isRealSystem) {
+            return false;
+        }
+
+        $uploaderSwcUid = $file->uploader_swc_uid;
+        if (!$uploaderSwcUid) {
+            return true;
+        }
+
+        $ships = DB::table('droidbrain_ships')
+            ->where('file_id', $fileId)
+            ->where('galx', $galx)
+            ->where('galy', $galy)
+            ->get(['owner_uid']);
+
+        if ($ships->isEmpty()) {
+            return true;
+        }
+
+        return $ships->every(fn ($ship) => $ship->owner_uid === $uploaderSwcUid);
     }
 
     protected function buildCommunicationPrefix(Collection $logs): string

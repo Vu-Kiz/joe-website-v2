@@ -81,6 +81,11 @@ class SwcAuthController extends Controller
             return redirect()->away($frontend . $returnTo);
         }
 
+        $user = Auth::user();
+        if ($user) {
+            $this->swcAuthorizationService->revokeAuthorizationForContext($user, SwcAuthorization::CONTEXT_MEMBER_TOOLS);
+        }
+
         return $this->redirectForFlow(
             request: $request,
             stateSessionKey: 'swc_member_tools_oauth_state',
@@ -89,7 +94,40 @@ class SwcAuthController extends Controller
             redirectUri: (string) Config::get('swc.redirect_uri', ''),
             scope: $scope,
             accessType: (string) Config::get('swc.member_tools_access_type', 'offline'),
-            authContext: SwcAuthorization::CONTEXT_MEMBER_TOOLS
+            authContext: SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+            renewPreviouslyGranted: false
+        );
+    }
+
+    public function publicToolsRedirect(Request $request): RedirectResponse
+    {
+        $frontend = (string) Config::get('swc.frontend_url', 'https://www.joe-swc.com');
+        $returnTo = $this->sanitizeFrontendReturnPath(
+            (string) $request->query('return_to', '/aboutme'),
+            '/aboutme'
+        );
+        $selectedTools = $this->resolveRequestedPublicTools($request);
+        $scope = $this->resolvePublicToolsScope($selectedTools);
+
+        if (!Auth::check()) {
+            return redirect()->away($frontend . $returnTo);
+        }
+
+        $user = Auth::user();
+        if ($user) {
+            $this->swcAuthorizationService->revokeAuthorizationForContext($user, SwcAuthorization::CONTEXT_PUBLIC_TOOLS);
+        }
+
+        return $this->redirectForFlow(
+            request: $request,
+            stateSessionKey: 'swc_public_tools_oauth_state',
+            returnToSessionKey: 'swc_public_tools_oauth_return_to',
+            returnTo: $returnTo,
+            redirectUri: (string) Config::get('swc.redirect_uri', ''),
+            scope: $scope,
+            accessType: (string) Config::get('swc.public_tools_access_type', 'offline'),
+            authContext: SwcAuthorization::CONTEXT_PUBLIC_TOOLS,
+            renewPreviouslyGranted: false
         );
     }
 
@@ -142,17 +180,42 @@ class SwcAuthController extends Controller
         );
     }
 
+    public function marketFactionRedirect(Request $request): RedirectResponse
+    {
+        if (!Auth::check()) {
+            $frontend = (string) Config::get('swc.frontend_url', 'https://www.joe-swc.com');
+            return redirect()->away($frontend . '/sys/debug');
+        }
+
+        return $this->redirectForFlow(
+            request: $request,
+            stateSessionKey: 'swc_market_faction_oauth_state',
+            returnToSessionKey: null,
+            returnTo: null,
+            redirectUri: (string) Config::get('swc.redirect_uri', ''),
+            scope: (string) Config::get('swc.market_faction_scope', 'personal_inv_overview personal_inv_ships_all personal_inv_vehicles_all personal_inv_materials_all personal_inv_items_all personal_inv_droids_all personal_inv_stations_all personal_inv_cities_all personal_inv_facilities_all personal_inv_npcs_all personal_inv_creatures_all faction_inv_overview faction_inv_ships_all faction_inv_vehicles_all faction_inv_materials_all faction_inv_items_all faction_inv_droids_all faction_inv_stations_all character_privileges'),
+            accessType: (string) Config::get('swc.market_faction_access_type', 'offline'),
+            authContext: SwcAuthorization::CONTEXT_MARKET_FACTION
+        );
+    }
+
     public function callback(Request $request): RedirectResponse
     {
         $state = (string) $request->query('state', '');
 
         $normalState = (string) $request->session()->get('swc_oauth_state', '');
         $memberToolsState = (string) $request->session()->get('swc_member_tools_oauth_state', '');
+        $publicToolsState = (string) $request->session()->get('swc_public_tools_oauth_state', '');
         $creditLogState = (string) $request->session()->get('swc_creditlog_oauth_state', '');
         $eventsState = (string) $request->session()->get('swc_events_oauth_state', '');
         $debugState = (string) $request->session()->get('swc_debug_oauth_state', '');
+        $marketFactionState = (string) $request->session()->get('swc_market_faction_oauth_state', '');
         $memberToolsReturnTo = $this->sanitizeFrontendReturnPath(
             (string) $request->session()->get('swc_member_tools_oauth_return_to', '/aboutme'),
+            '/aboutme'
+        );
+        $publicToolsReturnTo = $this->sanitizeFrontendReturnPath(
+            (string) $request->session()->get('swc_public_tools_oauth_return_to', '/aboutme'),
             '/aboutme'
         );
         $eventsReturnTo = $this->sanitizeFrontendReturnPath(
@@ -218,6 +281,61 @@ class SwcAuthController extends Controller
                 ));
             }
 
+            if ($publicToolsState !== '' && hash_equals($publicToolsState, $state)) {
+                [$tokenData, $profile] = $this->handleCallbackForFlow(
+                    request: $request,
+                    stateSessionKey: 'swc_public_tools_oauth_state',
+                    redirectUri: (string) Config::get('swc.redirect_uri', '')
+                );
+
+                $oauthUser = $this->upsertUserFromProfile($profile);
+                $currentUser = Auth::user();
+
+                if ($currentUser && (int) $currentUser->id !== (int) $oauthUser->id) {
+                    return redirect()->away($frontend . $this->appendQueryParam(
+                        $publicToolsReturnTo,
+                        'swc_oauth_error',
+                        'OAuth character does not match the current signed-in user.'
+                    ));
+                }
+
+                Auth::login($oauthUser);
+                $request->session()->regenerate();
+                $request->session()->put('auth_version', (int) ($oauthUser->auth_version ?? 1));
+
+                $grantedScopes = $this->swcAuthorizationService->normalizeScopeValue($tokenData['scope'] ?? null);
+
+                $authorization = $this->swcAuthorizationService->upsertAuthorization(
+                    $oauthUser,
+                    $tokenData,
+                    $grantedScopes,
+                    SwcAuthorization::CONTEXT_PUBLIC_TOOLS
+                );
+                $this->recordOauthTraceSteps(
+                    $request,
+                    $oauthUser,
+                    SwcAuthorization::CONTEXT_PUBLIC_TOOLS,
+                    (string) Config::get('swc.redirect_uri', '')
+                );
+                $this->swcAuthorizationService->recordOauthTokenExchangeMetadata(
+                    $oauthUser,
+                    SwcAuthorization::CONTEXT_PUBLIC_TOOLS,
+                    $tokenData,
+                    $this->normalizeAccessType((string) Config::get('swc.public_tools_access_type', 'offline'))
+                );
+                $this->swcAuthorizationService->recordOauthStoredAuthorizationMetadata(
+                    $oauthUser,
+                    SwcAuthorization::CONTEXT_PUBLIC_TOOLS,
+                    $authorization
+                );
+
+                return redirect()->away($frontend . $this->appendQueryParam(
+                    $publicToolsReturnTo,
+                    'swc_oauth_success',
+                    '1'
+                ));
+            }
+
             if ($creditLogState !== '' && hash_equals($creditLogState, $state)) {
                 [$tokenData, $profile] = $this->handleCallbackForFlow(
                     request: $request,
@@ -263,6 +381,61 @@ class SwcAuthController extends Controller
                 );
 
                 return redirect()->away($frontend . '/payments');
+            }
+
+            if ($marketFactionState !== '' && hash_equals($marketFactionState, $state)) {
+                [$tokenData, $profile] = $this->handleCallbackForFlow(
+                    request: $request,
+                    stateSessionKey: 'swc_market_faction_oauth_state',
+                    redirectUri: (string) Config::get('swc.redirect_uri', '')
+                );
+
+                $oauthUser = $this->upsertUserFromProfile($profile);
+                $currentUser = Auth::user();
+
+                if ($currentUser && (int) $currentUser->id !== (int) $oauthUser->id) {
+                    return redirect()->away($frontend . $this->appendQueryParam(
+                        '/sys/debug',
+                        'swc_oauth_error',
+                        'OAuth character does not match the current signed-in user.'
+                    ));
+                }
+
+                Auth::login($oauthUser);
+                $request->session()->regenerate();
+                $request->session()->put('auth_version', (int) ($oauthUser->auth_version ?? 1));
+
+                $grantedScopes = $this->swcAuthorizationService->normalizeScopeValue($tokenData['scope'] ?? null);
+
+                $authorization = $this->swcAuthorizationService->upsertAuthorization(
+                    $oauthUser,
+                    $tokenData,
+                    $grantedScopes,
+                    SwcAuthorization::CONTEXT_MARKET_FACTION
+                );
+                $this->recordOauthTraceSteps(
+                    $request,
+                    $oauthUser,
+                    SwcAuthorization::CONTEXT_MARKET_FACTION,
+                    (string) Config::get('swc.redirect_uri', '')
+                );
+                $this->swcAuthorizationService->recordOauthTokenExchangeMetadata(
+                    $oauthUser,
+                    SwcAuthorization::CONTEXT_MARKET_FACTION,
+                    $tokenData,
+                    $this->normalizeAccessType((string) Config::get('swc.market_faction_access_type', 'offline'))
+                );
+                $this->swcAuthorizationService->recordOauthStoredAuthorizationMetadata(
+                    $oauthUser,
+                    SwcAuthorization::CONTEXT_MARKET_FACTION,
+                    $authorization
+                );
+
+                return redirect()->away($frontend . $this->appendQueryParam(
+                    '/sys/debug',
+                    'swc_oauth_success',
+                    '1'
+                ));
             }
 
             if (
@@ -395,6 +568,14 @@ class SwcAuthController extends Controller
                 ));
             }
 
+            if ($publicToolsState !== '' && hash_equals($publicToolsState, $state)) {
+                return redirect()->away($frontend . $this->appendQueryParam(
+                    $publicToolsReturnTo,
+                    'swc_oauth_error',
+                    $e->getMessage()
+                ));
+            }
+
             if (
                 ($eventsState !== '' && hash_equals($eventsState, $state))
                 || ($debugState !== '' && hash_equals($debugState, $state))
@@ -418,7 +599,8 @@ class SwcAuthController extends Controller
         string $redirectUri,
         string $scope,
         string $accessType,
-        string $authContext
+        string $authContext,
+        bool $renewPreviouslyGranted = true
     ): RedirectResponse {
         $clientId     = (string) Config::get('swc.client_id', '');
         $authorizeUrl = rtrim((string) Config::get('swc.authorize_url', ''), '/');
@@ -446,8 +628,11 @@ class SwcAuthController extends Controller
             'scope'         => $scope,
             'state'         => $state,
             'access_type'   => $accessType,
-            'renew_previously_granted' => 'yes',
         ];
+
+        if ($renewPreviouslyGranted) {
+            $queryParams['renew_previously_granted'] = 'yes';
+        }
 
         $query = http_build_query($queryParams);
 
@@ -495,6 +680,7 @@ class SwcAuthController extends Controller
         $tokenUrl = rtrim((string) Config::get('swc.token_url', ''), '/');
         $requestedAccessType = $this->normalizeAccessType((string) Config::get(match ($context) {
             SwcAuthorization::CONTEXT_MEMBER_TOOLS => 'swc.member_tools_access_type',
+            SwcAuthorization::CONTEXT_PUBLIC_TOOLS => 'swc.public_tools_access_type',
             SwcAuthorization::CONTEXT_PAYMENTS => 'swc.creditlog_access_type',
             SwcAuthorization::CONTEXT_EVENTS => 'swc.events_access_type',
             SwcAuthorization::CONTEXT_DEBUG => 'swc.debug_access_type',
@@ -540,12 +726,22 @@ class SwcAuthController extends Controller
             static fn (string $tool): string => trim(Str::lower($tool)),
             explode(',', $raw)
         ));
+        $toolsExplicitlyProvided = $request->query->has('tools');
+        $disableAllRequested = in_array('none', $requestedTools, true) || in_array('off', $requestedTools, true);
+
+        if ($disableAllRequested) {
+            return [];
+        }
 
         $allowedTools = array_keys((array) Config::get('swc.member_tool_scopes', []));
         $selectedTools = array_values(array_intersect($requestedTools, $allowedTools));
 
         if ($selectedTools !== []) {
             return $selectedTools;
+        }
+
+        if ($toolsExplicitlyProvided) {
+            return [];
         }
 
         $savedPreferences = $request->user()?->member_tool_preferences;
@@ -594,8 +790,87 @@ class SwcAuthController extends Controller
         }
 
         return (string) Config::get(
-            'swc.member_tools_scope',
-            'character_read character_events character_credits character_credits_write faction_credits_read faction_credits_write character_privileges'
+            'swc.member_tools_min_scope',
+            (string) Config::get('swc.default_scope', 'character_read')
+        );
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function resolveRequestedPublicTools(Request $request): array
+    {
+        $raw = (string) $request->query('tools', '');
+        $requestedTools = array_filter(array_map(
+            static fn (string $tool): string => trim(Str::lower($tool)),
+            explode(',', $raw)
+        ));
+        $toolsExplicitlyProvided = $request->query->has('tools');
+        $disableAllRequested = in_array('none', $requestedTools, true) || in_array('off', $requestedTools, true);
+
+        if ($disableAllRequested) {
+            return [];
+        }
+
+        $allowedTools = array_keys((array) Config::get('swc.public_tool_scopes', []));
+        $selectedTools = array_values(array_intersect($requestedTools, $allowedTools));
+
+        if ($selectedTools !== []) {
+            return $selectedTools;
+        }
+
+        if ($toolsExplicitlyProvided) {
+            return [];
+        }
+
+        $savedPreferences = $request->user()?->public_tool_preferences;
+        if (is_array($savedPreferences)) {
+            $savedTools = [];
+            foreach ($allowedTools as $tool) {
+                if (!empty($savedPreferences[$tool])) {
+                    $savedTools[] = $tool;
+                }
+            }
+
+            if ($savedTools !== []) {
+                return $savedTools;
+            }
+        }
+
+        return $allowedTools;
+    }
+
+    /**
+     * @param  array<int, string>  $selectedTools
+     */
+    protected function resolvePublicToolsScope(array $selectedTools): string
+    {
+        $toolScopes = (array) Config::get('swc.public_tool_scopes', []);
+        $scopes = [];
+
+        foreach ($selectedTools as $tool) {
+            $scopeValue = trim((string) ($toolScopes[$tool] ?? ''));
+            if ($scopeValue === '') {
+                continue;
+            }
+
+            foreach (preg_split('/\s+/', $scopeValue) ?: [] as $scope) {
+                $scope = trim($scope);
+                if ($scope !== '') {
+                    $scopes[] = $scope;
+                }
+            }
+        }
+
+        $scopes = array_values(array_unique($scopes));
+
+        if ($scopes !== []) {
+            return implode(' ', $scopes);
+        }
+
+        return (string) Config::get(
+            'swc.public_tools_min_scope',
+            (string) Config::get('swc.default_scope', 'character_read')
         );
     }
 
@@ -629,6 +904,7 @@ class SwcAuthController extends Controller
         $tokenUrl     = rtrim((string) Config::get('swc.token_url', ''), '/');
         $requestedAccessType = $this->normalizeAccessType((string) Config::get(match ($stateSessionKey) {
             'swc_member_tools_oauth_state' => 'swc.member_tools_access_type',
+            'swc_public_tools_oauth_state' => 'swc.public_tools_access_type',
             'swc_creditlog_oauth_state' => 'swc.creditlog_access_type',
             'swc_events_oauth_state' => 'swc.events_access_type',
             'swc_debug_oauth_state' => 'swc.debug_access_type',

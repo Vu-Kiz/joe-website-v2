@@ -1,4 +1,4 @@
-import type { Client } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, type Client, type MessageCreateOptions } from 'discord.js';
 import type { OutboxClaimMessage } from '../types/backend';
 import type { BackendApi } from './BackendApi';
 import type { BotConfig } from './BotConfig';
@@ -79,10 +79,26 @@ export class OutboxWorker {
         }
 
         const sentMessageIds: string[] = [];
-        for (const content of messages) {
+        for (let i = 0; i < messages.length; i++) {
+          const content = messages[i];
+          const isLast = i === messages.length - 1;
+
+          const payload: MessageCreateOptions = { content };
+
+          if (isLast && message.notification_key === 'market_sale') {
+            const orderId = message.meta?.order_id;
+            if (typeof orderId === 'number') {
+              const button = new ButtonBuilder()
+                .setCustomId(`market_fulfill:${orderId}`)
+                .setLabel('Send Item to Buyer')
+                .setStyle(ButtonStyle.Success);
+              payload.components = [new ActionRowBuilder<ButtonBuilder>().addComponents(button)];
+            }
+          }
+
           console.log(`Sending DM for outbox message ${message.id} to ${message.dm.user_id}.`);
           const created = await this.withTimeout(
-            user.send({ content }),
+            user.send(payload),
             `Timed out sending DM to Discord user ${message.dm.user_id}.`
           );
           sentMessageIds.push(created.id);

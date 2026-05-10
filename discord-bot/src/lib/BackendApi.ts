@@ -128,4 +128,14 @@ export class BackendApi {
       body: JSON.stringify(payload),
     });
   }
+
+  public fulfillMarketOrder(orderId: number, discordUserId: string) {
+    return this.fetch<{ ok: true; manual?: boolean; message: string }>(
+      `/discord-bot/market/orders/${orderId}/fulfill`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ discord_user_id: discordUserId }),
+      }
+    );
+  }
 }

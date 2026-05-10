@@ -116,7 +116,7 @@ export class PostChangelogCommand extends Command {
       });
     }
 
-    const changelogLink = `${container.botConfig.webappUrl}/members?members_view=changelog&changelog_version=${encodeURIComponent(version)}`;
+    const changelogLink = `${container.botConfig.webappUrl}/tools?tools_view=changelog&changelog_version=${encodeURIComponent(version)}`;
     const message = releaseDateText
       ? `New release **v${version}** (${releaseDateText}) is now live.\nChange log: ${changelogLink}`
       : `New release **v${version}** is now live.\nChange log: ${changelogLink}`;
