@@ -104,6 +104,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
+      args:
+        BACKEND_ORIGIN: http://backend
     image: joe-frontend-v2:prod
     container_name: joe_frontend_v2_prod
     restart: unless-stopped
