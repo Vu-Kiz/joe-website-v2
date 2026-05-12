@@ -972,7 +972,7 @@ class SwcAuthController extends Controller
             [
                 'swc_handle' => $charName,
                 'swc_avatar_url' => $avatar !== '' ? $avatar : null,
-                'is_joe_member' => true,
+                'is_joe_member' => $this->isJoeMemberInProfile($profile),
             ]
         );
 
@@ -1031,12 +1031,67 @@ class SwcAuthController extends Controller
             'swc_character_id' => $numericCharacterId,
             'swc_handle' => $charName,
             'swc_avatar_url' => $avatar !== '' ? $avatar : null,
-            'is_joe_member' => true,
+            'is_joe_member' => $this->isJoeMemberInProfile($profile),
         ])->save();
 
         $this->swcFactionSyncService->syncForUser($user, $profile);
 
         return $user->fresh();
+    }
+
+    protected function isJoeMemberInProfile(array $profile): bool
+    {
+        $factions = $this->extractFactionsFromProfile($profile);
+
+        foreach ($factions as $faction) {
+            $name = trim((string) data_get($faction, 'value', data_get($faction, 'name', '')));
+            if ($name === '') {
+                continue;
+            }
+
+            $type = strtolower(trim((string) data_get($faction, 'attributes.type', '')));
+            if ($type !== '' && str_contains($type, 'public')) {
+                continue;
+            }
+
+            if (str_starts_with(strtolower($name), 'jawa offworld enterprises')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function extractFactionsFromProfile(array $profile): array
+    {
+        $candidates = [
+            data_get($profile, 'swcapi.character.factions.faction'),
+            data_get($profile, 'swcapi.character.factions'),
+            data_get($profile, 'swcapi.character.faction'),
+            data_get($profile, 'swcapi.factions.faction'),
+            data_get($profile, 'swcapi.factions'),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (!is_array($candidate)) {
+                continue;
+            }
+
+            if ($this->isAssoc($candidate)) {
+                if (isset($candidate['value']) || isset($candidate['name']) || isset($candidate['attributes'])) {
+                    return [$candidate];
+                }
+            }
+
+            return array_values(array_filter($candidate, fn ($item) => is_array($item)));
+        }
+
+        return [];
+    }
+
+    protected function isAssoc(array $array): bool
+    {
+        return array_keys($array) !== range(0, count($array) - 1);
     }
 
 }
