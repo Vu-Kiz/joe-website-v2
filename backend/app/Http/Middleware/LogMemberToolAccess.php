@@ -88,6 +88,7 @@ class LogMemberToolAccess
             str_starts_with($apiPath, 'universe/archive/') => 'galactic_archive',
             str_starts_with($apiPath, 'universe/hyper-planner'),
             str_starts_with($apiPath, 'universe/hyper-plans') => 'hyper_planner',
+            str_starts_with($apiPath, 'fleet/') => 'fleet_command',
             preg_match('#^universe/(station-types|facility-types|item-types|planet-types|ship-types|vehicle-types|droid-types|creature-types|npc-types|races|weapon-types|terrain-types|material-types)(/|$)#', $apiPath) === 1 => 'entity_stats',
             str_starts_with($apiPath, 'universe/') => 'astrogation',
             str_starts_with($apiPath, 'payments'),

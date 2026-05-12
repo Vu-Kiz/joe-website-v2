@@ -71,6 +71,11 @@ export function canAccessWreckingHelperExtension(user: SwcUser | null | undefine
   return !!(user.can_access_wrecking_helper_extension || user.is_admin || user.is_sysadmin);
 }
 
+export function canAccessFleetCommander(user: SwcUser | null | undefined): boolean {
+  if (!user) return false;
+  return !!(user.can_access_fleet_commander || user.is_admin || user.is_sysadmin);
+}
+
 export function canManageBlog(user: SwcUser | null | undefined): boolean {
   if (!user) return false;
   return !!(user.can_manage_blog || user.is_admin || user.is_sysadmin);

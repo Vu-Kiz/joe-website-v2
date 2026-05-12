@@ -17,6 +17,7 @@ export type SwcUser = {
   can_view_asteroid_intel: boolean;
   can_access_combat_calc: boolean;
   can_access_wrecking_helper_extension: boolean;
+  can_access_fleet_commander: boolean;
   scan_window_top_left_galx?: number | null;
   scan_window_top_left_galy?: number | null;
   scan_window_bottom_right_galx?: number | null;
@@ -54,6 +55,7 @@ const PERMISSION_FLAG_LABELS: Record<string, string> = {
   can_manage_eotm: "employee spotlight management access",
   can_access_combat_calc: "combat calculator access",
   can_access_wrecking_helper_extension: "wrecking helper extension access",
+  can_access_fleet_commander: "fleet commander access",
   member_tool_access: "member tools access",
 };
 

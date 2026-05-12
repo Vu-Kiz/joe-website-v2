@@ -109,6 +109,25 @@ class SwcAuthorizationService
         ])?->has_character_privileges_access;
     }
 
+    public function hasCharacterSkillsAccess(User $user): bool
+    {
+        $auth = $this->firstActiveForContexts($user, [
+            SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+            SwcAuthorization::CONTEXT_PUBLIC_TOOLS,
+            SwcAuthorization::CONTEXT_PAYMENTS,
+        ]);
+
+        if (!$auth) {
+            return false;
+        }
+
+        $grantedScopes = $this->normalizeScopeValue($auth->granted_scopes);
+
+        return
+            in_array('character_skills', $grantedScopes, true)
+            || in_array('character_all', $grantedScopes, true);
+    }
+
     public function hasCharacterCreditsWriteAccess(User $user): bool
     {
         $auth = $this->firstActiveForContexts($user, [

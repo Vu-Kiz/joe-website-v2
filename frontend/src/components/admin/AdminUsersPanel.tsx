@@ -28,6 +28,7 @@ type EditableUserState = {
   canViewAsteroidIntel: boolean;
   canAccessCombatCalc: boolean;
   canAccessWreckingHelperExtension: boolean;
+  canAccessFleetCommander: boolean;
   isGarry: boolean;
   isRaid: boolean;
 
@@ -61,6 +62,7 @@ function mapUser(user: AdminManageableUser): EditableUserState {
     canViewAsteroidIntel: !!user.can_view_asteroid_intel,
     canAccessCombatCalc: !!user.can_access_combat_calc,
     canAccessWreckingHelperExtension: !!user.can_access_wrecking_helper_extension,
+    canAccessFleetCommander: !!user.can_access_fleet_commander,
     isGarry: !!user.is_garry,
     isRaid: !!user.is_raid,
     canManageBlog: !!user.can_manage_blog,
@@ -136,8 +138,9 @@ const AdminUsersPanel: React.FC = () => {
 
   const handleToggle = (
     userId: number,
-    key: "isAdmin" | "canViewAsteroidIntel" | "canManageBlog"
+    key: "isAdmin" | "isIntel" | "canViewAsteroidIntel" | "canManageBlog"
       | "canAccessCombatCalc" | "canAccessWreckingHelperExtension"
+      | "canAccessFleetCommander"
   ) => {
     setNotice(null);
 
@@ -155,9 +158,11 @@ const AdminUsersPanel: React.FC = () => {
 
       const res = await updateAdminUserPermissions(user.id, {
         is_admin: user.isAdmin,
+        is_intel: user.isIntel,
         can_view_asteroid_intel: user.canViewAsteroidIntel,
         can_access_combat_calc: user.canAccessCombatCalc,
         can_access_wrecking_helper_extension: user.canAccessWreckingHelperExtension,
+        can_access_fleet_commander: user.canAccessFleetCommander,
         scan_window_top_left_galx: user.scanWindowTopLeftGalx.trim() === "" ? null : Number(user.scanWindowTopLeftGalx),
         scan_window_top_left_galy: user.scanWindowTopLeftGaly.trim() === "" ? null : Number(user.scanWindowTopLeftGaly),
         scan_window_bottom_right_galx: user.scanWindowBottomRightGalx.trim() === "" ? null : Number(user.scanWindowBottomRightGalx),
@@ -385,6 +390,9 @@ const AdminUsersPanel: React.FC = () => {
                       {user.canAccessWreckingHelperExtension && (
                         <span className="admin-badge admin-badge--content">Wrecking Helper</span>
                       )}
+                      {user.canAccessFleetCommander && (
+                        <span className="admin-badge admin-badge--content">Fleet Commander</span>
+                      )}
                       {user.isGarry && (
                         <span className="admin-badge admin-badge--garry">Garry</span>
                       )}
@@ -447,6 +455,23 @@ const AdminUsersPanel: React.FC = () => {
                         </span>
                       </label>
 
+                      <label className={"admin-perm-tile" + (user.isIntel ? " is-active" : "")}>
+                        <input
+                          type="checkbox"
+                          checked={user.isIntel}
+                          onChange={() => handleToggle(user.id, "isIntel")}
+                        />
+                        <span className="admin-perm-tile__head">
+                          <span className="admin-perm-tile__title">Intel Role</span>
+                          <span className="admin-perm-tile__switch" aria-hidden="true">
+                            <span className="admin-perm-tile__knob" />
+                          </span>
+                        </span>
+                        <span className="admin-perm-tile__desc">
+                          Grants intel-role access for DroidBrain and related intel workflows.
+                        </span>
+                      </label>
+
                       <label className={"admin-perm-tile" + (user.canViewAsteroidIntel ? " is-active" : "")}>
                         <input
                           type="checkbox"
@@ -495,6 +520,23 @@ const AdminUsersPanel: React.FC = () => {
                         </span>
                         <span className="admin-perm-tile__desc">
                           Grants backend authorization for this specific browser extension.
+                        </span>
+                      </label>
+
+                      <label className={"admin-perm-tile" + (user.canAccessFleetCommander ? " is-active" : "")}>
+                        <input
+                          type="checkbox"
+                          checked={user.canAccessFleetCommander}
+                          onChange={() => handleToggle(user.id, "canAccessFleetCommander")}
+                        />
+                        <span className="admin-perm-tile__head">
+                          <span className="admin-perm-tile__title">Fleet Commander</span>
+                          <span className="admin-perm-tile__switch" aria-hidden="true">
+                            <span className="admin-perm-tile__knob" />
+                          </span>
+                        </span>
+                        <span className="admin-perm-tile__desc">
+                          Grants access to the Biometrics member skills tool.
                         </span>
                       </label>
 

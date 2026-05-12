@@ -41,6 +41,7 @@ class AuthController extends Controller
                 'can_view_asteroid_intel' => (bool) Auth::user()->can_view_asteroid_intel,
                 'can_access_combat_calc' => (bool) Auth::user()->can_access_combat_calc,
                 'can_access_wrecking_helper_extension' => (bool) Auth::user()->can_access_wrecking_helper_extension,
+                'can_access_fleet_commander' => (bool) Auth::user()->can_access_fleet_commander,
                 'scan_window_top_left_galx' => Auth::user()->scan_window_top_left_galx,
                 'scan_window_top_left_galy' => Auth::user()->scan_window_top_left_galy,
                 'scan_window_bottom_right_galx' => Auth::user()->scan_window_bottom_right_galx,

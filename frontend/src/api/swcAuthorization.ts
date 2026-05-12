@@ -3,6 +3,7 @@ import { apiFetch } from "./auth";
 export type MemberToolPreferences = {
   galaxy: boolean;
   payments: boolean;
+  fleet_command?: boolean;
   market_personal?: boolean;
   market_faction?: boolean;
   universe?: {
@@ -42,6 +43,7 @@ export type SwcAuthorizationStatus = {
   has_faction_credit_log_access: boolean;
   has_faction_credits_write_access?: boolean;
   has_character_privileges_access: boolean;
+  has_character_skills_access?: boolean;
   has_character_credits_write_access?: boolean;
   has_personal_inventory_access?: boolean;
   has_faction_inventory_access?: boolean;

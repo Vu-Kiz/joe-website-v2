@@ -12,7 +12,7 @@ import SwcToolAccessSection from "../components/aboutme/SwcToolAccessSection";
 import "../styles/_aboutme.sass";
 
 type Pill = { key: string; label: string };
-type MemberToolKey = "galaxy" | "payments" | "market_personal" | "market_faction";
+type MemberToolKey = "galaxy" | "payments" | "fleet_command" | "market_personal" | "market_faction";
 type PublicToolKey = "payments";
 type ToolCard<K extends string> = {
   key: K;
@@ -30,6 +30,7 @@ const AboutMe: React.FC = () => {
   const [selectedMemberTools, setSelectedMemberTools] = useState<Record<MemberToolKey, boolean>>({
     galaxy: true,
     payments: true,
+    fleet_command: true,
     market_personal: false,
     market_faction: false,
   });
@@ -52,6 +53,7 @@ const AboutMe: React.FC = () => {
           setSelectedMemberTools({
             galaxy: true,
             payments: true,
+            fleet_command: true,
             market_personal: false,
             market_faction: false,
           });
@@ -73,6 +75,7 @@ const AboutMe: React.FC = () => {
             setSelectedMemberTools({
               galaxy: swcAuthRes.data?.member_tool_preferences?.galaxy ?? true,
               payments: swcAuthRes.data?.member_tool_preferences?.payments ?? true,
+              fleet_command: swcAuthRes.data?.member_tool_preferences?.fleet_command ?? true,
               market_personal: swcAuthRes.data?.member_tool_preferences?.market_personal ?? false,
               market_faction: swcAuthRes.data?.member_tool_preferences?.market_faction ?? false,
             });
@@ -86,6 +89,7 @@ const AboutMe: React.FC = () => {
             setSelectedMemberTools({
               galaxy: true,
               payments: true,
+              fleet_command: true,
               market_personal: false,
               market_faction: false,
             });
@@ -176,11 +180,12 @@ const AboutMe: React.FC = () => {
           has_personal_credit_log_access: false,
           has_faction_credit_log_access: false,
           has_character_privileges_access: false,
+          has_character_skills_access: false,
           granted_scopes: null,
           token_expires_at: null,
           last_verified_at: null,
           revoked_at: null,
-          member_tool_preferences: { galaxy: true, payments: true, market_personal: false, market_faction: false },
+          member_tool_preferences: { galaxy: true, payments: true, fleet_command: true, market_personal: false, market_faction: false },
           public_tool_preferences: { payments: true },
         }),
         member_tool_preferences: response.data.member_tool_preferences,
@@ -209,11 +214,12 @@ const AboutMe: React.FC = () => {
           has_personal_credit_log_access: false,
           has_faction_credit_log_access: false,
           has_character_privileges_access: false,
+          has_character_skills_access: false,
           granted_scopes: null,
           token_expires_at: null,
           last_verified_at: null,
           revoked_at: null,
-          member_tool_preferences: { galaxy: true, payments: true, market_personal: false, market_faction: false },
+          member_tool_preferences: { galaxy: true, payments: true, fleet_command: true, market_personal: false, market_faction: false },
           public_tool_preferences: { payments: true },
         }),
         member_tool_preferences: response.data.member_tool_preferences,
@@ -264,6 +270,13 @@ const AboutMe: React.FC = () => {
       accessNow: Boolean(swcAuth?.has_character_credits_write_access),
     },
     {
+      key: "fleet_command",
+      title: "Biometrics",
+      description: "Grant SWC character skills access for leaders to be able to see your skill stats.",
+      enabled: selectedMemberTools.fleet_command,
+      accessNow: Boolean(swcAuth?.has_character_skills_access),
+    },
+    {
       key: "market_personal",
       title: "Market (Personal Inventory)",
       description: "Grant access to your personal SWC inventory for browsing and listing in the internal market.",
@@ -277,7 +290,7 @@ const AboutMe: React.FC = () => {
       enabled: selectedMemberTools.market_faction,
       accessNow: Boolean(swcAuth?.has_faction_inventory_access),
     },
-  ], [selectedMemberTools.galaxy, selectedMemberTools.payments, selectedMemberTools.market_personal, selectedMemberTools.market_faction, swcAuth?.has_character_credits_write_access, swcAuth?.has_faction_inventory_access, swcAuth?.has_personal_inventory_access, swcAuth?.has_personal_events_access]);
+  ], [selectedMemberTools.galaxy, selectedMemberTools.payments, selectedMemberTools.fleet_command, selectedMemberTools.market_personal, selectedMemberTools.market_faction, swcAuth?.has_character_credits_write_access, swcAuth?.has_character_skills_access, swcAuth?.has_faction_inventory_access, swcAuth?.has_personal_inventory_access, swcAuth?.has_personal_events_access]);
 
   const publicToolCards = useMemo<Array<ToolCard<PublicToolKey>>>(() => [
     {

@@ -14,7 +14,7 @@ import {
 } from "../api/jobs";
 import { getPayments } from "../api/payments";
 import { getMyPayableFactions, type PayableFaction } from "../api/factions";
-import { canAccessAdmin, canAccessCombatCalculator, canAccessIntel, canAccessMembers, canAccessPayments, canAccessSysadmin, canAccessWreckingHelperExtension } from "../auth/permissions";
+import { canAccessAdmin, canAccessCombatCalculator, canAccessFleetCommander, canAccessIntel, canAccessMembers, canAccessPayments, canAccessSysadmin, canAccessWreckingHelperExtension } from "../auth/permissions";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import OpenJobsPanel from "../components/members/jobs/OpenJobsPanel";
@@ -29,6 +29,7 @@ import MemberCombatCalculatorPanel from "../components/members/MemberCombatCalcu
 import MemberWeaponHeatmapPanel from "../components/members/MemberWeaponHeatmapPanel";
 import MemberWreckingHelperPanel from "../components/members/MemberWreckingHelperPanel";
 import MemberRoleChangelogPanel from "../components/members/MemberRoleChangelogPanel";
+import MemberFleetCommandPanel from "../components/members/MemberFleetCommandPanel";
 import PrivilegePreviewPanel, {
   toPreviewPrivs,
   type PreviewPrivs,
@@ -37,6 +38,7 @@ import HamburgerToggle from "../components/common/HamburgerToggle";
 import jawaLogo from "../assets/branding/jawalogo.png";
 import archiveIcon from "../assets/members/ArchiveIcon.png";
 import astrogationIcon from "../assets/members/AstrogationIcon.png";
+import biometricsIcon from "../assets/members/BiometricsIcon.png";
 import chainCodeIcon from "../assets/members/ChainCodeIcon.png";
 import changelogIcon from "../assets/members/ChangelogIcon.png";
 import combatCalcIcon from "../assets/members/CombatCalcIcon.png";
@@ -56,7 +58,7 @@ import "../styles/main.sass";
 import "../styles/_admin.sass";
 import "../styles/_membersuniverse.sass";
 
-type MembersView = "overview" | "jobs" | "universe" | "stats" | "hyperplanner" | "archive" | "shipHeatmap" | "weaponHeatmap" | "wreckingHelper" | "changelog";
+type MembersView = "overview" | "jobs" | "universe" | "stats" | "hyperplanner" | "biometrics" | "archive" | "shipHeatmap" | "weaponHeatmap" | "wreckingHelper" | "changelog";
 type JobsView = "open" | "posted" | "taken" | "create";
 type MembersToolCard = {
   key: string;
@@ -73,12 +75,16 @@ function parseMembersView(value: string | null): MembersView | null {
     case "universe":
     case "stats":
     case "hyperplanner":
+    case "biometrics":
     case "archive":
     case "shipHeatmap":
     case "weaponHeatmap":
     case "wreckingHelper":
     case "changelog":
       return value;
+    case "fleetCommand":
+    case "Biometrics":
+      return "biometrics";
     default:
       return null;
   }
@@ -291,6 +297,7 @@ const MembersPage: React.FC = () => {
       universe: "astrogation",
       stats: "entity_stats",
       hyperplanner: "hyper_planner",
+      biometrics: "fleet_command",
       archive: "galactic_archive",
     };
 
@@ -385,20 +392,25 @@ const MembersPage: React.FC = () => {
   }
 
   const isLoggedIn = !!user;
-  const canSeeMembers = canAccessMembers(user) || canAccessIntel(user) || canAccessWreckingHelperExtension(user);
+  const canSeeMembers = canAccessMembers(user) || canAccessIntel(user) || canAccessWreckingHelperExtension(user) || canAccessFleetCommander(user);
   const canSeeMemberOnlyTools = canAccessMembers(user);
+  const canSeeFleetCommander = canAccessFleetCommander(user);
   const canSeeGalacticArchive = canAccessAdmin(user);
   const canSeeCombatCalculator = canAccessCombatCalculator(user);
   const canSeeWreckingHelperExtension = canAccessWreckingHelperExtension(user);
   const canSeeToolkitPrivilegePreview = canAccessSysadmin(user);
-  const previewCardPrivs = canSeeToolkitPrivilegePreview ? toolkitPreviewPrivs : toPreviewPrivs(user);
-  const showAdminCard = previewCardPrivs.isAdmin || previewCardPrivs.isSysadmin;
-  const showMemberToolCards = previewCardPrivs.isJoeMember || previewCardPrivs.isAdmin || previewCardPrivs.isSysadmin;
-  const showPaymentsCard = previewCardPrivs.isJoeMember || previewCardPrivs.isAdmin || previewCardPrivs.isSysadmin;
-  const showDroidBrainCard = previewCardPrivs.isJoeMember || previewCardPrivs.isIntel || previewCardPrivs.isSysadmin;
-  const showWreckingHelperCard = previewCardPrivs.canAccessWreckingHelper || previewCardPrivs.isAdmin || previewCardPrivs.isSysadmin;
-  const showCombatCalculatorCard = previewCardPrivs.canAccessCombatCalc || previewCardPrivs.isAdmin || previewCardPrivs.isSysadmin;
-  const showGalacticArchiveCard = previewCardPrivs.isSysadmin;
+  const effectiveCardPrivs =
+    canSeeToolkitPrivilegePreview && toolkitPrivPreviewOpen
+      ? toolkitPreviewPrivs
+      : toPreviewPrivs(user);
+  const showAdminCard = effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
+  const showMemberToolCards = effectiveCardPrivs.isJoeMember || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
+  const showPaymentsCard = effectiveCardPrivs.isJoeMember || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
+  const showDroidBrainCard = effectiveCardPrivs.isJoeMember || effectiveCardPrivs.isIntel || effectiveCardPrivs.isSysadmin;
+  const showWreckingHelperCard = effectiveCardPrivs.canAccessWreckingHelper || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
+  const showFleetCommanderCard = effectiveCardPrivs.canAccessFleetCommander || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
+  const showCombatCalculatorCard = effectiveCardPrivs.canAccessCombatCalc || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
+  const showGalacticArchiveCard = effectiveCardPrivs.isSysadmin;
 
   const openJobs = useMemo(() => jobs.filter((j) => j.status === "open"), [jobs]);
 
@@ -462,6 +474,7 @@ const MembersPage: React.FC = () => {
     const selectedTools = [
       savedPreferences?.galaxy !== false ? "galaxy" : null,
       savedPreferences?.payments !== false ? "payments" : null,
+      savedPreferences?.fleet_command !== false ? "fleet_command" : null,
     ].filter((value): value is string => value !== null);
 
     const query = new URLSearchParams({
@@ -593,6 +606,14 @@ const MembersPage: React.FC = () => {
               onClick: () => setMembersView("hyperplanner"),
             } satisfies MembersToolCard,
             {
+              key: "biometrics",
+              title: "Biometrics",
+              description:
+                "Filter members, inspect individual skill stats, and plan assignments with current SWC skill data.",
+              actionLabel: "Open Biometrics",
+              onClick: () => setMembersView("biometrics"),
+            } satisfies MembersToolCard,
+            {
               key: "shipHeatmap",
               title: "Combat Calculator",
               description:
@@ -617,6 +638,7 @@ const MembersPage: React.FC = () => {
             } satisfies MembersToolCard,
           ]
             .filter((tool) => tool.key !== "archive" || showGalacticArchiveCard)
+            .filter((tool) => tool.key !== "biometrics" || showFleetCommanderCard)
             .filter((tool) => tool.key !== "shipHeatmap" || showCombatCalculatorCard)
         : []),
     ],
@@ -626,6 +648,7 @@ const MembersPage: React.FC = () => {
       showPaymentsCard,
       showDroidBrainCard,
       showWreckingHelperCard,
+      showFleetCommanderCard,
       showCombatCalculatorCard,
       showGalacticArchiveCard,
       hasPendingPayments,
@@ -784,6 +807,8 @@ const MembersPage: React.FC = () => {
                         ? heatmapIcon
                       : tool.key === "hyperplanner"
                         ? hyperIcon
+                      : tool.key === "biometrics"
+                        ? biometricsIcon
                         : tool.key === "archive"
                           ? archiveIcon
                         : tool.key === "stats"
@@ -811,6 +836,8 @@ const MembersPage: React.FC = () => {
                         ? "Targeting Heatmap"
                       : tool.key === "hyperplanner"
                         ? "Hyper Planner"
+                      : tool.key === "biometrics"
+                        ? "Biometrics"
                       : tool.key === "archive"
                         ? "Galactic Archive"
                       : tool.key === "stats"
@@ -999,6 +1026,14 @@ const MembersPage: React.FC = () => {
         <HyperPlannerPanel
           onBack={() => setMembersView("overview")}
           canRefreshStoredHyperlanes={canAccessSysadmin(user)}
+        />
+      )}
+
+      {membersView === "biometrics" && canSeeFleetCommander && (
+        <MemberFleetCommandPanel
+          onBack={() => setMembersView("overview")}
+          swcAuth={swcAuth}
+          onRequestSwcResync={handleResyncSwcAccess}
         />
       )}
 

@@ -35,6 +35,7 @@ class MemberToolAccessController extends Controller
                     'astrogation',
                     'entity_stats',
                     'hyper_planner',
+                    'fleet_command',
                     'galactic_archive',
                     'payments',
                     'droidbrain',
@@ -69,6 +70,7 @@ class MemberToolAccessController extends Controller
         return match ($area) {
             'entity_stats' => 'Entity Stats',
             'hyper_planner' => 'Hyper Planner',
+            'fleet_command' => 'Fleet Command',
             'galactic_archive' => 'Galactic Archive',
             'droidbrain' => 'DroidBrain',
             default => ucwords(str_replace('_', ' ', $area)),

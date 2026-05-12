@@ -13,6 +13,7 @@ class SwcAuthorizationController extends Controller
     protected const DEFAULT_MEMBER_TOOL_PREFERENCES = [
         'galaxy' => true,
         'payments' => true,
+        'fleet_command' => true,
         'market_personal' => false,
         'market_faction' => false,
         'universe' => [
@@ -74,6 +75,7 @@ class SwcAuthorizationController extends Controller
                 'has_faction_credit_log_access' => $this->swcAuthorizationService->hasFactionCreditLogAccess($user),
                 'has_faction_credits_write_access' => $this->swcAuthorizationService->hasFactionCreditsWriteAccess($user),
                 'has_character_privileges_access' => $this->swcAuthorizationService->hasCharacterPrivilegesAccess($user),
+                'has_character_skills_access' => $this->swcAuthorizationService->hasCharacterSkillsAccess($user),
                 'has_character_credits_write_access' => $this->swcAuthorizationService->hasCharacterCreditsWriteAccess($user),
                 'has_personal_inventory_access' => $this->swcAuthorizationService->hasPersonalInventoryAccess($user),
                 'has_faction_inventory_access' => $this->swcAuthorizationService->hasFactionInventoryAccess($user),
@@ -101,6 +103,7 @@ class SwcAuthorizationController extends Controller
             'member_tool_preferences' => ['nullable', 'array'],
             'member_tool_preferences.galaxy' => ['nullable', 'boolean'],
             'member_tool_preferences.payments' => ['nullable', 'boolean'],
+            'member_tool_preferences.fleet_command' => ['nullable', 'boolean'],
             'member_tool_preferences.market_personal' => ['nullable', 'boolean'],
             'member_tool_preferences.market_faction' => ['nullable', 'boolean'],
             'member_tool_preferences.universe' => ['nullable', 'array'],
@@ -171,6 +174,9 @@ class SwcAuthorizationController extends Controller
             'payments' => array_key_exists('payments', $current)
                 ? (bool) $current['payments']
                 : self::DEFAULT_MEMBER_TOOL_PREFERENCES['payments'],
+            'fleet_command' => array_key_exists('fleet_command', $current)
+                ? (bool) $current['fleet_command']
+                : self::DEFAULT_MEMBER_TOOL_PREFERENCES['fleet_command'],
             'market_personal' => array_key_exists('market_personal', $current)
                 ? (bool) $current['market_personal']
                 : self::DEFAULT_MEMBER_TOOL_PREFERENCES['market_personal'],

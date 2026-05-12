@@ -52,6 +52,7 @@ use App\Http\Controllers\Api\ContactRequestController;
 use App\Http\Controllers\Api\Admin\ContactRequestSettingsController;
 use App\Http\Controllers\Api\Extension\HelperAuthController;
 use App\Http\Controllers\Api\Extension\HelperSettingsController;
+use App\Http\Controllers\Api\SkillsToolController;
 
 // Public utility
 Route::get('/health', [HealthController::class, 'index']);
@@ -411,4 +412,10 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
     Route::delete('/manual-payment-templates/{manualPaymentTemplate}', [ManualPaymentTemplateController::class, 'destroy']);
     Route::get('/factions/mine/privileges', [FactionPrivilegeController::class, 'mine']);
     
+});
+
+Route::middleware(['auth:sanctum', 'require_any:can_access_fleet_commander,is_admin,is_sysadmin'])->group(function () {
+    Route::get('/fleet/members', [SkillsToolController::class, 'members']);
+    Route::get('/fleet/roster-matrix', [SkillsToolController::class, 'rosterMatrix']);
+    Route::get('/fleet/member-skills/{uid}', [SkillsToolController::class, 'memberSkills']);
 });

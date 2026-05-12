@@ -5,6 +5,7 @@ export type MemberToolArea =
   | "astrogation"
   | "entity_stats"
   | "hyper_planner"
+  | "fleet_command"
   | "galactic_archive"
   | "payments"
   | "droidbrain";
