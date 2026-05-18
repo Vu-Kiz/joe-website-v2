@@ -128,6 +128,8 @@ const HyperPlannerPanel: React.FC<HyperPlannerPanelProps> = ({
   const [savedPlans, setSavedPlans] = useState<HyperPlan[]>([]);
   const [loadingSavedPlans, setLoadingSavedPlans] = useState(true);
   const [savedPlansError, setSavedPlansError] = useState<string | null>(null);
+  const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
+  const [savedPlansOpen, setSavedPlansOpen] = useState(!isMobile);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [showPlannerInputs, setShowPlannerInputs] = useState(false);
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
@@ -679,13 +681,24 @@ const HyperPlannerPanel: React.FC<HyperPlannerPanelProps> = ({
         </article>
 
         <article className="panel admin-card members-hyperplanner__picker">
-          <h3 className="admin-card__title">Saved Plans</h3>
+          <div className="members-hyperplanner__saved-plans-head">
+            <h3 className="admin-card__title">Saved Plans</h3>
+            {isMobile ? (
+              <button
+                type="button"
+                className="btn btn--small"
+                onClick={() => setSavedPlansOpen((o) => !o)}
+              >
+                {savedPlansOpen ? "Hide" : "Show"}
+              </button>
+            ) : null}
+          </div>
           {loadingSavedPlans ? <p className="small">Loading saved plans…</p> : null}
           {savedPlansError ? <p className="small" style={{ color: "salmon" }}>{savedPlansError}</p> : null}
           {!loadingSavedPlans && savedPlans.length === 0 ? (
             <p className="small">No saved hyper plans yet.</p>
           ) : null}
-          <div className="members-hyperplanner__suggestions">
+          {savedPlansOpen ? (<div className="members-hyperplanner__suggestions">
             {savedPlans.map((savedPlan) => (
               <div key={savedPlan.id} className="members-hyperplanner__suggestion members-hyperplanner__saved-plan">
                 <div className="members-hyperplanner__saved-plan-copy">
@@ -719,7 +732,7 @@ const HyperPlannerPanel: React.FC<HyperPlannerPanelProps> = ({
                 </div>
               </div>
             ))}
-          </div>
+          </div>) : null}
         </article>
       </section>
 

@@ -1,8 +1,15 @@
 import { apiFetch } from "./auth";
 
+export type AdminUserSubscription = {
+  id: number;
+  plan_key: string;
+  current_period_end: string | null;
+};
+
 export type AdminManageableUser = {
   id: number;
   handle: string | null;
+  active_subscription?: AdminUserSubscription | null;
   swc_handle?: string | null;
   swc_character_id?: number | string | null;
   swc_avatar_url?: string | null;
@@ -199,6 +206,35 @@ export async function revokeAdminUserSwcAuthorization(
     {
       method: "POST",
     }
+  );
+}
+
+export type AdminFactionSubscription = {
+  id: number;
+  plan_key: string;
+  faction: { id: number; name: string; abbreviation: string } | null;
+  seat_count: number | null;
+  seats_used: number;
+  current_period_end: string | null;
+  manager: { id: number; handle: string } | null;
+  members: { id: number; handle: string; avatar_url: string | null }[];
+};
+
+export async function listFactionSubscriptions(): Promise<{ ok: boolean; data: AdminFactionSubscription[] }> {
+  return apiFetch<{ ok: boolean; data: AdminFactionSubscription[] }>("/admin/users/faction-subscriptions");
+}
+
+export async function revokeFactionSubscription(subscriptionId: number): Promise<{ ok: boolean; message: string }> {
+  return apiFetch<{ ok: boolean; message: string }>(
+    `/admin/users/faction-subscriptions/${subscriptionId}/revoke`,
+    { method: "POST" }
+  );
+}
+
+export async function revokeAdminUserSubscription(userId: number): Promise<{ ok: boolean; message: string }> {
+  return apiFetch<{ ok: boolean; message: string }>(
+    `/admin/users/${userId}/revoke-subscription`,
+    { method: "POST" }
   );
 }
 

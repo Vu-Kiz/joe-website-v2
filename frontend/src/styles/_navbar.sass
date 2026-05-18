@@ -78,6 +78,12 @@
 .main-nav-toggle
   display: none
 
+.main-nav-toggle-row
+  display: none
+
+.nav-cgt--mobile-closed
+  display: none
+
 .main-nav-menu
   display: flex
   align-items: center
@@ -163,7 +169,64 @@
     align-items: stretch
     width: 100%
 
+  .main-nav-links .btn
+    width: 100%
+    text-align: center
+
   .main-nav-auth
     width: 100%
-    align-items: flex-start
-  
+    align-items: stretch
+
+  .main-nav-auth-row
+    flex-wrap: wrap
+    gap: 6px
+    width: 100%
+    justify-content: center
+
+  .main-nav-auth-row .btn
+    flex: 1
+
+  .main-nav-inner
+    flex-wrap: wrap
+
+  .main-nav-brand
+    min-width: 0
+    flex-shrink: 1
+
+  .main-nav-logo
+    max-width: 120px
+
+  .main-nav-logo--hide-mobile
+    display: none
+
+  .main-nav-toggle-row
+    margin-left: auto
+    display: flex
+    align-items: center
+    gap: 8px
+    flex-shrink: 0
+
+  .nav-cgt
+    display: none
+
+  .nav-cgt--mobile-closed
+    display: block
+    min-width: 0
+    margin-top: 0
+
+  .nav-cgt--mobile-closed .cgt-pill
+    min-width: 0
+    max-width: calc(100vw - 100px)
+    overflow: hidden
+    flex-shrink: 1
+
+@media (max-width: 480px)
+  .main-nav-logo
+    max-width: 90px
+
+  .main-nav-inner
+    gap: 8px
+
+  .nav-logged-in-label
+    display: none
+

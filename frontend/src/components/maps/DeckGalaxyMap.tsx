@@ -37,7 +37,9 @@ type DeckGalaxyMapProps = {
   annotations?: SectorCellAnnotation[];
   canViewCellIntel?: boolean;
   canViewScanWindow?: boolean;
+  isFullTier?: boolean;
   canEditCellIntel?: boolean;
+  canViewSystemIds?: boolean;
   activeSectorUid?: string | null;
   focusRequest?: DeckFocusRequest;
   onClearFocusRequest?: () => void;
@@ -291,6 +293,7 @@ const RENDER_BOUNDS_PAD = 3;
 // log2(MIN_ZOOM * CELL_SIZE) and log2(MAX_ZOOM * CELL_SIZE) from GalaxySectorMap (0.3/4, 18px)
 const CAMERA_ZOOM_MIN = 2.43;
 const CAMERA_ZOOM_MAX = 6.17;
+const isTouchDevice = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
 const HOVER_OFFSET_PX = 16;
 const HOVER_WIDTH_PX = 210;
 const HOVER_HEIGHT_PX = 120;
@@ -534,7 +537,8 @@ function initViewStateFromFocusOrStorage(focusRequest: DeckFocusRequest): ViewSt
       zoom: Math.max(CAMERA_ZOOM_MIN, Math.min(CAMERA_ZOOM_MAX, saved.zoom)),
     };
   }
-  return { target: [0, 0, 0], zoom: -2 };
+  const defaultZoom = isTouchDevice ? CAMERA_ZOOM_MIN + 1 : CAMERA_ZOOM_MIN;
+  return { target: [0, 0, 0], zoom: defaultZoom };
 }
 
 const DeckGalaxyMap: React.FC<DeckGalaxyMapProps> = ({
@@ -545,6 +549,8 @@ const DeckGalaxyMap: React.FC<DeckGalaxyMapProps> = ({
   canViewCellIntel = false,
   canViewScanWindow = false,
   canEditCellIntel = false,
+  canViewSystemIds = false,
+  isFullTier = false,
   activeSectorUid,
   focusRequest,
   onClearFocusRequest,
@@ -627,6 +633,7 @@ const DeckGalaxyMap: React.FC<DeckGalaxyMapProps> = ({
         speed: 0.02,
         smooth: true,
       },
+      touchZoom: true,
     }),
     []
   );
@@ -1456,7 +1463,7 @@ new PolygonLayer({
     const sections: Array<{ label: string; items: Array<{ key: LegendFilterKey; label: string; icon: string }> }> = [];
     sections.push({
       label: "Map",
-      items: LEGEND_ITEMS.filter((item) => item.key === "system" || (item.key === "system_id" && canEditCellIntel)),
+      items: LEGEND_ITEMS.filter((item) => item.key === "system" || (item.key === "system_id" && canViewSystemIds)),
     });
 
     if (canViewCellIntel) {
@@ -1464,9 +1471,12 @@ new PolygonLayer({
         label: "Planetoids",
         items: LEGEND_ITEMS.filter((item) => item.key.startsWith("asteroid_")),
       });
+      const intelFlagKeys = (isFullTier || canViewSystemIds)
+        ? ["ships", "stations", "notes"]
+        : ["notes"];
       sections.push({
         label: "Intel Flags",
-        items: LEGEND_ITEMS.filter((item) => ["ships", "stations", "notes"].includes(item.key)),
+        items: LEGEND_ITEMS.filter((item) => intelFlagKeys.includes(item.key)),
       });
     }
 
@@ -1559,7 +1569,8 @@ new PolygonLayer({
         setSelectedSystemDetailLoading(true);
         const detail = await loadSystemDetail(systemIdentifier);
         if (!cancelled) setSelectedSystemDetail(detail);
-      } catch {
+      } catch (err) {
+        console.error("[DeckGalaxyMap] loadSystemDetail failed:", err);
         if (!cancelled) setSelectedSystemDetail(null);
       } finally {
         if (!cancelled) setSelectedSystemDetailLoading(false);
@@ -1662,7 +1673,7 @@ new PolygonLayer({
       <div
         ref={viewportRef}
         className="members-universe-map"
-        onMouseLeave={() => scheduleHoverUpdate(null)}
+        onMouseLeave={() => { if (!isTouchDevice) scheduleHoverUpdate(null); }}
       >
         <DeckGL
           style={{ position: "absolute", inset: "0px" }}
@@ -1754,6 +1765,16 @@ new PolygonLayer({
               top: Math.min(Math.max(12, preferredTop), Math.max(12, viewportSize.height - 260)),
             });
 
+            if (isTouchDevice) {
+              const scale = Math.max(0.0001, Math.pow(2, viewState.zoom));
+              const sheetHeightPx = viewportSize.height * 0.3;
+              const offsetWorld = sheetHeightPx / scale;
+              setViewState((current) => ({
+                ...current,
+                target: [galx + 0.5, galy + 0.5 + offsetWorld, 0],
+              }));
+            }
+
             if (selectedSector.uid) {
               onSelectSector?.(selectedSector.uid);
             }
@@ -1769,7 +1790,7 @@ new PolygonLayer({
               setLegendOpen((current) => !current);
             }}
           >
-            {legendOpen ? "Hide Legend" : "Show Legend"}
+            {legendOpen ? (isTouchDevice ? "Hide" : "Hide Legend") : (isTouchDevice ? "Legend" : "Show Legend")}
           </button>
           {legendOpen ? (
             <div
@@ -1837,7 +1858,7 @@ new PolygonLayer({
                 setControlsOpen((current) => !current);
               }}
             >
-              {controlsOpen ? "Hide Controls" : "Show Controls"}
+              {controlsOpen ? (isTouchDevice ? "Hide" : "Hide Controls") : (isTouchDevice ? "Controls" : "Show Controls")}
             </button>
             {controlsOpen ? (
               <div
@@ -2062,15 +2083,19 @@ new PolygonLayer({
                     <>
                       <div className="members-universe-map__selection-stats">
                         <span className="small">{selectedSystemSummary.controller}</span>
-                        <span className="small">
-                          Population:{" "}
-                          <span className="members-universe-map__selection-stat-value">
-                            {selectedSystemSummary.population.toLocaleString()}
-                          </span>
-                        </span>
-                        {selectedSystemSummary.hasPopulationHistory ? (
-                          <span className="small">Change: {selectedSystemSummary.populationChange}</span>
-                        ) : null}
+                        {isFullTier && (
+                          <>
+                            <span className="small">
+                              Population:{" "}
+                              <span className="members-universe-map__selection-stat-value">
+                                {selectedSystemSummary.population.toLocaleString()}
+                              </span>
+                            </span>
+                            {selectedSystemSummary.hasPopulationHistory ? (
+                              <span className="small">Change: {selectedSystemSummary.populationChange}</span>
+                            ) : null}
+                          </>
+                        )}
                       </div>
                       <div className="members-universe__meta">
                         {selectedSystemSummary.bodyPills.map(([label, count]) => (

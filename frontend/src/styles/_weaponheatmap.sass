@@ -633,3 +633,27 @@
   &.is-active
     border-color: rgba(246,163,0,0.55)
     background: rgba(246,163,0,0.14)
+
+@media (max-width: 768px)
+  .members-combat-calc__sidebar
+    position: static
+
+  .weapon-heatmap-page__suggestions
+    max-height: 160px
+
+  .weapon-heatmap-page__grid
+    width: 100%
+    overflow-x: auto
+    min-width: 0
+
+  .weapon-heatmap-page__cell
+    min-width: 32px
+    min-height: 32px
+
+@media (pointer: coarse)
+  .weapon-heatmap-page__hover
+    display: none
+
+  .weapon-heatmap-page__cell
+    min-width: 36px
+    min-height: 36px

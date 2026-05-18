@@ -71,7 +71,12 @@ class DroidBrainRewardService
                 if (!$previousReward) {
                     $status = 'rewarded';
 
-                    if ($isNewSystem) {
+                    $isRealSystem = DB::table('swc_systems')
+                        ->where('galx', $system['galx'])
+                        ->where('galy', $system['galy'])
+                        ->exists();
+
+                    if ($isNewSystem && $isRealSystem) {
                         if ($this->isOwnerOnlyNonSystem($system, $fileId, $file)) {
                             $status = 'no_reward';
                         } else {
@@ -96,13 +101,13 @@ class DroidBrainRewardService
                     'new_entities_count' => $system['new_entities_count'],
                     'modified_entities_count' => $system['modified_entities_count'],
                     'unchanged_entities_count' => $system['unchanged_entities_count'],
+                    'modified_too_recent_count' => (int) ($system['modified_too_recent_count'] ?? 0),
                     'total_amount' => $amount,
                     'rewarded_at' => $status === 'rewarded' ? $rewardedAt : null,
                     'cooldown_until' => $status === 'cooldown' ? $previousReward?->cooldown_until ?? $cooldownUntil : null,
                     'meta' => json_encode([
                         'previous_reward_file_id' => $previousReward->file_id ?? null,
                         'cooldown_days' => 7,
-                        'modified_too_recent_count' => (int) ($system['modified_too_recent_count'] ?? 0),
                     ], JSON_UNESCAPED_SLASHES),
                     'updated_at' => now(),
                 ];
@@ -116,13 +121,7 @@ class DroidBrainRewardService
                     $logPayload + ['created_at' => now()]
                 );
 
-                $log = DB::table('droidbrain_reward_logs')
-                    ->where('file_id', $fileId)
-                    ->where('galx', $system['galx'])
-                    ->where('galy', $system['galy'])
-                    ->first();
-
-                $logs->push((array) $log);
+                $logs->push($logPayload);
                 $totalAmount += $amount;
             }
         });
@@ -161,6 +160,7 @@ class DroidBrainRewardService
                             'new_entities_count' => (int) $log['new_entities_count'],
                             'modified_entities_count' => (int) $log['modified_entities_count'],
                             'unchanged_entities_count' => (int) $log['unchanged_entities_count'],
+                            'modified_too_recent_count' => (int) ($log['modified_too_recent_count'] ?? 0),
                             'total_amount' => (int) $log['total_amount'],
                         ])->values()->all(),
                     ],
@@ -191,6 +191,7 @@ class DroidBrainRewardService
                 'new_entities_count' => (int) $log['new_entities_count'],
                 'modified_entities_count' => (int) $log['modified_entities_count'],
                 'unchanged_entities_count' => (int) $log['unchanged_entities_count'],
+                'modified_too_recent_count' => (int) ($log['modified_too_recent_count'] ?? 0),
                 'total_amount' => (int) $log['total_amount'],
             ])->values()->all(),
         ];
@@ -232,66 +233,107 @@ class DroidBrainRewardService
 
     protected function collectTouchedSystems(int $fileId, object $file): Collection
     {
-        $systems = DB::table('droidbrain_system_scans')
+        // Group at the DB level so we call collectSystemEntityCounts once per
+        // unique coordinate, not once per scan row. A single system can produce
+        // thousands of scan rows, and classifying entities for each duplicate
+        // row causes an exponential query explosion that kills the worker.
+        $uniqueCoords = DB::table('droidbrain_system_scans')
             ->where('file_id', $fileId)
-            ->select('galx', 'galy', 'system_name')
-            ->get()
-            ->map(function ($row) use ($fileId, $file) {
-                $counts = $this->collectSystemEntityCounts($fileId, (int) $row->galx, (int) $row->galy, $file->snapshot_unix ? (int) $file->snapshot_unix : null);
-                $known = DB::table('droidbrain_known_systems')
-                    ->where('galx', (int) $row->galx)
-                    ->where('galy', (int) $row->galy)
-                    ->first();
+            ->select('galx', 'galy', DB::raw('MAX(system_name) as system_name'))
+            ->groupBy('galx', 'galy')
+            ->get();
 
-                return [
-                    'galx' => (int) $row->galx,
-                    'galy' => (int) $row->galy,
-                    'system_name' => $row->system_name,
-                    'is_new_system' => $known && (int) $known->first_seen_file_id === $fileId,
-                    'new_entities_count' => $counts['new'],
-                    'modified_entities_count' => $counts['modified'],
-                    'modified_too_recent_count' => $counts['modified_too_recent'],
-                    'unchanged_entities_count' => $counts['unchanged'],
-                ];
-            });
+        $snapshotUnix = $file->snapshot_unix ? (int) $file->snapshot_unix : null;
 
-        return $systems->unique(fn (array $row) => $row['galx'] . ':' . $row['galy'])->values();
+        return $uniqueCoords->map(function ($row) use ($fileId, $snapshotUnix) {
+            $counts = $this->collectSystemEntityCounts($fileId, (int) $row->galx, (int) $row->galy, $snapshotUnix);
+            $known = DB::table('droidbrain_known_systems')
+                ->where('galx', (int) $row->galx)
+                ->where('galy', (int) $row->galy)
+                ->first();
+
+            return [
+                'galx' => (int) $row->galx,
+                'galy' => (int) $row->galy,
+                'system_name' => $row->system_name,
+                'is_new_system' => $known && (int) $known->first_seen_file_id === $fileId,
+                'new_entities_count' => $counts['new'],
+                'modified_entities_count' => $counts['modified'],
+                'modified_too_recent_count' => $counts['modified_too_recent'],
+                'unchanged_entities_count' => $counts['unchanged'],
+            ];
+        })->values();
     }
 
     protected function collectSystemEntityCounts(int $fileId, int $galx, int $galy, ?int $snapshotUnix): array
     {
-        $rows = collect()
-            ->concat(
-                DB::table('droidbrain_ships')
-                    ->where('file_id', $fileId)
-                    ->where('galx', $galx)
-                    ->where('galy', $galy)
-                    ->get(['entity_uid', 'owner_name', 'name', 'galx', 'galy'])
-                    ->map(fn ($row) => ['table' => 'droidbrain_ships'] + (array) $row)
-            )
-            ->concat(
-                DB::table('droidbrain_stations')
-                    ->where('file_id', $fileId)
-                    ->where('galx', $galx)
-                    ->where('galy', $galy)
-                    ->get(['entity_uid', 'owner_name', 'name', 'galx', 'galy'])
-                    ->map(fn ($row) => ['table' => 'droidbrain_stations'] + (array) $row)
-            );
-
         $counts = ['new' => 0, 'modified' => 0, 'modified_too_recent' => 0, 'unchanged' => 0];
 
-        foreach ($rows as $row) {
-            $state = $this->classifyEntityState(
-                $row['table'],
-                (string) $row['entity_uid'],
-                (string) ($row['owner_name'] ?? ''),
-                (string) ($row['name'] ?? ''),
-                $galx,
-                $galy,
-                $snapshotUnix
-            );
+        foreach (['droidbrain_ships', 'droidbrain_stations'] as $table) {
+            $entities = DB::table($table)
+                ->where('file_id', $fileId)
+                ->where('galx', $galx)
+                ->where('galy', $galy)
+                ->get(['entity_uid', 'owner_name', 'name', 'galx', 'galy']);
 
-            $counts[$state]++;
+            if ($entities->isEmpty()) {
+                continue;
+            }
+
+            $entityUids = $entities->pluck('entity_uid')->unique()->values()->all();
+
+            // Prior records = same entity seen in a different (older) file.
+            // We join droidbrain_files to use the file's scan timestamp (snapshot_unix)
+            // for the age check, NOT the entity's in-game snapshot_unixtime which is
+            // an entity-level field embedded in the XML and unrelated to when the file
+            // was uploaded. Using snapshot_unixtime < file.snapshot_unix would
+            // incorrectly match the current file's own records.
+            $priorBase = DB::table("{$table} as e")
+                ->join('droidbrain_files as f', 'e.file_id', '=', 'f.id')
+                ->whereIn('e.entity_uid', $entityUids)
+                ->where('e.file_id', '!=', $fileId)
+                ->when($snapshotUnix !== null, fn ($q) => $q->where('f.snapshot_unix', '<', $snapshotUnix));
+
+            // Query 1: latest prior file snapshot_unix per entity_uid (for age check).
+            $latestPriors = (clone $priorBase)
+                ->select('e.entity_uid', DB::raw('MAX(f.snapshot_unix) as latest_snapshot'))
+                ->groupBy('e.entity_uid')
+                ->pluck('latest_snapshot', 'entity_uid');
+
+            // Query 2: all distinct prior (entity_uid, owner_name, name, galx, galy)
+            // combos — used to detect "unchanged" in PHP without per-entity queries.
+            $priorStateIndex = [];
+            foreach ((clone $priorBase)->select('e.entity_uid', 'e.owner_name', 'e.name', 'e.galx', 'e.galy')->distinct()->get() as $row) {
+                $priorStateIndex[$row->entity_uid . '|' . $row->owner_name . '|' . $row->name . '|' . $row->galx . '|' . $row->galy] = true;
+            }
+
+            foreach ($entities as $entity) {
+                $uid = (string) $entity->entity_uid;
+
+                if (!$latestPriors->has($uid)) {
+                    $counts['new']++;
+                    continue;
+                }
+
+                $stateKey = $uid . '|' . $entity->owner_name . '|' . $entity->name . '|' . $entity->galx . '|' . $entity->galy;
+                if (isset($priorStateIndex[$stateKey])) {
+                    $counts['unchanged']++;
+                    continue;
+                }
+
+                $latestSnapshot = $latestPriors->get($uid);
+                if ($snapshotUnix === null || !is_numeric((string) $latestSnapshot)) {
+                    $counts['modified_too_recent']++;
+                    continue;
+                }
+
+                $ageSeconds = (int) $snapshotUnix - (int) $latestSnapshot;
+                if ($ageSeconds < self::MODIFIED_ENTITY_MIN_AGE_SECONDS) {
+                    $counts['modified_too_recent']++;
+                } else {
+                    $counts['modified']++;
+                }
+            }
         }
 
         return $counts;

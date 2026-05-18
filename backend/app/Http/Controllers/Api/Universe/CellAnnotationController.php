@@ -7,6 +7,7 @@ use App\Models\SwcSector;
 use App\Models\SwcSectorCellAnnotation;
 use App\Support\Admin\AdminActionLogger;
 use App\Support\Swc\Auth\Permissions;
+use App\Support\ToolStore\ToolAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -16,9 +17,33 @@ class CellAnnotationController extends Controller
     private const INDEX_CACHE_TTL_SECONDS = 120;
     private const CACHE_VERSION_KEY = 'universe:cell-annotations:version';
 
+    public function __construct(protected ToolAccessService $toolAccessService) {}
+
+    private function isSubscriber(Request $request): bool
+    {
+        $user = $request->user();
+        return $user && $this->toolAccessService->tierForUser($user) === 'public';
+    }
+
+    /** Returns ['user_id' => int|null, 'faction_id' => int|null] for scoping subscriber notes. */
+    private function resolveOwner(Request $request): array
+    {
+        $user = $request->user();
+        $sub = $this->toolAccessService->activeSubscriptionFor($user);
+
+        if ($sub && $sub->subscriber_type === 'faction') {
+            return ['user_id' => null, 'faction_id' => (int) $sub->subscriber_id];
+        }
+
+        return ['user_id' => $user->id, 'faction_id' => null];
+    }
+
     public function index(Request $request): JsonResponse
     {
-        if (!Permissions::hasAny($request->user(), ['can_view_asteroid_intel', 'is_admin', 'is_sysadmin'])) {
+        $user = $request->user();
+        $isSubscriber = $this->isSubscriber($request);
+
+        if (!$isSubscriber && !Permissions::hasAny($user, ['can_view_asteroid_intel', 'is_joe_member', 'is_admin', 'is_sysadmin'])) {
             return response()->json([
                 'ok' => true,
                 'data' => [],
@@ -52,9 +77,26 @@ class CellAnnotationController extends Controller
             ]
             : null;
 
+        // Subscriber queries are owner-scoped — skip the shared cache
+        if ($isSubscriber) {
+            $owner = $this->resolveOwner($request);
+            $annotations = SwcSectorCellAnnotation::query()
+                ->where('owner_user_id', $owner['user_id'])
+                ->where('owner_faction_id', $owner['faction_id'])
+                ->when($hasSectorUid, fn ($q) => $q->where('sector_uid', (string) $data['sector_uid']))
+                ->when($bounds !== null, fn ($q) => $q
+                    ->whereBetween('galx', [$bounds['min_galx'], $bounds['max_galx']])
+                    ->whereBetween('galy', [$bounds['min_galy'], $bounds['max_galy']]))
+                ->orderBy('galy')->orderBy('galx')
+                ->get(['id', 'sector_uid', 'galx', 'galy', 'marker_type', 'label', 'notes', 'created_at', 'updated_at']);
+
+            return response()->json(['ok' => true, 'data' => $annotations]);
+        }
+
         $cacheKey = $this->buildIndexCacheKey($data, $bounds);
         $annotations = Cache::remember($cacheKey, self::INDEX_CACHE_TTL_SECONDS, function () use ($hasSectorUid, $data, $bounds) {
             return SwcSectorCellAnnotation::query()
+                ->whereNull('owner_user_id')
                 ->when($hasSectorUid, function ($query) use ($data) {
                     $query->where('sector_uid', (string) $data['sector_uid']);
                 })
@@ -99,11 +141,18 @@ class CellAnnotationController extends Controller
         $label = trim((string) ($data['label'] ?? '')) ?: null;
         $notes = trim((string) ($data['notes'] ?? '')) ?: null;
 
+        $isSubscriber = $this->isSubscriber($request);
+        $owner = $isSubscriber ? $this->resolveOwner($request) : ['user_id' => null, 'faction_id' => null];
+        $ownerUserId = $owner['user_id'];
+        $ownerFactionId = $owner['faction_id'];
+
         if ($markerType === null && $label === null && $notes === null) {
             $existing = SwcSectorCellAnnotation::query()
                 ->where('sector_uid', (string) $data['sector_uid'])
                 ->where('galx', (int) $data['galx'])
                 ->where('galy', (int) $data['galy'])
+                ->where('owner_user_id', $ownerUserId)
+                ->where('owner_faction_id', $ownerFactionId)
                 ->first();
 
             if ($existing) {
@@ -155,6 +204,7 @@ class CellAnnotationController extends Controller
             ->where('sector_uid', (string) $data['sector_uid'])
             ->where('galx', (int) $data['galx'])
             ->where('galy', (int) $data['galy'])
+            ->where('owner_user_id', $ownerUserId)
             ->first();
 
         $before = $existing?->only([
@@ -174,6 +224,8 @@ class CellAnnotationController extends Controller
                 'sector_uid' => (string) $data['sector_uid'],
                 'galx' => (int) $data['galx'],
                 'galy' => (int) $data['galy'],
+                'owner_user_id' => $ownerUserId,
+                'owner_faction_id' => $ownerFactionId,
             ],
             [
                 'sector_id' => $sector?->id,

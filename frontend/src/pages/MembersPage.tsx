@@ -14,7 +14,7 @@ import {
 } from "../api/jobs";
 import { getPayments } from "../api/payments";
 import { getMyPayableFactions, type PayableFaction } from "../api/factions";
-import { canAccessAdmin, canAccessCombatCalculator, canAccessFleetCommander, canAccessIntel, canAccessMembers, canAccessPayments, canAccessSysadmin, canAccessWreckingHelperExtension } from "../auth/permissions";
+import { canAccessAdmin, canAccessCombatCalculator, canAccessFleetCommander, canAccessIntel, canAccessMembers, canAccessPayments, canAccessPublicTools, canAccessSysadmin, canAccessWreckingHelperExtension, getToolAccessTier } from "../auth/permissions";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import OpenJobsPanel from "../components/members/jobs/OpenJobsPanel";
@@ -129,6 +129,7 @@ const MembersPage: React.FC = () => {
   );
   const [mountUniversePanel, setMountUniversePanel] = useState<boolean>(requestedMembersView === "universe");
   const skipNextUrlSyncRef = useRef(false);
+  const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
 
   useEffect(() => {
     if (requestedMembersView) {
@@ -306,7 +307,7 @@ const MembersPage: React.FC = () => {
       return;
     }
 
-    void logMemberToolOpen(area, "/tools").catch(() => {});
+    if (canSeeMemberOnlyTools) void logMemberToolOpen(area, "/tools").catch(() => {});
   }, [membersView, user]);
 
   useEffect(() => {
@@ -328,6 +329,7 @@ const MembersPage: React.FC = () => {
 
         const canSeeMemberTools = canAccessMembers(currentUser);
         const canSeeDroidBrain = canAccessIntel(currentUser);
+        const canSeePublicToolsNow = canAccessPublicTools(currentUser);
 
         if (cancelled) return;
 
@@ -342,7 +344,7 @@ const MembersPage: React.FC = () => {
           return;
         }
 
-        if (!canSeeMemberTools && !canSeeDroidBrain) {
+        if (!canSeeMemberTools && !canSeeDroidBrain && !canSeePublicToolsNow) {
           setJobs([]);
           setSwcAuth(null);
           setPayableFactions([]);
@@ -353,7 +355,7 @@ const MembersPage: React.FC = () => {
 
         const [jobsRes, swcAuthRes, payableFactionsRes, paymentsRes] = await Promise.all([
           canSeeMemberTools ? getJobs() : Promise.resolve({ data: [] }),
-          canSeeMemberTools ? getSwcAuthorizationStatus() : Promise.resolve({ data: null }),
+          (canSeeMemberTools || canSeePublicToolsNow) ? getSwcAuthorizationStatus() : Promise.resolve({ data: null }),
           canSeeMemberTools ? getMyPayableFactions() : Promise.resolve({ data: [] }),
           canAccessPayments(currentUser) ? getPayments() : Promise.resolve({ data: [] }),
         ]);
@@ -392,7 +394,9 @@ const MembersPage: React.FC = () => {
   }
 
   const isLoggedIn = !!user;
-  const canSeeMembers = canAccessMembers(user) || canAccessIntel(user) || canAccessWreckingHelperExtension(user) || canAccessFleetCommander(user);
+  const canSeePublicTools = canAccessPublicTools(user);
+  const toolAccessTier = getToolAccessTier(user);
+  const canSeeMembers = canAccessMembers(user) || canAccessIntel(user) || canAccessWreckingHelperExtension(user) || canAccessFleetCommander(user) || canSeePublicTools;
   const canSeeMemberOnlyTools = canAccessMembers(user);
   const canSeeFleetCommander = canAccessFleetCommander(user);
   const canSeeGalacticArchive = canAccessAdmin(user);
@@ -405,8 +409,9 @@ const MembersPage: React.FC = () => {
       : toPreviewPrivs(user);
   const showAdminCard = effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
   const showMemberToolCards = effectiveCardPrivs.isJoeMember || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
+  const showPublicToolCards = toolAccessTier === "public" && !showMemberToolCards;
   const showPaymentsCard = effectiveCardPrivs.isJoeMember || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
-  const showDroidBrainCard = effectiveCardPrivs.isJoeMember || effectiveCardPrivs.isIntel || effectiveCardPrivs.isSysadmin;
+  const showDroidBrainCard = effectiveCardPrivs.isJoeMember || effectiveCardPrivs.isIntel || effectiveCardPrivs.isSysadmin || showPublicToolCards;
   const showWreckingHelperCard = effectiveCardPrivs.canAccessWreckingHelper || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
   const showFleetCommanderCard = effectiveCardPrivs.canAccessFleetCommander || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
   const showCombatCalculatorCard = effectiveCardPrivs.canAccessCombatCalc || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
@@ -638,13 +643,46 @@ const MembersPage: React.FC = () => {
             } satisfies MembersToolCard,
           ]
             .filter((tool) => tool.key !== "archive" || showGalacticArchiveCard)
-            .filter((tool) => tool.key !== "biometrics" || showFleetCommanderCard)
+            .filter((tool) => tool.key !== "biometrics" || showMemberToolCards)
             .filter((tool) => tool.key !== "shipHeatmap" || showCombatCalculatorCard)
+        : []),
+      ...(showPublicToolCards
+        ? [
+            {
+              key: "universe",
+              title: "Astrogation",
+              description: "Open the galaxy map, browse system and planet data, and plan hyperspace routes.",
+              actionLabel: "Open Astrogation",
+              onClick: () => setMembersView("universe"),
+            } satisfies MembersToolCard,
+            {
+              key: "stats",
+              title: "Entity Stats",
+              description: "Browse the full Star Wars Combine entity catalog with stats and comparisons.",
+              actionLabel: "Open Entity Stats",
+              onClick: () => setMembersView("stats"),
+            } satisfies MembersToolCard,
+            {
+              key: "hyperplanner",
+              title: "Hyper Planner",
+              description: "Plot hyperspace routes across the galaxy.",
+              actionLabel: "Open Hyper Planner",
+              onClick: () => setMembersView("hyperplanner"),
+            } satisfies MembersToolCard,
+            {
+              key: "weaponHeatmap",
+              title: "Targeting Heatmap",
+              description: "Test firing arcs, approach angles, and hit chance in the targeting sandbox.",
+              actionLabel: "Open Targeting Heatmap",
+              onClick: () => setMembersView("weaponHeatmap"),
+            } satisfies MembersToolCard,
+          ]
         : []),
     ],
     [
       showAdminCard,
       showMemberToolCards,
+      showPublicToolCards,
       showPaymentsCard,
       showDroidBrainCard,
       showWreckingHelperCard,
@@ -784,6 +822,11 @@ const MembersPage: React.FC = () => {
                   value={toolkitPreviewPrivs}
                   onChange={setToolkitPreviewPrivs}
                   onReset={() => setToolkitPreviewPrivs(toPreviewPrivs(user))}
+                  viewer={user}
+                  onViewerChange={async () => {
+                    const res = await fetchAuthMe();
+                    if (res.user) setUser(res.user);
+                  }}
                   title="Toolkit Privileges"
                 />
               ) : null}
@@ -792,7 +835,7 @@ const MembersPage: React.FC = () => {
 
           <section className="members-tool-grid">
             {memberTools.map((tool) => (
-              <article key={tool.key} className="members-tool-card">
+              <article key={tool.key} className={`members-tool-card${tool.key === "wreckingHelper" ? " members-tool-card--desktop-only" : ""}`}>
                 <img
                   src={
                     tool.key === "universe"
@@ -1016,6 +1059,7 @@ const MembersPage: React.FC = () => {
                 viewer={user}
                 swcAuthFromParent={swcAuth}
                 onSwcAuthChange={setSwcAuth}
+                forcePublicTier={toolkitPrivPreviewOpen && toolkitPreviewPrivs.previewAsSubscriber}
               />
             </Suspense>
           )}
@@ -1029,9 +1073,11 @@ const MembersPage: React.FC = () => {
         />
       )}
 
-      {membersView === "biometrics" && canSeeFleetCommander && (
+      {membersView === "biometrics" && (canSeeMemberOnlyTools || canSeeFleetCommander) && (
         <MemberFleetCommandPanel
           onBack={() => setMembersView("overview")}
+          viewer={user}
+          canSeeRoster={canSeeFleetCommander}
           swcAuth={swcAuth}
           onRequestSwcResync={handleResyncSwcAccess}
         />
@@ -1048,7 +1094,7 @@ const MembersPage: React.FC = () => {
         </>
       )}
 
-      {membersView === "weaponHeatmap" && canSeeMemberOnlyTools && (
+      {membersView === "weaponHeatmap" && (canSeeMemberOnlyTools || canSeePublicTools) && (
         <>
           <div className="members-tool-back">
             <button className="btn" type="button" onClick={() => setMembersView("overview")}>
@@ -1059,7 +1105,7 @@ const MembersPage: React.FC = () => {
         </>
       )}
 
-      {membersView === "stats" && canSeeMemberOnlyTools && (
+      {membersView === "stats" && (canSeeMemberOnlyTools || canSeePublicTools) && (
         <>
           <div className="members-tool-back">
             <button className="btn" type="button" onClick={() => setMembersView("overview")}>
@@ -1074,7 +1120,7 @@ const MembersPage: React.FC = () => {
         <MemberGalacticArchivePanel onBack={() => setMembersView("overview")} isAdmin={canAccessAdmin(user)} />
       )}
 
-      {membersView === "wreckingHelper" && canSeeWreckingHelperExtension && (
+      {membersView === "wreckingHelper" && canSeeWreckingHelperExtension && !isMobile && (
         <MemberWreckingHelperPanel onBack={() => setMembersView("overview")} />
       )}
 

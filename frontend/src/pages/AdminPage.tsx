@@ -24,6 +24,7 @@ import AdminEntityStatsPanel from "../components/admin/AdminEntityStatsPanel";
 import AdminDiscordBotPanel from "../components/admin/AdminDiscordBotPanel";
 import AdminCombatValuesPanel from "../components/admin/AdminCombatValuesPanel";
 import AdminMemberChangelogPanel from "../components/admin/AdminMemberChangelogPanel";
+import AdminToolStorePanel from "../components/admin/AdminToolStorePanel";
 
 import "../styles/main.sass";
 import "../styles/_admin.sass";
@@ -178,6 +179,7 @@ const AdminPage: React.FC = () => {
           {activeView === "memberChangelog" && <AdminMemberChangelogPanel />}
           {activeView === "droidbrainUploads" && showSystemTools && <AdminDroidBrainUploadsPanel />}
           {activeView === "siteLock" && showSystemTools && <AdminSiteLockPanel />}
+          {activeView === "toolStore" && showSystemTools && <AdminToolStorePanel />}
         </main>
       </div>
     </div>

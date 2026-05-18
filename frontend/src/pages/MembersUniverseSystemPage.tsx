@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Navigate, useLocation, useParams } from "react-router-dom";
 import { fetchAuthMe, subscribeToAuthStateChange } from "../api/auth";
-import { canAccessDroidBrainFull, canAccessMembers } from "../auth/permissions";
+import { canAccessDroidBrainFull, canAccessMembers, canAccessPublicTools } from "../auth/permissions";
 import ForbiddenState from "../components/common/ForbiddenState";
 import { getStoredSystem, type StoredSystemDetail } from "../api/universe";
 import NotLoggedInState from "../components/common/NotLoggedInState";
@@ -228,7 +228,7 @@ const MembersUniverseSystemPage: React.FC = () => {
         const auth = await fetchAuthMe();
         if (cancelled) return;
         setIsLoggedIn(!!auth?.user);
-        setCanSeeMembers(canAccessMembers(auth?.user ?? null));
+        setCanSeeMembers(canAccessMembers(auth?.user ?? null) || canAccessPublicTools(auth?.user ?? null));
         setCanSeeDroidBrainShips(canAccessDroidBrainFull(auth?.user ?? null));
       } catch {
         if (!cancelled) {

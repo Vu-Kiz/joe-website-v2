@@ -25,7 +25,8 @@ class SwcAuthorizationController extends Controller
     ];
 
     protected const DEFAULT_PUBLIC_TOOL_PREFERENCES = [
-        'payments' => true,
+        'payments'    => true,
+        'astrogation' => true,
     ];
 
     public function __construct(
@@ -118,6 +119,7 @@ class SwcAuthorizationController extends Controller
             'member_tool_preferences.universe.focus_request.zoom' => ['nullable', 'numeric'],
             'public_tool_preferences' => ['nullable', 'array'],
             'public_tool_preferences.payments' => ['nullable', 'boolean'],
+            'public_tool_preferences.astrogation' => ['nullable', 'boolean'],
         ]);
 
         $hasMemberPayload = array_key_exists('member_tool_preferences', $validated);
@@ -234,6 +236,9 @@ class SwcAuthorizationController extends Controller
             'payments' => array_key_exists('payments', $current)
                 ? (bool) $current['payments']
                 : self::DEFAULT_PUBLIC_TOOL_PREFERENCES['payments'],
+            'astrogation' => array_key_exists('astrogation', $current)
+                ? (bool) $current['astrogation']
+                : self::DEFAULT_PUBLIC_TOOL_PREFERENCES['astrogation'],
         ];
     }
 }

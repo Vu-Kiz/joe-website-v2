@@ -46,11 +46,11 @@ services:
     ports:
       - "9011:80"
 
-  worker:
+  worker-xml:
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
-    container_name: joe_worker_v2_dev
+    container_name: joe_worker_xml_v2_dev
     restart: unless-stopped
     depends_on:
       - db
@@ -78,11 +78,190 @@ services:
     command: >
       sh -c "chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
       && su -s /bin/sh www-data -c 'php artisan queue:work database
-      --queue=swc-sync,default
+      --queue=xml-imports
       --sleep=3
-      --tries=1
       --timeout=3600
       --max-time=3600'"
+
+  worker-swc:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: joe_worker_swc_v2_dev
+    restart: unless-stopped
+    depends_on:
+      - db
+      - backend
+      - meilisearch
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: ${APP_URL}
+      BACKEND_STORAGE_URL: ${BACKEND_STORAGE_URL}
+
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      QUEUE_CONNECTION: database
+
+      SCOUT_DRIVER: meilisearch
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILISEARCH_KEY}
+    volumes:
+      - ./backend:/var/www/html
+    command: >
+      sh -c "chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+      && su -s /bin/sh www-data -c 'php artisan queue:work database
+      --queue=swc-sync
+      --sleep=3
+      --timeout=3600
+      --max-time=3600'"
+
+  worker-search:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: joe_worker_search_v2_dev
+    restart: unless-stopped
+    depends_on:
+      - db
+      - backend
+      - meilisearch
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: ${APP_URL}
+      BACKEND_STORAGE_URL: ${BACKEND_STORAGE_URL}
+
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      QUEUE_CONNECTION: database
+
+      SCOUT_DRIVER: meilisearch
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILISEARCH_KEY}
+    volumes:
+      - ./backend:/var/www/html
+    command: >
+      sh -c "chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+      && su -s /bin/sh www-data -c 'php artisan queue:work database
+      --queue=search-index
+      --sleep=3
+      --timeout=300
+      --max-time=3600'"
+
+  worker-payment:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: joe_worker_payment_v2_dev
+    restart: unless-stopped
+    depends_on:
+      - db
+      - backend
+      - meilisearch
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: ${APP_URL}
+      BACKEND_STORAGE_URL: ${BACKEND_STORAGE_URL}
+
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      QUEUE_CONNECTION: database
+
+      SCOUT_DRIVER: meilisearch
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILISEARCH_KEY}
+    volumes:
+      - ./backend:/var/www/html
+    command: >
+      sh -c "chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+      && su -s /bin/sh www-data -c 'php artisan queue:work database
+      --queue=payment-reconcile
+      --sleep=10
+      --timeout=120
+      --max-time=3600'"
+
+  worker-default:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: joe_worker_default_v2_dev
+    restart: unless-stopped
+    depends_on:
+      - db
+      - backend
+      - meilisearch
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: ${APP_URL}
+      BACKEND_STORAGE_URL: ${BACKEND_STORAGE_URL}
+
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      QUEUE_CONNECTION: database
+
+      SCOUT_DRIVER: meilisearch
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILISEARCH_KEY}
+    volumes:
+      - ./backend:/var/www/html
+    command: >
+      sh -c "chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+      && su -s /bin/sh www-data -c 'php artisan queue:work database
+      --queue=default
+      --sleep=3
+      --timeout=300
+      --max-time=3600'"
+
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: joe_scheduler_v2_dev
+    restart: unless-stopped
+    depends_on:
+      - db
+      - backend
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: ${APP_URL}
+      BACKEND_STORAGE_URL: ${BACKEND_STORAGE_URL}
+
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      QUEUE_CONNECTION: database
+
+      SCOUT_DRIVER: meilisearch
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILISEARCH_KEY}
+    volumes:
+      - ./backend:/var/www/html
+    command: >
+      sh -c "chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+      && while true; do su -s /bin/sh www-data -c 'php artisan schedule:run --no-interaction'; sleep 60; done"
 
   composer:
     image: composer:2

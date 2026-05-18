@@ -30,7 +30,10 @@ class DroidBrainReindexJob implements ShouldQueue, ShouldBeUnique
         'npcs'     => \App\Models\DroidBrainNpc::class,
     ];
 
-    public function __construct(public readonly string $tab) {}
+    public function __construct(public readonly string $tab)
+    {
+        $this->onQueue('search-index');
+    }
 
     // One unique job per tab — a second dispatch within the delay window replaces the first
     public function uniqueId(): string

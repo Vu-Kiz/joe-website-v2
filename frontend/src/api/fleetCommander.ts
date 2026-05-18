@@ -55,6 +55,13 @@ export async function getFleetRosterMatrix() {
   }>(`/fleet/roster-matrix`);
 }
 
+export async function getMySkills() {
+  return apiFetch<{
+    ok: true;
+    data: FleetRosterMatrixRow;
+  }>(`/fleet/my-skills`);
+}
+
 export async function getFleetMemberSkills(uid: string) {
   const normalizedUid = String(uid ?? "").trim();
   const encoded = encodeURIComponent(normalizedUid);

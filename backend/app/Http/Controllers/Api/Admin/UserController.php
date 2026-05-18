@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Faction;
 use App\Models\SwcSectorSearchRecord;
+use App\Models\ToolSubscription;
+use App\Models\ToolSubscriptionMember;
 use App\Models\User;
 use App\Support\Admin\AdminActionLogger;
 use App\Support\Swc\SwcAuthorizationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
@@ -87,6 +91,16 @@ class UserController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $isSysadmin = (bool) $request->user()?->is_sysadmin;
+
+        $activeSubscriptions = $isSysadmin
+            ? ToolSubscription::query()
+                ->where('subscriber_type', 'user')
+                ->where('status', 'active')
+                ->get(['id', 'subscriber_id', 'plan_key', 'current_period_end'])
+                ->keyBy('subscriber_id')
+            : collect();
+
         $users = User::query()
             ->orderByRaw('COALESCE(swc_handle, "") asc')
             ->get([
@@ -115,7 +129,7 @@ class UserController extends Controller
                 'can_manage_tips',
                 'can_manage_eotm',
             ])
-            ->map(function (User $user) {
+            ->map(function (User $user) use ($isSysadmin, $activeSubscriptions) {
                 return [
                     'id'               => $user->id,
                     'handle'           => $this->resolveDisplayHandle($user),
@@ -141,6 +155,13 @@ class UserController extends Controller
                     'can_manage_blog'  => (bool) $user->can_manage_blog,
                     'can_manage_tips'  => (bool) $user->can_manage_tips,
                     'can_manage_eotm'  => (bool) $user->can_manage_eotm,
+                    'active_subscription' => $isSysadmin && $activeSubscriptions->has($user->id)
+                        ? [
+                            'id'                 => $activeSubscriptions[$user->id]->id,
+                            'plan_key'           => $activeSubscriptions[$user->id]->plan_key,
+                            'current_period_end' => $activeSubscriptions[$user->id]->current_period_end?->toIso8601String(),
+                        ]
+                        : null,
                 ];
             })
             ->values();
@@ -565,6 +586,131 @@ class UserController extends Controller
                 'local_revoked' => $result['local_revoked'],
                 'affected_users' => count($affectedUserIds),
             ],
+        ]);
+    }
+
+    public function factionSubscriptions(Request $request): JsonResponse
+    {
+        $actor = $request->user();
+
+        if (!$actor || !(bool) $actor->is_sysadmin) {
+            return response()->json(['ok' => false, 'message' => 'Sysadmin only.'], 403);
+        }
+
+        $subs = ToolSubscription::query()
+            ->where('subscriber_type', 'faction')
+            ->where('status', 'active')
+            ->with(['activatedBy:id,swc_handle,discord_global_name,discord_username'])
+            ->get();
+
+        $factionIds = $subs->pluck('subscriber_id')->unique()->values();
+        $factions = Faction::whereIn('id', $factionIds)->get(['id', 'name', 'abbreviation'])->keyBy('id');
+
+        $subIds = $subs->pluck('id');
+        $members = ToolSubscriptionMember::whereIn('tool_subscription_id', $subIds)
+            ->with('user:id,swc_handle,swc_avatar_url,discord_global_name,discord_username')
+            ->get()
+            ->groupBy('tool_subscription_id');
+
+        $data = $subs->map(function (ToolSubscription $sub) use ($factions, $members) {
+            $faction = $factions->get($sub->subscriber_id);
+            $grantedMembers = $members->get($sub->id, collect());
+
+            return [
+                'id'                 => $sub->id,
+                'plan_key'           => $sub->plan_key,
+                'faction'            => $faction ? ['id' => $faction->id, 'name' => $faction->name, 'abbreviation' => $faction->abbreviation] : null,
+                'seat_count'         => $sub->seat_count,
+                'seats_used'         => $grantedMembers->count(),
+                'current_period_end' => $sub->current_period_end?->toIso8601String(),
+                'manager'            => $sub->activatedBy ? [
+                    'id'     => $sub->activatedBy->id,
+                    'handle' => $sub->activatedBy->swc_handle ?? $sub->activatedBy->discord_global_name ?? $sub->activatedBy->discord_username ?? "User #{$sub->activatedBy->id}",
+                ] : null,
+                'members'            => $grantedMembers->map(fn ($m) => [
+                    'id'         => $m->user->id,
+                    'handle'     => $m->user->swc_handle ?? $m->user->discord_global_name ?? $m->user->discord_username ?? "User #{$m->user->id}",
+                    'avatar_url' => $m->user->swc_avatar_url,
+                ])->values(),
+            ];
+        });
+
+        return response()->json(['ok' => true, 'data' => $data]);
+    }
+
+    public function revokeFactionSubscription(Request $request, int $subscriptionId): JsonResponse
+    {
+        $actor = $request->user();
+
+        if (!$actor || !(bool) $actor->is_sysadmin) {
+            return response()->json(['ok' => false, 'message' => 'Only sysadmins can revoke subscriptions.'], 403);
+        }
+
+        $sub = ToolSubscription::query()
+            ->where('id', $subscriptionId)
+            ->where('subscriber_type', 'faction')
+            ->where('status', 'active')
+            ->firstOrFail();
+
+        DB::transaction(function () use ($sub) {
+            ToolSubscriptionMember::where('tool_subscription_id', $sub->id)->delete();
+            $sub->update(['status' => 'revoked', 'revoked_at' => now()]);
+        });
+
+        AdminActionLogger::log(
+            $request,
+            'users',
+            'revoke_faction_subscription',
+            "Revoked faction tool subscription #{$sub->id}",
+            'tool_subscription',
+            $sub->id,
+            ['status' => 'active'],
+            ['status' => 'revoked']
+        );
+
+        return response()->json([
+            'ok' => true,
+            'message' => "Faction subscription revoked and all member grants removed.",
+        ]);
+    }
+
+    public function revokeSubscription(Request $request, User $user): JsonResponse
+    {
+        $actor = $request->user();
+
+        if (!$actor || !(bool) $actor->is_sysadmin) {
+            return response()->json(['ok' => false, 'message' => 'Only sysadmins can revoke subscriptions.'], 403);
+        }
+
+        $sub = ToolSubscription::query()
+            ->where('subscriber_type', 'user')
+            ->where('subscriber_id', $user->id)
+            ->where('status', 'active')
+            ->first();
+
+        if (!$sub) {
+            return response()->json(['ok' => false, 'message' => 'No active subscription found for this user.'], 404);
+        }
+
+        DB::transaction(function () use ($sub) {
+            ToolSubscriptionMember::where('tool_subscription_id', $sub->id)->delete();
+            $sub->update(['status' => 'revoked', 'revoked_at' => now()]);
+        });
+
+        AdminActionLogger::log(
+            $request,
+            'users',
+            'revoke_subscription',
+            "Revoked tool subscription for {$this->resolveDisplayHandle($user)}",
+            'tool_subscription',
+            $sub->id,
+            ['status' => 'active'],
+            ['status' => 'revoked']
+        );
+
+        return response()->json([
+            'ok' => true,
+            'message' => "Subscription revoked for {$this->resolveDisplayHandle($user)}.",
         ]);
     }
 }

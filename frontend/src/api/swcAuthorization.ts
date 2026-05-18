@@ -28,6 +28,7 @@ export type MemberToolPreferences = {
 
 export type PublicToolPreferences = {
   payments: boolean;
+  astrogation: boolean;
 };
 
 export type SwcAuthorizationStatus = {

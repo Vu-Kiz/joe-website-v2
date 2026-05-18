@@ -3,7 +3,6 @@
 namespace App\Jobs;
 
 use App\Models\User;
-use App\Support\DroidBrain\DroidBrainRewardService;
 use App\Support\DroidBrain\DroidBrainUploadService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -20,28 +19,37 @@ class ProcessDroidBrainUploadJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public int $tries = 1;
+    public int $tries = 2;
     public int $timeout = 3600;
 
     public function __construct(
         public int $queueItemId
     ) {
         $this->onConnection('database');
-        $this->onQueue('default');
+        $this->onQueue('xml-imports');
     }
 
-    public function handle(
-        DroidBrainUploadService $uploadService,
-        DroidBrainRewardService $rewardService
-    ): void {
+    public function handle(DroidBrainUploadService $uploadService): void
+    {
         $queueItem = DB::transaction(function () {
             $item = DB::table('droidbrain_upload_queue_items')
                 ->where('id', $this->queueItemId)
                 ->lockForUpdate()
                 ->first();
 
-            if (!$item || in_array($item->status, ['processing', 'completed'], true)) {
+            if (!$item || $item->status === 'completed') {
                 return null;
+            }
+
+            // If a previous attempt died mid-job (OOM, hard timeout, worker kill)
+            // the item stays in 'processing' forever because failed() was never
+            // called. Reclaim it after a safe threshold so it can be retried.
+            if ($item->status === 'processing') {
+                $stuckThreshold = now()->subHours(2);
+                if ($item->updated_at > $stuckThreshold->toDateTimeString()) {
+                    return null;
+                }
+                // Older than 2h in processing — assume dead, reclaim below.
             }
 
             DB::table('droidbrain_upload_queue_items')
@@ -84,9 +92,6 @@ class ProcessDroidBrainUploadJob implements ShouldQueue
             );
 
             $summary = $uploadService->ingest($uploadedFile, $user);
-            if (!($summary['duplicate'] ?? false)) {
-                $rewardService->syncForFile((int) $summary['file_id'], null, true);
-            }
 
             DB::table('droidbrain_upload_queue_items')
                 ->where('id', $this->queueItemId)

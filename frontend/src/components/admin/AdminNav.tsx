@@ -1,5 +1,7 @@
 import React from "react";
 
+const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
+
 export type AdminView =
   | "home"
   | "workerHealth"
@@ -17,7 +19,8 @@ export type AdminView =
   | "memberChangelog"
   | "logs"
   | "memberAccessLogs"
-  | "droidbrainUploads";
+  | "droidbrainUploads"
+  | "toolStore";
 
 type NavItem = {
   key: AdminView;
@@ -54,28 +57,47 @@ const AdminNav: React.FC<Props> = ({
     { key: "entityStats", label: "Entity Stats", hidden: !showSystemTools },
     { key: "memberChangelog", label: "Change Log" },
     { key: "droidbrainUploads", label: "DroidBrain Uploads", hidden: !showSystemTools },
+    { key: "toolStore", label: "Tools Store", hidden: !showSystemTools },
     { key: "logs", label: "Action Logs", hidden: !canSeeLogs },
     { key: "memberAccessLogs", label: "Member Access", hidden: !canSeeLogs },
   ];
 
+  const visible = items.filter((item) => !item.hidden);
+
+  if (isMobile) {
+    return (
+      <div className="panel admin-nav">
+        <select
+          className="input"
+          value={activeView}
+          onChange={(e) => onChange(e.target.value as AdminView)}
+        >
+          {visible.map((item) => (
+            <option key={item.key} value={item.key}>
+              {item.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
   return (
     <div className="panel admin-nav">
       <div className="admin-nav__list">
-        {items
-          .filter((item) => !item.hidden)
-          .map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              className={
-                "btn admin-nav__btn" +
-                (activeView === item.key ? " admin-nav__btn--active" : "")
-              }
-              onClick={() => onChange(item.key)}
-            >
-              {item.label}
-            </button>
-          ))}
+        {visible.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            className={
+              "btn admin-nav__btn" +
+              (activeView === item.key ? " admin-nav__btn--active" : "")
+            }
+            onClick={() => onChange(item.key)}
+          >
+            {item.label}
+          </button>
+        ))}
       </div>
     </div>
   );

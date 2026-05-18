@@ -22,7 +22,8 @@ return [
     'public_tools_scope' => env('SWC_OAUTH_PUBLIC_TOOLS_SCOPE', 'character_read character_credits character_credits_write'),
     'public_tools_min_scope' => env('SWC_OAUTH_PUBLIC_TOOLS_MIN_SCOPE', 'character_read'),
     'public_tool_scopes' => [
-        'payments' => 'character_read character_credits character_credits_write',
+        'payments'    => 'character_read character_credits character_credits_write',
+        'astrogation' => 'character_read character_events',
     ],
     'creditlog_scope' => env('SWC_OAUTH_CREDITLOG_SCOPE','character_read character_credits character_credits_write faction_credits_read faction_credits_write character_privileges'),
     'events_scope'  => env('SWC_OAUTH_EVENTS_SCOPE', 'character_events'),

@@ -9,11 +9,12 @@ import {
   type SwcAuthorizationStatus,
 } from "../api/swcAuthorization";
 import SwcToolAccessSection from "../components/aboutme/SwcToolAccessSection";
+import FactionConsolePanel from "../components/faction/FactionConsolePanel";
 import "../styles/_aboutme.sass";
 
-type Pill = { key: string; label: string };
+type Pill = { key: string; label: string; hue: number };
 type MemberToolKey = "galaxy" | "payments" | "fleet_command" | "market_personal" | "market_faction";
-type PublicToolKey = "payments";
+type PublicToolKey = "payments" | "astrogation";
 type ToolCard<K extends string> = {
   key: K;
   title: string;
@@ -36,6 +37,7 @@ const AboutMe: React.FC = () => {
   });
   const [selectedPublicTools, setSelectedPublicTools] = useState<Record<PublicToolKey, boolean>>({
     payments: true,
+    astrogation: true,
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -59,6 +61,7 @@ const AboutMe: React.FC = () => {
           });
           setSelectedPublicTools({
             payments: true,
+            astrogation: true,
           });
           setError(null);
         }
@@ -81,6 +84,7 @@ const AboutMe: React.FC = () => {
             });
             setSelectedPublicTools({
               payments: swcAuthRes.data?.public_tool_preferences?.payments ?? true,
+              astrogation: swcAuthRes.data?.public_tool_preferences?.astrogation ?? true,
             });
           }
         } catch {
@@ -95,6 +99,7 @@ const AboutMe: React.FC = () => {
             });
             setSelectedPublicTools({
               payments: true,
+              astrogation: true,
             });
           }
         }
@@ -186,7 +191,7 @@ const AboutMe: React.FC = () => {
           last_verified_at: null,
           revoked_at: null,
           member_tool_preferences: { galaxy: true, payments: true, fleet_command: true, market_personal: false, market_faction: false },
-          public_tool_preferences: { payments: true },
+          public_tool_preferences: { payments: true, astrogation: true },
         }),
         member_tool_preferences: response.data.member_tool_preferences,
         public_tool_preferences: response.data.public_tool_preferences,
@@ -220,7 +225,7 @@ const AboutMe: React.FC = () => {
           last_verified_at: null,
           revoked_at: null,
           member_tool_preferences: { galaxy: true, payments: true, fleet_command: true, market_personal: false, market_faction: false },
-          public_tool_preferences: { payments: true },
+          public_tool_preferences: { payments: true, astrogation: true },
         }),
         member_tool_preferences: response.data.member_tool_preferences,
         public_tool_preferences: response.data.public_tool_preferences,
@@ -234,12 +239,17 @@ const AboutMe: React.FC = () => {
     if (!user) return [];
 
     const possible: Array<Pill & { enabled: boolean }> = [
-      { key: "is_joe_member", label: "JOE Member", enabled: user.is_joe_member },
-      { key: "is_admin", label: "Admin", enabled: user.is_admin },
-      { key: "is_sysadmin", label: "Sysadmin", enabled: user.is_sysadmin },
-      { key: "is_intel", label: "Intel", enabled: user.is_intel },
-      { key: "is_garry", label: "GARRY", enabled: user.is_garry },
-      { key: "is_raid", label: "RAID", enabled: user.is_raid },
+      { key: "is_joe_member",                        label: "JOE Member",      hue: 47,  enabled: user.is_joe_member },
+      { key: "is_admin",                             label: "Admin",            hue: 25,  enabled: user.is_admin },
+      { key: "is_sysadmin",                          label: "Sysadmin",         hue: 0,   enabled: user.is_sysadmin },
+      { key: "is_intel",                             label: "Intel",            hue: 210, enabled: user.is_intel },
+      { key: "is_garry",                             label: "GARRY",            hue: 280, enabled: user.is_garry },
+      { key: "is_raid",                              label: "RAID",             hue: 145, enabled: user.is_raid },
+      { key: "can_view_asteroid_intel",              label: "Asteroid Intel",   hue: 185, enabled: user.can_view_asteroid_intel },
+      { key: "can_access_combat_calc",               label: "Combat Calc",      hue: 355, enabled: user.can_access_combat_calc },
+      { key: "can_access_wrecking_helper_extension", label: "Wrecking Helper",  hue: 90,  enabled: user.can_access_wrecking_helper_extension },
+      { key: "can_access_fleet_commander",           label: "Fleet Command",    hue: 230, enabled: user.can_access_fleet_commander },
+      { key: "can_manage_blog",                      label: "Manage Blog",      hue: 320, enabled: user.can_manage_blog },
     ];
 
     return possible.filter(p => p.enabled).map(({ enabled, ...rest }) => rest);
@@ -292,15 +302,31 @@ const AboutMe: React.FC = () => {
     },
   ], [selectedMemberTools.galaxy, selectedMemberTools.payments, selectedMemberTools.fleet_command, selectedMemberTools.market_personal, selectedMemberTools.market_faction, swcAuth?.has_character_credits_write_access, swcAuth?.has_character_skills_access, swcAuth?.has_faction_inventory_access, swcAuth?.has_personal_inventory_access, swcAuth?.has_personal_events_access]);
 
-  const publicToolCards = useMemo<Array<ToolCard<PublicToolKey>>>(() => [
-    {
+  const isSubscriber = user?.tool_access_tier !== "none" && user?.tool_access_tier != null;
+
+  const publicToolCards = useMemo<Array<ToolCard<PublicToolKey>>>(() => {
+    const cards: Array<ToolCard<PublicToolKey>> = [];
+
+    if (isSubscriber) {
+      cards.push({
+        key: "astrogation",
+        title: "Astrogation",
+        description: "Pull your personal SWC travel arrivals into the astrogation map so you can scout cells and track your routes.",
+        enabled: selectedPublicTools.astrogation,
+        accessNow: Boolean(swcAuth?.has_personal_events_access),
+      });
+    }
+
+    cards.push({
       key: "payments",
       title: "Payments",
-      description: "Grant SWC payments access so you can buy items through market checkout.",
+      description: "Grant SWC payments access so you can buy items through market checkout or pay for subscription to tools.",
       enabled: selectedPublicTools.payments,
       accessNow: Boolean(swcAuth?.has_character_credits_write_access),
-    },
-  ], [selectedPublicTools.payments, swcAuth?.has_character_credits_write_access]);
+    });
+
+    return cards;
+  }, [isSubscriber, selectedPublicTools.astrogation, selectedPublicTools.payments, swcAuth?.has_personal_events_access, swcAuth?.has_character_credits_write_access]);
 
   if (loading) {
     return (
@@ -411,17 +437,37 @@ const AboutMe: React.FC = () => {
 
       <hr className="divider" />
 
+      <FactionConsolePanel />
+
       <h2 className="h2">Permissions</h2>
 
       <div className="pill-row">
         {pills.length > 0 ? (
           pills.map(p => (
-            <span key={p.key} className="pill">
+            <span
+              key={p.key}
+              className="pill"
+              style={{
+                borderColor: `hsl(${p.hue}, 70%, 50%, 0.45)`,
+                background: `hsl(${p.hue}, 70%, 50%, 0.12)`,
+                color: `hsl(${p.hue}, 80%, 75%)`,
+              }}
+            >
               {p.label}
             </span>
           ))
         ) : (
           <span className="pill pill--muted">No permissions granted</span>
+        )}
+        {user.tool_subscription && (
+          <span className="pill" style={{ borderColor: "hsl(145, 70%, 50%, 0.45)", background: "hsl(145, 70%, 50%, 0.12)", color: "hsl(145, 80%, 75%)" }}>
+            Subscriber ({user.tool_subscription.subscriber_type === "faction" ? "Faction" : "Individual"})
+          </span>
+        )}
+        {(user.scan_window_top_left_galx != null || user.scan_window_bottom_right_galx != null) && (
+          <span className="pill aboutme-scan-window-pill">
+            {user.scan_window_top_left_galx ?? "—"},{user.scan_window_top_left_galy ?? "—"} → {user.scan_window_bottom_right_galx ?? "—"},{user.scan_window_bottom_right_galy ?? "—"}
+          </span>
         )}
       </div>
     </div>

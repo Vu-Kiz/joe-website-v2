@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import WeaponHeatmapDeckGrid from "./WeaponHeatmapDeckGrid";
 import {
   getStoredItemType,
   getStoredItemTypes,
@@ -23,7 +24,6 @@ import {
   defaultOriginForBoard,
   formatNumber,
   getBoardDimensions,
-  heatColor,
   isBearingWithinArc,
   normalizeDegrees,
   resolveWeaponArcWindow,
@@ -61,9 +61,6 @@ type ResolvedMountedWeapon = {
   weapon: StoredWeaponTypeDetail;
 };
 type WeaponHeatmapViewMode = "single" | "combined";
-const HEATMAP_TOOLTIP_WIDTH_ESTIMATE = 180;
-const HEATMAP_TOOLTIP_HEIGHT_ESTIMATE = 132;
-const HEATMAP_TOOLTIP_MARGIN = 12;
 
 function buildLinkedWeaponKey(item: Record<string, unknown>) {
   const arcFromValue = item.arcFrom ?? item.arc_from;
@@ -182,16 +179,9 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
     heading: false,
     weapons: false,
   });
-  const [hoveredPopup, setHoveredPopup] = useState<{
-    cell: HeatCell;
-    left: number;
-    top: number;
-    transform: string;
-  } | null>(null);
   const [selectedOrigin, setSelectedOrigin] = useState<GridPoint | null>(null);
   const [selectedTarget, setSelectedTarget] = useState<GridPoint | null>(null);
   const [selectionMode, setSelectionMode] = useState<HeatmapSelectionMode>("none");
-  const gridRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -448,7 +438,6 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
   useEffect(() => {
     setSelectedOrigin((current) => clampPointToBoard(current, activeMaxRange, boardMode, atmoBoardSize));
     setSelectedTarget((current) => clampPointToBoard(current, activeMaxRange, boardMode, atmoBoardSize));
-    setHoveredPopup(null);
   }, [defaultOrigin.x, defaultOrigin.y, activeMaxRange, boardMode, atmoBoardSize]);
 
   const hasDirectionalWeaponArcs = useMemo(
@@ -537,11 +526,12 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
   const displayHeatCells = activeHeatCells.length ? activeHeatCells : fallbackZeroCells;
   const gridColumns = useMemo(() => {
     const dimensions = getBoardDimensions(activeMaxRange, boardMode, atmoBoardSize);
-    if (dimensions.width > 0) {
-      return dimensions.width;
-    }
+    return dimensions.width > 0 ? dimensions.width : Math.round(Math.sqrt(displayHeatCells.length));
+  }, [activeMaxRange, boardMode, displayHeatCells.length, atmoBoardSize]);
 
-    return Math.sqrt(displayHeatCells.length);
+  const gridRows = useMemo(() => {
+    const dimensions = getBoardDimensions(activeMaxRange, boardMode, atmoBoardSize);
+    return dimensions.height > 0 ? dimensions.height : Math.round(Math.sqrt(displayHeatCells.length));
   }, [activeMaxRange, boardMode, displayHeatCells.length, atmoBoardSize]);
   const combinedWeaponCount = useMemo(
     () => enabledWeapons.reduce((sum, weapon) => sum + Math.max(1, weapon.quantity), 0),
@@ -796,119 +786,22 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
                 </div>
               ) : null}
             </div>
-            <div className="weapon-heatmap-page__grid" style={{ gridTemplateColumns: `repeat(${gridColumns || 1}, minmax(0, 1fr))` }}>
-              <div ref={gridRef} className="weapon-heatmap-page__grid-overlay-anchor" />
-              {displayHeatCells.map((cell) => {
-                  const isOrigin = cell.x === activeOrigin.x && cell.y === activeOrigin.y;
-                  const isTarget = cell.x === activeTarget.x && cell.y === activeTarget.y;
-                  return (
-                    <button
-                      key={`${cell.x}:${cell.y}`}
-                      type="button"
-                      className={`weapon-heatmap-page__cell${isOrigin ? " is-origin" : ""}${isTarget ? " is-target" : ""}`}
-                      style={{ background: heatColor(cell.hitChance) }}
-                      onMouseEnter={(event) => {
-                        const rect = event.currentTarget.getBoundingClientRect();
-                        const viewportRect = gridRef.current?.getBoundingClientRect() ?? rect;
-                        const cellCenterX = rect.left - viewportRect.left + rect.width / 2;
-                        const tooltipHalfWidth = HEATMAP_TOOLTIP_WIDTH_ESTIMATE / 2;
-                        const maxLeft = viewportRect.width - HEATMAP_TOOLTIP_MARGIN - tooltipHalfWidth;
-                        const minLeft = HEATMAP_TOOLTIP_MARGIN + tooltipHalfWidth;
-                        const clampedLeft = Math.min(maxLeft, Math.max(minLeft, cellCenterX));
-                        const preferredTop = rect.top - viewportRect.top - 10;
-                        const canRenderAbove =
-                          preferredTop - HEATMAP_TOOLTIP_HEIGHT_ESTIMATE >= HEATMAP_TOOLTIP_MARGIN;
-                        const tooltipTop = canRenderAbove
-                          ? preferredTop
-                          : rect.bottom - viewportRect.top + 10;
-                        setHoveredPopup({
-                          cell,
-                          left: clampedLeft,
-                          top: tooltipTop,
-                          transform: canRenderAbove ? "translate(-50%, -100%)" : "translate(-50%, 0)",
-                        });
-                      }}
-                      onFocus={(event) => {
-                        const rect = event.currentTarget.getBoundingClientRect();
-                        const viewportRect = gridRef.current?.getBoundingClientRect() ?? rect;
-                        const cellCenterX = rect.left - viewportRect.left + rect.width / 2;
-                        const tooltipHalfWidth = HEATMAP_TOOLTIP_WIDTH_ESTIMATE / 2;
-                        const maxLeft = viewportRect.width - HEATMAP_TOOLTIP_MARGIN - tooltipHalfWidth;
-                        const minLeft = HEATMAP_TOOLTIP_MARGIN + tooltipHalfWidth;
-                        const clampedLeft = Math.min(maxLeft, Math.max(minLeft, cellCenterX));
-                        const preferredTop = rect.top - viewportRect.top - 10;
-                        const canRenderAbove =
-                          preferredTop - HEATMAP_TOOLTIP_HEIGHT_ESTIMATE >= HEATMAP_TOOLTIP_MARGIN;
-                        const tooltipTop = canRenderAbove
-                          ? preferredTop
-                          : rect.bottom - viewportRect.top + 10;
-                        setHoveredPopup({
-                          cell,
-                          left: clampedLeft,
-                          top: tooltipTop,
-                          transform: canRenderAbove ? "translate(-50%, -100%)" : "translate(-50%, 0)",
-                        });
-                      }}
-                      onClick={() => {
-                        if (selectionMode === "origin") {
-                          setSelectedOrigin({ x: cell.x, y: cell.y });
-                        } else if (selectionMode === "target") {
-                          setSelectedTarget({ x: cell.x, y: cell.y });
-                        }
-                      }}
-                      onMouseLeave={() => {
-                        setHoveredPopup((current) =>
-                          current?.cell.x === cell.x && current?.cell.y === cell.y ? null : current
-                        );
-                      }}
-                      onBlur={() => {
-                        setHoveredPopup((current) =>
-                          current?.cell.x === cell.x && current?.cell.y === cell.y ? null : current
-                        );
-                      }}
-                      aria-label={`${
-                        selectionMode === "origin"
-                          ? "Set weapon grid"
-                          : selectionMode === "target"
-                            ? "Set target grid"
-                            : "Inspect heatmap cell"
-                      } ${cell.x}, ${cell.y}`}
-                    >
-                      <span>{formatNumber(cell.hitChance * 100, 0)}</span>
-                      {isOrigin ? <i className="weapon-heatmap-page__marker weapon-heatmap-page__marker--origin" aria-hidden="true" /> : null}
-                      {isTarget ? <i className="weapon-heatmap-page__marker weapon-heatmap-page__marker--target" aria-hidden="true" /> : null}
-                    </button>
-                  );
-                })}
-              {hoveredPopup ? (
-                <div
-                  className="weapon-heatmap-page__hover"
-                  style={{
-                    left: hoveredPopup.left,
-                    top: hoveredPopup.top,
-                    transform: hoveredPopup.transform,
-                  }}
-                >
-                  <strong>
-                    {hoveredPopup.cell.x}, {hoveredPopup.cell.y}
-                  </strong>
-                  <div className="weapon-heatmap-page__hover-group">
-                    <span className="small weapon-heatmap-page__hover-label">Distance</span>
-                    <span className="small">{formatNumber(hoveredPopup.cell.distance, 2)}</span>
-                  </div>
-                  {usesDirectionalArcs ? (
-                    <div className="weapon-heatmap-page__hover-group">
-                      <span className="small weapon-heatmap-page__hover-label">Bearing</span>
-                      <span className="small">{formatNumber(bearingFromPoint(activeOrigin.x, activeOrigin.y, hoveredPopup.cell.x, hoveredPopup.cell.y), 0)}°</span>
-                    </div>
-                  ) : null}
-                  <div className="weapon-heatmap-page__hover-group">
-                    <span className="small weapon-heatmap-page__hover-label">Hit Chance</span>
-                    <span className="small">{formatNumber(hoveredPopup.cell.hitChance * 100, 0)}%</span>
-                  </div>
-                </div>
-              ) : null}
-            </div>
+            <WeaponHeatmapDeckGrid
+              cells={displayHeatCells}
+              gridColumns={gridColumns}
+              gridRows={gridRows}
+              activeOrigin={activeOrigin}
+              activeTarget={activeTarget}
+              selectionMode={selectionMode}
+              usesDirectionalArcs={usesDirectionalArcs}
+              onCellClick={(cell) => {
+                if (selectionMode === "origin") {
+                  setSelectedOrigin({ x: cell.x, y: cell.y });
+                } else if (selectionMode === "target") {
+                  setSelectedTarget({ x: cell.x, y: cell.y });
+                }
+              }}
+            />
             <div className="weapon-heatmap-page__click-controls">
               <div className="members-combat-calc__section-pills">
                 <button type="button" className={`ui-btn ui-btn--small${selectionMode === "none" ? " ui-btn--primary" : " ui-btn--soft"}`} onClick={() => setSelectionMode("none")}>
@@ -926,7 +819,6 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
                   onClick={() => {
                     setSelectedOrigin(defaultOrigin);
                     setSelectedTarget(defaultOrigin);
-                    setHoveredPopup(null);
                   }}
                 >
                   Reset Markers

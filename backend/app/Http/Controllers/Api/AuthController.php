@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\ToolStore\ToolAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,8 +14,17 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AuthController extends Controller
 {
+    public function __construct(protected ToolAccessService $toolAccessService)
+    {
+    }
+
     public function me(Request $request): JsonResponse
     {
+        $authUser = Auth::user();
+        $tier = $this->toolAccessService->tierForUser($authUser);
+        $subscription = $authUser ? $this->toolAccessService->activeSubscriptionFor($authUser) : null;
+        $storeHasActivePlans = \App\Models\ToolSubscriptionPlan::where('is_active', true)->exists();
+
         return response()->json([
             'ok' => true,
             'debug' => [
@@ -49,6 +59,17 @@ class AuthController extends Controller
                 'is_garry' => (bool) Auth::user()->is_garry,
                 'is_raid' => (bool) Auth::user()->is_raid,
                 'can_manage_blog' => (bool) Auth::user()->can_manage_blog,
+                'force_subscriber_tier' => (bool) Auth::user()->force_subscriber_tier,
+                'lock_joe_flags' => (bool) Auth::user()->lock_joe_flags,
+                'tool_access_tier' => $tier,
+                'store_has_active_plans' => $storeHasActivePlans,
+                'tool_subscription' => $subscription ? [
+                    'id' => $subscription->id,
+                    'plan_key' => $subscription->plan_key,
+                    'subscriber_type' => $subscription->subscriber_type,
+                    'status' => $subscription->status,
+                    'current_period_end' => $subscription->current_period_end?->toIso8601String(),
+                ] : null,
             ] : null,
         ]);
     }

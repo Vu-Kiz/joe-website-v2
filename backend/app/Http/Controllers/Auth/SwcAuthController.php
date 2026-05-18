@@ -967,13 +967,20 @@ class SwcAuthController extends Controller
             throw new \RuntimeException('Could not determine SWC character id.');
         }
 
+        $existingUser = User::query()->where('swc_character_id', $numericCharacterId)->first();
+        $lockFlags = $existingUser && $existingUser->lock_joe_flags;
+
+        $updateData = [
+            'swc_handle' => $charName,
+            'swc_avatar_url' => $avatar !== '' ? $avatar : null,
+        ];
+        if (!$lockFlags) {
+            $updateData['is_joe_member'] = $this->isJoeMemberInProfile($profile);
+        }
+
         $user = User::updateOrCreate(
             ['swc_character_id' => $numericCharacterId],
-            [
-                'swc_handle' => $charName,
-                'swc_avatar_url' => $avatar !== '' ? $avatar : null,
-                'is_joe_member' => $this->isJoeMemberInProfile($profile),
-            ]
+            $updateData
         );
 
         $this->swcFactionSyncService->syncForUser($user, $profile);
@@ -1027,12 +1034,15 @@ class SwcAuthController extends Controller
             ]
         );
 
-        $user->forceFill([
+        $fillData = [
             'swc_character_id' => $numericCharacterId,
             'swc_handle' => $charName,
             'swc_avatar_url' => $avatar !== '' ? $avatar : null,
-            'is_joe_member' => $this->isJoeMemberInProfile($profile),
-        ])->save();
+        ];
+        if (!$user->lock_joe_flags) {
+            $fillData['is_joe_member'] = $this->isJoeMemberInProfile($profile);
+        }
+        $user->forceFill($fillData)->save();
 
         $this->swcFactionSyncService->syncForUser($user, $profile);
 

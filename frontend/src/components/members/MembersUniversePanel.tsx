@@ -1,7 +1,10 @@
-import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   saveStoredSearchRecord,
+  saveSubscriberCellRecord,
+  getSubscriberCellRecords,
+  adminGetAllSubscriberCellRecords,
   getStoredMapSystems,
   saveStoredCellAnnotation,
   getStoredSectors,
@@ -14,7 +17,7 @@ import {
 } from "../../api/universe";
 import { getApiBaseUrl, getBackendOrigin } from "../../api/auth";
 import type { SwcUser } from "../../api/auth";
-import { canAccessAdmin, canAccessDroidBrain, canViewAsteroidIntel, canViewScanWindow } from "../../auth/permissions";
+import { canAccessAdmin, canAccessDroidBrain, canViewAsteroidIntel, canViewScanWindow, getToolAccessTier } from "../../auth/permissions";
 import { uploadDroidBrainFile, type DroidBrainUploadResult } from "../../api/droidbrain";
 import {
   getSwcAuthorizationStatus,
@@ -230,12 +233,14 @@ type MembersUniversePanelProps = {
   viewer: SwcUser | null;
   swcAuthFromParent: SwcAuthorizationStatus | null;
   onSwcAuthChange?: (next: SwcAuthorizationStatus | null) => void;
+  forcePublicTier?: boolean;
 };
 
 const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
   viewer,
   swcAuthFromParent,
   onSwcAuthChange,
+  forcePublicTier = false,
 }) => {
   const navigate = useNavigate();
   const [swcAuth, setSwcAuth] = useState<SwcAuthorizationStatus | null>(swcAuthFromParent);
@@ -251,6 +256,8 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
   const [showSystemMatches, setShowSystemMatches] = useState(false);
   const [selectedSystemIdentifier, setSelectedSystemIdentifier] = useState("");
   const [systemDetailCache, setSystemDetailCache] = useState<Record<string, StoredSystemDetail>>({});
+  const systemDetailCacheRef = useRef<Record<string, StoredSystemDetail>>({});
+  useEffect(() => { systemDetailCacheRef.current = systemDetailCache; }, [systemDetailCache]);
   const [annotationCacheBySector, setAnnotationCacheBySector] = useState<
     Record<string, SectorCellAnnotation[]>
   >({});
@@ -275,12 +282,15 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
   const [droidbrainUploadResults, setDroidbrainUploadResults] = useState<DroidBrainUploadResult[]>([]);
   const [importLogs, setImportLogs] = useState<ImportLogEntry[]>([]);
   const [importLogsLoading, setImportLogsLoading] = useState(false);
+  const [subscriberOverlayActive, setSubscriberOverlayActive] = useState(false);
+  const [subscriberOverlayLoading, setSubscriberOverlayLoading] = useState(false);
   const [expandedLogId, setExpandedLogId] = useState<number | null>(null);
   const universePreferencesSaveTimerRef = useRef<number | null>(null);
   const systemSearchLoadedRef = useRef(false);
   const systemSearchLoadPromiseRef = useRef<Promise<void> | null>(null);
   const galaxyWorkerRef = useRef<Worker | null>(null);
   const galaxyWorkerRequestIdRef = useRef(0);
+  const subscriberRecordsRef = useRef<SectorSearchRecord[]>([]);
   const oauthParams = useMemo(() => new URLSearchParams(window.location.search), []);
   const swcOauthError = oauthParams.get("swc_oauth_error");
   const mapAnnotations = useMemo(
@@ -288,7 +298,8 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
     [annotationCacheBySector]
   );
   const canSeeAsteroidIntel = canViewAsteroidIntel(viewer);
-  const canSeeScanWindow = canViewScanWindow(viewer);
+  const canSeeScanWindow = canViewScanWindow(viewer) || !!(viewer?.is_joe_member);
+  const isPublicTier = forcePublicTier || getToolAccessTier(viewer) === "public";
 
   useEffect(() => {
     setSwcAuth(swcAuthFromParent);
@@ -339,7 +350,17 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
 
   function applyGalaxySnapshotResult(result: GalaxySnapshotResult) {
     setMapSystems(result.systems);
-    setMapSearchRecords(result.searchRecords);
+    const subRecords = subscriberRecordsRef.current;
+    if (subRecords.length > 0) {
+      const byKey = new Map(result.searchRecords.map((r) => [`${r.galx},${r.galy}`, r]));
+      for (const r of subRecords) {
+        const key = `${r.galx},${r.galy}`;
+        if (!byKey.has(key)) byKey.set(key, r);
+      }
+      setMapSearchRecords(Array.from(byKey.values()));
+    } else {
+      setMapSearchRecords(result.searchRecords);
+    }
     setAnnotationCacheBySector((current) => ({
       ...current,
       ...result.annotationsBySector,
@@ -528,6 +549,21 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
     }
   }, [globalMapDataLoaded, globalMapDataLoading]);
 
+  // After snapshot loads, merge in subscriber's own cell records
+  useEffect(() => {
+    if (!globalMapDataLoaded || !isPublicTier) return;
+    void getSubscriberCellRecords().then((res) => {
+      if (res.data?.length) {
+        subscriberRecordsRef.current = res.data;
+        setMapSearchRecords((current) => {
+          const byKey = new Map(current.map((r) => [`${r.galx},${r.galy}`, r]));
+          for (const r of res.data) byKey.set(`${r.galx},${r.galy}`, r);
+          return Array.from(byKey.values());
+        });
+      }
+    }).catch(() => {});
+  }, [globalMapDataLoaded, isPublicTier]);
+
   async function ensureSystemSearchOptionsLoaded() {
     if (systemSearchLoadedRef.current) {
       return;
@@ -551,8 +587,8 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
     await systemSearchLoadPromiseRef.current;
   }
 
-  async function loadSystemDetailForMap(systemIdentifier: string) {
-    const cached = systemDetailCache[systemIdentifier];
+  const loadSystemDetailForMap = useCallback(async (systemIdentifier: string) => {
+    const cached = systemDetailCacheRef.current[systemIdentifier];
     if (cached) {
       return cached;
     }
@@ -570,7 +606,7 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
     }
 
     return nextDetail;
-  }
+  }, []);
 
   const filteredSectors = useMemo(() => {
     const query = sectorQuery.trim().toLowerCase();
@@ -729,7 +765,7 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
       ) ?? null;
     const nextIdentifier = mapSystem?.uid ?? mapSystem?.identifier ?? systemIdentifier;
 
-    navigate(`/members/universe/system/${encodeURIComponent(nextIdentifier)}`, {
+    navigate(`/tools/universe/system/${encodeURIComponent(nextIdentifier)}`, {
       state: {
         fromUniverseMap: true,
         sectorUid: sectorUid ?? mapSystem?.sector_uid ?? null,
@@ -740,7 +776,7 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
   }
 
   function handleMapLocationSelect(galx: number, galy: number, sectorUid?: string | null) {
-    navigate(`/members/universe/location/${encodeURIComponent(String(galx))}/${encodeURIComponent(String(galy))}`, {
+    navigate(`/tools/universe/location/${encodeURIComponent(String(galx))}/${encodeURIComponent(String(galy))}`, {
       state: {
         fromUniverseMap: true,
         sectorUid: sectorUid ?? null,
@@ -794,7 +830,9 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
     has_ships?: boolean | null;
     has_stations?: boolean | null;
   }) {
-    const response = await saveStoredSearchRecord(payload);
+    const response = isPublicTier
+      ? await saveSubscriberCellRecord(payload)
+      : await saveStoredSearchRecord(payload);
     const saved = response.data;
 
     setMapSearchRecords((current) => {
@@ -816,12 +854,35 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
   }
 
   async function refreshSearchRecords({ silent = false }: { silent?: boolean } = {}) {
+    if (isPublicTier) {
+      const res = await getSubscriberCellRecords();
+      if (res.data) {
+        subscriberRecordsRef.current = res.data;
+        setMapSearchRecords(res.data);
+      }
+      return;
+    }
     await loadGalaxySnapshotData({ silent });
   }
 
   function handleResyncSwcAccess() {
     const backendOrigin = getBackendOrigin();
     if (!backendOrigin) return;
+
+    if (isPublicTier) {
+      const savedPreferences = swcAuth?.public_tool_preferences;
+      const selectedTools = [
+        savedPreferences?.astrogation !== false ? "astrogation" : null,
+        savedPreferences?.payments !== false ? "payments" : null,
+      ].filter((value): value is string => value !== null);
+      const query = new URLSearchParams({
+        return_to: "/tools",
+        ...(selectedTools.length > 0 ? { tools: selectedTools.join(",") } : {}),
+      });
+      window.location.href = `${backendOrigin}/oauth/public-tools?${query.toString()}`;
+      return;
+    }
+
     const savedPreferences = swcAuth?.member_tool_preferences;
     const selectedTools = [
       savedPreferences?.galaxy !== false ? "galaxy" : null,
@@ -845,6 +906,33 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
       // non-critical
     } finally {
       setImportLogsLoading(false);
+    }
+  }
+
+  async function handleToggleSubscriberOverlay() {
+    if (subscriberOverlayActive) {
+      setSubscriberOverlayActive(false);
+      await refreshSearchRecords({ silent: true });
+      return;
+    }
+    setSubscriberOverlayLoading(true);
+    try {
+      const res = await adminGetAllSubscriberCellRecords();
+      if (res.data) {
+        setMapSearchRecords((current) => {
+          const existing = new Map(current.map((r) => [`${r.galx},${r.galy}`, r]));
+          for (const r of res.data!) {
+            const key = `${r.galx},${r.galy}`;
+            if (!existing.has(key)) existing.set(key, r);
+          }
+          return Array.from(existing.values());
+        });
+        setSubscriberOverlayActive(true);
+      }
+    } catch {
+      // non-critical
+    } finally {
+      setSubscriberOverlayLoading(false);
     }
   }
 
@@ -999,6 +1087,33 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
                 ) : null}
               </div>
             ))}
+          </div>
+        </section>
+      ) : null}
+
+      {viewer?.is_admin ? (
+        <section className="members-universe__controller-section">
+          <div className="members-universe__top-actions-copy">
+            <h4 className="admin-card__title">Subscriber Scout Data</h4>
+            <p className="small" style={{ margin: 0 }}>
+              {subscriberOverlayActive
+                ? "Subscriber cell records are merged into the map. Click to remove them."
+                : "Merge all subscriber-uploaded cell records into the map view."}
+            </p>
+          </div>
+          <div className="members-universe__top-actions-controls">
+            <button
+              className={`btn${subscriberOverlayActive ? " btn--ghost" : ""}`}
+              type="button"
+              onClick={handleToggleSubscriberOverlay}
+              disabled={subscriberOverlayLoading}
+            >
+              {subscriberOverlayLoading
+                ? "Loading..."
+                : subscriberOverlayActive
+                  ? "Remove Subscriber Data"
+                  : "Show Subscriber Data"}
+            </button>
           </div>
         </section>
       ) : null}
@@ -1226,9 +1341,11 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
             systemMarkers={mapSystems}
             searchRecords={mapSearchRecords}
             annotations={mapAnnotations}
-            canViewCellIntel={canSeeAsteroidIntel}
+            canViewCellIntel={canSeeAsteroidIntel || isPublicTier}
             canViewScanWindow={canSeeScanWindow}
             canEditCellIntel={canAccessAdmin(viewer)}
+            canViewSystemIds={canAccessAdmin(viewer)}
+            isFullTier={!isPublicTier && getToolAccessTier(viewer) === "full"}
             activeSectorUid={selectedSectorUid || undefined}
             focusRequest={focusRequest}
             onClearFocusRequest={() => setFocusRequest(null)}

@@ -63,9 +63,9 @@ services:
       - joe_prod_net
       - nginx_proxy
 
-  worker:
+  worker-xml:
     image: joe-backend-v2:prod
-    container_name: joe_worker_v2_prod
+    container_name: joe_worker_xml_v2_prod
     restart: unless-stopped
     depends_on:
       - db
@@ -92,11 +92,185 @@ services:
       MEILISEARCH_KEY: ${MEILISEARCH_KEY}
     command: >
       php artisan queue:work database
-      --queue=swc-sync,default
+      --queue=xml-imports
       --sleep=3
-      --tries=1
       --timeout=3600
       --max-time=3600
+    networks:
+      - joe_prod_net
+
+  worker-swc:
+    image: joe-backend-v2:prod
+    container_name: joe_worker_swc_v2_prod
+    restart: unless-stopped
+    depends_on:
+      - db
+      - backend
+      - meilisearch
+    env_file:
+      - ./backend/.env
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: ${APP_URL}
+
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: joe_v2_prod
+      DB_USERNAME: joe
+      DB_PASSWORD: ${DB_PASSWORD}
+      QUEUE_CONNECTION: database
+      SCOUT_DRIVER: meilisearch
+      SCOUT_QUEUE: "false"
+      SCOUT_PREFIX: ${SCOUT_PREFIX}
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILISEARCH_KEY}
+    command: >
+      php artisan queue:work database
+      --queue=swc-sync
+      --sleep=3
+      --timeout=3600
+      --max-time=3600
+    networks:
+      - joe_prod_net
+
+  worker-search:
+    image: joe-backend-v2:prod
+    container_name: joe_worker_search_v2_prod
+    restart: unless-stopped
+    depends_on:
+      - db
+      - backend
+      - meilisearch
+    env_file:
+      - ./backend/.env
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: ${APP_URL}
+
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: joe_v2_prod
+      DB_USERNAME: joe
+      DB_PASSWORD: ${DB_PASSWORD}
+      QUEUE_CONNECTION: database
+      SCOUT_DRIVER: meilisearch
+      SCOUT_QUEUE: "false"
+      SCOUT_PREFIX: ${SCOUT_PREFIX}
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILISEARCH_KEY}
+    command: >
+      php artisan queue:work database
+      --queue=search-index
+      --sleep=3
+      --timeout=300
+      --max-time=3600
+    networks:
+      - joe_prod_net
+
+  worker-payment:
+    image: joe-backend-v2:prod
+    container_name: joe_worker_payment_v2_prod
+    restart: unless-stopped
+    depends_on:
+      - db
+      - backend
+      - meilisearch
+    env_file:
+      - ./backend/.env
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: ${APP_URL}
+
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: joe_v2_prod
+      DB_USERNAME: joe
+      DB_PASSWORD: ${DB_PASSWORD}
+      QUEUE_CONNECTION: database
+      SCOUT_DRIVER: meilisearch
+      SCOUT_QUEUE: "false"
+      SCOUT_PREFIX: ${SCOUT_PREFIX}
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILISEARCH_KEY}
+    command: >
+      php artisan queue:work database
+      --queue=payment-reconcile
+      --sleep=10
+      --timeout=120
+      --max-time=3600
+    networks:
+      - joe_prod_net
+
+  worker-default:
+    image: joe-backend-v2:prod
+    container_name: joe_worker_default_v2_prod
+    restart: unless-stopped
+    depends_on:
+      - db
+      - backend
+      - meilisearch
+    env_file:
+      - ./backend/.env
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: ${APP_URL}
+
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: joe_v2_prod
+      DB_USERNAME: joe
+      DB_PASSWORD: ${DB_PASSWORD}
+      QUEUE_CONNECTION: database
+      SCOUT_DRIVER: meilisearch
+      SCOUT_QUEUE: "false"
+      SCOUT_PREFIX: ${SCOUT_PREFIX}
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILISEARCH_KEY}
+    command: >
+      php artisan queue:work database
+      --queue=default
+      --sleep=3
+      --timeout=300
+      --max-time=3600
+    networks:
+      - joe_prod_net
+
+  scheduler:
+    image: joe-backend-v2:prod
+    container_name: joe_scheduler_v2_prod
+    restart: unless-stopped
+    depends_on:
+      - db
+      - backend
+    env_file:
+      - ./backend/.env
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: ${APP_URL}
+
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: joe_v2_prod
+      DB_USERNAME: joe
+      DB_PASSWORD: ${DB_PASSWORD}
+      QUEUE_CONNECTION: database
+      SCOUT_DRIVER: meilisearch
+      SCOUT_QUEUE: "false"
+      SCOUT_PREFIX: ${SCOUT_PREFIX}
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILISEARCH_KEY}
+    command: >
+      sh -c "while true; do php artisan schedule:run --no-interaction; sleep 60; done"
     networks:
       - joe_prod_net
 

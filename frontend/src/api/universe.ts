@@ -1288,3 +1288,27 @@ export async function downloadAdminEntityStatsCsv(entityType: EntityStatsKind) {
     filename: filenameMatch?.[1] ?? `${entityType}-entity-stats.csv`,
   };
 }
+
+export function getSubscriberCellRecords() {
+  return apiFetch<{ ok: boolean; data: SectorSearchRecord[] }>("/universe/subscriber-cell-records");
+}
+
+export function adminGetAllSubscriberCellRecords() {
+  return apiFetch<{ ok: boolean; data: SectorSearchRecord[] }>("/admin/subscriber-cell-records");
+}
+
+export function saveSubscriberCellRecord(payload: {
+  galx: number;
+  galy: number;
+  sector_uid?: string | null;
+  planetoids_checked?: boolean | null;
+  planetoid_1_size?: "1x1" | "2x2" | null;
+  planetoid_2_size?: "1x1" | "2x2" | null;
+  has_ships?: boolean | null;
+  has_stations?: boolean | null;
+}) {
+  return apiFetch<{ ok: boolean; data: SectorSearchRecord }>("/universe/subscriber-cell-records", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}

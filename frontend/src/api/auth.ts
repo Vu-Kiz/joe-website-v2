@@ -26,6 +26,18 @@ export type SwcUser = {
   is_raid: boolean;
 
   can_manage_blog: boolean;
+
+  force_subscriber_tier: boolean;
+  lock_joe_flags: boolean;
+  store_has_active_plans: boolean;
+  tool_access_tier: "full" | "public" | "none";
+  tool_subscription: {
+    id: number;
+    plan_key: string;
+    subscriber_type: "user" | "faction";
+    status: string;
+    current_period_end: string | null;
+  } | null;
 };
 
 export class SiteLockedError extends Error {

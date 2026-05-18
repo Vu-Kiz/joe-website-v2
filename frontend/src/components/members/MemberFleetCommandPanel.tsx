@@ -1,12 +1,28 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { getFleetRosterMatrix, type FleetRosterMatrixRow } from "../../api/fleetCommander";
+import { getFleetRosterMatrix, getMySkills, type FleetRosterMatrixRow } from "../../api/fleetCommander";
 import type { SwcAuthorizationStatus } from "../../api/swcAuthorization";
+import type { SwcUser } from "../../api/auth";
 
 type Props = {
   onBack: () => void;
+  viewer: SwcUser | null;
+  canSeeRoster: boolean;
   swcAuth: SwcAuthorizationStatus | null;
   onRequestSwcResync: () => void;
 };
+
+type BiometricsTab = "roster" | "planner";
+
+// Step costs: 0→1=1, 1→2=1, 2→3=2, 3→4=3, 4→5=4. Total to max = 11.
+const STEP_COSTS = [1, 1, 2, 3, 4] as const;
+
+function skillCost(level: number): number {
+  let total = 0;
+  for (let i = 0; i < level && i < STEP_COSTS.length; i++) {
+    total += STEP_COSTS[i];
+  }
+  return total;
+}
 
 type MetricKey =
   | "strength"
@@ -126,9 +142,12 @@ const initialCategoryExpanded: Record<CategoryKey, boolean> = {
 
 const MemberFleetCommandPanel: React.FC<Props> = ({
   onBack,
+  viewer,
+  canSeeRoster,
   swcAuth,
   onRequestSwcResync,
 }) => {
+  const [activeTab, setActiveTab] = useState<BiometricsTab>(canSeeRoster ? "roster" : "planner");
   const [membersLoading, setMembersLoading] = useState(false);
   const [membersLoaded, setMembersLoaded] = useState(false);
   const [filter, setFilter] = useState("");
@@ -138,6 +157,14 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [metricMins, setMetricMins] = useState<Partial<Record<MetricKey, string>>>({});
   const [categoryExpanded, setCategoryExpanded] = useState<Record<CategoryKey, boolean>>(initialCategoryExpanded);
+
+  // Planner state — baseline is the loaded snapshot (treated as free)
+  const [plannerBaseline, setPlannerBaseline] = useState<Record<MetricKey, number>>(
+    () => Object.fromEntries(allMetrics.map((m) => [m.key, 0])) as Record<MetricKey, number>
+  );
+  const [plannerLevels, setPlannerLevels] = useState<Record<MetricKey, number>>(
+    () => Object.fromEntries(allMetrics.map((m) => [m.key, 0])) as Record<MetricKey, number>
+  );
 
   const hasSkillsAccess = Boolean(swcAuth?.has_character_skills_access);
 
@@ -238,14 +265,47 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
     });
   }
 
+  // Only count points spent above the loaded baseline
+  const plannerSpent = useMemo(
+    () => allMetrics.reduce((sum, m) => sum + Math.max(0, skillCost(plannerLevels[m.key]) - skillCost(plannerBaseline[m.key])), 0),
+    [plannerLevels, plannerBaseline]
+  );
+
+  function setPlannerSkill(key: MetricKey, level: number) {
+    setPlannerLevels((prev) => ({ ...prev, [key]: Math.min(5, Math.max(0, level)) }));
+  }
+
+  function resetPlanner() {
+    setPlannerLevels({ ...plannerBaseline });
+  }
+
   async function loadMembers() {
     try {
       setMembersLoading(true);
       setSkillsError(null);
-      const response = await getFleetRosterMatrix();
-      const rows = response.data ?? [];
-      setMatrixRows(rows);
-      setMembersLoaded(true);
+
+      let myRow: FleetRosterMatrixRow | null = null;
+
+      if (canSeeRoster) {
+        const response = await getFleetRosterMatrix();
+        const rows = response.data ?? [];
+        setMatrixRows(rows);
+        setMembersLoaded(true);
+        myRow = viewer?.swc_character_id
+          ? (rows.find((r) => r.swc_character_id === viewer.swc_character_id) ?? null)
+          : null;
+      } else {
+        const response = await getMySkills();
+        myRow = response.data ?? null;
+      }
+
+      if (myRow) {
+        const snapshot = Object.fromEntries(
+          allMetrics.map((m) => [m.key, myRow![m.key] ?? 0])
+        ) as Record<MetricKey, number>;
+        setPlannerBaseline(snapshot);
+        setPlannerLevels({ ...snapshot });
+      }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to load member skills.";
       setSkillsError(message);
@@ -264,9 +324,100 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
 
       <section className="panel">
         <h2 style={{ marginTop: 0 }}>Biometrics</h2>
-        <p className="small" style={{ marginTop: 0 }}>
-          Filter members, open a pilot profile, and review live SWC skill groups for command planning.
-        </p>
+
+        {canSeeRoster && (
+          <div className="biometrics-sheet__toggle-row" style={{ marginBottom: "1rem" }}>
+            <button
+              type="button"
+              className={`btn biometrics-sheet__toggle${activeTab === "roster" ? " is-active" : ""}`}
+              onClick={() => setActiveTab("roster")}
+            >
+              Roster
+            </button>
+            <button
+              type="button"
+              className={`btn biometrics-sheet__toggle${activeTab === "planner" ? " is-active" : ""}`}
+              onClick={() => setActiveTab("planner")}
+            >
+              Stat Planner
+            </button>
+          </div>
+        )}
+
+        {activeTab === "planner" && (
+          <>
+            <p className="small" style={{ marginTop: 0 }}>
+              Plan a skill build. Each skill costs 1, 1, 2, 3, 4 points per level (max 5, total 11 to max).
+            </p>
+
+            <div className="biometrics-sheet__sort-row" style={{ marginBottom: "1rem" }}>
+              <button
+                className="btn btn-secondary"
+                type="button"
+                onClick={loadMembers}
+                disabled={membersLoading}
+              >
+                {membersLoading ? "Loading…" : "Load My Skills"}
+              </button>
+              <span className="small" style={{ opacity: 0.85 }}>
+                Level increases planned: <strong>{plannerSpent}</strong>
+              </span>
+              <button type="button" className="btn btn-secondary" onClick={resetPlanner}>
+                Reset
+              </button>
+            </div>
+
+            <div className="biometrics-sheet__filters-grid biometrics-planner__grid">
+              {metricGroups.map((group) => (
+                <div key={group.key} className="biometrics-filter-card">
+                  <p className="small biometrics-filter-card__title">{group.label}</p>
+                  <div className="biometrics-planner__skill-list">
+                    {group.metrics.map((metric) => {
+                      const level = plannerLevels[metric.key];
+                      const baseline = plannerBaseline[metric.key];
+                      const deltaCost = Math.max(0, skillCost(level) - skillCost(baseline));
+                      return (
+                        <div key={metric.key} className="biometrics-planner__skill-row">
+                          <span className="small biometrics-planner__skill-label">{metric.label}</span>
+                          <div className="biometrics-planner__skill-controls">
+                            <button
+                              type="button"
+                              className="btn btn-secondary biometrics-planner__step-btn"
+                              onClick={() => setPlannerSkill(metric.key, level - 1)}
+                              disabled={level <= baseline}
+                              aria-label={`Decrease ${metric.label}`}
+                            >
+                              −
+                            </button>
+                            <span className="small biometrics-planner__skill-val">{level}</span>
+                            <button
+                              type="button"
+                              className="btn btn-secondary biometrics-planner__step-btn"
+                              onClick={() => setPlannerSkill(metric.key, level + 1)}
+                              disabled={level === 5}
+                              aria-label={`Increase ${metric.label}`}
+                            >
+                              +
+                            </button>
+                            <span className="small biometrics-planner__skill-cost">
+                              {deltaCost > 0 ? `+${deltaCost}` : ""}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {activeTab === "roster" && (
+          <>
+            <p className="small" style={{ marginTop: 0 }}>
+              Filter members, open a pilot profile, and review live SWC skill groups for command planning.
+            </p>
 
         {!hasSkillsAccess ? (
           <div className="admin-card" style={{ marginBottom: 12 }}>
@@ -430,6 +581,8 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
             )}
           </section>
         ) : null}
+          </>
+        )}
       </section>
     </>
   );

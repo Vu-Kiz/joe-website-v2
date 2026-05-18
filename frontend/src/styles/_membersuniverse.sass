@@ -16,6 +16,10 @@
   border-radius: 12px
   background: rgba(255,255,255,0.04)
 
+@media (max-width: 768px), (pointer: coarse)
+  .members-tool-card--desktop-only
+    display: none
+
 .members-tool-card__logo
   width: 84px
   height: 84px
@@ -135,6 +139,53 @@
     border-color: rgba(255,255,255,0.15)
     background: rgba(0,0,0,0.28)
 
+.biometrics-planner__grid
+  grid-template-columns: repeat(3, 1fr)
+
+.biometrics-planner__skill-list
+  display: flex
+  flex-direction: column
+  gap: 0.1rem
+
+.biometrics-planner__skill-row
+  display: flex
+  align-items: center
+  gap: 0.5rem
+  padding: 0.2rem 0
+
+.biometrics-planner__skill-label
+  flex: 1 1 0
+  min-width: 0
+  font-size: 0.8rem
+  opacity: 0.9
+  white-space: nowrap
+  overflow: hidden
+  text-overflow: ellipsis
+
+.biometrics-planner__skill-controls
+  display: flex
+  align-items: center
+  gap: 0.3rem
+  flex-shrink: 0
+
+.biometrics-planner__step-btn
+  min-height: 26px
+  min-width: 26px
+  padding: 0
+  line-height: 1
+  font-size: 1rem
+
+.biometrics-planner__skill-val
+  min-width: 1.1rem
+  text-align: center
+  font-weight: 700
+
+.biometrics-planner__skill-cost
+  min-width: 2.6rem
+  font-size: 0.72rem
+  opacity: 0.65
+  text-align: right
+
 .biometrics-sheet__empty
   padding: 0.75rem 0.8rem
   border-radius: 10px
@@ -144,6 +195,7 @@
 
 .biometrics-sheet__table-wrap
   overflow-x: auto
+  -webkit-overflow-scrolling: touch
   padding: 0.55rem
   border-radius: 12px
   border: 1px solid rgba(255,255,255,0.12)
@@ -486,6 +538,16 @@
 
   .members-hyperplanner__saved-plan-actions
     justify-content: flex-start
+
+.members-hyperplanner__saved-plans-head
+  display: flex
+  align-items: center
+  justify-content: space-between
+  gap: 0.75rem
+  margin-bottom: 0.25rem
+
+  .admin-card__title
+    margin: 0
 
 .members-hyperplanner__actions
   display: flex
@@ -2394,6 +2456,9 @@
   .biometrics-sheet__toggle-row .btn
     flex: 1 1 calc(50% - 0.45rem)
 
+  .biometrics-planner__grid
+    grid-template-columns: repeat(2, 1fr)
+
   .biometrics-sheet__sort-row
     .input
       width: 100% !important
@@ -2406,6 +2471,10 @@
 
   .members-universe__controllers
     position: static
+
+  .members-universe__typeahead
+    min-width: 0
+    flex: 1 1 auto
 
   .members-universe-system__hero
     grid-template-columns: 1fr
@@ -2431,6 +2500,27 @@
   .members-archive__list
     max-height: 32vh
 
+  .members-hyperplanner__controls
+    grid-template-columns: 1fr
+
+  .members-hyperplanner__summary-grid
+    grid-template-columns: repeat(2, minmax(0, 1fr))
+
+  .members-hyperplanner__hop-body
+    grid-template-columns: 1fr
+
+  .members-hyperplanner__suggestions
+    max-height: 14rem
+
+  .members-entity-stats__layout
+    grid-template-columns: 1fr
+
+  .members-entity-stats__list
+    max-height: 32vh
+
+  .members-entity-stats__stats-grid
+    grid-template-columns: repeat(2, minmax(0, 1fr))
+
 @media (max-width: 640px)
   .members-tool-grid
     grid-template-columns: 1fr
@@ -2440,3 +2530,97 @@
 
   .biometrics-filter-card__inputs
     grid-template-columns: 1fr
+
+@media (max-width: 480px)
+  .members-entity-stats__stats-grid
+    grid-template-columns: 1fr
+
+@media (pointer: coarse)
+  .biometrics-sheet__table-wrap
+    position: relative
+
+    &::after
+      content: "← Swipe to scroll →"
+      display: block
+      text-align: center
+      font-size: 0.72rem
+      opacity: 0.5
+      padding: 0.3rem 0 0.1rem
+      pointer-events: none
+
+@media (pointer: coarse)
+  .members-universe-map__hover
+    display: none
+
+  .members-universe-map__selection
+    position: absolute !important
+    left: 0 !important
+    right: 0 !important
+    bottom: 0 !important
+    top: auto !important
+    max-width: 100% !important
+    max-height: 38vh
+    border-radius: 16px 16px 0 0
+    border-bottom: none
+
+  .members-universe-map__selection-body
+    overscroll-behavior: contain
+
+  .members-universe-map__selection-head
+    cursor: default
+
+  .members-universe-map__legend
+    top: 0.65rem
+    left: 0.65rem
+    max-width: calc(50vw - 1rem)
+
+    &.is-open
+      max-width: calc(100% - 1.3rem)
+      z-index: 5
+
+  .members-universe-map__controls-panel
+    top: 0.65rem
+    right: 0.65rem
+    width: auto
+    max-width: calc(50vw - 1rem)
+
+    &.is-open
+      max-width: calc(100% - 1.3rem)
+      width: calc(100% - 1.3rem)
+      z-index: 5
+
+@media (max-width: 480px)
+  .members-universe-map__legend.is-open,
+  .members-universe-map__controls-panel.is-open
+    position: fixed
+    top: 0.65rem
+    left: 0.65rem
+    right: 0.65rem
+    max-width: calc(100vw - 1.3rem)
+    width: calc(100vw - 1.3rem)
+    z-index: 9999
+
+  .members-universe-map__controls-panel.is-open
+    left: auto
+
+  .members-universe-map__legend-toggle,
+  .members-universe-map__controls-toggle
+    width: 100%
+    min-height: 44px
+    padding: 0 10px
+    font-size: 11px
+    justify-self: stretch
+
+  .members-universe-map:has(.members-universe-map__legend.is-open) .members-universe-map__controls-toggle,
+  .members-universe-map:has(.members-universe-map__controls-panel.is-open) .members-universe-map__legend-toggle
+    display: none
+
+  .members-universe-map__legend-body
+    max-height: 40vh
+    overflow-y: auto
+    min-width: 0
+    width: 100%
+
+  .members-universe-map__controls-body
+    max-height: 40vh
+    overflow-y: auto

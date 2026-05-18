@@ -5,6 +5,7 @@ type Props = {
   pageSize: number;
   totalItems: number;
   pageSizeOptions?: number[];
+  showPageSize?: boolean;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
 };
@@ -14,6 +15,7 @@ const Pagination: React.FC<Props> = ({
   pageSize,
   totalItems,
   pageSizeOptions = [10, 25, 50, 100],
+  showPageSize = true,
   onPageChange,
   onPageSizeChange,
 }) => {
@@ -46,23 +48,25 @@ const Pagination: React.FC<Props> = ({
           Showing {startItem}-{endItem} of {totalItems}
         </p>
 
-        <div className="ui-pagination__size">
-          <label className="small" htmlFor="pagination-page-size">
-            Rows
-          </label>
-          <select
-            id="pagination-page-size"
-            className="input"
-            value={pageSize}
-            onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          >
-            {pageSizeOptions.map((value) => (
-              <option key={value} value={value}>
-                {value} / page
-              </option>
-            ))}
-          </select>
-        </div>
+        {showPageSize && (
+          <div className="ui-pagination__size">
+            <label className="small" htmlFor="pagination-page-size">
+              Rows
+            </label>
+            <select
+              id="pagination-page-size"
+              className="input"
+              value={pageSize}
+              onChange={(e) => onPageSizeChange(Number(e.target.value))}
+            >
+              {pageSizeOptions.map((value) => (
+                <option key={value} value={value}>
+                  {value} / page
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <div className="ui-pagination__controls">

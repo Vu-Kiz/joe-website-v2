@@ -1317,3 +1317,47 @@
   color: rgba(255,255,255,0.5)
   font-size: 0.72rem
   flex-shrink: 0
+
+@media (max-width: 768px)
+  .market-grid
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr))
+
+  .market-browse
+    grid-template-columns: 1fr
+
+  .market-browse.is-filters-collapsed
+    grid-template-columns: 1fr
+
+  .market-browse.is-filters-collapsed .market-browse__rail-toggle
+    width: 100%
+    min-height: 2.6rem
+    flex-direction: row
+    justify-content: flex-start
+    text-align: left
+    padding: 0.55rem 0.7rem
+    border-radius: 10px
+
+  .market-browse.is-filters-collapsed .market-browse__rail-toggle-label
+    writing-mode: initial
+    text-orientation: initial
+    transform: none
+
+  .market-browse__filters
+    position: static
+
+  .cart-overlay__panel
+    width: 100%
+
+  .cart-sidebar
+    border-radius: 14px
+
+@media (max-width: 480px)
+  .entity-popup
+    padding: 0.85rem
+    width: calc(100vw - 1rem)
+
+  .market-grid
+    grid-template-columns: 1fr
+
+  .market-order-box
+    max-width: 100%

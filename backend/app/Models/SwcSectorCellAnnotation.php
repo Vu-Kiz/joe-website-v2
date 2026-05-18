@@ -17,6 +17,8 @@ class SwcSectorCellAnnotation extends Model
         'notes',
         'created_by',
         'updated_by',
+        'owner_user_id',
+        'owner_faction_id',
     ];
 
     public function sector(): BelongsTo

@@ -219,6 +219,7 @@ class DroidBrainUploadService
                     'new_entities_count' => $newEntities,
                     'modified_entities_count' => $modifiedEntities,
                     'unchanged_entities_count' => $unchangedEntities,
+                    'payment_status' => 'pending',
                     'meta' => json_encode([
                         'source_extension' => strtolower($file->getClientOriginalExtension() ?: ''),
                         'scan_new_systems' => (int) ($scanImport['new_systems'] ?? 0),
@@ -752,18 +753,20 @@ class DroidBrainUploadService
     protected function importSystemScans(array $nodes, int $fileId, ?int $snapshotUnix): array
     {
         $scanCount = 0;
-        $entityCounts = [
-            'ships' => 0,
-            'stations' => 0,
-        ];
-        $stateCounts = [
-            'new' => 0,
-            'modified' => 0,
-            'unchanged' => 0,
-        ];
-        $newSystems = 0;
+        $entityCounts = ['ships' => 0, 'stations' => 0];
+        $stateCounts = ['new' => 0, 'modified' => 0, 'unchanged' => 0];
+        $parsedEntities = [];
+
+        // Accumulated rows — flushed in bulk after the loop.
+        $scanRows = [];
+        // Each entry is an array of object rows for the scan at that index.
+        $scanObjectsByIndex = [];
+        // Unique coordinates for known_systems, keyed by "galx:galy".
+        $knownSystemsMap = [];
 
         foreach ($nodes as $node) {
+            $scanIndex = count($scanRows);
+
             if ($node->getName() === 'item') {
                 $channelNodes = $node->xpath('parent::*');
                 $channel = ($channelNodes !== false && isset($channelNodes[0]) && $channelNodes[0] instanceof \SimpleXMLElement)
@@ -778,32 +781,16 @@ class DroidBrainUploadService
                     'system_name' => $this->extractScanSystemName($channel),
                 ];
 
-                $scanId = DB::table('droidbrain_system_scans')->insertGetId([
+                $scanRows[] = [
                     'file_id' => $fileId,
                     'snapshot_unixtime' => $this->resolveScanSnapshotUnix($channel, $snapshotUnix),
                     'galx' => $location['galx'] ?? 0,
                     'galy' => $location['galy'] ?? 0,
                     'system_uid' => null,
                     'system_name' => $location['system_name'],
-                ]);
+                ];
 
-                if (($location['galx'] ?? null) !== null && ($location['galy'] ?? null) !== null) {
-                    $inserted = DB::table('droidbrain_known_systems')->insertOrIgnore([
-                        'system_uid' => null,
-                        'system_name' => $location['system_name'] ?: 'Unknown',
-                        'galx' => (int) $location['galx'],
-                        'galy' => (int) $location['galy'],
-                        'first_seen_file_id' => $fileId,
-                        'first_seen_at' => now(),
-                    ]);
-
-                    if ($inserted > 0) {
-                        $newSystems++;
-                    }
-                }
-
-                DB::table('droidbrain_system_scan_objects')->insert([
-                    'scan_id' => $scanId,
+                $scanObjectsByIndex[$scanIndex][] = [
                     'object_type' => strtolower(trim((string) ($node->entityTypeName ?? ''))) ?: 'object',
                     'object_uid' => trim((string) ($node->entityUID ?? '')) ?: null,
                     'object_name' => trim((string) ($node->name ?? '')) ?: null,
@@ -812,14 +799,26 @@ class DroidBrainUploadService
                     'sysx' => $location['sysx'],
                     'sysy' => $location['sysy'],
                     'raw_json' => json_encode($this->simpleXmlToArray($node), JSON_UNESCAPED_SLASHES),
-                ]);
+                ];
+
+                if (($location['galx'] ?? null) !== null && ($location['galy'] ?? null) !== null) {
+                    $coordKey = $location['galx'] . ':' . $location['galy'];
+                    $knownSystemsMap[$coordKey] ??= [
+                        'system_uid' => null,
+                        'system_name' => $location['system_name'] ?: 'Unknown',
+                        'galx' => (int) $location['galx'],
+                        'galy' => (int) $location['galy'],
+                        'first_seen_file_id' => $fileId,
+                        'first_seen_at' => now(),
+                    ];
+                }
 
                 $entityType = strtolower(trim((string) ($node->entityTypeName ?? '')));
                 if (in_array($entityType, ['ships', 'stations'], true)) {
-                    $state = $this->importScanEntitySnapshot($node, $fileId, $this->resolveScanSnapshotUnix($channel, $snapshotUnix), $location);
-                    $entityCounts[$entityType]++;
-                    if (isset($stateCounts[$state])) {
-                        $stateCounts[$state]++;
+                    $parsed = $this->parseScanEntityData($node, $fileId, $this->resolveScanSnapshotUnix($channel, $snapshotUnix), $location);
+                    if ($parsed !== null) {
+                        $parsedEntities[] = $parsed;
+                        $entityCounts[$entityType]++;
                     }
                 }
 
@@ -829,20 +828,19 @@ class DroidBrainUploadService
 
             $location = $this->extractLocation($node);
             $system = $this->extractReference($node, ['system']);
-            $scanId = DB::table('droidbrain_system_scans')->insertGetId([
+
+            $scanRows[] = [
                 'file_id' => $fileId,
                 'snapshot_unixtime' => $this->toIntOrNull($node['timestamp'] ?? null) ?? $snapshotUnix ?? time(),
                 'galx' => $location['galx'] ?? 0,
                 'galy' => $location['galy'] ?? 0,
                 'system_uid' => $system['uid'] ?? ($location['system_uid'] ?? null),
                 'system_name' => $system['name'] ?? ($location['system_name'] ?? null),
-            ]);
+            ];
 
-            $scanCount++;
-
+            $scanObjectsByIndex[$scanIndex] = [];
             foreach ($this->extractNodes($node, ['objects'], ['object']) as $objectNode) {
-                DB::table('droidbrain_system_scan_objects')->insert([
-                    'scan_id' => $scanId,
+                $scanObjectsByIndex[$scanIndex][] = [
                     'object_type' => strtolower(trim((string) ($objectNode['type'] ?? $objectNode->type ?? 'object'))) ?: 'object',
                     'object_uid' => $this->firstStringValue($objectNode, ['uid']),
                     'object_name' => $this->firstStringValue($objectNode, ['name']),
@@ -851,7 +849,72 @@ class DroidBrainUploadService
                     'sysx' => $this->toIntOrNull($objectNode['sysx'] ?? null),
                     'sysy' => $this->toIntOrNull($objectNode['sysy'] ?? null),
                     'raw_json' => json_encode($this->simpleXmlToArray($objectNode), JSON_UNESCAPED_SLASHES),
-                ]);
+                ];
+            }
+
+            $scanCount++;
+        }
+
+        // Batch insert known_systems. Pre-check which coordinates are new so we
+        // can return an accurate count without relying on per-row insertOrIgnore.
+        $newSystems = 0;
+        if (!empty($knownSystemsMap)) {
+            $coordPairs = array_values($knownSystemsMap);
+            $galxValues = array_column($coordPairs, 'galx');
+            $galyValues = array_column($coordPairs, 'galy');
+            $existing = DB::table('droidbrain_known_systems')
+                ->whereIn('galx', $galxValues)
+                ->get(['galx', 'galy'])
+                ->mapWithKeys(fn ($r) => [$r->galx . ':' . $r->galy => true]);
+
+            foreach (array_keys($knownSystemsMap) as $key) {
+                if (!$existing->has($key)) {
+                    $newSystems++;
+                }
+            }
+
+            DB::table('droidbrain_known_systems')->insertOrIgnore($coordPairs);
+        }
+
+        // Batch insert system_scans in chunks. MySQL guarantees that for each
+        // single INSERT statement the allocated auto-increment IDs are sequential
+        // starting at LAST_INSERT_ID(). We use this to assign scan_ids to objects
+        // without a round-trip per row.
+        $allScanObjectRows = [];
+        foreach (array_chunk($scanRows, 500, true) as $chunk) {
+            $indices = array_keys($chunk);
+            DB::table('droidbrain_system_scans')->insert(array_values($chunk));
+            $firstId = (int) DB::getPdo()->lastInsertId();
+
+            foreach ($indices as $offset => $originalIndex) {
+                $scanId = $firstId + $offset;
+                foreach ($scanObjectsByIndex[$originalIndex] ?? [] as $objectRow) {
+                    $allScanObjectRows[] = ['scan_id' => $scanId] + $objectRow;
+                }
+            }
+        }
+
+        // Batch insert all scan objects.
+        foreach (array_chunk($allScanObjectRows, 500) as $chunk) {
+            DB::table('droidbrain_system_scan_objects')->insert($chunk);
+        }
+
+        // Batch classify all parsed entities — 2 queries per table regardless of
+        // entity count, then classify in PHP using the prefetched state indexes.
+        $this->batchClassifyParsedEntities($parsedEntities);
+
+        // Build final rows from classified data and batch insert by table.
+        $grouped = [];
+        foreach ($parsedEntities as $parsed) {
+            $state = $parsed['state'];
+            if (isset($stateCounts[$state])) {
+                $stateCounts[$state]++;
+            }
+            $grouped[$parsed['table']][] = $parsed['fields'] + ['tags' => "scan\nstate:" . $state];
+        }
+        foreach ($grouped as $table => $rows) {
+            foreach (array_chunk($rows, 500) as $chunk) {
+                DB::table($table)->insert($chunk);
             }
         }
 
@@ -863,13 +926,18 @@ class DroidBrainUploadService
         ];
     }
 
-    protected function importScanEntitySnapshot(
+    protected function parseScanEntityData(
         \SimpleXMLElement $node,
         int $fileId,
         int $snapshotUnix,
         array $location
-    ): string {
+    ): ?array {
         $entityType = strtolower(trim((string) ($node->entityTypeName ?? '')));
+        if (!in_array($entityType, ['ships', 'stations'], true)) {
+            return null;
+        }
+
+        $table = $entityType === 'ships' ? 'droidbrain_ships' : 'droidbrain_stations';
         $typeUid = trim((string) ($node->typeUID ?? '')) ?: null;
         $typeName = trim((string) ($node->typeName ?? '')) ?: null;
         $entityUid = trim((string) ($node->entityUID ?? '')) ?: null;
@@ -882,23 +950,20 @@ class DroidBrainUploadService
         $catalog = match ($entityType) {
             'ships' => $this->resolveScanCatalogDetails(SwcShipType::class, $typeUid, $typeName),
             'stations' => $this->resolveScanCatalogDetails(SwcStationType::class, $typeUid, $typeName),
-            default => null,
         };
-        $state = $this->classifyScanEntityState(
-            $entityType === 'ships' ? 'droidbrain_ships' : 'droidbrain_stations',
-            $entityUid,
-            $ownerName,
-            $name,
-            $location['galx'] ?? null,
-            $location['galy'] ?? null,
-            $snapshotUnix
-        );
-        $tags = "scan\nstate:" . $state;
         $scanItemX = $this->toIntOrNull($node->x ?? null);
         $scanItemY = $this->toIntOrNull($node->y ?? null);
 
-        if ($entityType === 'ships') {
-            DB::table('droidbrain_ships')->insert([
+        return [
+            'table' => $table,
+            'entity_uid' => $entityUid,
+            'owner_name' => $ownerName,
+            'name' => $name,
+            'snapshot_unix' => $snapshotUnix,
+            'galx' => $location['galx'] ?? null,
+            'galy' => $location['galy'] ?? null,
+            'state' => 'unchanged', // resolved by batchClassifyParsedEntities
+            'fields' => [
                 'file_id' => $fileId,
                 'snapshot_unixtime' => $snapshotUnix,
                 'entity_uid' => $entityUid,
@@ -927,49 +992,80 @@ class DroidBrainUploadService
                 'ionic' => $this->toIntOrNull($node->ionic ?? null),
                 'ionic_max' => $this->toIntOrNull($node->ionicMax ?? null),
                 'public_status' => trim((string) ($node->iffStatus ?? '')) ?: null,
-                'tags' => $tags,
-            ]);
+            ],
+        ];
+    }
 
-            return $state;
+    protected function batchClassifyParsedEntities(array &$parsedEntities): void
+    {
+        if (empty($parsedEntities)) {
+            return;
         }
 
-        if ($entityType === 'stations') {
-            DB::table('droidbrain_stations')->insert([
-                'file_id' => $fileId,
-                'snapshot_unixtime' => $snapshotUnix,
-                'entity_uid' => $entityUid,
-                'entity_id' => $entityId ?? $this->extractEntityId($entityUid),
-                'name' => $name ?: null,
-                'owner_name' => $ownerName ?: null,
-                'owner_uid' => trim((string) ($node->ownerUID ?? '')) ?: null,
-                'owner_type' => $this->extractUidPrefix(trim((string) ($node->ownerUID ?? '')) ?: null),
-                'system_name' => $location['system_name'],
-                'galx' => $location['galx'],
-                'galy' => $location['galy'],
-                // RSS scan items only provide item-level x/y, so treat that as the primary
-                // map placement instead of the shared scan-square system coordinate.
-                'sysx' => $scanItemX ?? $location['sysx'],
-                'sysy' => $scanItemY ?? $location['sysy'],
-                'surfx' => null,
-                'surfy' => null,
-                'class_name' => $catalog['class_name'] ?? null,
-                'class_id' => null,
-                'type_name' => $catalog['type_name'] ?? $typeName,
-                'type_id' => $catalog['type_id'] ?? $this->extractEntityId($typeUid),
-                'hull' => $this->toIntOrNull($node->hull ?? null),
-                'hull_max' => $this->toIntOrNull($node->hullMax ?? null),
-                'shield' => $this->toIntOrNull($node->shield ?? null),
-                'shield_max' => $this->toIntOrNull($node->shieldMax ?? null),
-                'ionic' => $this->toIntOrNull($node->ionic ?? null),
-                'ionic_max' => $this->toIntOrNull($node->ionicMax ?? null),
-                'public_status' => trim((string) ($node->iffStatus ?? '')) ?: null,
-                'tags' => $tags,
-            ]);
-
-            return $state;
+        // Group indices by table so we can batch-query each table once.
+        $byTable = [];
+        foreach ($parsedEntities as $i => $entity) {
+            $byTable[$entity['table']][] = $i;
         }
 
-        return 'unchanged';
+        foreach ($byTable as $table => $indices) {
+            $entityUids = array_unique(array_filter(
+                array_map(fn ($i) => $parsedEntities[$i]['entity_uid'], $indices)
+            ));
+
+            if (empty($entityUids)) {
+                continue;
+            }
+
+            // Query 1: latest snapshot_unixtime per entity_uid across all history.
+            $latestSnapshots = DB::table($table)
+                ->whereIn('entity_uid', $entityUids)
+                ->select('entity_uid', DB::raw('MAX(snapshot_unixtime) as latest_snapshot'))
+                ->groupBy('entity_uid')
+                ->pluck('latest_snapshot', 'entity_uid');
+
+            // Query 2: all distinct prior (entity_uid, owner_name, name, galx, galy)
+            // combos — used for "unchanged" detection in PHP without per-entity queries.
+            $priorStateIndex = [];
+            foreach (
+                DB::table($table)
+                    ->whereIn('entity_uid', $entityUids)
+                    ->select('entity_uid', 'owner_name', 'name', 'galx', 'galy')
+                    ->distinct()
+                    ->get() as $row
+            ) {
+                $priorStateIndex[$row->entity_uid . '|' . $row->owner_name . '|' . $row->name . '|' . $row->galx . '|' . $row->galy] = true;
+            }
+
+            foreach ($indices as $i) {
+                $entity = $parsedEntities[$i];
+                $uid = $entity['entity_uid'];
+
+                if (!$uid) {
+                    continue; // default 'unchanged' already set
+                }
+
+                if (!$latestSnapshots->has($uid)) {
+                    $parsedEntities[$i]['state'] = 'new';
+                    continue;
+                }
+
+                $latestSnapshot = (int) $latestSnapshots->get($uid);
+                if ($latestSnapshot > $entity['snapshot_unix']) {
+                    // A newer snapshot already exists — current file is stale for this entity.
+                    $parsedEntities[$i]['state'] = 'unchanged';
+                    continue;
+                }
+
+                $stateKey = $uid . '|' . $entity['owner_name'] . '|' . $entity['name'] . '|' . $entity['galx'] . '|' . $entity['galy'];
+                if (isset($priorStateIndex[$stateKey])) {
+                    $parsedEntities[$i]['state'] = 'unchanged';
+                    continue;
+                }
+
+                $parsedEntities[$i]['state'] = 'modified';
+            }
+        }
     }
 
     protected function parseShipNode(\SimpleXMLElement $node, int $fileId, ?int $snapshotUnix): ?array

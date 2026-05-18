@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import type { SwcUser } from "../../api/auth";
+import { toggleLockJoeFlags, toggleSubscriberPreview } from "../../api/adminToolStore";
 
 export type PreviewPrivs = {
   isJoeMember: boolean;
@@ -11,6 +12,7 @@ export type PreviewPrivs = {
   canViewAsteroidIntel: boolean;
   isAdmin: boolean;
   isSysadmin: boolean;
+  previewAsSubscriber: boolean;
 };
 
 export function toPreviewPrivs(user: SwcUser | null): PreviewPrivs {
@@ -24,6 +26,7 @@ export function toPreviewPrivs(user: SwcUser | null): PreviewPrivs {
     canViewAsteroidIntel: !!user?.can_view_asteroid_intel || !!user?.is_admin || !!user?.is_sysadmin,
     isAdmin: !!user?.is_admin,
     isSysadmin: !!user?.is_sysadmin,
+    previewAsSubscriber: false,
   };
 }
 
@@ -47,6 +50,8 @@ type PrivilegePreviewPanelProps = {
   value: PreviewPrivs;
   onChange: (next: PreviewPrivs) => void;
   onReset: () => void;
+  viewer?: SwcUser | null;
+  onViewerChange?: () => void;
   title?: string;
 };
 
@@ -54,9 +59,28 @@ const PrivilegePreviewPanel: React.FC<PrivilegePreviewPanelProps> = ({
   value,
   onChange,
   onReset,
+  viewer,
+  onViewerChange,
   title = "Preview Privileges",
 }) => {
-  const applyPreset = (preset: "member" | "admin" | "sysadmin") => {
+  const [togglingBackend, setTogglingBackend] = useState(false);
+  const applyPreset = (preset: "subscriber" | "member" | "admin" | "sysadmin") => {
+    if (preset === "subscriber") {
+      onChange({
+        isJoeMember: false,
+        isIntel: false,
+        canManageBlog: false,
+        canAccessCombatCalc: false,
+        canAccessWreckingHelper: false,
+        canAccessFleetCommander: false,
+        canViewAsteroidIntel: false,
+        isAdmin: false,
+        isSysadmin: false,
+        previewAsSubscriber: true,
+      });
+      return;
+    }
+
     if (preset === "member") {
       onChange({
         isJoeMember: true,
@@ -68,6 +92,7 @@ const PrivilegePreviewPanel: React.FC<PrivilegePreviewPanelProps> = ({
         canViewAsteroidIntel: false,
         isAdmin: false,
         isSysadmin: false,
+        previewAsSubscriber: false,
       });
       return;
     }
@@ -83,6 +108,7 @@ const PrivilegePreviewPanel: React.FC<PrivilegePreviewPanelProps> = ({
         canViewAsteroidIntel: true,
         isAdmin: true,
         isSysadmin: false,
+        previewAsSubscriber: false,
       });
       return;
     }
@@ -97,6 +123,7 @@ const PrivilegePreviewPanel: React.FC<PrivilegePreviewPanelProps> = ({
       canViewAsteroidIntel: true,
       isAdmin: false,
       isSysadmin: true,
+      previewAsSubscriber: false,
     });
   };
 
@@ -107,6 +134,9 @@ const PrivilegePreviewPanel: React.FC<PrivilegePreviewPanelProps> = ({
       <div className="members-changelog__view-as-head">
         <label className="small">{title}</label>
         <div className="members-changelog__preset-actions">
+          <button type="button" className="btn btn--small" onClick={() => applyPreset("subscriber")}>
+            Subscriber Preset
+          </button>
           <button type="button" className="btn btn--small" onClick={() => applyPreset("member")}>
             Member Preset
           </button>
@@ -120,6 +150,42 @@ const PrivilegePreviewPanel: React.FC<PrivilegePreviewPanelProps> = ({
             Reset to My Privs
           </button>
         </div>
+        {onViewerChange && (
+          <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+            <button
+              type="button"
+              className={`btn btn--small${viewer?.lock_joe_flags ? " is-active" : ""}`}
+              disabled={togglingBackend}
+              onClick={async () => {
+                setTogglingBackend(true);
+                try {
+                  await toggleLockJoeFlags();
+                  onViewerChange();
+                } finally {
+                  setTogglingBackend(false);
+                }
+              }}
+            >
+              {togglingBackend ? "Toggling…" : viewer?.lock_joe_flags ? "JOE Flag Lock: ON — click to disable" : "Lock JOE Flags (stop auto-grant)"}
+            </button>
+            <button
+              type="button"
+              className={`btn btn--small${viewer?.force_subscriber_tier ? " is-active" : ""}`}
+              disabled={togglingBackend}
+              onClick={async () => {
+                setTogglingBackend(true);
+                try {
+                  await toggleSubscriberPreview();
+                  onViewerChange();
+                } finally {
+                  setTogglingBackend(false);
+                }
+              }}
+            >
+              {togglingBackend ? "Toggling…" : viewer?.force_subscriber_tier ? "Subscriber Override: ON — click to disable" : "Force Subscriber Tier"}
+            </button>
+          </div>
+        )}
       </div>
       <div className="members-changelog__priv-grid">
         <button type="button" className={`btn btn--small members-changelog__priv-btn ${value.isJoeMember ? "is-active" : ""}`} onClick={() => toggle("isJoeMember")}>

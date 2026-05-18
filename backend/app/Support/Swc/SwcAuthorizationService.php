@@ -579,10 +579,25 @@ class SwcAuthorizationService
             ];
         }
 
-        $response = SwcHttp::make()->get($revokeUrl, [
-            'token' => $refreshToken,
-            'client_id' => $clientId,
-        ]);
+        try {
+            $response = SwcHttp::make()->timeout(5)->get($revokeUrl, [
+                'token' => $refreshToken,
+                'client_id' => $clientId,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('SWC revoke token request failed (connection error)', [
+                'authorization_id' => $authorization->id,
+                'user_id' => $authorization->user_id,
+                'auth_context' => $authorization->auth_context,
+                'error' => $e->getMessage(),
+            ]);
+            return [
+                'attempted' => true,
+                'ok' => false,
+                'status' => null,
+                'error' => 'connection_error',
+            ];
+        }
 
         $ok = $response->status() === 200;
 

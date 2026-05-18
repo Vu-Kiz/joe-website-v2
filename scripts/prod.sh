@@ -58,7 +58,14 @@ Usage:
   ./scripts/prod.sh logs [svc]    Tail logs (default: backend)
   ./scripts/prod.sh ps            Show container status
   ./scripts/prod.sh pma           Show phpMyAdmin prod service info
-  ./scripts/prod.sh queue-restart Restart Laravel queue workers
+  ./scripts/prod.sh queue-restart         Restart all Laravel queue workers
+  ./scripts/prod.sh worker-xml-restart    Restart XML import worker
+  ./scripts/prod.sh worker-swc-restart    Restart SWC sync worker
+  ./scripts/prod.sh worker-search-restart Restart search index worker
+  ./scripts/prod.sh worker-payment-restart Restart payment reconcile worker
+  ./scripts/prod.sh worker-default-restart Restart default worker
+  ./scripts/prod.sh scheduler-restart     Restart the Laravel scheduler container
+  ./scripts/prod.sh recover-stuck-uploads Re-dispatch any uploads stuck in processing
   ./scripts/prod.sh warm-cache       Pre-warm DroidBrain options cache (all tabs)
   ./scripts/prod.sh reindex-dirty    Reindex any DroidBrain tabs still marked dirty
   ./scripts/prod.sh scout-import     Import all DroidBrain models into Meilisearch + backfill search flags
@@ -91,7 +98,7 @@ fi
 
 case "${cmd}" in
   up)
-    echo "▶ Starting prod stack (db + backend + worker + frontend)..."
+    echo "▶ Starting prod stack (db + backend + workers + scheduler + frontend)..."
     ${DC} up -d --build --remove-orphans
     ;;
 
@@ -128,8 +135,43 @@ case "${cmd}" in
     ;;
 
   queue-restart)
-    echo "▶ Restarting Laravel queue workers..."
+    echo "▶ Restarting all Laravel queue workers..."
     ${DC} exec backend php artisan queue:restart
+    ;;
+
+  worker-xml-restart)
+    echo "▶ Restarting XML import worker..."
+    ${DC} restart worker-xml
+    ;;
+
+  worker-swc-restart)
+    echo "▶ Restarting SWC sync worker..."
+    ${DC} restart worker-swc
+    ;;
+
+  worker-search-restart)
+    echo "▶ Restarting search index worker..."
+    ${DC} restart worker-search
+    ;;
+
+  worker-payment-restart)
+    echo "▶ Restarting payment reconcile worker..."
+    ${DC} restart worker-payment
+    ;;
+
+  worker-default-restart)
+    echo "▶ Restarting default worker..."
+    ${DC} restart worker-default
+    ;;
+
+  scheduler-restart)
+    echo "▶ Restarting Laravel scheduler container..."
+    ${DC} restart scheduler
+    ;;
+
+  recover-stuck-uploads)
+    echo "▶ Re-dispatching stuck DroidBrain uploads..."
+    ${DC} exec backend php artisan droidbrain:recover-stuck-uploads
     ;;
 
   warm-cache)
@@ -200,9 +242,10 @@ case "${cmd}" in
       echo "▶ Step 5/7: sync Scout index settings..."
       ${DC} exec backend php artisan scout:sync-index-settings
 
-      echo "▶ Step 6/7: restart queue workers..."
+      echo "▶ Step 6/7: restart queue workers and scheduler..."
       ${DC} exec backend php artisan optimize:clear
       ${DC} exec backend php artisan queue:restart
+      ${DC} restart worker-xml worker-swc worker-search worker-payment worker-default scheduler
 
       echo "▶ Step 7/8: reindex any dirty DroidBrain tabs..."
       ${DC} exec backend php artisan droidbrain:reindex-dirty

@@ -4,6 +4,9 @@ import arrowRightIcon from "../../assets/marketplace/ArrowRightIcon.png";
 import { ENTITY_TYPES, getMarketListings } from "../../api/market";
 import type { MarketListing, EntityTypeKey } from "../../api/market";
 import MarketListingCard from "./MarketListingCard";
+import Pagination from "../common/Pagination";
+
+const PAGE_SIZE = 50;
 
 type MarketChannelFilter = "faction_store" | "member";
 type MarketSaleTypeFilter = "standard" | "bundle" | "custom";
@@ -95,6 +98,9 @@ const MarketBrowseTab: React.FC<Props> = ({ hasPaymentsAccess, focusListingId, o
   const [nameSearch, setNameSearch] = useState("");
   const [focusedListing, setFocusedListing] = useState<MarketListing | null>(null);
   const [filtersCollapsed, setFiltersCollapsed] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
   function toggleSelection<T extends string>(value: T, setSelected: React.Dispatch<React.SetStateAction<T[]>>) {
     setSelected((current) =>
@@ -102,6 +108,7 @@ const MarketBrowseTab: React.FC<Props> = ({ hasPaymentsAccess, focusListingId, o
         ? current.filter((entry) => entry !== value)
         : [...current, value]
     );
+    setCurrentPage(1);
   }
 
   function clearAllFilters() {
@@ -109,6 +116,7 @@ const MarketBrowseTab: React.FC<Props> = ({ hasPaymentsAccess, focusListingId, o
     setSelectedSaleTypes([]);
     setSelectedEntityTypes([]);
     setNameSearch("");
+    setCurrentPage(1);
   }
 
   const activeFilterCount =
@@ -122,11 +130,14 @@ const MarketBrowseTab: React.FC<Props> = ({ hasPaymentsAccess, focusListingId, o
       channel: selectedChannels.length > 0 ? selectedChannels : undefined,
       entity_type: selectedEntityTypes.length > 0 ? selectedEntityTypes : undefined,
       sale_type: selectedSaleTypes.length > 0 ? selectedSaleTypes : undefined,
+      page: currentPage,
     })
       .then((res) => {
         if (!cancelled) {
           const data = res.data ?? [];
           setListings(data);
+          setLastPage(res.meta?.last_page ?? 1);
+          setTotalItems(res.meta?.total ?? data.length);
           if (focusListingId) {
             const match = data.find((l) => l.id === focusListingId);
             if (match) {
@@ -137,14 +148,14 @@ const MarketBrowseTab: React.FC<Props> = ({ hasPaymentsAccess, focusListingId, o
         }
       })
       .catch(() => {
-        if (!cancelled) setListings([]);
+        if (!cancelled) { setListings([]); setLastPage(1); setTotalItems(0); }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
 
     return () => { cancelled = true; };
-  }, [selectedEntityTypes, selectedChannels, selectedSaleTypes, focusListingId, onFocusConsumed]);
+  }, [selectedEntityTypes, selectedChannels, selectedSaleTypes, currentPage, focusListingId, onFocusConsumed]);
 
   const filteredListings = listings.filter((listing) => {
     if (nameSearch.trim() && !listing.entity_name.toLowerCase().includes(nameSearch.toLowerCase())) {
@@ -260,6 +271,16 @@ const MarketBrowseTab: React.FC<Props> = ({ hasPaymentsAccess, focusListingId, o
               <MarketListingCard key={listing.id} listing={listing} hasPaymentsAccess={hasPaymentsAccess} />
             ))}
           </div>
+        )}
+        {lastPage > 1 && (
+          <Pagination
+            page={currentPage}
+            pageSize={PAGE_SIZE}
+            totalItems={totalItems}
+            showPageSize={false}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={() => {}}
+          />
         )}
       </section>
 

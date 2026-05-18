@@ -29,6 +29,7 @@ use App\Models\SwcWeaponType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Support\Swc\Auth\Permissions;
+use App\Support\ToolStore\ToolAccessService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -37,6 +38,10 @@ use Throwable;
 
 class UniverseController extends Controller
 {
+    public function __construct(protected ToolAccessService $toolAccessService)
+    {
+    }
+
     private const SEARCH_RECORDS_CACHE_TTL_SECONDS = 120;
     private const SEARCH_RECORDS_CACHE_VERSION_KEY = 'universe:search-records:version';
     private const CELL_ANNOTATIONS_CACHE_VERSION_KEY = 'universe:cell-annotations:version';
@@ -525,6 +530,22 @@ class UniverseController extends Controller
         );
     }
 
+    /**
+     * Returns the user's ID if they are a JOE member without full intel access,
+     * so the map shows only records they personally imported. Returns null otherwise.
+     */
+    protected function resolveJoeMemberId(Request $request): ?int
+    {
+        $user = $request->user();
+        if (!$user || !$user->is_joe_member) {
+            return null;
+        }
+        if ($this->canViewAsteroidIntel($request)) {
+            return null; // full intel — no restriction needed
+        }
+        return $user->id;
+    }
+
     protected function resolveScanWindow(Request $request): ?array
     {
         $user = $request->user();
@@ -954,16 +975,18 @@ class UniverseController extends Controller
         $canViewAsteroidIntel = $this->canViewAsteroidIntel($request);
         $scanWindow = $this->resolveScanWindow($request);
         $canViewScanWindow = $scanWindow !== null;
+        $joeMemberId = $this->resolveJoeMemberId($request);
         $manifest = $this->cacheManifest()->getData(true);
         $manifestRevision = data_get($manifest, 'data.revision', 'none');
         $scopeHash = sha1(json_encode([
             'can_view_asteroid_intel' => $canViewAsteroidIntel,
             'can_view_scan_window' => $canViewScanWindow,
             'scan_window' => $scanWindow,
+            'joe_member_id' => $joeMemberId,
         ], JSON_THROW_ON_ERROR));
         $cacheKey = sprintf('universe:galaxy-snapshot:meta:%s:%s', $manifestRevision, $scopeHash);
 
-        $meta = Cache::remember($cacheKey, 30, function () use ($canViewAsteroidIntel, $canViewScanWindow, $scanWindow, $manifestRevision, $scopeHash) {
+        $meta = Cache::remember($cacheKey, 30, function () use ($canViewAsteroidIntel, $canViewScanWindow, $scanWindow, $joeMemberId, $manifestRevision, $scopeHash) {
             $systemsCount = (int) SwcSystem::query()
                 ->whereNotNull('galx')
                 ->whereNotNull('galy')
@@ -974,12 +997,16 @@ class UniverseController extends Controller
                 $searchRecordBaseQuery
                     ->whereBetween('galx', [$scanWindow['min_galx'], $scanWindow['max_galx']])
                     ->whereBetween('galy', [$scanWindow['min_galy'], $scanWindow['max_galy']]);
+            } elseif (!$canViewAsteroidIntel && !$canViewScanWindow && $joeMemberId) {
+                $searchRecordBaseQuery->where('user_id', $joeMemberId);
             }
+
+            $canViewRecords = $canViewAsteroidIntel || $canViewScanWindow || $joeMemberId;
 
             $asteroidsCount = $canViewAsteroidIntel
                 ? (clone $searchRecordBaseQuery)->where('has_asteroids', true)->count()
                 : 0;
-            $scansCount = ($canViewAsteroidIntel || $canViewScanWindow)
+            $scansCount = $canViewRecords
                 ? (clone $searchRecordBaseQuery)->where(function ($q) {
                     $q->where('is_system_searched', true)
                       ->orWhereNotNull('legacy_recorded_at')
@@ -1007,7 +1034,7 @@ class UniverseController extends Controller
                     ['name' => 'sectors', 'count' => (int) SwcSector::query()->count(), 'available' => true],
                     ['name' => 'systems', 'count' => $systemsCount, 'available' => true],
                     ['name' => 'asteroids', 'count' => $asteroidsCount, 'available' => $canViewAsteroidIntel],
-                    ['name' => 'scans', 'count' => $scansCount, 'available' => ($canViewAsteroidIntel || $canViewScanWindow)],
+                    ['name' => 'scans', 'count' => $scansCount, 'available' => ($canViewAsteroidIntel || $canViewScanWindow || (bool) $joeMemberId)],
                     ['name' => 'notes', 'count' => $notesCount, 'available' => $canViewAsteroidIntel],
                     ['name' => 'ships', 'count' => $shipsCount, 'available' => $canViewAsteroidIntel],
                     ['name' => 'stations', 'count' => $stationsCount, 'available' => $canViewAsteroidIntel],
@@ -1034,14 +1061,17 @@ class UniverseController extends Controller
             ], 422);
         }
 
+        $isFullTier = $this->toolAccessService->tierForUser($request->user()) === ToolAccessService::TIER_FULL;
         $canViewAsteroidIntel = $this->canViewAsteroidIntel($request);
         $scanWindow = $this->resolveScanWindow($request);
         $canViewScanWindow = $scanWindow !== null;
+        $joeMemberId = $this->resolveJoeMemberId($request);
 
         $scopeHash = sha1(json_encode([
             'can_view_asteroid_intel' => $canViewAsteroidIntel,
             'can_view_scan_window' => $canViewScanWindow,
             'scan_window' => $scanWindow,
+            'joe_member_id' => $joeMemberId,
         ], JSON_THROW_ON_ERROR));
         $searchRecordsVersion = (int) Cache::get(self::SEARCH_RECORDS_CACHE_VERSION_KEY, 1);
         $annotationsVersion = (int) Cache::get(self::CELL_ANNOTATIONS_CACHE_VERSION_KEY, 1);
@@ -1064,7 +1094,7 @@ class UniverseController extends Controller
             $scopeHash
         );
 
-        $buildPayload = function () use ($layer, $canViewAsteroidIntel, $canViewScanWindow, $scanWindow) {
+        $buildPayload = function () use ($layer, $canViewAsteroidIntel, $canViewScanWindow, $scanWindow, $isFullTier, $joeMemberId) {
             if ($layer === 'sectors') {
                 return SwcSector::query()
                     ->orderBy('name')
@@ -1086,6 +1116,13 @@ class UniverseController extends Controller
                         'bounds',
                         'last_pulled_at',
                     ])
+                    ->map(function ($sector) use ($isFullTier) {
+                        $data = $sector->toArray();
+                        if (!$isFullTier) {
+                            $data['population'] = null;
+                        }
+                        return $data;
+                    })
                     ->toArray();
             }
 
@@ -1113,6 +1150,7 @@ class UniverseController extends Controller
                 }
 
                 return SwcSectorCellAnnotation::query()
+                    ->whereNull('owner_user_id')
                     ->whereRaw("TRIM(COALESCE(notes, '')) <> ''")
                     ->orderBy('galy')
                     ->orderBy('galx')
@@ -1130,7 +1168,7 @@ class UniverseController extends Controller
                     ->toArray();
             }
 
-            if (!$canViewAsteroidIntel && !$canViewScanWindow) {
+            if (!$canViewAsteroidIntel && !$canViewScanWindow && !$joeMemberId) {
                 return [];
             }
 
@@ -1140,6 +1178,9 @@ class UniverseController extends Controller
                 $recordsQuery
                     ->whereBetween('galx', [$scanWindow['min_galx'], $scanWindow['max_galx']])
                     ->whereBetween('galy', [$scanWindow['min_galy'], $scanWindow['max_galy']]);
+            } elseif (!$canViewAsteroidIntel && !$canViewScanWindow && $joeMemberId) {
+                // JOE member without full intel — show only records they personally imported
+                $recordsQuery->where('user_id', $joeMemberId);
             }
 
             match ($layer) {
@@ -2396,7 +2437,7 @@ class UniverseController extends Controller
         $sectorCellKeys = $this->buildSectorCellKeys($outlineCoordinates, is_array($sectorRecord->bounds) ? $sectorRecord->bounds : null);
         $sectorCoordinates = $this->sectorCellCoordinatesFromKeys($sectorCellKeys);
 
-        $annotationsQuery = SwcSectorCellAnnotation::query();
+        $annotationsQuery = SwcSectorCellAnnotation::query()->whereNull('owner_user_id');
         if (is_array($sectorRecord->bounds)) {
             $bounds = $sectorRecord->bounds;
             if (
@@ -2755,7 +2796,8 @@ class UniverseController extends Controller
 
     public function system(Request $request, string $system): JsonResponse
     {
-        $canViewPreviousPopulation = Permissions::hasAny(
+        $isFullTier = $this->toolAccessService->tierForUser($request->user()) === ToolAccessService::TIER_FULL;
+        $canViewPreviousPopulation = $isFullTier && Permissions::hasAny(
             $request->user(),
             ['is_intel', 'is_admin']
         );
@@ -2961,7 +3003,7 @@ class UniverseController extends Controller
                     'sysy' => $systemRecord->sysy,
                     'last_pulled_at' => $systemRecord->last_pulled_at,
                 ],
-                'planets' => $planets->map(function (SwcPlanet $planet) use ($canViewPreviousPopulation, $canViewTerrainData) {
+                'planets' => $planets->map(function (SwcPlanet $planet) use ($isFullTier, $canViewPreviousPopulation, $canViewTerrainData) {
                     return [
                         'uid' => $planet->uid,
                         'identifier' => $planet->identifier,
@@ -2972,7 +3014,7 @@ class UniverseController extends Controller
                         'planet_type_name' => $planet->planet_type_name,
                         'planet_type_href' => $planet->planet_type_href,
                         'size' => $planet->size,
-                        'population' => $planet->population,
+                        'population' => $isFullTier ? $planet->population : null,
                         'previous_population' => $canViewPreviousPopulation ? $planet->previous_population : null,
                         'previous_population_recorded_at' => $canViewPreviousPopulation ? $planet->previous_population_recorded_at : null,
                         'galx' => $planet->galx,

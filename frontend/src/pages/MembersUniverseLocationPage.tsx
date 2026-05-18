@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useLocation, useParams } from "react-router-dom";
 import { fetchAuthMe, subscribeToAuthStateChange } from "../api/auth";
 import { getStoredLocation, type StoredLocationDetail } from "../api/universe";
-import { canAccessAdmin, canAccessDroidBrainFull, canAccessMembers } from "../auth/permissions";
+import { canAccessAdmin, canAccessDroidBrainFull, canAccessMembers, canAccessPublicTools } from "../auth/permissions";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import BBCodeView from "../components/bbcode/BBCodeView";
@@ -301,7 +301,7 @@ const MembersUniverseLocationPage: React.FC = () => {
         const auth = await fetchAuthMe();
         if (cancelled) return;
         setIsLoggedIn(!!auth?.user);
-        setCanSeeMembers(canAccessMembers(auth?.user ?? null));
+        setCanSeeMembers(canAccessMembers(auth?.user ?? null) || canAccessPublicTools(auth?.user ?? null));
         setIsSysadmin(!!auth?.user?.is_sysadmin);
         setCanSeeDroidBrain(
           canAccessDroidBrainFull(auth?.user ?? null) || canAccessAdmin(auth?.user ?? null)

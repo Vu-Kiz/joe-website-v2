@@ -20,6 +20,39 @@ class SkillsToolController extends Controller
     ) {
     }
 
+    public function mySkills(Request $request): JsonResponse
+    {
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        if (!$user->swc_character_id) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No SWC character linked to your account.',
+            ], 422);
+        }
+
+        $snapshot = SkillsToolMemberSkillSnapshot::query()
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$this->isSnapshotFresh($snapshot)) {
+            $refresh = $this->refreshMemberSnapshot($user, $snapshot);
+            $snapshot = $refresh['snapshot'];
+        }
+
+        $row = $this->buildRosterMatrixRow($user, $snapshot);
+
+        return response()->json([
+            'ok' => true,
+            'data' => $row,
+        ]);
+    }
+
     public function members(Request $request): JsonResponse
     {
         $user = $request->user();

@@ -3,11 +3,16 @@ import {
   fullResetAdminUserSystemUpdater,
   forceAdminUserLogout,
   listAdminUsers,
+  listFactionSubscriptions,
   revokeAdminUserSwcAuthorization,
+  revokeAdminUserSubscription,
+  revokeFactionSubscription,
   revokeAllAdminUsersSwcAuthorization,
   updateAdminUserPermissions,
+  type AdminFactionSubscription,
   type AdminManageableUser,
 } from "../../api/adminUsers";
+import { fetchAuthMe } from "../../api/auth";
 
 type EditableUserState = {
   id: number;
@@ -33,6 +38,7 @@ type EditableUserState = {
   isRaid: boolean;
 
   canManageBlog: boolean;
+  activeSub: { id: number; plan_key: string; current_period_end: string | null } | null;
 };
 
 function mapUser(user: AdminManageableUser): EditableUserState {
@@ -66,6 +72,7 @@ function mapUser(user: AdminManageableUser): EditableUserState {
     isGarry: !!user.is_garry,
     isRaid: !!user.is_raid,
     canManageBlog: !!user.can_manage_blog,
+    activeSub: user.active_subscription ?? null,
   };
 }
 
@@ -74,11 +81,15 @@ const AdminUsersPanel: React.FC = () => {
   const [savingId, setSavingId] = useState<number | null>(null);
   const [forcingLogoutId, setForcingLogoutId] = useState<number | null>(null);
   const [revokingSwcId, setRevokingSwcId] = useState<number | null>(null);
+  const [revokingSubId, setRevokingSubId] = useState<number | null>(null);
   const [revokingAllSwc, setRevokingAllSwc] = useState(false);
   const [resettingSystemUpdaterId, setResettingSystemUpdaterId] = useState<number | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
   const [openScanWindowId, setOpenScanWindowId] = useState<number | null>(null);
   const [users, setUsers] = useState<EditableUserState[]>([]);
+  const [isSysadmin, setIsSysadmin] = useState(false);
+  const [factionSubs, setFactionSubs] = useState<AdminFactionSubscription[]>([]);
+  const [revokingFactionSubId, setRevokingFactionSubId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -91,12 +102,17 @@ const AdminUsersPanel: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        const res = await listAdminUsers();
+        const [res, meRes] = await Promise.all([listAdminUsers(), fetchAuthMe()]);
         if (cancelled) return;
 
-        const mapped = (res.users ?? []).map(mapUser);
-        setUsers(mapped);
+        setUsers((res.users ?? []).map(mapUser));
+        const sysadmin = Boolean(meRes.user?.is_sysadmin);
+        setIsSysadmin(sysadmin);
 
+        if (sysadmin) {
+          const factionRes = await listFactionSubscriptions().catch(() => ({ ok: false, data: [] }));
+          if (!cancelled) setFactionSubs(factionRes.data ?? []);
+        }
       } catch (e: any) {
         if (!cancelled) {
           setError(e?.message ?? "Failed to load users");
@@ -251,6 +267,40 @@ const AdminUsersPanel: React.FC = () => {
     }
   };
 
+  const handleRevokeSubscription = async (user: EditableUserState) => {
+    if (!window.confirm(`Revoke active subscription for ${user.handle}?`)) return;
+    try {
+      setRevokingSubId(user.id);
+      setError(null);
+      setNotice(null);
+      const res = await revokeAdminUserSubscription(user.id);
+      setNotice(res.message || `Subscription revoked for ${user.handle}.`);
+      setUsers((current) =>
+        current.map((u) => u.id === user.id ? { ...u, activeSub: null } : u)
+      );
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to revoke subscription.");
+    } finally {
+      setRevokingSubId(null);
+    }
+  };
+
+  const handleRevokeFactionSubscription = async (sub: AdminFactionSubscription) => {
+    if (!window.confirm(`Revoke subscription for ${sub.faction?.name ?? `faction #${sub.id}`}?`)) return;
+    try {
+      setRevokingFactionSubId(sub.id);
+      setError(null);
+      setNotice(null);
+      const res = await revokeFactionSubscription(sub.id);
+      setNotice(res.message || "Faction subscription revoked.");
+      setFactionSubs((current) => current.filter((s) => s.id !== sub.id));
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to revoke faction subscription.");
+    } finally {
+      setRevokingFactionSubId(null);
+    }
+  };
+
   const handleRevokeAllSwcAuthorizations = async () => {
     const confirmation = window.prompt(
       "Type REVOKE_ALL_SWC_AUTH to revoke SWC authorization for all users."
@@ -371,38 +421,39 @@ const AdminUsersPanel: React.FC = () => {
 
                   <div className="admin-users-card__controls">
                     <div className="admin-users-card__badges">
-                      {user.isSysadmin && (
-                        <span className="admin-badge admin-badge--strong">Sysadmin</span>
-                      )}
-                      {user.isAdmin && <span className="admin-badge">Admin</span>}
-                      {user.isJoeMember && (
-                        <span className="admin-badge admin-badge--soft">JOE Member</span>
-                      )}
-                      {user.isIntel && (
-                        <span className="admin-badge admin-badge--intel">Intel</span>
-                      )}
-                      {user.canViewAsteroidIntel && (
-                        <span className="admin-badge admin-badge--soft">Asteroid Intel</span>
-                      )}
-                      {user.canAccessCombatCalc && (
-                        <span className="admin-badge admin-badge--content">Combat Calc</span>
-                      )}
-                      {user.canAccessWreckingHelperExtension && (
-                        <span className="admin-badge admin-badge--content">Wrecking Helper</span>
-                      )}
-                      {user.canAccessFleetCommander && (
-                        <span className="admin-badge admin-badge--content">Fleet Commander</span>
-                      )}
-                      {user.isGarry && (
-                        <span className="admin-badge admin-badge--garry">Garry</span>
-                      )}
-                      {user.isRaid && (
-                        <span className="admin-badge admin-badge--raid">Raid</span>
-                      )}
-                      {user.canManageBlog && (
-                        <span className="admin-badge admin-badge--content">Blog</span>
-                      )}
+                      {([
+                        { show: user.isJoeMember,                        label: "JOE Member",     hue: 47  },
+                        { show: user.isAdmin,                            label: "Admin",           hue: 25  },
+                        { show: user.isSysadmin,                         label: "Sysadmin",        hue: 0   },
+                        { show: user.isIntel,                            label: "Intel",           hue: 210 },
+                        { show: user.isGarry,                            label: "GARRY",           hue: 280 },
+                        { show: user.isRaid,                             label: "RAID",            hue: 145 },
+                        { show: user.canViewAsteroidIntel,               label: "Asteroid Intel",  hue: 185 },
+                        { show: user.canAccessCombatCalc,                label: "Combat Calc",     hue: 355 },
+                        { show: user.canAccessWreckingHelperExtension,   label: "Wrecking Helper", hue: 90  },
+                        { show: user.canAccessFleetCommander,            label: "Fleet Commander", hue: 230 },
+                        { show: user.canManageBlog,                      label: "Blog",            hue: 320 },
+                        { show: isSysadmin && !!user.activeSub,          label: user.activeSub ? `Subscriber (${user.activeSub.plan_key})` : "", hue: 145 },
+                      ] as const).filter(b => b.show && b.label).map(b => (
+                        <span
+                          key={b.label}
+                          className="admin-badge"
+                          style={{
+                            borderColor: `hsl(${b.hue}, 70%, 50%, 0.45)`,
+                            background: `hsl(${b.hue}, 70%, 50%, 0.12)`,
+                            color: `hsl(${b.hue}, 80%, 75%)`,
+                          }}
+                        >
+                          {b.label}
+                        </span>
+                      ))}
                     </div>
+
+                    {hasScanWindowValues && (
+                      <span className="admin-badge admin-users-scan-window-pill">
+                        {user.scanWindowTopLeftGalx},{user.scanWindowTopLeftGaly} → {user.scanWindowBottomRightGalx},{user.scanWindowBottomRightGaly}
+                      </span>
+                    )}
 
                     <button
                       type="button"
@@ -623,6 +674,17 @@ const AdminUsersPanel: React.FC = () => {
                     </div>
 
                     <div className="admin-users-card__actions">
+                      {isSysadmin && user.activeSub && (
+                        <button
+                          type="button"
+                          className="btn btn--small btn--ghost"
+                          style={{ color: "salmon", borderColor: "salmon" }}
+                          onClick={() => handleRevokeSubscription(user)}
+                          disabled={revokingSubId === user.id}
+                        >
+                          {revokingSubId === user.id ? "Revoking…" : "Revoke Subscription"}
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="btn btn--small btn--ghost"
@@ -679,6 +741,64 @@ const AdminUsersPanel: React.FC = () => {
             );
           })}
         </div>
+      )}
+
+      {isSysadmin && factionSubs.length > 0 && (
+        <>
+          <hr className="divider" style={{ margin: "24px 0" }} />
+          <h3 className="h3" style={{ margin: "0 0 12px" }}>Active Faction Subscriptions</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {factionSubs.map((sub) => (
+              <article key={sub.id} className="panel admin-users-card">
+                <div className="admin-users-card__top">
+                  <div className="admin-users-card__identity">
+                    <div>
+                      <h3 className="admin-users-card__title">
+                        {sub.faction?.name ?? `Faction #${sub.id}`}
+                      </h3>
+                      <div className="small admin-users-card__meta">
+                        {sub.plan_key} — {sub.seats_used}{sub.seat_count != null ? ` / ${sub.seat_count}` : ""} seats used
+                        {sub.current_period_end ? ` — renews ${new Date(sub.current_period_end).toLocaleDateString()}` : ""}
+                        {sub.manager ? ` — managed by ${sub.manager.handle}` : ""}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="admin-users-card__controls">
+                    <div className="admin-users-card__badges">
+                      <span className="admin-badge" style={{ borderColor: "hsl(145, 70%, 50%, 0.45)", background: "hsl(145, 70%, 50%, 0.12)", color: "hsl(145, 80%, 75%)" }}>
+                        Faction Subscriber
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn--small btn--ghost"
+                      style={{ color: "salmon", borderColor: "salmon" }}
+                      onClick={() => handleRevokeFactionSubscription(sub)}
+                      disabled={revokingFactionSubId === sub.id}
+                    >
+                      {revokingFactionSubId === sub.id ? "Revoking…" : "Revoke"}
+                    </button>
+                  </div>
+                </div>
+                {sub.members.length > 0 && (
+                  <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {sub.members.map((m) => (
+                      <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.04)", borderRadius: 6, padding: "4px 8px" }}>
+                        {m.avatar_url && (
+                          <img src={m.avatar_url} alt={m.handle} style={{ width: 20, height: 20, borderRadius: "50%" }} />
+                        )}
+                        <span className="small">{m.handle}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {sub.members.length === 0 && (
+                  <p className="small muted" style={{ marginTop: 8 }}>No seats granted yet.</p>
+                )}
+              </article>
+            ))}
+          </div>
+        </>
       )}
     </section>
   );

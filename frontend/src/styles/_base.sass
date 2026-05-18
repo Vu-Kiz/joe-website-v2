@@ -22,6 +22,28 @@ body
   margin: 0
   padding: 30px
 
+@media (max-width: 1024px)
+  body
+    padding: 16px
+
+@media (max-width: $bp-mobile)
+  body
+    padding: 6px
+
+  .site-container
+    padding: 0 6px
+
+@media (max-width: $bp-small)
+  body
+    padding: 4px
+
+  .site-container
+    padding: 0 4px
+
+@media (pointer: coarse)
+  .btn
+    min-height: 44px
+
 *::-webkit-scrollbar
   width: 12px
   height: 12px

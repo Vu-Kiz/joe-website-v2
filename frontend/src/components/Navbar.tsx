@@ -6,7 +6,7 @@ import { fetchAuthMe, apiLogout, getBackendOrigin, subscribeToAuthStateChange } 
 import type { SwcUser } from "../api/auth";
 import { getPendingPaymentsCount } from "../api/payments";
 import CgtPill from "./CgtPill";
-import { canAccessAdmin, canAccessMembers } from "../auth/permissions";
+import { canAccessAdmin, canAccessMembers, canAccessPublicTools } from "../auth/permissions";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
@@ -111,25 +111,34 @@ const Navbar: React.FC = () => {
 
   const displayName = user?.handle || "Guest";
   const showMembersTools = canAccessMembers(user);
-  const showToolsButton = canAccessAdmin(user) || showMembersTools;
+  const showToolsButton = canAccessAdmin(user) || showMembersTools || canAccessPublicTools(user);
   const showMarketButton = Boolean(user);
+  const showStoreButton = !user
+    || canAccessAdmin(user)
+    || (!showMembersTools && (user.store_has_active_plans ?? false));
 
   return (
     <nav className="main-nav">
       <div className="main-nav-inner">
         <Link to="/home" className="main-nav-brand" aria-label="Go to home">
-          <img src={jawaLogo} alt="JOE Logo" className="main-nav-logo" />
+          <img src={jawaLogo} alt="JOE Logo" className="main-nav-logo main-nav-logo--hide-mobile" />
         </Link>
 
-        <button
-          className="main-nav-toggle"
-          type="button"
-          onClick={() => setNavOpen((open) => !open)}
-          aria-expanded={navOpen}
-          aria-label="Toggle navigation"
-        >
-          ☰ Menu
-        </button>
+        <div className="nav-cgt nav-cgt--mobile-closed">
+          <CgtPill />
+        </div>
+
+        <div className="main-nav-toggle-row">
+          <button
+            className="main-nav-toggle"
+            type="button"
+            onClick={() => setNavOpen((open) => !open)}
+            aria-expanded={navOpen}
+            aria-label="Toggle navigation"
+          >
+            ☰ Menu
+          </button>
+        </div>
 
         <div className={`main-nav-menu ${navOpen ? "open" : ""}`}>
           <ul className="main-nav-links">
@@ -152,6 +161,13 @@ const Navbar: React.FC = () => {
                 </Link>
               </li>
             )}
+            {showStoreButton && (
+              <li>
+                <Link to="/tools/store" className={`btn ${isActive("/tools/store") ? "active" : ""}`}>
+                  Tools Store
+                </Link>
+              </li>
+            )}
             {showToolsButton && (
               <li>
                 <Link
@@ -170,7 +186,7 @@ const Navbar: React.FC = () => {
               {!loading && user && (
                 <>
                   <span className="small">
-                    Logged in as{" "}
+                    <span className="nav-logged-in-label">Logged in as </span>
                     <Link to="/aboutme" className="nav-user-link small">
                       {displayName}
                     </Link>

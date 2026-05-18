@@ -28,7 +28,7 @@ export function canAccessIntel(user: SwcUser | null | undefined): boolean {
 
 export function canAccessDroidBrain(user: SwcUser | null | undefined): boolean {
   if (!user) return false;
-  return !!(user.is_joe_member || user.is_intel || user.is_sysadmin);
+  return !!(user.is_joe_member || user.is_intel || user.is_sysadmin) || canAccessPublicTools(user);
 }
 
 export function canAccessDroidBrainFull(user: SwcUser | null | undefined): boolean {
@@ -74,6 +74,16 @@ export function canAccessWreckingHelperExtension(user: SwcUser | null | undefine
 export function canAccessFleetCommander(user: SwcUser | null | undefined): boolean {
   if (!user) return false;
   return !!(user.can_access_fleet_commander || user.is_admin || user.is_sysadmin);
+}
+
+export function canAccessPublicTools(user: SwcUser | null | undefined): boolean {
+  if (!user) return false;
+  return user.tool_access_tier === "full" || user.tool_access_tier === "public";
+}
+
+export function getToolAccessTier(user: SwcUser | null | undefined): "full" | "public" | "none" {
+  if (!user) return "none";
+  return user.tool_access_tier ?? "none";
 }
 
 export function canManageBlog(user: SwcUser | null | undefined): boolean {

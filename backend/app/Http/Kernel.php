@@ -71,6 +71,7 @@ class Kernel extends HttpKernel
         'require_all'    => \App\Http\Middleware\RequireAllFlags::class,
         'sysadmin_only'  => \App\Http\Middleware\SysadminOnly::class,
         'member_tool_access' => \App\Http\Middleware\LogMemberToolAccess::class,
+        'public_tool_access' => \App\Http\Middleware\PublicToolAccess::class,
         'fresh_user_session' => \App\Http\Middleware\EnsureFreshUserSession::class,
         'discord_bot' => \App\Http\Middleware\AuthenticateDiscordBot::class,
     ];

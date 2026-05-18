@@ -8,7 +8,12 @@ DC="docker compose -f ${COMPOSE_FILE}"
 BACKEND="backend"
 FRONTEND="frontend"
 DB="db"
-WORKER="worker"
+WORKER_XML="worker-xml"
+WORKER_SWC="worker-swc"
+WORKER_SEARCH="worker-search"
+WORKER_PAYMENT="worker-payment"
+WORKER_DEFAULT="worker-default"
+SCHEDULER="scheduler"
 DISCORD_BOT="discord-bot"
 PHPMYADMIN="phpmyadmin"
 GIT_BRANCH="dev"
@@ -25,7 +30,12 @@ Usage:
   scripts/dev.sh backend-restart
   scripts/dev.sh frontend-restart
   scripts/dev.sh db-restart
-  scripts/dev.sh worker-restart
+  scripts/dev.sh worker-xml-restart
+  scripts/dev.sh worker-swc-restart
+  scripts/dev.sh worker-search-restart
+  scripts/dev.sh worker-payment-restart
+  scripts/dev.sh worker-default-restart
+  scripts/dev.sh scheduler-restart
   scripts/dev.sh discord-bot-restart
   scripts/dev.sh phpmyadmin-restart
   scripts/dev.sh service-restart <service>
@@ -96,8 +106,28 @@ case "$cmd" in
     ${DC} restart "${DB}"
     ;;
 
-  worker-restart)
-    ${DC} restart "${WORKER}"
+  worker-xml-restart)
+    ${DC} restart "${WORKER_XML}"
+    ;;
+
+  worker-swc-restart)
+    ${DC} restart "${WORKER_SWC}"
+    ;;
+
+  worker-search-restart)
+    ${DC} restart "${WORKER_SEARCH}"
+    ;;
+
+  worker-payment-restart)
+    ${DC} restart "${WORKER_PAYMENT}"
+    ;;
+
+  worker-default-restart)
+    ${DC} restart "${WORKER_DEFAULT}"
+    ;;
+
+  scheduler-restart)
+    ${DC} restart "${SCHEDULER}"
     ;;
 
   discord-bot-restart)

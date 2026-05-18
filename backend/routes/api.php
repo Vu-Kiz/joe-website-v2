@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\BlogController;
 use App\Http\Controllers\Api\Universe\UniverseController;
 use App\Http\Controllers\Api\Universe\CellAnnotationController;
 use App\Http\Controllers\Api\Universe\SearchRecordController;
+use App\Http\Controllers\Api\Universe\SubscriberCellRecordController;
 use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\TimeController;
 use App\Http\Controllers\Api\Admin\UserController;
@@ -36,6 +37,7 @@ use App\Http\Controllers\Api\Admin\DiscordBotAdminController;
 use App\Http\Controllers\Api\Admin\WebsiteHealthController;
 use App\Http\Controllers\Api\Admin\WorkerHealthController;
 use App\Http\Controllers\Api\Admin\DroidBrainUploadAuditController;
+use App\Http\Controllers\Api\Admin\ToolStoreAdminController;
 use App\Http\Controllers\Api\SiteLockStatusController;
 use App\Http\Controllers\Api\SwcAuthorizationController;
 use App\Http\Controllers\Api\TenetOfSalvageController;
@@ -53,6 +55,22 @@ use App\Http\Controllers\Api\Admin\ContactRequestSettingsController;
 use App\Http\Controllers\Api\Extension\HelperAuthController;
 use App\Http\Controllers\Api\Extension\HelperSettingsController;
 use App\Http\Controllers\Api\SkillsToolController;
+use App\Http\Controllers\Api\ToolStoreController;
+use App\Http\Controllers\Api\FactionConsoleController;
+
+// Tools store (catalog is public; subscribe requires auth)
+Route::get('/tools/store/catalog', [ToolStoreController::class, 'catalog']);
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('/tools/store/my-subscription', [ToolStoreController::class, 'mySubscription']);
+    Route::post('/tools/store/subscribe/quote', [ToolStoreController::class, 'subscribeQuote']);
+    Route::post('/tools/store/subscribe/send', [ToolStoreController::class, 'subscribeSend'])->middleware('throttle:10,1');
+
+    // Faction console — managed by whoever activated the faction subscription
+    Route::get('/faction-console', [FactionConsoleController::class, 'index']);
+    Route::get('/faction-console/{subscriptionId}', [FactionConsoleController::class, 'show']);
+    Route::post('/faction-console/{subscriptionId}/members/{userId}', [FactionConsoleController::class, 'grant']);
+    Route::delete('/faction-console/{subscriptionId}/members/{userId}', [FactionConsoleController::class, 'revoke']);
+});
 
 // Public utility
 Route::get('/health', [HealthController::class, 'index']);
@@ -101,6 +119,7 @@ Route::middleware(['auth:sanctum', 'require_any:is_admin'])->group(function () {
 
 // Admin user permissions: admin only (plus sysadmin override)
 Route::middleware(['auth:sanctum', 'require_any:is_admin'])->prefix('admin')->group(function () {
+    Route::get('/subscriber-cell-records', [SubscriberCellRecordController::class, 'adminIndex']);
     Route::get('/users', [UserController::class, 'index']);
     Route::patch('/users/{user}/permissions', [UserController::class, 'updatePermissions']);
     Route::post('/users/{user}/force-logout', [UserController::class, 'forceLogout']);
@@ -108,6 +127,9 @@ Route::middleware(['auth:sanctum', 'require_any:is_admin'])->prefix('admin')->gr
     Route::post('/users/revoke-swc-authorization-all', [UserController::class, 'revokeAllSwcAuthorizations']);
     Route::post('/users/{user}/reset-system-updater-cursor', [UserController::class, 'resetSystemUpdaterCursor']);
     Route::post('/users/{user}/full-reset-system-updater', [UserController::class, 'fullResetSystemUpdater']);
+    Route::post('/users/{user}/revoke-subscription', [UserController::class, 'revokeSubscription']);
+    Route::get('/users/faction-subscriptions', [UserController::class, 'factionSubscriptions']);
+    Route::post('/users/faction-subscriptions/{subscriptionId}/revoke', [UserController::class, 'revokeFactionSubscription']);
     Route::get('/member-changelog', [MemberChangelogAdminController::class, 'index']);
     Route::post('/member-changelog', [MemberChangelogAdminController::class, 'store']);
     Route::put('/member-changelog/{memberChangelogEntry}', [MemberChangelogAdminController::class, 'update']);
@@ -155,50 +177,14 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
     Route::put('/payments/droidbrain-settings', [\App\Http\Controllers\Api\PaymentController::class, 'updateDroidBrainSettings']);
     Route::post('/payment-transfers/{paymentTransfer}/verify', [\App\Http\Controllers\Api\PaymentController::class, 'verify']);
     Route::post('/payment-transfers/{paymentTransfer}/manual-verify', [\App\Http\Controllers\Api\PaymentController::class, 'manualVerify']);
-    Route::get('/universe/sectors', [UniverseController::class, 'sectors']);
-    Route::get('/universe/cache-manifest', [UniverseController::class, 'cacheManifest']);
-    Route::get('/universe/galaxy-snapshot/meta', [UniverseController::class, 'galaxySnapshotMeta']);
-    Route::get('/universe/galaxy-snapshot/layer/{layer}', [UniverseController::class, 'galaxySnapshotLayer']);
-    Route::get('/universe/map-systems', [UniverseController::class, 'mapSystems']);
+    // Member-only universe (JOE data: scan records, annotations, archive)
+    Route::get('/universe/search-records', [UniverseController::class, 'searchRecords']);
+    Route::get('/universe/sectors/{sector}', [UniverseController::class, 'sector']);
+    Route::get('/universe/cell-annotations', [CellAnnotationController::class, 'index']);
+    Route::post('/universe/cell-annotations', [CellAnnotationController::class, 'upsert']);
     Route::get('/universe/archive/planets', [UniverseController::class, 'archivePlanets']);
     Route::get('/universe/archive/planets/{planet}', [UniverseController::class, 'archivePlanet']);
     Route::get('/universe/archive/factions', [UniverseController::class, 'archiveFactions']);
-    Route::get('/universe/hyper-planner', [UniverseController::class, 'hyperPlanner']);
-    Route::get('/universe/hyper-plans', [UniverseController::class, 'hyperPlans']);
-    Route::post('/universe/hyper-plans', [UniverseController::class, 'storeHyperPlan']);
-    Route::delete('/universe/hyper-plans/{hyperPlan}', [UniverseController::class, 'deleteHyperPlan']);
-    Route::get('/universe/search-records', [UniverseController::class, 'searchRecords']);
-    Route::get('/universe/sectors/{sector}', [UniverseController::class, 'sector']);
-    Route::get('/universe/locations/{galx}/{galy}', [UniverseController::class, 'location'])
-        ->where('galx', '-?[0-9]+')
-        ->where('galy', '-?[0-9]+');
-    Route::get('/universe/systems/{system}', [UniverseController::class, 'system']);
-    Route::get('/universe/cell-annotations', [CellAnnotationController::class, 'index']);
-    Route::post('/universe/cell-annotations', [CellAnnotationController::class, 'upsert']);
-    Route::get('/universe/station-types', [UniverseController::class, 'stationTypes']);
-    Route::get('/universe/station-types/{stationType}', [UniverseController::class, 'stationType']);
-    Route::get('/universe/facility-types', [UniverseController::class, 'facilityTypes']);
-    Route::get('/universe/facility-types/{facilityType}', [UniverseController::class, 'facilityType']);
-    Route::get('/universe/item-types', [UniverseController::class, 'itemTypes']);
-    Route::get('/universe/item-types/{itemType}', [UniverseController::class, 'itemType']);
-    Route::get('/universe/planet-types', [UniverseController::class, 'planetTypes']);
-    Route::get('/universe/planet-types/{planetType}', [UniverseController::class, 'planetType']);
-    Route::get('/universe/ship-types', [UniverseController::class, 'shipTypes']);
-    Route::get('/universe/ship-types/{shipType}', [UniverseController::class, 'shipType']);
-    Route::get('/universe/vehicle-types', [UniverseController::class, 'vehicleTypes']);
-    Route::get('/universe/vehicle-types/{vehicleType}', [UniverseController::class, 'vehicleType']);
-    Route::get('/universe/droid-types', [UniverseController::class, 'droidTypes']);
-    Route::get('/universe/droid-types/{droidType}', [UniverseController::class, 'droidType']);
-    Route::get('/universe/creature-types', [UniverseController::class, 'creatureTypes']);
-    Route::get('/universe/creature-types/{creatureType}', [UniverseController::class, 'creatureType']);
-    Route::get('/universe/npc-types', [UniverseController::class, 'npcTypes']);
-    Route::get('/universe/npc-types/{npcType}', [UniverseController::class, 'npcType']);
-    Route::get('/universe/races', [UniverseController::class, 'races']);
-    Route::get('/universe/races/{race}', [UniverseController::class, 'race']);
-    Route::get('/universe/weapon-types', [UniverseController::class, 'weaponTypes']);
-    Route::get('/universe/weapon-types/{weaponType}', [UniverseController::class, 'weaponType']);
-    Route::get('/universe/terrain-types', [UniverseController::class, 'terrainTypes']);
-    Route::get('/universe/terrain-types/{terrainType}', [UniverseController::class, 'terrainType']);
     Route::get('/universe/material-types', [UniverseController::class, 'materialTypes']);
     Route::get('/universe/material-types/{materialType}', [UniverseController::class, 'materialType']);
 });
@@ -254,6 +240,55 @@ Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('sys')->group(funct
     Route::post('/universe/full-sync-runs/{run}/cancel', [PullController::class, 'cancelFullSync']);
 });
 
+// Public tool routes — accessible to JOE members AND active subscribers
+Route::middleware(['auth:sanctum', 'public_tool_access'])->group(function () {
+    Route::get('/universe/sectors', [UniverseController::class, 'sectors']);
+    Route::get('/universe/cache-manifest', [UniverseController::class, 'cacheManifest']);
+    Route::get('/universe/galaxy-snapshot/meta', [UniverseController::class, 'galaxySnapshotMeta']);
+    Route::get('/universe/galaxy-snapshot/layer/{layer}', [UniverseController::class, 'galaxySnapshotLayer']);
+    Route::get('/universe/map-systems', [UniverseController::class, 'mapSystems']);
+    Route::get('/universe/locations/{galx}/{galy}', [UniverseController::class, 'location'])
+        ->where('galx', '-?[0-9]+')
+        ->where('galy', '-?[0-9]+');
+    Route::get('/universe/systems/{system}', [UniverseController::class, 'system']);
+    Route::get('/universe/subscriber-cell-records', [SubscriberCellRecordController::class, 'index']);
+    Route::post('/universe/subscriber-cell-records', [SubscriberCellRecordController::class, 'store']);
+    Route::post('/universe/search-records/import-personal-events', [SearchRecordController::class, 'importPersonalEvents']);
+    Route::get('/universe/search-records/import-logs', [SearchRecordController::class, 'importLogs']);
+    Route::delete('/universe/search-records/import-logs', [SearchRecordController::class, 'clearImportLogs']);
+    Route::get('/universe/hyper-planner', [UniverseController::class, 'hyperPlanner']);
+    Route::get('/universe/hyper-plans', [UniverseController::class, 'hyperPlans']);
+    Route::post('/universe/hyper-plans', [UniverseController::class, 'storeHyperPlan']);
+    Route::delete('/universe/hyper-plans/{hyperPlan}', [UniverseController::class, 'deleteHyperPlan']);
+    // Entity stats
+    Route::get('/universe/station-types', [UniverseController::class, 'stationTypes']);
+    Route::get('/universe/station-types/{stationType}', [UniverseController::class, 'stationType']);
+    Route::get('/universe/facility-types', [UniverseController::class, 'facilityTypes']);
+    Route::get('/universe/facility-types/{facilityType}', [UniverseController::class, 'facilityType']);
+    Route::get('/universe/item-types', [UniverseController::class, 'itemTypes']);
+    Route::get('/universe/item-types/{itemType}', [UniverseController::class, 'itemType']);
+    Route::get('/universe/planet-types', [UniverseController::class, 'planetTypes']);
+    Route::get('/universe/planet-types/{planetType}', [UniverseController::class, 'planetType']);
+    Route::get('/universe/ship-types', [UniverseController::class, 'shipTypes']);
+    Route::get('/universe/ship-types/{shipType}', [UniverseController::class, 'shipType']);
+    Route::get('/universe/vehicle-types', [UniverseController::class, 'vehicleTypes']);
+    Route::get('/universe/vehicle-types/{vehicleType}', [UniverseController::class, 'vehicleType']);
+    Route::get('/universe/droid-types', [UniverseController::class, 'droidTypes']);
+    Route::get('/universe/droid-types/{droidType}', [UniverseController::class, 'droidType']);
+    Route::get('/universe/creature-types', [UniverseController::class, 'creatureTypes']);
+    Route::get('/universe/creature-types/{creatureType}', [UniverseController::class, 'creatureType']);
+    Route::get('/universe/npc-types', [UniverseController::class, 'npcTypes']);
+    Route::get('/universe/npc-types/{npcType}', [UniverseController::class, 'npcType']);
+    Route::get('/universe/races', [UniverseController::class, 'races']);
+    Route::get('/universe/races/{race}', [UniverseController::class, 'race']);
+    Route::get('/universe/weapon-types', [UniverseController::class, 'weaponTypes']);
+    Route::get('/universe/weapon-types/{weaponType}', [UniverseController::class, 'weaponType']);
+    Route::get('/universe/terrain-types', [UniverseController::class, 'terrainTypes']);
+    Route::get('/universe/terrain-types/{terrainType}', [UniverseController::class, 'terrainType']);
+    Route::get('/universe/material-types', [UniverseController::class, 'materialTypes']);
+    Route::get('/universe/material-types/{materialType}', [UniverseController::class, 'materialType']);
+});
+
 // Loading tip management: can_manage_tips OR is_admin OR sysadmin override
 Route::middleware(['auth:sanctum', 'require_any:can_manage_tips,is_admin'])->group(function () {
     Route::get('/admin/loading-tips', [AdminLoadingTipController::class, 'index']);
@@ -299,12 +334,35 @@ Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('admin')->group(fun
     Route::post('/discord-bot/contact-recipient', [ContactRequestSettingsController::class, 'update']);
     Route::get('/website-health', [WebsiteHealthController::class, 'show']);
     Route::get('/worker-health', [WorkerHealthController::class, 'show']);
+    Route::post('/worker-health/recover-stuck-imports', [WorkerHealthController::class, 'recoverStuckImports']);
+    Route::post('/worker-health/run-payments-now', [WorkerHealthController::class, 'runPaymentsNow']);
+    Route::post('/worker-health/retry-failed-payments', [WorkerHealthController::class, 'retryFailedPayments']);
+    Route::post('/worker-health/retry-import/{id}', [WorkerHealthController::class, 'retryImport']);
+    Route::delete('/worker-health/failed-jobs', [WorkerHealthController::class, 'clearFailedJobs']);
     Route::get('/site-lock', [SiteLockController::class, 'show']);
     Route::post('/site-lock', [SiteLockController::class, 'update']);
     Route::get('/entity-stats/{entityType}/export.csv', [EntityStatsController::class, 'exportCsv']);
     Route::post('/entity-stats/station-icons/populate', [EntityStatsController::class, 'populateStationIcons']);
     Route::post('/entity-stats/material-icons/populate', [EntityStatsController::class, 'populateMaterialIcons']);
     Route::put('/entity-stats/{entityType}/{entityId}', [EntityStatsController::class, 'update']);
+
+    // Tool store management
+    Route::get('/tool-store/settings', [ToolStoreController::class, 'getSettings']);
+    Route::put('/tool-store/settings', [ToolStoreController::class, 'updateSettings']);
+    Route::get('/tool-store/plans', [ToolStoreAdminController::class, 'indexPlans']);
+    Route::put('/tool-store/plans/{key}', [ToolStoreAdminController::class, 'updatePlan']);
+    Route::post('/tool-store/seat-tiers', [ToolStoreAdminController::class, 'storeTier']);
+    Route::put('/tool-store/seat-tiers/{id}', [ToolStoreAdminController::class, 'updateTier']);
+    Route::delete('/tool-store/seat-tiers/{id}', [ToolStoreAdminController::class, 'destroyTier']);
+    Route::get('/tool-store/deals', [ToolStoreAdminController::class, 'indexDeals']);
+    Route::post('/tool-store/deals', [ToolStoreAdminController::class, 'storeDeal']);
+    Route::put('/tool-store/deals/{id}', [ToolStoreAdminController::class, 'updateDeal']);
+    Route::delete('/tool-store/deals/{id}', [ToolStoreAdminController::class, 'destroyDeal']);
+    Route::post('/tool-store/subscriber-preview/toggle', [ToolStoreAdminController::class, 'toggleSubscriberPreview']);
+    Route::post('/tool-store/lock-joe-flags/toggle', [ToolStoreAdminController::class, 'toggleLockJoeFlags']);
+    Route::get('/tool-store/users/search', [ToolStoreAdminController::class, 'searchUsers']);
+    Route::post('/tool-store/grant', [ToolStoreAdminController::class, 'grantSubscription']);
+    Route::post('/tool-store/grant-faction', [ToolStoreAdminController::class, 'grantFactionSubscription']);
 });
 
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -321,7 +379,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('/extension/wrecking-helper/settings', [HelperSettingsController::class, 'update'])->middleware('throttle:120,1');
 });
 
-Route::middleware(['auth:sanctum', 'require_any:is_joe_member,is_intel,is_sysadmin'])->group(function () {
+Route::middleware(['auth:sanctum', 'public_tool_access'])->group(function () {
     Route::get('/droidbrain', [DroidBrainController::class, 'index']);
     Route::get('/droidbrain/history', [DroidBrainController::class, 'history']);
 });
@@ -400,9 +458,6 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
 
     Route::get('/factions/mine', [FactionController::class, 'mine']);
     Route::get('/factions/mine/payable', [FactionController::class, 'minePayable']);
-    Route::post('/universe/search-records/import-personal-events', [SearchRecordController::class, 'importPersonalEvents']);
-    Route::get('/universe/search-records/import-logs', [SearchRecordController::class, 'importLogs']);
-    Route::delete('/universe/search-records/import-logs', [SearchRecordController::class, 'clearImportLogs']);
     Route::get('/manual-payment-templates', [ManualPaymentTemplateController::class, 'index']);
     Route::get('/manual-payment-templates/options', [ManualPaymentTemplateController::class, 'options']);
     Route::post('/manual-payment-templates', [ManualPaymentTemplateController::class, 'store']);
@@ -412,6 +467,10 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
     Route::delete('/manual-payment-templates/{manualPaymentTemplate}', [ManualPaymentTemplateController::class, 'destroy']);
     Route::get('/factions/mine/privileges', [FactionPrivilegeController::class, 'mine']);
     
+});
+
+Route::middleware(['auth:sanctum', 'require_any:is_joe_member,can_access_fleet_commander,is_admin,is_sysadmin'])->group(function () {
+    Route::get('/fleet/my-skills', [SkillsToolController::class, 'mySkills']);
 });
 
 Route::middleware(['auth:sanctum', 'require_any:can_access_fleet_commander,is_admin,is_sysadmin'])->group(function () {

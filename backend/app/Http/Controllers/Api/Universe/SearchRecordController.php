@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Universe;
 
 use App\Http\Controllers\Controller;
+use App\Models\SubscriberCellRecord;
 use App\Models\SwcAuthorization;
 use App\Models\SwcMemberImportLog;
 use App\Models\SwcSector;
@@ -12,6 +13,7 @@ use App\Models\User;
 use App\Support\Admin\AdminActionLogger;
 use App\Support\Swc\SwcAuthorizationService;
 use App\Support\Swc\SwcHttp;
+use App\Support\ToolStore\ToolAccessService;
 use App\Support\Universe\AstrogationRewardService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Client\Response;
@@ -26,6 +28,7 @@ class SearchRecordController extends Controller
     public function __construct(
         protected SwcAuthorizationService $swcAuthorizationService,
         protected AstrogationRewardService $astrogationRewardService,
+        protected ToolAccessService $toolAccessService,
     ) {
     }
 
@@ -449,6 +452,95 @@ class SearchRecordController extends Controller
         ];
     }
 
+    protected function importMatchedEventsForSubscriber(array $matches, User $user): array
+    {
+        $sub = $this->toolAccessService->activeSubscriptionFor($user);
+
+        if ($sub && $sub->subscriber_type === 'faction') {
+            $ownerType = 'faction';
+            $ownerId = $sub->subscriber_id;
+        } else {
+            $ownerType = 'user';
+            $ownerId = $user->id;
+        }
+
+        $created = 0;
+        $updated = 0;
+        $unchanged = 0;
+        $skipped = 0;
+        $changedAreas = [];
+
+        foreach ($matches as $match) {
+            $galx = $match['galx'] ?? null;
+            $galy = $match['galy'] ?? null;
+
+            if (!is_int($galx) || !is_int($galy)) {
+                $skipped += 1;
+                continue;
+            }
+
+            $resolvedSector = $this->resolveSearchRecordSector($galx, $galy);
+            $squareName = !empty($match['square_name']) ? trim((string) $match['square_name']) : null;
+
+            $existing = SubscriberCellRecord::query()
+                ->where('owner_type', $ownerType)
+                ->where('owner_id', $ownerId)
+                ->where('galx', $galx)
+                ->where('galy', $galy)
+                ->first();
+
+            $payload = [
+                'sector_uid'         => $resolvedSector['sector_uid'],
+                'square_name'        => $squareName ?? $existing?->square_name,
+                'is_system_searched' => true,
+                'has_asteroids'      => (bool) ($existing?->has_asteroids ?? false) || (bool) ($match['has_asteroids'] ?? false),
+                'updated_by_user_id' => $user->id,
+            ];
+
+            if ($existing) {
+                $isChanged =
+                    $existing->is_system_searched !== true ||
+                    (bool) $existing->has_asteroids !== (bool) $payload['has_asteroids'] ||
+                    ($squareName && $existing->square_name !== $squareName);
+
+                if (!$isChanged) {
+                    $unchanged += 1;
+                    continue;
+                }
+
+                $existing->fill($payload)->save();
+                $updated += 1;
+            } else {
+                SubscriberCellRecord::create([
+                    'owner_type' => $ownerType,
+                    'owner_id'   => $ownerId,
+                    'galx'       => $galx,
+                    'galy'       => $galy,
+                    ...$payload,
+                ]);
+                $created += 1;
+            }
+
+            $changedAreas[] = [
+                'galx'       => $galx,
+                'galy'       => $galy,
+                'square_name'=> $squareName,
+                'sector_uid' => $resolvedSector['sector_uid'],
+                'has_asteroids' => (bool) $payload['has_asteroids'],
+                'action'     => $existing ? 'updated' : 'created',
+            ];
+        }
+
+        return [
+            'created'   => $created,
+            'updated'   => $updated,
+            'unchanged' => $unchanged,
+            'skipped'   => $skipped,
+            'skipped_no_coordinates' => $skipped,
+            'areas'     => $changedAreas,
+        ];
+    }
+
     public function upsert(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -587,16 +679,20 @@ class SearchRecordController extends Controller
             ], 401);
         }
 
+        $tier = $this->toolAccessService->tierForUser($user);
+        $authContexts = $tier === 'full'
+            ? [SwcAuthorization::CONTEXT_MEMBER_TOOLS, SwcAuthorization::CONTEXT_EVENTS, SwcAuthorization::CONTEXT_PUBLIC_TOOLS]
+            : [SwcAuthorization::CONTEXT_PUBLIC_TOOLS];
+
         $auth = $user->swcAuthorizations()
-            ->whereIn('auth_context', [
-                SwcAuthorization::CONTEXT_MEMBER_TOOLS,
-                SwcAuthorization::CONTEXT_EVENTS,
-            ])
+            ->whereIn('auth_context', $authContexts)
+            ->whereNull('revoked_at')
             ->orderByRaw(
-                'case auth_context when ? then 0 when ? then 1 else 2 end',
+                'case auth_context when ? then 0 when ? then 1 when ? then 2 else 3 end',
                 [
                     SwcAuthorization::CONTEXT_MEMBER_TOOLS,
                     SwcAuthorization::CONTEXT_EVENTS,
+                    SwcAuthorization::CONTEXT_PUBLIC_TOOLS,
                 ]
             )
             ->first();
@@ -636,18 +732,27 @@ class SearchRecordController extends Controller
         }
 
         $matches = data_get($historyResult, 'history.matches', []);
-        $import = $this->importMatchedEvents(
-            is_array($matches) ? $matches : [],
-            $importActorHandle,
-            $user->id
-        );
+        $isPublicTier = $this->toolAccessService->tierForUser($user) === ToolAccessService::TIER_PUBLIC;
+
+        if ($isPublicTier) {
+            $import = $this->importMatchedEventsForSubscriber(
+                is_array($matches) ? $matches : [],
+                $user
+            );
+        } else {
+            $import = $this->importMatchedEvents(
+                is_array($matches) ? $matches : [],
+                $importActorHandle,
+                $user->id
+            );
+        }
 
         $importedCount = (int) ($import['created'] ?? 0) + (int) ($import['updated'] ?? 0);
-        if ($importedCount > 0) {
+        if ($importedCount > 0 && !$isPublicTier) {
             $this->bumpCacheVersion();
         }
 
-        $rewardPaymentItem = $this->astrogationRewardService->rewardForNewGrids(
+        $rewardPaymentItem = $isPublicTier ? null : $this->astrogationRewardService->rewardForNewGrids(
             $user,
             $import['areas'] ?? []
         );
