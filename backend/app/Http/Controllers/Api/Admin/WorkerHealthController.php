@@ -370,6 +370,10 @@ class WorkerHealthController extends Controller
             ->get(['id', 'file_name']);
 
         foreach ($stuck as $item) {
+            DB::table('droidbrain_upload_queue_items')
+                ->where('id', $item->id)
+                ->update(['status' => 'queued', 'error_message' => null, 'updated_at' => now()]);
+
             ProcessDroidBrainUploadJob::dispatch((int) $item->id);
         }
 
@@ -378,6 +382,10 @@ class WorkerHealthController extends Controller
 
     public function runPaymentsNow(): JsonResponse
     {
+        // Clear the unique job lock so it always dispatches even if a previous run stalled
+        $lockKey = 'laravel_unique_job:' . ProcessAllPendingPaymentsJob::class;
+        \Illuminate\Support\Facades\Cache::forget($lockKey);
+
         ProcessAllPendingPaymentsJob::dispatch();
 
         return response()->json(['ok' => true]);
