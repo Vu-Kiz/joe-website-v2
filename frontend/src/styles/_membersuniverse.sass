@@ -2559,9 +2559,10 @@
     bottom: 0 !important
     top: auto !important
     max-width: 100% !important
-    max-height: 38vh
+    max-height: 45vh
     border-radius: 16px 16px 0 0
     border-bottom: none
+    animation: selection-slide-up 220ms ease-out both
 
   .members-universe-map__selection-body
     overscroll-behavior: contain
@@ -2623,4 +2624,12 @@
 
   .members-universe-map__controls-body
     max-height: 40vh
+
+@keyframes selection-slide-up
+  from
+    transform: translateY(100%)
+    opacity: 0
+  to
+    transform: translateY(0)
+    opacity: 1
     overflow-y: auto

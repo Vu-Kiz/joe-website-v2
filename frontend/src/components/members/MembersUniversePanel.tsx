@@ -286,6 +286,8 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
   const [subscriberOverlayLoading, setSubscriberOverlayLoading] = useState(false);
   const [expandedLogId, setExpandedLogId] = useState<number | null>(null);
   const universePreferencesSaveTimerRef = useRef<number | null>(null);
+  const swcAuthRef = useRef(swcAuth);
+  useEffect(() => { swcAuthRef.current = swcAuth; }, [swcAuth]);
   const systemSearchLoadedRef = useRef(false);
   const systemSearchLoadPromiseRef = useRef<Promise<void> | null>(null);
   const galaxyWorkerRef = useRef<Worker | null>(null);
@@ -443,7 +445,8 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
   }, []);
 
   useEffect(() => {
-    if (!viewer || !swcAuth) {
+    const auth = swcAuthRef.current;
+    if (!viewer || !auth) {
       return;
     }
 
@@ -473,7 +476,7 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
         : null,
     };
 
-    const currentUniversePreferences = swcAuth.member_tool_preferences?.universe;
+    const currentUniversePreferences = auth.member_tool_preferences?.universe;
     if (JSON.stringify(currentUniversePreferences ?? null) === JSON.stringify(nextUniversePreferences)) {
       return;
     }
@@ -483,9 +486,11 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
     }
 
     universePreferencesSaveTimerRef.current = window.setTimeout(() => {
+      const latestAuth = swcAuthRef.current;
+      if (!latestAuth) return;
       void updateSwcAuthorizationPreferences({
-        galaxy: swcAuth.member_tool_preferences?.galaxy ?? true,
-        payments: swcAuth.member_tool_preferences?.payments ?? true,
+        galaxy: latestAuth.member_tool_preferences?.galaxy ?? true,
+        payments: latestAuth.member_tool_preferences?.payments ?? true,
         universe: nextUniversePreferences,
       })
         .then((response) => {
@@ -506,7 +511,7 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
         window.clearTimeout(universePreferencesSaveTimerRef.current);
       }
     };
-  }, [focusRequest, galaxyCameraPosition, selectedSectorUid, selectedSystemIdentifier, swcAuth, viewer]);
+  }, [focusRequest, galaxyCameraPosition, selectedSectorUid, selectedSystemIdentifier, viewer]);
 
   const availableSystemSearchOptions = useMemo(
     () =>

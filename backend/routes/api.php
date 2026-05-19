@@ -471,6 +471,8 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
 
 Route::middleware(['auth:sanctum', 'require_any:is_joe_member,can_access_fleet_commander,is_admin,is_sysadmin'])->group(function () {
     Route::get('/fleet/my-skills', [SkillsToolController::class, 'mySkills']);
+    Route::get('/fleet/skill-plan', [SkillsToolController::class, 'getPlan']);
+    Route::post('/fleet/skill-plan', [SkillsToolController::class, 'savePlan']);
 });
 
 Route::middleware(['auth:sanctum', 'require_any:can_access_fleet_commander,is_admin,is_sysadmin'])->group(function () {

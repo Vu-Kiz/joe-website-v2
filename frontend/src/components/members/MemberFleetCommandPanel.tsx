@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { getFleetRosterMatrix, getMySkills, type FleetRosterMatrixRow } from "../../api/fleetCommander";
+import { getFleetRosterMatrix, getMySkills, getSkillPlan, saveSkillPlan, type FleetRosterMatrixRow } from "../../api/fleetCommander";
 import type { SwcAuthorizationStatus } from "../../api/swcAuthorization";
 import type { SwcUser } from "../../api/auth";
 
@@ -158,6 +158,11 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
   const [metricMins, setMetricMins] = useState<Partial<Record<MetricKey, string>>>({});
   const [categoryExpanded, setCategoryExpanded] = useState<Record<CategoryKey, boolean>>(initialCategoryExpanded);
 
+  const [planSaving, setPlanSaving] = useState(false);
+  const [planSaveError, setPlanSaveError] = useState<string | null>(null);
+  const [serverPlan, setServerPlan] = useState<Record<MetricKey, number> | null>(null);
+  const [planLoaded, setPlanLoaded] = useState(false);
+
   // Planner state — baseline is the loaded snapshot (treated as free)
   const [plannerBaseline, setPlannerBaseline] = useState<Record<MetricKey, number>>(
     () => Object.fromEntries(allMetrics.map((m) => [m.key, 0])) as Record<MetricKey, number>
@@ -183,6 +188,14 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
       setSortBy("name");
     }
   }, [sortBy, visibleMetrics]);
+
+  useEffect(() => {
+    getSkillPlan().then((response) => {
+      if (response.skill_plan && typeof response.skill_plan === "object") {
+        setServerPlan(response.skill_plan as Record<MetricKey, number>);
+      }
+    }).catch(() => {});
+  }, []);
 
   const filteredMatrixRows = useMemo(() => {
     const query = filter.trim().toLowerCase();
@@ -279,12 +292,36 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
     setPlannerLevels({ ...plannerBaseline });
   }
 
+  async function handleSavePlan() {
+    setPlanSaving(true);
+    setPlanSaveError(null);
+    try {
+      await saveSkillPlan(plannerLevels);
+      setServerPlan({ ...plannerLevels });
+      setPlanLoaded(true);
+    } catch (error: unknown) {
+      setPlanSaveError(error instanceof Error ? error.message : "Failed to save plan.");
+    } finally {
+      setPlanSaving(false);
+    }
+  }
+
+  function handleLoadPlan() {
+    if (!serverPlan) return;
+    const restored = Object.fromEntries(
+      allMetrics.map((m) => [m.key, Math.min(5, Math.max(plannerBaseline[m.key], Number(serverPlan[m.key] ?? plannerBaseline[m.key])))])
+    ) as Record<MetricKey, number>;
+    setPlannerLevels(restored);
+    setPlanLoaded(true);
+  }
+
   async function loadMembers() {
     try {
       setMembersLoading(true);
       setSkillsError(null);
 
       let myRow: FleetRosterMatrixRow | null = null;
+      let fetchedPlan: Record<string, number> | null = null;
 
       if (canSeeRoster) {
         const response = await getFleetRosterMatrix();
@@ -297,6 +334,7 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
       } else {
         const response = await getMySkills();
         myRow = response.data ?? null;
+        fetchedPlan = response.skill_plan ?? null;
       }
 
       if (myRow) {
@@ -306,6 +344,11 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
         setPlannerBaseline(snapshot);
         setPlannerLevels({ ...snapshot });
       }
+
+      if (fetchedPlan && typeof fetchedPlan === "object") {
+        setServerPlan(fetchedPlan as Record<MetricKey, number>);
+      }
+      setPlanLoaded(false);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to load member skills.";
       setSkillsError(message);
@@ -365,6 +408,23 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
               <button type="button" className="btn btn-secondary" onClick={resetPlanner}>
                 Reset
               </button>
+              {serverPlan && !planLoaded ? (
+                <button type="button" className="btn" onClick={handleLoadPlan}>
+                  Load Plan
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={handleSavePlan}
+                  disabled={planSaving}
+                >
+                  {planSaving ? "Saving…" : planLoaded ? "Overwrite Plan" : "Save Plan"}
+                </button>
+              )}
+              {planSaveError && (
+                <span className="small" style={{ color: "#ff9f9f" }}>{planSaveError}</span>
+              )}
             </div>
 
             <div className="biometrics-sheet__filters-grid biometrics-planner__grid">

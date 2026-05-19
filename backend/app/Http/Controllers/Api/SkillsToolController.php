@@ -50,7 +50,53 @@ class SkillsToolController extends Controller
         return response()->json([
             'ok' => true,
             'data' => $row,
+            'skill_plan' => $snapshot?->skill_plan ?? null,
         ]);
+    }
+
+    public function getPlan(Request $request): JsonResponse
+    {
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $snapshot = SkillsToolMemberSkillSnapshot::query()
+            ->where('user_id', $user->id)
+            ->first();
+
+        return response()->json([
+            'ok' => true,
+            'skill_plan' => $snapshot?->skill_plan ?? null,
+        ]);
+    }
+
+    public function savePlan(Request $request): JsonResponse
+    {
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $plan = $request->input('plan');
+
+        if (!is_array($plan)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Invalid plan data.',
+            ], 422);
+        }
+
+        SkillsToolMemberSkillSnapshot::query()->updateOrCreate(
+            ['user_id' => $user->id],
+            ['skill_plan' => $plan]
+        );
+
+        return response()->json(['ok' => true]);
     }
 
     public function members(Request $request): JsonResponse

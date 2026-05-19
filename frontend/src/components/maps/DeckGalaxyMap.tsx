@@ -1765,13 +1765,13 @@ new PolygonLayer({
               top: Math.min(Math.max(12, preferredTop), Math.max(12, viewportSize.height - 260)),
             });
 
-            if (isTouchDevice) {
+            if (isTouchDevice || viewportSize.width < 768) {
               const scale = Math.max(0.0001, Math.pow(2, viewState.zoom));
-              const sheetHeightPx = viewportSize.height * 0.3;
+              const sheetHeightPx = viewportSize.height * 0.45;
               const offsetWorld = sheetHeightPx / scale;
               setViewState((current) => ({
                 ...current,
-                target: [galx + 0.5, galy + 0.5 + offsetWorld, 0],
+                target: [galx + 0.5, galy + 0.5 - offsetWorld, 0],
               }));
             }
 

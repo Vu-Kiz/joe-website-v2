@@ -15,6 +15,7 @@ class SkillsToolMemberSkillSnapshot extends Model
         'swc_uid',
         'swc_handle',
         'skills_payload',
+        'skill_plan',
         'upstream_status',
         'auth_mode',
         'fetched_at',
@@ -24,6 +25,7 @@ class SkillsToolMemberSkillSnapshot extends Model
 
     protected $casts = [
         'skills_payload' => 'array',
+        'skill_plan' => 'array',
         'upstream_status' => 'integer',
         'fetched_at' => 'datetime',
         'last_attempted_at' => 'datetime',

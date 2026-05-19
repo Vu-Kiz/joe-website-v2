@@ -59,7 +59,20 @@ export async function getMySkills() {
   return apiFetch<{
     ok: true;
     data: FleetRosterMatrixRow;
+    skill_plan: Record<string, number> | null;
   }>(`/fleet/my-skills`);
+}
+
+export async function getSkillPlan() {
+  return apiFetch<{ ok: true; skill_plan: Record<string, number> | null }>(`/fleet/skill-plan`);
+}
+
+export async function saveSkillPlan(plan: Record<string, number>) {
+  return apiFetch<{ ok: true }>(`/fleet/skill-plan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ plan }),
+  });
 }
 
 export async function getFleetMemberSkills(uid: string) {
