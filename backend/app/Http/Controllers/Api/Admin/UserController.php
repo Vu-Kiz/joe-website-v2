@@ -119,6 +119,8 @@ class UserController extends Controller
                 'can_access_combat_calc',
                 'can_access_wrecking_helper_extension',
                 'can_access_fleet_commander',
+                'can_access_rm_browser',
+                'is_rm_browser_service_account',
                 'scan_window_top_left_galx',
                 'scan_window_top_left_galy',
                 'scan_window_bottom_right_galx',
@@ -146,6 +148,8 @@ class UserController extends Controller
                     'can_access_combat_calc' => (bool) $user->can_access_combat_calc,
                     'can_access_wrecking_helper_extension' => (bool) $user->can_access_wrecking_helper_extension,
                     'can_access_fleet_commander' => (bool) $user->can_access_fleet_commander,
+                    'can_access_rm_browser' => (bool) $user->can_access_rm_browser,
+                    'is_rm_browser_service_account' => (bool) $user->is_rm_browser_service_account,
                     'scan_window_top_left_galx' => $user->scan_window_top_left_galx,
                     'scan_window_top_left_galy' => $user->scan_window_top_left_galy,
                     'scan_window_bottom_right_galx' => $user->scan_window_bottom_right_galx,
@@ -183,6 +187,8 @@ class UserController extends Controller
             'can_access_combat_calc' => ['sometimes', 'boolean'],
             'can_access_wrecking_helper_extension' => ['sometimes', 'boolean'],
             'can_access_fleet_commander' => ['sometimes', 'boolean'],
+            'can_access_rm_browser' => ['sometimes', 'boolean'],
+            'is_rm_browser_service_account' => ['sometimes', 'boolean'],
             'scan_window_top_left_galx' => ['sometimes', 'nullable', 'integer'],
             'scan_window_top_left_galy' => ['sometimes', 'nullable', 'integer'],
             'scan_window_bottom_right_galx' => ['sometimes', 'nullable', 'integer'],
@@ -211,6 +217,8 @@ class UserController extends Controller
             'can_access_combat_calc' => (bool) $user->can_access_combat_calc,
             'can_access_wrecking_helper_extension' => (bool) $user->can_access_wrecking_helper_extension,
             'can_access_fleet_commander' => (bool) $user->can_access_fleet_commander,
+            'can_access_rm_browser' => (bool) $user->can_access_rm_browser,
+            'is_rm_browser_service_account' => (bool) $user->is_rm_browser_service_account,
             'scan_window_top_left_galx' => $user->scan_window_top_left_galx,
             'scan_window_top_left_galy' => $user->scan_window_top_left_galy,
             'scan_window_bottom_right_galx' => $user->scan_window_bottom_right_galx,
@@ -242,6 +250,14 @@ class UserController extends Controller
 
         if (array_key_exists('can_access_fleet_commander', $validated)) {
             $user->can_access_fleet_commander = (bool) $validated['can_access_fleet_commander'];
+        }
+
+        if (array_key_exists('can_access_rm_browser', $validated)) {
+            $user->can_access_rm_browser = (bool) $validated['can_access_rm_browser'];
+        }
+
+        if (array_key_exists('is_rm_browser_service_account', $validated) && $request->user()?->is_sysadmin) {
+            $user->is_rm_browser_service_account = (bool) $validated['is_rm_browser_service_account'];
         }
 
         if (array_key_exists('scan_window_top_left_galx', $validated)) {
@@ -282,6 +298,8 @@ class UserController extends Controller
             'can_access_combat_calc' => (bool) $user->can_access_combat_calc,
             'can_access_wrecking_helper_extension' => (bool) $user->can_access_wrecking_helper_extension,
             'can_access_fleet_commander' => (bool) $user->can_access_fleet_commander,
+            'can_access_rm_browser' => (bool) $user->can_access_rm_browser,
+            'is_rm_browser_service_account' => (bool) $user->is_rm_browser_service_account,
             'scan_window_top_left_galx' => $user->scan_window_top_left_galx,
             'scan_window_top_left_galy' => $user->scan_window_top_left_galy,
             'scan_window_bottom_right_galx' => $user->scan_window_bottom_right_galx,
@@ -336,6 +354,8 @@ class UserController extends Controller
                 'can_access_combat_calc' => (bool) $user->can_access_combat_calc,
                 'can_access_wrecking_helper_extension' => (bool) $user->can_access_wrecking_helper_extension,
                 'can_access_fleet_commander' => (bool) $user->can_access_fleet_commander,
+                'can_access_rm_browser' => (bool) $user->can_access_rm_browser,
+                'is_rm_browser_service_account' => (bool) $user->is_rm_browser_service_account,
                 'scan_window_top_left_galx' => $user->scan_window_top_left_galx,
                 'scan_window_top_left_galy' => $user->scan_window_top_left_galy,
                 'scan_window_bottom_right_galx' => $user->scan_window_bottom_right_galx,

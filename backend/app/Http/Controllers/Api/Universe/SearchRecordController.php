@@ -404,6 +404,10 @@ class SearchRecordController extends Controller
                     continue;
                 }
 
+                $previousLegacyRecordedAt = $record->legacy_recorded_at
+                    ? Carbon::parse((string) $record->legacy_recorded_at)->toIso8601String()
+                    : null;
+
                 $record->fill($payload);
                 $record->save();
                 $updated += 1;
@@ -414,9 +418,7 @@ class SearchRecordController extends Controller
                     'sector_uid' => $payload['sector_uid'],
                     'has_asteroids' => (bool) $payload['has_asteroids'],
                     'action' => 'updated',
-                    'previous_legacy_recorded_at' => $record->getOriginal('legacy_recorded_at')
-                        ? Carbon::parse((string) $record->getOriginal('legacy_recorded_at'))->toIso8601String()
-                        : null,
+                    'previous_legacy_recorded_at' => $previousLegacyRecordedAt,
                     'imported_recorded_at' => $recordedAt?->toIso8601String(),
                     'effective_legacy_recorded_at' => $payload['legacy_recorded_at']?->toIso8601String(),
                 ];

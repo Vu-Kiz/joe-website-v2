@@ -78,6 +78,7 @@ function SearchSuggestionPicker<T>({
                 onMouseDown={(event) => {
                   event.preventDefault();
                   onSelect(item);
+                  onShowSuggestions(false);
                 }}
               >
                 {renderSuggestion(item, active)}

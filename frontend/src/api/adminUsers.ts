@@ -28,6 +28,8 @@ export type AdminManageableUser = {
   can_access_combat_calc: boolean;
   can_access_wrecking_helper_extension: boolean;
   can_access_fleet_commander: boolean;
+  can_access_rm_browser: boolean;
+  is_rm_browser_service_account: boolean;
   is_garry: boolean;
   is_raid: boolean;
 
@@ -48,6 +50,8 @@ export type UpdateAdminUserPermissionsPayload = {
   can_access_combat_calc?: boolean;
   can_access_wrecking_helper_extension?: boolean;
   can_access_fleet_commander?: boolean;
+  can_access_rm_browser?: boolean;
+  is_rm_browser_service_account?: boolean;
   scan_window_top_left_galx?: number | null;
   scan_window_top_left_galy?: number | null;
   scan_window_bottom_right_galx?: number | null;

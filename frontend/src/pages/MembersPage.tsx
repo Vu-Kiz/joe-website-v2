@@ -14,7 +14,7 @@ import {
 } from "../api/jobs";
 import { getPayments } from "../api/payments";
 import { getMyPayableFactions, type PayableFaction } from "../api/factions";
-import { canAccessAdmin, canAccessCombatCalculator, canAccessFleetCommander, canAccessIntel, canAccessMembers, canAccessPayments, canAccessPublicTools, canAccessSysadmin, canAccessWreckingHelperExtension, getToolAccessTier } from "../auth/permissions";
+import { canAccessAdmin, canAccessCombatCalculator, canAccessFleetCommander, canAccessIntel, canAccessMembers, canAccessPayments, canAccessPublicTools, canAccessRmBrowser, canAccessSysadmin, canAccessWreckingHelperExtension, getToolAccessTier } from "../auth/permissions";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import OpenJobsPanel from "../components/members/jobs/OpenJobsPanel";
@@ -28,6 +28,7 @@ import MemberGalacticArchivePanel from "../components/members/MemberGalacticArch
 import MemberCombatCalculatorPanel from "../components/members/MemberCombatCalculatorPanel";
 import MemberWeaponHeatmapPanel from "../components/members/MemberWeaponHeatmapPanel";
 import MemberWreckingHelperPanel from "../components/members/MemberWreckingHelperPanel";
+import RmBrowserPanel from "../components/rmBrowser/RmBrowserPanel";
 import MemberRoleChangelogPanel from "../components/members/MemberRoleChangelogPanel";
 import MemberFleetCommandPanel from "../components/members/MemberFleetCommandPanel";
 import PrivilegePreviewPanel, {
@@ -58,7 +59,7 @@ import "../styles/main.sass";
 import "../styles/_admin.sass";
 import "../styles/_membersuniverse.sass";
 
-type MembersView = "overview" | "jobs" | "universe" | "stats" | "hyperplanner" | "biometrics" | "archive" | "shipHeatmap" | "weaponHeatmap" | "wreckingHelper" | "changelog";
+type MembersView = "overview" | "jobs" | "universe" | "stats" | "hyperplanner" | "biometrics" | "archive" | "shipHeatmap" | "weaponHeatmap" | "wreckingHelper" | "changelog" | "rmBrowser";
 type JobsView = "open" | "posted" | "taken" | "create";
 type MembersToolCard = {
   key: string;
@@ -81,6 +82,7 @@ function parseMembersView(value: string | null): MembersView | null {
     case "weaponHeatmap":
     case "wreckingHelper":
     case "changelog":
+    case "rmBrowser":
       return value;
     case "fleetCommand":
     case "Biometrics":
@@ -399,6 +401,7 @@ const MembersPage: React.FC = () => {
   const canSeeMembers = canAccessMembers(user) || canAccessIntel(user) || canAccessWreckingHelperExtension(user) || canAccessFleetCommander(user) || canSeePublicTools;
   const canSeeMemberOnlyTools = canAccessMembers(user);
   const canSeeFleetCommander = canAccessFleetCommander(user);
+  const canSeeRmBrowser = canAccessRmBrowser(user);
   const canSeeGalacticArchive = canAccessAdmin(user);
   const canSeeCombatCalculator = canAccessCombatCalculator(user);
   const canSeeWreckingHelperExtension = canAccessWreckingHelperExtension(user);
@@ -414,6 +417,7 @@ const MembersPage: React.FC = () => {
   const showDroidBrainCard = effectiveCardPrivs.isJoeMember || effectiveCardPrivs.isIntel || effectiveCardPrivs.isSysadmin || showPublicToolCards;
   const showWreckingHelperCard = effectiveCardPrivs.canAccessWreckingHelper || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
   const showFleetCommanderCard = effectiveCardPrivs.canAccessFleetCommander || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
+  const showRmBrowserCard = effectiveCardPrivs.canAccessRmBrowser || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
   const showCombatCalculatorCard = effectiveCardPrivs.canAccessCombatCalc || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
   const showGalacticArchiveCard = effectiveCardPrivs.isSysadmin;
 
@@ -563,6 +567,18 @@ const MembersPage: React.FC = () => {
             } satisfies MembersToolCard,
           ]
         : []),
+      ...(showRmBrowserCard
+        ? [
+            {
+              key: "rmBrowser",
+              title: "RM Browser",
+              description:
+                "Browse and filter raw materials across JOE, GARRY, and RAID faction inventories by sector, system, and name.",
+              actionLabel: "Open RM Browser",
+              onClick: () => setMembersView("rmBrowser"),
+            } satisfies MembersToolCard,
+          ]
+        : []),
       ...(showMemberToolCards
         ? [
             {
@@ -689,6 +705,7 @@ const MembersPage: React.FC = () => {
       showFleetCommanderCard,
       showCombatCalculatorCard,
       showGalacticArchiveCard,
+      showRmBrowserCard,
       hasPendingPayments,
       myTakenJobs.length,
       navigate,
@@ -1122,6 +1139,17 @@ const MembersPage: React.FC = () => {
 
       {membersView === "wreckingHelper" && canSeeWreckingHelperExtension && !isMobile && (
         <MemberWreckingHelperPanel onBack={() => setMembersView("overview")} />
+      )}
+
+      {membersView === "rmBrowser" && canSeeRmBrowser && (
+        <>
+          <div className="members-tool-back">
+            <button className="btn" type="button" onClick={() => setMembersView("overview")}>
+              Back to Overview
+            </button>
+          </div>
+          <RmBrowserPanel />
+        </>
       )}
 
       {membersView === "changelog" && (

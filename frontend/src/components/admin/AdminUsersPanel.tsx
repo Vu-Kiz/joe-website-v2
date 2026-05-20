@@ -34,6 +34,8 @@ type EditableUserState = {
   canAccessCombatCalc: boolean;
   canAccessWreckingHelperExtension: boolean;
   canAccessFleetCommander: boolean;
+  canAccessRmBrowser: boolean;
+  isRmBrowserServiceAccount: boolean;
   isGarry: boolean;
   isRaid: boolean;
 
@@ -69,6 +71,8 @@ function mapUser(user: AdminManageableUser): EditableUserState {
     canAccessCombatCalc: !!user.can_access_combat_calc,
     canAccessWreckingHelperExtension: !!user.can_access_wrecking_helper_extension,
     canAccessFleetCommander: !!user.can_access_fleet_commander,
+    canAccessRmBrowser: !!user.can_access_rm_browser,
+    isRmBrowserServiceAccount: !!user.is_rm_browser_service_account,
     isGarry: !!user.is_garry,
     isRaid: !!user.is_raid,
     canManageBlog: !!user.can_manage_blog,
@@ -156,7 +160,7 @@ const AdminUsersPanel: React.FC = () => {
     userId: number,
     key: "isAdmin" | "isIntel" | "canViewAsteroidIntel" | "canManageBlog"
       | "canAccessCombatCalc" | "canAccessWreckingHelperExtension"
-      | "canAccessFleetCommander"
+      | "canAccessFleetCommander" | "canAccessRmBrowser" | "isRmBrowserServiceAccount"
   ) => {
     setNotice(null);
 
@@ -179,6 +183,8 @@ const AdminUsersPanel: React.FC = () => {
         can_access_combat_calc: user.canAccessCombatCalc,
         can_access_wrecking_helper_extension: user.canAccessWreckingHelperExtension,
         can_access_fleet_commander: user.canAccessFleetCommander,
+        can_access_rm_browser: user.canAccessRmBrowser,
+        is_rm_browser_service_account: user.isRmBrowserServiceAccount,
         scan_window_top_left_galx: user.scanWindowTopLeftGalx.trim() === "" ? null : Number(user.scanWindowTopLeftGalx),
         scan_window_top_left_galy: user.scanWindowTopLeftGaly.trim() === "" ? null : Number(user.scanWindowTopLeftGaly),
         scan_window_bottom_right_galx: user.scanWindowBottomRightGalx.trim() === "" ? null : Number(user.scanWindowBottomRightGalx),
@@ -432,6 +438,8 @@ const AdminUsersPanel: React.FC = () => {
                         { show: user.canAccessCombatCalc,                label: "Combat Calc",     hue: 355 },
                         { show: user.canAccessWreckingHelperExtension,   label: "Wrecking Helper", hue: 90  },
                         { show: user.canAccessFleetCommander,            label: "Fleet Commander", hue: 230 },
+                        { show: user.canAccessRmBrowser,                 label: "RM Browser",      hue: 165 },
+                        { show: user.isRmBrowserServiceAccount,          label: "RM Service Acct", hue: 165 },
                         { show: user.canManageBlog,                      label: "Blog",            hue: 320 },
                         { show: isSysadmin && !!user.activeSub,          label: user.activeSub ? `Subscriber (${user.activeSub.plan_key})` : "", hue: 145 },
                       ] as const).filter(b => b.show && b.label).map(b => (
@@ -590,6 +598,42 @@ const AdminUsersPanel: React.FC = () => {
                           Grants access to the Biometrics member skills tool.
                         </span>
                       </label>
+
+                      <label className={"admin-perm-tile" + (user.canAccessRmBrowser ? " is-active" : "")}>
+                        <input
+                          type="checkbox"
+                          checked={user.canAccessRmBrowser}
+                          onChange={() => handleToggle(user.id, "canAccessRmBrowser")}
+                        />
+                        <span className="admin-perm-tile__head">
+                          <span className="admin-perm-tile__title">RM Browser</span>
+                          <span className="admin-perm-tile__switch" aria-hidden="true">
+                            <span className="admin-perm-tile__knob" />
+                          </span>
+                        </span>
+                        <span className="admin-perm-tile__desc">
+                          Grants access to the Raw Materials browser tool.
+                        </span>
+                      </label>
+
+                      {isSysadmin && (
+                        <label className={"admin-perm-tile" + (user.isRmBrowserServiceAccount ? " is-active" : "")}>
+                          <input
+                            type="checkbox"
+                            checked={user.isRmBrowserServiceAccount}
+                            onChange={() => handleToggle(user.id, "isRmBrowserServiceAccount")}
+                          />
+                          <span className="admin-perm-tile__head">
+                            <span className="admin-perm-tile__title">RM Service Account</span>
+                            <span className="admin-perm-tile__switch" aria-hidden="true">
+                              <span className="admin-perm-tile__knob" />
+                            </span>
+                          </span>
+                          <span className="admin-perm-tile__desc">
+                            Designates this user's SWC token as the source for RM Browser faction inventory calls. Only one user should have this set.
+                          </span>
+                        </label>
+                      )}
 
                       <div className="admin-perm-tile">
                         <div

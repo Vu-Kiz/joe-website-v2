@@ -63,17 +63,20 @@ class PaymentTransferBuilder
 
     protected function resolveCommunicationPrefix(Collection $groupItems, string $reference): string
     {
-        /** @var PaymentItem $first */
-        $first = $groupItems->first();
+        $prefixes = $groupItems
+            ->map(function (PaymentItem $item) {
+                $meta = is_array($item->meta) ? $item->meta : [];
+                return trim((string) ($meta['communication_prefix'] ?? ''));
+            })
+            ->filter(fn (string $p) => $p !== '')
+            ->unique()
+            ->values();
 
-        $meta = is_array($first->meta) ? $first->meta : [];
-        $prefix = trim((string) ($meta['communication_prefix'] ?? ''));
+        $prefix = $prefixes->isNotEmpty()
+            ? $prefixes->implode(' | ')
+            : 'JOE payout';
 
-        if ($prefix !== '') {
-            return $this->formatCommunication($prefix, $reference);
-        }
-
-        return $this->formatCommunication('JOE payout', $reference);
+        return $this->formatCommunication($prefix, $reference);
     }
 
     protected function formatCommunication(string $prefix, string $reference): string

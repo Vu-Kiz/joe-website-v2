@@ -16,6 +16,7 @@ type Props = {
   privilegeName: string;
   onPayerFilterChange: (value: "all" | "user" | "faction") => void;
   onToggleItem: (id: number) => void;
+  onToggleGroup: (ids: number[]) => void;
   onPayRecipient: (ids: number[], payerType: PaymentSubjectType) => Promise<void>;
   onBuildBulk: () => Promise<void>;
 };
@@ -48,6 +49,7 @@ const PendingPaymentsPanel: React.FC<Props> = ({
   privilegeName,
   onPayerFilterChange,
   onToggleItem,
+  onToggleGroup,
   onPayRecipient,
   onBuildBulk,
 }) => {
@@ -119,6 +121,8 @@ const PendingPaymentsPanel: React.FC<Props> = ({
       {grouped.length > 0 && visibleGroups.length === 0 && <p className="small">No pending payments matched that recipient.</p>}
 
       {visibleGroups.map((group) => {
+        const groupIds = group.items.map((i) => i.id);
+        const allGroupSelected = groupIds.every((id) => selected.includes(id));
         const groupPayerContextKey = `${group.payerType}:${group.payerSubjectId ?? ""}`;
         const factionPrivilege =
           group.payerType === "faction"
@@ -136,9 +140,20 @@ const PendingPaymentsPanel: React.FC<Props> = ({
                 <p className="small payments-card__eyebrow">Recipient</p>
                 <strong>{group.payee}</strong>
               </div>
-              <span className="small payments-card__badge">
-                {group.payerType === "faction" ? "Faction Payment" : "Personal Payment"}
-              </span>
+              <div className="payments-card__header-actions">
+                <label className="small payments-select-all">
+                  <input
+                    type="checkbox"
+                    checked={allGroupSelected}
+                    disabled={selectionLockedToAnotherPayer}
+                    onChange={() => onToggleGroup(groupIds)}
+                  />
+                  {" "}Select all
+                </label>
+                <span className="small payments-card__badge">
+                  {group.payerType === "faction" ? "Faction Payment" : "Personal Payment"}
+                </span>
+              </div>
             </div>
 
             <div className="payments-meta-list">

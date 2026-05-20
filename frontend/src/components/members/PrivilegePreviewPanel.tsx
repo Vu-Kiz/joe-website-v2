@@ -9,6 +9,7 @@ export type PreviewPrivs = {
   canAccessCombatCalc: boolean;
   canAccessWreckingHelper: boolean;
   canAccessFleetCommander: boolean;
+  canAccessRmBrowser: boolean;
   canViewAsteroidIntel: boolean;
   isAdmin: boolean;
   isSysadmin: boolean;
@@ -23,6 +24,7 @@ export function toPreviewPrivs(user: SwcUser | null): PreviewPrivs {
     canAccessCombatCalc: !!user?.can_access_combat_calc || !!user?.is_admin || !!user?.is_sysadmin,
     canAccessWreckingHelper: !!user?.can_access_wrecking_helper_extension || !!user?.is_admin || !!user?.is_sysadmin,
     canAccessFleetCommander: !!user?.can_access_fleet_commander || !!user?.is_admin || !!user?.is_sysadmin,
+    canAccessRmBrowser: !!user?.can_access_rm_browser || !!user?.is_admin || !!user?.is_sysadmin,
     canViewAsteroidIntel: !!user?.can_view_asteroid_intel || !!user?.is_admin || !!user?.is_sysadmin,
     isAdmin: !!user?.is_admin,
     isSysadmin: !!user?.is_sysadmin,
@@ -40,6 +42,7 @@ export function canSeeAudienceWithPrivs(audience: string, privs: PreviewPrivs): 
     (audience === "combatCalc" && (privs.canAccessCombatCalc || privs.isAdmin || privs.isSysadmin)) ||
     (audience === "wreckingHelper" && (privs.canAccessWreckingHelper || privs.isAdmin || privs.isSysadmin)) ||
     (audience === "fleetCommander" && (privs.canAccessFleetCommander || privs.isAdmin || privs.isSysadmin)) ||
+    (audience === "rmBrowser" && (privs.canAccessRmBrowser || privs.isAdmin || privs.isSysadmin)) ||
     (audience === "asteroidIntel" && (privs.canViewAsteroidIntel || privs.isAdmin || privs.isSysadmin)) ||
     (audience === "admin" && (privs.isAdmin || privs.isSysadmin)) ||
     (audience === "sysadmin" && privs.isSysadmin)
@@ -73,6 +76,7 @@ const PrivilegePreviewPanel: React.FC<PrivilegePreviewPanelProps> = ({
         canAccessCombatCalc: false,
         canAccessWreckingHelper: false,
         canAccessFleetCommander: false,
+        canAccessRmBrowser: false,
         canViewAsteroidIntel: false,
         isAdmin: false,
         isSysadmin: false,
@@ -89,6 +93,7 @@ const PrivilegePreviewPanel: React.FC<PrivilegePreviewPanelProps> = ({
         canAccessCombatCalc: false,
         canAccessWreckingHelper: false,
         canAccessFleetCommander: false,
+        canAccessRmBrowser: false,
         canViewAsteroidIntel: false,
         isAdmin: false,
         isSysadmin: false,
@@ -105,6 +110,7 @@ const PrivilegePreviewPanel: React.FC<PrivilegePreviewPanelProps> = ({
         canAccessCombatCalc: true,
         canAccessWreckingHelper: true,
         canAccessFleetCommander: true,
+        canAccessRmBrowser: true,
         canViewAsteroidIntel: true,
         isAdmin: true,
         isSysadmin: false,
@@ -120,6 +126,7 @@ const PrivilegePreviewPanel: React.FC<PrivilegePreviewPanelProps> = ({
       canAccessCombatCalc: true,
       canAccessWreckingHelper: true,
       canAccessFleetCommander: true,
+      canAccessRmBrowser: true,
       canViewAsteroidIntel: true,
       isAdmin: false,
       isSysadmin: true,
@@ -211,6 +218,10 @@ const PrivilegePreviewPanel: React.FC<PrivilegePreviewPanelProps> = ({
         <button type="button" className={`btn btn--small members-changelog__priv-btn ${value.canAccessFleetCommander ? "is-active" : ""}`} onClick={() => toggle("canAccessFleetCommander")}>
           <span className="members-changelog__priv-name">can_access_fleet_commander</span>
           <span className="members-changelog__priv-state">{value.canAccessFleetCommander ? "ON" : "OFF"}</span>
+        </button>
+        <button type="button" className={`btn btn--small members-changelog__priv-btn ${value.canAccessRmBrowser ? "is-active" : ""}`} onClick={() => toggle("canAccessRmBrowser")}>
+          <span className="members-changelog__priv-name">can_access_rm_browser</span>
+          <span className="members-changelog__priv-state">{value.canAccessRmBrowser ? "ON" : "OFF"}</span>
         </button>
         <button type="button" className={`btn btn--small members-changelog__priv-btn ${value.canViewAsteroidIntel ? "is-active" : ""}`} onClick={() => toggle("canViewAsteroidIntel")}>
           <span className="members-changelog__priv-name">can_view_asteroid_intel</span>

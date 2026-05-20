@@ -76,6 +76,11 @@ export function canAccessFleetCommander(user: SwcUser | null | undefined): boole
   return !!(user.can_access_fleet_commander || user.is_admin || user.is_sysadmin);
 }
 
+export function canAccessRmBrowser(user: SwcUser | null | undefined): boolean {
+  if (!user) return false;
+  return !!(user.can_access_rm_browser || user.is_admin || user.is_sysadmin);
+}
+
 export function canAccessPublicTools(user: SwcUser | null | undefined): boolean {
   if (!user) return false;
   return user.tool_access_tier === "full" || user.tool_access_tier === "public";

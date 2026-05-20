@@ -302,6 +302,15 @@ const PaymentsPage: React.FC = () => {
     );
   }
 
+  function toggleGroup(ids: number[]) {
+    setSelected((curr) => {
+      const allSelected = ids.every((id) => curr.includes(id));
+      return allSelected
+        ? curr.filter((id) => !ids.includes(id))
+        : [...curr.filter((id) => !ids.includes(id)), ...ids];
+    });
+  }
+
   async function reloadPayments() {
     const [pendingRes, owedRes, transferRes, privilegeRes, templatesRes, templateOptionsRes, supportTransferRes] =
       await Promise.all([
@@ -712,6 +721,7 @@ const PaymentsPage: React.FC = () => {
               privilegeName={privilegeName}
               onPayerFilterChange={setPendingPayerFilter}
               onToggleItem={toggleItem}
+              onToggleGroup={toggleGroup}
               onPayRecipient={onPayRecipient}
               onBuildBulk={onBuildBulk}
             />
