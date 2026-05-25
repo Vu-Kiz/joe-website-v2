@@ -136,6 +136,8 @@
 /* ─── Global reset / base ────────────────────────────────────────────────── */
 @layer base {
   *, *::before, *::after { box-sizing: border-box; }
+  /* Headings default to jen-orange (matches old SCSS global rule) */
+  h1, h2, h3, h4 { color: var(--jen-orange); margin: 0 0 10px 0; }
   /* Prevent the browser UA from overriding text/bg on interactive elements */
   button, input, select, textarea { color: inherit; background-color: transparent; }
   html, body { height: 100%; }
@@ -247,13 +249,13 @@
     color: rgba(255,255,255,0.7);
   }
   .muted { color: rgba(255,255,255,0.7); }
-  .faction-title { font-family: 'EngliBesh', sans-serif; color: var(--accent) !important; }
+  .faction-title { font-family: 'EngliBesh', sans-serif; color: var(--jen-orange) !important; }
   .copy { margin: 0 0 15px 0; }
   .copy:last-child { margin-bottom: 0; }
   .h1, .h2, .h3 {
     margin: 0 0 10px 0;
     font-family: 'Tektur', sans-serif;
-    color: var(--accent);
+    color: var(--jen-orange);
     text-transform: uppercase;
   }
 
