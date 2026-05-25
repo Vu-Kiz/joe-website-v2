@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models\ToolStore;
+use App\Models\Faction;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
