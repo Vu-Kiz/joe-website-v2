@@ -12,7 +12,7 @@ import {
 } from "../../api/admin/adminMemberChangelog";
 import DatePicker from "../common/DatePicker";
 import SlideTabNav from "../common/SlideTabNav";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../utils/ui";
+import { BTN, BTN_SM, INPUT} from "../../utils/ui";
 
 type EditorState = {
   version: string;

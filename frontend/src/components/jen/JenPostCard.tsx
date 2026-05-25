@@ -5,7 +5,7 @@ import type { SwcUser } from "../../api/core/auth";
 import { getBackendOrigin } from "../../api/core/auth";
 import { canDeleteBlog, canEditBlogPost } from "../../auth/permissions";
 import HamburgerToggle from "../common/HamburgerToggle";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../../utils/ui";
+import { BTN_SM } from "../../utils/ui";
 
 type Props = {
   post: BlogPost;

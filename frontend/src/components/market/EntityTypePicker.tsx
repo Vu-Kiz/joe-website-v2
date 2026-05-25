@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { searchEntityTypes, type EntityTypeResult } from "../../api/market/market";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../utils/ui";
+import { BTN_GHOST, INPUT} from "../../utils/ui";
 
 type Props = {
   value: EntityTypeResult | null;

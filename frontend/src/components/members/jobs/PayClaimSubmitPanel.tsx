@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import type { JobPayRate } from "../../../api/jobs/jobPayRates";
 import { submitJobPayClaim } from "../../../api/jobs/jobPayRates";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../../utils/ui";
+import { BTN, INPUT} from "../../../utils/ui";
 
 type Props = {
   rates: JobPayRate[];

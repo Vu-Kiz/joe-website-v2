@@ -3,7 +3,7 @@ import type { Job } from "../../../api/jobs/jobs";
 import type { SwcUser } from "../../../api/core/auth";
 import JobDetailPopup from "./JobDetailPopup";
 import { fmtCreditsFull as fmt } from "../../../utils/credits";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../../utils/ui";
+import { BTN_SM, INPUT} from "../../../utils/ui";
 
 type Props = {
   jobs: Job[];

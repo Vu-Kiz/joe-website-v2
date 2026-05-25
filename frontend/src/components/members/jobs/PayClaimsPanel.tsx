@@ -11,7 +11,7 @@ import {
 import { getCgtTime, formatTimestampAsCgt, type CgtResponse } from "../../../api/core/time";
 import { fmtCreditsFull as fmt } from "../../../utils/credits";
 import type { PaymentsActionState } from "../../payments/types";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../../utils/ui";
+import { BTN, BTN_SM, BTN_GHOST_SM, INPUT} from "../../../utils/ui";
 
 type Props = {
   isAdmin: boolean;

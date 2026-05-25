@@ -5,7 +5,7 @@ import {
   rejectJobPayClaim,
   type JobPayClaim,
 } from "../../api/jobs/jobPayRates";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../utils/ui";
+import { BTN_SM, BTN_GHOST_SM, INPUT} from "../../utils/ui";
 
 const statusLabel: Record<string, string> = {
   pending: "Pending",

@@ -9,7 +9,7 @@ import {
 } from "../../api/universe/universe";
 import SearchSuggestionPicker from "../common/SearchSuggestionPicker";
 import RmBrowserFactionPicker from "./RmBrowserFactionPicker";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../../utils/ui";
+import { BTN } from "../../utils/ui";
 
 export type RmBrowserFilters = {
   factions: string[];

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../utils/ui";
+import { BTN, INPUT} from "../../utils/ui";
 
 type Props = {
   defaultPayerFactionId: number | null;

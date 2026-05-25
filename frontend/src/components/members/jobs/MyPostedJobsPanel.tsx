@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import type { Job } from "../../../api/jobs/jobs";
 import JobDetailPopup from "./JobDetailPopup";
 import { fmtCreditsFull as fmt } from "../../../utils/credits";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../../../utils/ui";
+import { BTN_SM, BTN_GHOST_SM } from "../../../utils/ui";
 
 type Props = {
   jobs: Job[];

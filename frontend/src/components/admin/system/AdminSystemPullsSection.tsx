@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../../utils/ui";
+import { BTN, INPUT} from "../../../utils/ui";
 
 type Props = {
   sectorIdentifier: string;

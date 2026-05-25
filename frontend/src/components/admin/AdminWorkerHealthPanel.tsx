@@ -7,20 +7,7 @@ import {
   runPaymentsNow,
   type AdminWorkerHealthState,
 } from "../../api/admin/adminWorkerHealth";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../../utils/ui";
-
-const toneForStatus = (status: string): string => {
-  switch (status) {
-    case "ok":
-      return "#7CFFB2";
-    case "warn":
-      return "#FFD166";
-    case "error":
-      return "#FF8A8A";
-    default:
-      return "#D7E0EA";
-  }
-};
+import { BTN_SM } from "../../utils/ui";
 
 const toneClassForStatus = (status: string): string => {
   switch (status) {

@@ -33,7 +33,7 @@ import {
   updateAdminEntityStats,
 } from "../../api/universe/universe";
 import type { SwcUser } from "../../api/core/auth";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../../utils/ui";
+import { BTN } from "../../utils/ui";
 
 type EntityRecordSummary = {
   uid: string;

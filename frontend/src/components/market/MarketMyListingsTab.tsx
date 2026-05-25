@@ -12,7 +12,7 @@ import type { MarketListing, MarketOrder } from "../../api/market/market";
 import MarketListingCard from "./MarketListingCard";
 import MarketConfirmDialog from "./MarketConfirmDialog";
 import { formatMarketName } from "./marketDisplay";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../../utils/ui";
+import { BTN, BTN_GHOST } from "../../utils/ui";
 
 function formatCredits(n: number): string {
   return n.toLocaleString() + " Credits";

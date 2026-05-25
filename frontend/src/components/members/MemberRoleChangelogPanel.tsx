@@ -8,7 +8,7 @@ import PrivilegePreviewPanel, {
   toPreviewPrivs,
   type PreviewPrivs,
 } from "./PrivilegePreviewPanel";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../utils/ui";
+import { BTN, BTN_SM, INPUT} from "../../utils/ui";
 import ReportBugButton from "../support/ReportBugButton";
 
 type MemberRoleChangelogPanelProps = {

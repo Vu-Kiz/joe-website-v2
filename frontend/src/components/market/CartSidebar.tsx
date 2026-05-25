@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createOrder, payOrder } from "../../api/market/market";
 import { useCart } from "./CartContext";
 import { formatMarketName } from "./marketDisplay";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../../utils/ui";
+import { BTN, BTN_GHOST } from "../../utils/ui";
 
 type PaymentResult = {
   orderId: number;

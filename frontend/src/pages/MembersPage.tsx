@@ -59,7 +59,7 @@ import {
   type SwcAuthorizationStatus,
 } from "../api/members/swcAuthorization";
 import { logMemberToolOpen, type MemberToolArea } from "../api/members/memberTools";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../utils/ui";
+import { BTN, BTN_SM } from "../utils/ui";
 import ReportBugButton from "../components/support/ReportBugButton";
 
 type MembersView = "overview" | "jobs" | "universe" | "stats" | "hyperplanner" | "biometrics" | "archive" | "shipHeatmap" | "weaponHeatmap" | "wreckingHelper" | "changelog" | "rmBrowser";
@@ -446,39 +446,6 @@ const isLoggedIn = !!user;
           ))
     );
   }, [jobs, user]);
-
-  const selectedJob = useMemo(() => {
-    if (!selectedJobId) {
-      return null;
-    }
-
-    return jobs.find((job) => job.id === selectedJobId) ?? null;
-  }, [jobs, selectedJobId]);
-
-  function openJobDetails(jobId: number, nextJobsView: JobsView = "open") {
-    setMembersView("jobs");
-    setJobsView(nextJobsView);
-    setSelectedJobId(jobId);
-
-    navigate(
-      {
-        pathname: "/tools",
-        search: `?tools_view=jobs&jobs_view=${nextJobsView}&job_id=${jobId}`,
-      },
-      { replace: false }
-    );
-  }
-
-  function clearSelectedJob() {
-    setSelectedJobId(null);
-    navigate(
-      {
-        pathname: "/tools",
-        search: "?tools_view=jobs",
-      },
-      { replace: false }
-    );
-  }
 
   function handleResyncSwcAccess() {
     const backendOrigin = getBackendOrigin();

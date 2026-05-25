@@ -3,7 +3,7 @@ import { apiFetch, getBackendOrigin } from "../../api/core/auth";
 import { createBlog, spellcheckBlog, updateBlog, type BlogPost, type JenSpellcheckResult, type SpellcheckMatch } from "../../api/content/blog";
 import BBCodeEditor from "../bbcode/BBCodeEditor";
 import BBCodeView from "../bbcode/BBCodeView";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../utils/ui";
+import { BTN, BTN_SM, INPUT} from "../../utils/ui";
 
 type UploadResponse = {
   ok: boolean;

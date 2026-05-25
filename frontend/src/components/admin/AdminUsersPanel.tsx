@@ -13,7 +13,7 @@ import {
   type AdminManageableUser,
 } from "../../api/admin/adminUsers";
 import { fetchAuthMe } from "../../api/core/auth";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../utils/ui";
+import { BTN_SM, BTN_GHOST_SM, INPUT} from "../../utils/ui";
 
 type EditableUserState = {
   id: number;

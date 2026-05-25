@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../../utils/ui";
+import { BTN_SM, BTN_GHOST_SM } from "../../utils/ui";
 
 type Props = {
   canCreate: boolean;

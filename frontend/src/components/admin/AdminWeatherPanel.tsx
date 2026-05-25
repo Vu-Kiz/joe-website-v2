@@ -13,7 +13,7 @@ import {
 } from "../../api/content/weather";
 import BBCodeEditor from "../bbcode/BBCodeEditor";
 import BBCodeView from "../bbcode/BBCodeView";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../utils/ui";
+import { BTN, BTN_SM, INPUT} from "../../utils/ui";
 
 type OpenSection = "settings" | "adjectives" | "advice" | null;
 type FormMode = "create" | "edit" | null;

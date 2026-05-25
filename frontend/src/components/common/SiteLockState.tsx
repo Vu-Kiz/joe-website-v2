@@ -1,6 +1,6 @@
 import React from "react";
 import { getBackendOrigin } from "../../api/core/auth";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../../utils/ui";
+import { BTN } from "../../utils/ui";
 
 type Props = {
   message: string;

@@ -1,5 +1,5 @@
 import React from "react";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../../utils/ui";
+import { BTN } from "../../utils/ui";
 
 type Props = {
   title: string;

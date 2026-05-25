@@ -10,7 +10,7 @@ import {
 } from "../api/members/swcAuthorization";
 import SwcToolAccessSection from "../components/aboutme/SwcToolAccessSection";
 import FactionConsolePanel from "../components/faction/FactionConsolePanel";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../utils/ui";
+import { BTN_SM } from "../utils/ui";
 
 type Pill = { key: string; label: string; hue: number };
 type MemberToolKey = "galaxy" | "payments" | "fleet_command" | "market_personal" | "market_faction";

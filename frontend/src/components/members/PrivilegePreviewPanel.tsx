@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import type { SwcUser } from "../../api/core/auth";
 import { toggleLockJoeFlags, toggleSubscriberPreview } from "../../api/admin/adminToolStore";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../../utils/ui";
+import { BTN_SM } from "../../utils/ui";
 
 export type PreviewPrivs = {
   isJoeMember: boolean;

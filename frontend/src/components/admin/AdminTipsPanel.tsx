@@ -6,7 +6,7 @@ import {
   deleteLoadingTip,
   type LoadingTipItem,
 } from "../../api/admin/loadingTipsAdmin";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../utils/ui";
+import { BTN, BTN_SM, INPUT} from "../../utils/ui";
 
 type Mode = "create" | "edit";
 

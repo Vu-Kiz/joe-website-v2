@@ -41,7 +41,7 @@ import PaymentsTemplatesPanel from "../components/payments/PaymentsTemplatesPane
 import DroidBrainPaymentsPanel from "../components/payments/DroidBrainPaymentsPanel";
 import type { PaymentGroup, PaymentsActionState, PaymentsView } from "../components/payments/types";
 import { canAccessPayments } from "../auth/permissions";
-import { BTN, BTN_SM, BTN_GHOST } from "../utils/ui";
+import { BTN } from "../utils/ui";
 
 
 const privilegeGroup = "finance";

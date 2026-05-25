@@ -8,7 +8,7 @@ import {
   type FactionConsoleDetail,
   type FactionConsoleMember,
 } from "../../api/factions/factionConsole";
-import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../../utils/ui";
+import { BTN_SM, BTN_GHOST_SM } from "../../utils/ui";
 
 const FactionConsolePanel: React.FC = () => {
   const [subscriptions, setSubscriptions] = useState<FactionConsoleSubscription[]>([]);
