@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Models\SwcSector;
-use App\Models\SwcSectorSearchRecord;
+use App\Models\Swc\SwcSector;
+use App\Models\Swc\SwcSectorSearchRecord;
 use Illuminate\Console\Command;
 
 class ImportLegacySectorSearchesCommand extends Command

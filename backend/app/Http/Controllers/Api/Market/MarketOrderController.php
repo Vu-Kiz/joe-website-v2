@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Market;
 
 use App\Http\Controllers\Controller;
-use App\Models\MarketListing;
-use App\Models\MarketOrder;
-use App\Models\PaymentTransfer;
+use App\Models\Market\MarketListing;
+use App\Models\Market\MarketOrder;
+use App\Models\Payment\PaymentTransfer;
 use App\Support\Market\MarketFulfillmentService;
 use App\Support\Market\MarketPaymentService;
 use App\Support\Discord\DiscordNotifier;
@@ -235,7 +235,7 @@ class MarketOrderController extends Controller
         try {
             $listing = $marketOrder->listing;
 
-            if ($listing->channel === \App\Models\MarketListing::CHANNEL_FACTION_STORE && $listing->seller_type === 'faction') {
+            if ($listing->channel === \App\Models\Market\MarketListing::CHANNEL_FACTION_STORE && $listing->seller_type === 'faction') {
                 $faction = \App\Models\Faction::find($listing->seller_id);
                 if (!$faction || !$faction->swc_uid) {
                     return response()->json(['ok' => false, 'message' => 'Faction SWC UID missing — refund manually in SWC.'], 422);
@@ -265,18 +265,18 @@ class MarketOrderController extends Controller
 
         // Release reservation and restore listing, then cancel the order
         \Illuminate\Support\Facades\DB::transaction(function () use ($marketOrder) {
-            $listing = \App\Models\MarketListing::lockForUpdate()->find($marketOrder->listing_id);
+            $listing = \App\Models\Market\MarketListing::lockForUpdate()->find($marketOrder->listing_id);
 
             if ($listing) {
                 $listing->decrement('quantity_reserved', $marketOrder->quantity);
 
-                if ($listing->status === \App\Models\MarketListing::STATUS_RESERVED) {
-                    $listing->status = \App\Models\MarketListing::STATUS_OPEN;
+                if ($listing->status === \App\Models\Market\MarketListing::STATUS_RESERVED) {
+                    $listing->status = \App\Models\Market\MarketListing::STATUS_OPEN;
                     $listing->save();
                 }
             }
 
-            $marketOrder->status = \App\Models\MarketOrder::STATUS_CANCELLED;
+            $marketOrder->status = \App\Models\Market\MarketOrder::STATUS_CANCELLED;
             $marketOrder->save();
         });
 
@@ -379,7 +379,7 @@ class MarketOrderController extends Controller
         // Check the buyer has a payments OAuth token
         $hasPaymentsAccess = $this->swcAuthorizationService->getAccessToken(
             $user,
-            \App\Models\SwcAuthorization::CONTEXT_PAYMENTS
+            \App\Models\Swc\SwcAuthorization::CONTEXT_PAYMENTS
         ) !== null;
 
         if (!$hasPaymentsAccess) {

@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\HotAdjective;
-use App\Models\WeatherAdvice;
-use App\Models\WeatherSetting;
+use App\Models\Weather\WeatherAdvice;
+use App\Models\Weather\WeatherSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Support\Admin\AdminActionLogger;

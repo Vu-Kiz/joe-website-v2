@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\HotAdjective;
-use App\Models\TatooineDailyWeather;
-use App\Models\WeatherAdvice;
-use App\Models\WeatherSetting;
+use App\Models\Weather\TatooineDailyWeather;
+use App\Models\Weather\WeatherAdvice;
+use App\Models\Weather\WeatherSetting;
 use Illuminate\Http\JsonResponse;
 
 class TatooineWeatherController extends Controller

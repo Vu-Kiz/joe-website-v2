@@ -9,8 +9,10 @@ import {
   type AdminMemberChangelogEntry,
   type UpsertMemberChangelogPayload,
   updateAdminMemberChangelog,
-} from "../../api/adminMemberChangelog";
+} from "../../api/admin/adminMemberChangelog";
 import DatePicker from "../common/DatePicker";
+import SlideTabNav from "../common/SlideTabNav";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../utils/ui";
 
 type EditorState = {
   version: string;
@@ -89,7 +91,15 @@ function toPayload(editor: EditorState): UpsertMemberChangelogPayload {
 }
 
 const AdminMemberChangelogPanel: React.FC = () => {
+  type ChangelogAdminTab = "create" | "readme" | "json";
+  const changelogTabs: Array<{ key: ChangelogAdminTab; label: string }> = [
+    { key: "create", label: "Create Entry" },
+    { key: "readme", label: "README" },
+    { key: "json", label: "JSON" },
+  ];
+
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<ChangelogAdminTab>("create");
   const [entries, setEntries] = useState<AdminMemberChangelogEntry[]>([]);
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -166,6 +176,7 @@ const AdminMemberChangelogPanel: React.FC = () => {
   }, [knownVersions, exportVersion]);
 
   const resetEditor = () => {
+    setActiveTab("create");
     setEditingId(null);
     setEditor(DEFAULT_EDITOR);
     setSelectedVersion("");
@@ -177,6 +188,7 @@ const AdminMemberChangelogPanel: React.FC = () => {
   };
 
   const startEdit = (entry: AdminMemberChangelogEntry) => {
+    setActiveTab("create");
     setEditingId(entry.id);
     setEditor({
       version: entry.version,
@@ -378,315 +390,331 @@ const AdminMemberChangelogPanel: React.FC = () => {
   };
 
   return (
-    <section className="panel admin-panel">
-      <div className="admin-panel__header">
-        <h2 style={{ margin: 0 }}>Member Change Log</h2>
+    <section className="panel flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <h2 className="h2" style={{ margin: 0 }}>Member Change Log</h2>
         <p className="small" style={{ margin: 0 }}>
           Backend-driven entries. Add manually or generate from README sections.
         </p>
       </div>
 
-      <div className="admin-tips-layout">
-        <form className="panel admin-tip-editor" onSubmit={onSave}>
-          <div className="admin-tip-editor__header" style={{ alignItems: "center" }}>
-            <h3 style={{ margin: 0 }}>{editingId ? "Edit Entry" : "Create Entry"}</h3>
-            {editingId ? (
-              <button type="button" className="btn btn--small" onClick={resetEditor} disabled={saving}>
-                New Entry
-              </button>
-            ) : null}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <form className="panel flex flex-col gap-4" onSubmit={onSave}>
+          <div className="flex flex-col gap-1.5">
+            <SlideTabNav
+              items={changelogTabs}
+              activeKey={activeTab}
+              onChange={setActiveTab}
+            />
           </div>
 
-          <div className="field">
-            <label className="field__label" htmlFor="admin-changelog-version">Version</label>
-            <div className="admin-member-changelog__picker-row">
-              <select
-                id="admin-changelog-version-select"
-                className="input"
-                value={selectedVersion}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setSelectedVersion(value);
-                  if (value) {
-                    setEditor((current) => ({ ...current, version: value }));
-                  }
+          {activeTab === "create" ? (
+            <>
+              <div className="flex flex-col gap-1.5" style={{ alignItems: "center" }}>
+                <h3 className="h3" style={{ margin: 0 }}>{editingId ? "Edit Entry" : "Create Entry"}</h3>
+                {editingId ? (
+                  <button type="button" className={BTN_SM + " all"} onClick={resetEditor} disabled={saving}>
+                    New Entry
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="field">
+                <label className="field__label" htmlFor="admin-changelog-version">Version</label>
+                <div className="grid gap-2 [grid-template-columns:minmax(0,1fr)_auto]">
+                  <select
+                    id="admin-changelog-version-select"
+                    className={INPUT}
+                    value={selectedVersion}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setSelectedVersion(value);
+                      if (value) {
+                        setEditor((current) => ({ ...current, version: value }));
+                      }
+                    }}
+                  >
+                    <option value="">Select existing version</option>
+                    {knownVersions.map((version) => (
+                      <option key={version} value={version}>
+                        {version}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <input
+                  id="admin-changelog-version"
+                  className={INPUT}
+                  value={editor.version}
+                  onChange={(event) => setEditor((current) => ({ ...current, version: event.target.value }))}
+                  placeholder="2.0.5"
+                />
+              </div>
+
+              <div className="field">
+                <label className="field__label" htmlFor="admin-changelog-title">Title</label>
+                <input
+                  id="admin-changelog-title"
+                  className={INPUT}
+                  value={editor.title}
+                  onChange={(event) => setEditor((current) => ({ ...current, title: event.target.value }))}
+                  placeholder="Targeting Heatmap polish and extension bridge fixes"
+                />
+              </div>
+
+              <div className="field">
+                <label className="field__label" htmlFor="admin-changelog-details">Details</label>
+                <textarea
+                  id="admin-changelog-details"
+                  className={INPUT}
+                  rows={5}
+                  value={editor.details}
+                  onChange={(event) => setEditor((current) => ({ ...current, details: event.target.value }))}
+                  placeholder="Short user-facing summary of the change."
+                />
+              </div>
+
+              <div className="field">
+                <label className="field__label">Tools</label>
+                <div className="grid gap-2 [grid-template-columns:minmax(0,1fr)_auto]">
+                  <select
+                    className={INPUT}
+                    value={selectedTool}
+                    onChange={(event) => setSelectedTool(event.target.value)}
+                  >
+                    {TOOL_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                  <button type="button" className={BTN_SM + " all"} onClick={() => onAddTool(selectedTool)}>
+                    Add
+                  </button>
+                </div>
+                <div className="grid gap-2 [grid-template-columns:minmax(0,1fr)_auto]">
+                  <input
+                    className={INPUT}
+                    value={customTool}
+                    onChange={(event) => setCustomTool(event.target.value)}
+                    placeholder="Custom tool label"
+                  />
+                  <button
+                    type="button"
+                    className={BTN_SM + " all"}
+                    onClick={() => {
+                      onAddTool(customTool);
+                      setCustomTool("");
+                    }}
+                  >
+                    Add Custom
+                  </button>
+                </div>
+                <div className="mt-1.5 flex flex-wrap gap-2">
+                  {editor.tools.map((tool) => (
+                    <button
+                      key={tool}
+                      type="button"
+                      className="inline-flex min-h-[30px] items-center rounded-full border border-[#f5d546]/40 bg-[#f5d546]/10 px-2.5 py-1 text-[0.78rem] font-bold text-[#ffdc84]"
+                      onClick={() => setEditor((current) => ({ ...current, tools: removeValue(current.tools, tool) }))}
+                      title="Remove tool"
+                    >
+                      {tool} ×
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="field">
+                <label className="field__label">Audiences</label>
+                <div className="grid gap-2 [grid-template-columns:minmax(0,1fr)_auto]">
+                  <select
+                    className={INPUT}
+                    value={selectedAudience}
+                    onChange={(event) => setSelectedAudience(event.target.value)}
+                  >
+                    {AUDIENCE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                  <button type="button" className={BTN_SM + " all"} onClick={() => onAddAudience(selectedAudience)}>
+                    Add
+                  </button>
+                </div>
+                <div className="grid gap-2 [grid-template-columns:minmax(0,1fr)_auto]">
+                  <input
+                    className={INPUT}
+                    value={customAudience}
+                    onChange={(event) => setCustomAudience(event.target.value)}
+                    placeholder="Custom audience key"
+                  />
+                  <button
+                    type="button"
+                    className={BTN_SM + " all"}
+                    onClick={() => {
+                      onAddAudience(customAudience);
+                      setCustomAudience("");
+                    }}
+                  >
+                    Add Custom
+                  </button>
+                </div>
+                <div className="mt-1.5 flex flex-wrap gap-2">
+                  {editor.audiences.map((audience) => (
+                    <button
+                      key={audience}
+                      type="button"
+                      className="inline-flex min-h-[30px] items-center rounded-full border border-[#f5d546]/40 bg-[#f5d546]/10 px-2.5 py-1 text-[0.78rem] font-bold text-[#ffdc84]"
+                      onClick={() => setEditor((current) => ({ ...current, audiences: removeValue(current.audiences, audience) }))}
+                      title="Remove audience"
+                    >
+                      {audience} ×
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                  gap: "0.75rem",
                 }}
               >
-                <option value="">Select existing version</option>
-                {knownVersions.map((version) => (
-                  <option key={version} value={version}>
-                    {version}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <input
-              id="admin-changelog-version"
-              className="input"
-              value={editor.version}
-              onChange={(event) => setEditor((current) => ({ ...current, version: event.target.value }))}
-              placeholder="2.0.5"
-            />
-          </div>
+                <div className="field">
+                  <label className="field__label" htmlFor="admin-changelog-release-at">Version Release Date (optional)</label>
+                  <DatePicker
+                    id="admin-changelog-release-at"
+                    value={editor.releasedAt}
+                    onChange={(value) => setEditor((current) => ({ ...current, releasedAt: value }))}
+                    placeholder="Choose release date"
+                  />
+                  <p className="small" style={{ margin: "0.4rem 0 0", opacity: 0.8 }}>
+                    Saved at version level. Updating this date applies it to all entries in the same version.
+                  </p>
+                </div>
+              </div>
 
-          <div className="field">
-            <label className="field__label" htmlFor="admin-changelog-title">Title</label>
-            <input
-              id="admin-changelog-title"
-              className="input"
-              value={editor.title}
-              onChange={(event) => setEditor((current) => ({ ...current, title: event.target.value }))}
-              placeholder="Targeting Heatmap polish and extension bridge fixes"
-            />
-          </div>
+              <label className="small" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                <input
+                  type="checkbox"
+                  checked={editor.isActive}
+                  onChange={(event) => setEditor((current) => ({ ...current, isActive: event.target.checked }))}
+                />
+                Active entry
+              </label>
 
-          <div className="field">
-            <label className="field__label" htmlFor="admin-changelog-details">Details</label>
-            <textarea
-              id="admin-changelog-details"
-              className="input"
-              rows={5}
-              value={editor.details}
-              onChange={(event) => setEditor((current) => ({ ...current, details: event.target.value }))}
-              placeholder="Short user-facing summary of the change."
-            />
-          </div>
-
-          <div className="field">
-            <label className="field__label">Tools</label>
-            <div className="admin-member-changelog__picker-row">
-              <select
-                className="input"
-                value={selectedTool}
-                onChange={(event) => setSelectedTool(event.target.value)}
-              >
-                {TOOL_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-              <button type="button" className="btn btn--small" onClick={() => onAddTool(selectedTool)}>
-                Add
-              </button>
-            </div>
-            <div className="admin-member-changelog__picker-row">
-              <input
-                className="input"
-                value={customTool}
-                onChange={(event) => setCustomTool(event.target.value)}
-                placeholder="Custom tool label"
-              />
-              <button
-                type="button"
-                className="btn btn--small"
-                onClick={() => {
-                  onAddTool(customTool);
-                  setCustomTool("");
-                }}
-              >
-                Add Custom
-              </button>
-            </div>
-            <div className="admin-member-changelog__chip-list">
-              {editor.tools.map((tool) => (
-                <button
-                  key={tool}
-                  type="button"
-                  className="admin-member-changelog__chip"
-                  onClick={() => setEditor((current) => ({ ...current, tools: removeValue(current.tools, tool) }))}
-                  title="Remove tool"
-                >
-                  {tool} ×
+              <div className="flex flex-wrap gap-3">
+                <button type="submit" className={BTN} disabled={saving}>
+                  {saving ? "Saving…" : editingId ? "Save Entry" : "Create Entry"}
                 </button>
-              ))}
-            </div>
-          </div>
+              </div>
+            </>
+          ) : null}
 
-          <div className="field">
-            <label className="field__label">Audiences</label>
-            <div className="admin-member-changelog__picker-row">
-              <select
-                className="input"
-                value={selectedAudience}
-                onChange={(event) => setSelectedAudience(event.target.value)}
-              >
-                {AUDIENCE_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-              <button type="button" className="btn btn--small" onClick={() => onAddAudience(selectedAudience)}>
-                Add
-              </button>
-            </div>
-            <div className="admin-member-changelog__picker-row">
-              <input
-                className="input"
-                value={customAudience}
-                onChange={(event) => setCustomAudience(event.target.value)}
-                placeholder="Custom audience key"
-              />
-              <button
-                type="button"
-                className="btn btn--small"
-                onClick={() => {
-                  onAddAudience(customAudience);
-                  setCustomAudience("");
-                }}
-              >
-                Add Custom
-              </button>
-            </div>
-            <div className="admin-member-changelog__chip-list">
-              {editor.audiences.map((audience) => (
-                <button
-                  key={audience}
-                  type="button"
-                  className="admin-member-changelog__chip"
-                  onClick={() => setEditor((current) => ({ ...current, audiences: removeValue(current.audiences, audience) }))}
-                  title="Remove audience"
-                >
-                  {audience} ×
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: "0.75rem",
-            }}
-          >
-            <div className="field">
-              <label className="field__label" htmlFor="admin-changelog-release-at">Version Release Date (optional)</label>
-              <DatePicker
-                id="admin-changelog-release-at"
-                value={editor.releasedAt}
-                onChange={(value) => setEditor((current) => ({ ...current, releasedAt: value }))}
-                placeholder="Choose release date"
-              />
-              <p className="small" style={{ margin: "0.4rem 0 0", opacity: 0.8 }}>
-                Saved at version level. Updating this date applies it to all entries in the same version.
+          {activeTab === "readme" ? (
+            <div className="panel" style={{ display: "grid", gap: "0.7rem" }}>
+              <h3 className="h3" style={{ margin: 0 }}>Generate from README</h3>
+              <p className="small" style={{ margin: 0, opacity: 0.85 }}>
+                Optional: paste root README content here. If blank, server filesystem README is used.
               </p>
-            </div>
-          </div>
-
-          <label className="small" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
-            <input
-              type="checkbox"
-              checked={editor.isActive}
-              onChange={(event) => setEditor((current) => ({ ...current, isActive: event.target.checked }))}
-            />
-            Active entry
-          </label>
-
-          <div className="admin-tip-editor__actions">
-            <button type="submit" className="btn" disabled={saving}>
-              {saving ? "Saving…" : editingId ? "Save Entry" : "Create Entry"}
-            </button>
-          </div>
-
-          <div className="panel" style={{ display: "grid", gap: "0.7rem" }}>
-            <h3 style={{ margin: 0 }}>Generate from README</h3>
-            <p className="small" style={{ margin: 0, opacity: 0.85 }}>
-              Optional: paste root README content here. If blank, server filesystem README is used.
-            </p>
-            <textarea
-              className="input"
-              rows={7}
-              value={readmeMarkdown}
-              onChange={(event) => setReadmeMarkdown(event.target.value)}
-              placeholder={"Paste README markdown here to force parsing from this text.\nUseful when backend container cannot access repo-root README."}
-            />
-            <label className="small" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
-              <input
-                type="checkbox"
-                checked={replaceExisting}
-                onChange={(event) => setReplaceExisting(event.target.checked)}
+              <textarea
+                className={INPUT}
+                rows={7}
+                value={readmeMarkdown}
+                onChange={(event) => setReadmeMarkdown(event.target.value)}
+                placeholder={"Paste README markdown here to force parsing from this text.\nUseful when backend container cannot access repo-root README."}
               />
-              Replace existing entries before import
-            </label>
-            <button type="button" className="btn btn--small" onClick={onGenerateFromReadme} disabled={generating}>
-              {generating ? "Generating…" : "Generate Entries from README"}
-            </button>
-          </div>
-
-          <div className="panel" style={{ display: "grid", gap: "0.7rem" }}>
-            <h3 style={{ margin: 0 }}>Export / Import JSON</h3>
-            <p className="small" style={{ margin: 0, opacity: 0.85 }}>
-              Export all changelog entries or only one version from dev, then paste/import on prod.
-            </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-              <button type="button" className="btn btn--small" onClick={() => onExportSnapshot()} disabled={exporting}>
-                {exporting ? "Exporting…" : "Export All Versions"}
-              </button>
-              <button type="button" className="btn btn--small" onClick={() => onExportSnapshot(exportVersion)} disabled={exporting}>
-                {exporting ? "Exporting…" : "Export Selected Version"}
+              <label className="small" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                <input
+                  type="checkbox"
+                  checked={replaceExisting}
+                  onChange={(event) => setReplaceExisting(event.target.checked)}
+                />
+                Replace existing entries before import
+              </label>
+              <button type="button" className={BTN_SM + " all"} onClick={onGenerateFromReadme} disabled={generating}>
+                {generating ? "Generating…" : "Generate Entries from README"}
               </button>
             </div>
-            <div className="admin-member-changelog__picker-row">
-              <select
-                className="input"
-                value={knownVersions.includes(exportVersion) ? exportVersion : ""}
-                onChange={(event) => setExportVersion(event.target.value)}
-              >
-                <option value="">Select existing version</option>
-                {knownVersions.map((version) => (
-                  <option key={`export-version-${version}`} value={version}>
-                    {version}
-                  </option>
-                ))}
-              </select>
-              <input
-                className="input"
-                value={exportVersion}
-                onChange={(event) => setExportVersion(event.target.value)}
-                placeholder="2.0.6"
+          ) : null}
+
+          {activeTab === "json" ? (
+            <div className="panel" style={{ display: "grid", gap: "0.7rem" }}>
+              <h3 className="h3" style={{ margin: 0 }}>Export / Import JSON</h3>
+              <p className="small" style={{ margin: 0, opacity: 0.85 }}>
+                Export all changelog entries or only one version from dev, then paste/import on prod.
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                <button type="button" className={BTN_SM + " all"} onClick={() => onExportSnapshot()} disabled={exporting}>
+                  {exporting ? "Exporting…" : "Export All Versions"}
+                </button>
+                <button type="button" className={BTN_SM + " all"} onClick={() => onExportSnapshot(exportVersion)} disabled={exporting}>
+                  {exporting ? "Exporting…" : "Export Selected Version"}
+                </button>
+              </div>
+              <div className="grid gap-2 [grid-template-columns:minmax(0,1fr)_auto]">
+                <select
+                  className={INPUT}
+                  value={knownVersions.includes(exportVersion) ? exportVersion : ""}
+                  onChange={(event) => setExportVersion(event.target.value)}
+                >
+                  <option value="">Select existing version</option>
+                  {knownVersions.map((version) => (
+                    <option key={`export-version-${version}`} value={version}>
+                      {version}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  className={INPUT}
+                  value={exportVersion}
+                  onChange={(event) => setExportVersion(event.target.value)}
+                  placeholder="2.0.6"
+                />
+              </div>
+              <p className="small" style={{ margin: 0, opacity: 0.75 }}>
+                Selected version for filtered export: <strong>{exportVersion.trim() || "none"}</strong>
+              </p>
+              <textarea
+                className={INPUT}
+                rows={7}
+                value={importJson}
+                onChange={(event) => setImportJson(event.target.value)}
+                placeholder='Paste exported JSON here (supports {"entries":[...]} or raw entry array).'
               />
+              <label className="small" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                <input
+                  type="checkbox"
+                  checked={importReplaceExisting}
+                  onChange={(event) => setImportReplaceExisting(event.target.checked)}
+                />
+                Replace existing entries before import
+              </label>
+              <button type="button" className={BTN_SM + " all"} onClick={onImportSnapshot} disabled={importing}>
+                {importing ? "Importing…" : "Import Changelog JSON"}
+              </button>
             </div>
-            <p className="small" style={{ margin: 0, opacity: 0.75 }}>
-              Selected version for filtered export: <strong>{exportVersion.trim() || "none"}</strong>
-            </p>
-            <textarea
-              className="input"
-              rows={7}
-              value={importJson}
-              onChange={(event) => setImportJson(event.target.value)}
-              placeholder='Paste exported JSON here (supports {"entries":[...]} or raw entry array).'
-            />
-            <label className="small" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
-              <input
-                type="checkbox"
-                checked={importReplaceExisting}
-                onChange={(event) => setImportReplaceExisting(event.target.checked)}
-              />
-              Replace existing entries before import
-            </label>
-            <button type="button" className="btn btn--small" onClick={onImportSnapshot} disabled={importing}>
-              {importing ? "Importing…" : "Import Changelog JSON"}
-            </button>
-          </div>
+          ) : null}
 
           {notice ? <p className="small" style={{ color: "#9fda9f", margin: 0 }}>{notice}</p> : null}
           {error ? <p className="small" style={{ color: "salmon", margin: 0 }}>{error}</p> : null}
         </form>
 
-        <div className="panel admin-tip-list">
-          <div className="admin-tip-list__header">
-            <h3 style={{ margin: 0 }}>Entries</h3>
+        <div className="panel flex flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="h3" style={{ margin: 0 }}>Entries</h3>
             <p className="small" style={{ margin: 0, opacity: 0.8 }}>
               {filteredEntries.length} shown
             </p>
           </div>
 
-          <div className="admin-users-toolbar">
+          <div className="flex flex-wrap items-center gap-3">
             <input
               type="text"
-              className="input"
+              className={INPUT}
               placeholder="Search by version, title, detail, tool, or audience"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -699,53 +727,54 @@ const AdminMemberChangelogPanel: React.FC = () => {
           ) : null}
 
           {!loading && filteredEntries.length ? (
-            <div className="admin-tip-list__items">
+            <div className="max-h-[70vh] overflow-y-auto pr-1">
+              <div className="flex flex-col gap-3">
               {filteredEntries.map((entry) => (
-                <article key={entry.id} className="panel admin-tip-card admin-member-changelog__entry-card">
-                  <div className="admin-tip-card__copy admin-member-changelog__entry-copy" style={{ gap: "0.35rem" }}>
-                    <div className="admin-member-changelog__entry-head">
-                      <strong className="admin-member-changelog__entry-title">{entry.title}</strong>
-                      <div className="admin-member-changelog__meta-badges">
-                        <span className="admin-member-changelog__meta-badge">v{entry.version}</span>
-                        <span className="admin-member-changelog__meta-badge">#{entry.id}</span>
-                        <span className={`admin-member-changelog__meta-badge ${entry.is_active ? "is-active" : "is-inactive"}`}>
+                <article key={entry.id} className="panel grid items-start gap-4 [grid-template-columns:minmax(0,1fr)_auto] max-[920px]:grid-cols-1">
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <strong className="m-0 text-base">{entry.title}</strong>
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className="inline-flex min-h-6 items-center rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[0.72rem] font-bold tracking-[0.02em]">v{entry.version}</span>
+                        <span className="inline-flex min-h-6 items-center rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[0.72rem] font-bold tracking-[0.02em]">#{entry.id}</span>
+                        <span className={`inline-flex min-h-6 items-center rounded-full border px-2 py-0.5 text-[0.72rem] font-bold tracking-[0.02em] ${entry.is_active ? "border-[#91e691]/50 bg-[#50aa50]/20 text-[#d0ffd0]" : "border-[#ffa0a0]/50 bg-[#aa4646]/25 text-[#ffd5d5]"}`}>
                           {entry.is_active ? "Active" : "Inactive"}
                         </span>
                       </div>
                     </div>
-                    <p className="small admin-tip-card__body admin-member-changelog__entry-details">{entry.details}</p>
+                    <p className="small m-0 leading-relaxed opacity-90">{entry.details}</p>
 
-                    <div className="admin-member-changelog__entry-groups">
-                      <div className="admin-member-changelog__entry-group">
-                        <span className="admin-member-changelog__entry-group-label">Tools</span>
-                        <div className="admin-member-changelog__entry-chip-list">
+                    <div className="grid gap-2.5">
+                      <div className="grid gap-1.5">
+                        <span className="text-[0.76rem] font-bold uppercase tracking-[0.03em] opacity-80">Tools</span>
+                        <div className="flex flex-wrap gap-1.5">
                           {entry.tools.length ? entry.tools.map((tool) => (
-                            <span key={`${entry.id}-tool-${tool}`} className="admin-member-changelog__entry-chip">{tool}</span>
-                          )) : <span className="admin-member-changelog__entry-chip is-muted">None</span>}
+                            <span key={`${entry.id}-tool-${tool}`} className="inline-flex min-h-6 items-center rounded-full border border-[#f5d546]/35 bg-[#f5d546]/10 px-2 py-0.5 text-[0.73rem] font-bold text-[#ffe8a0]">{tool}</span>
+                          )) : <span className="inline-flex min-h-6 items-center rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[0.73rem] font-bold text-white/75">None</span>}
                         </div>
                       </div>
 
-                      <div className="admin-member-changelog__entry-group">
-                        <span className="admin-member-changelog__entry-group-label">Audience</span>
-                        <div className="admin-member-changelog__entry-chip-list">
+                      <div className="grid gap-1.5">
+                        <span className="text-[0.76rem] font-bold uppercase tracking-[0.03em] opacity-80">Audience</span>
+                        <div className="flex flex-wrap gap-1.5">
                           {entry.audiences.length ? entry.audiences.map((audience) => (
-                            <span key={`${entry.id}-audience-${audience}`} className="admin-member-changelog__entry-chip">{audience}</span>
-                          )) : <span className="admin-member-changelog__entry-chip is-muted">None</span>}
+                            <span key={`${entry.id}-audience-${audience}`} className="inline-flex min-h-6 items-center rounded-full border border-[#f5d546]/35 bg-[#f5d546]/10 px-2 py-0.5 text-[0.73rem] font-bold text-[#ffe8a0]">{audience}</span>
+                          )) : <span className="inline-flex min-h-6 items-center rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[0.73rem] font-bold text-white/75">None</span>}
                         </div>
                       </div>
                     </div>
 
-                    <p className="small admin-member-changelog__entry-footer">
+                    <p className="small m-0 opacity-75">
                       Released: {entry.released_at ? new Date(entry.released_at).toLocaleDateString() : "Not set"} · Sort: {entry.sort_order}
                     </p>
                   </div>
-                  <div className="admin-tip-card__actions">
-                    <button type="button" className="btn btn--small" onClick={() => startEdit(entry)}>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" className={BTN_SM + " all"} onClick={() => startEdit(entry)}>
                       Edit
                     </button>
                     <button
                       type="button"
-                      className="btn btn--small"
+                      className={BTN_SM + " all"}
                       onClick={() => onDelete(entry)}
                       disabled={busyDeleteId === entry.id}
                     >
@@ -754,6 +783,7 @@ const AdminMemberChangelogPanel: React.FC = () => {
                   </div>
                 </article>
               ))}
+              </div>
             </div>
           ) : null}
         </div>

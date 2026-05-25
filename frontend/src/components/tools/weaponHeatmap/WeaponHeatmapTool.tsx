@@ -12,11 +12,13 @@ import {
   type StoredShipTypeDetail,
   type StoredVehicleTypeDetail,
   type StoredWeaponTypeDetail,
-} from "../../../api/universe";
+} from "../../../api/universe/universe";
 import SearchSuggestionPicker from "../../common/SearchSuggestionPicker";
 import HamburgerToggle from "../../common/HamburgerToggle";
 import DirectionalCompass from "../../common/DirectionalCompass";
 import isdDirectionImage from "../../../assets/swc/isd.png";
+import { INPUT } from '../../../utils/ui';
+import ReportBugButton from "../../support/ReportBugButton";
 import {
   bearingFromPoint,
   buildHeatCells,
@@ -61,6 +63,12 @@ type ResolvedMountedWeapon = {
   weapon: StoredWeaponTypeDetail;
 };
 type WeaponHeatmapViewMode = "single" | "combined";
+
+const uiButtonSmallBaseClass =
+  "inline-flex min-h-[34px] items-center justify-center rounded-[10px] border px-[0.8rem] py-2 text-[0.88rem] font-bold leading-none no-underline transition-[border-color,background,transform,box-shadow] duration-150 ease-out hover:enabled:-translate-y-px hover:enabled:border-[#f5d546]/[0.28] hover:enabled:bg-[#f5d546]/[0.07] disabled:cursor-not-allowed disabled:opacity-[0.55]";
+const uiButtonSoftClass = "border-white/10 bg-white/[0.025] text-white/90";
+const uiButtonPrimaryClass =
+  "border-[#f5d546]/35 bg-[#f5d546]/10 text-[#f2c46f] shadow-[inset_0_0_0_1px_rgba(245,213,70,0.08)] hover:enabled:border-[#f5d546]/45 hover:enabled:bg-[#f5d546]/15";
 
 function buildLinkedWeaponKey(item: Record<string, unknown>) {
   const arcFromValue = item.arcFrom ?? item.arc_from;
@@ -140,12 +148,12 @@ const SectionToggle: React.FC<{
 }> = ({ title, open, onClick }) => (
   <button
     type="button"
-    className="weapon-heatmap-page__side-toggle"
+    className="flex justify-between items-center gap-3 w-full p-0 border-0 bg-transparent text-inherit text-left cursor-pointer"
     onClick={onClick}
     aria-expanded={open}
     aria-label={`${open ? "Collapse" : "Expand"} ${title}`}
   >
-    <strong>{title}</strong>
+    <strong className="text-[0.95rem]">{title}</strong>
     <HamburgerToggle open={open} ariaLabel={`${open ? "Collapse" : "Expand"} ${title}`} decorative />
   </button>
 );
@@ -551,30 +559,32 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
     }));
   };
 
+  const sideSectionCls = "grid grid-cols-1 gap-[0.45rem] p-[0.65rem_0.75rem] border border-white/[0.08] rounded-[10px] bg-white/[0.025] min-w-0 max-w-full";
+  const statCls = "grid gap-[0.25rem] p-[0.8rem] border border-white/[0.08] rounded-[12px] bg-white/[0.025]";
+
   return (
-    <div className="weapon-heatmap-page__tool">
-      <div className="weapon-heatmap-page__header">
-        <div>
-          <h1>{title}</h1>
-          {subtitle ? <p className="small">{subtitle}</p> : null}
-        </div>
+    <div className="grid gap-4">
+      <div className="flex flex-col gap-2">
+        <h1 className="h1">{title}</h1>
+        {subtitle ? <p className="small">{subtitle}</p> : null}
+        <ReportBugButton toolKey="targeting_heatmap" toolLabel="Targeting Heatmap" />
       </div>
 
-      <div className="weapon-heatmap-page__layout">
-        <section className="panel weapon-heatmap-page__sidebar">
-          <div className="weapon-heatmap-page__side-section">
+      <div className="grid grid-cols-[minmax(220px,260px)_minmax(0,1fr)_minmax(220px,260px)] gap-[0.8rem] items-start max-[1280px]:grid-cols-[minmax(200px,240px)_minmax(0,1fr)_minmax(200px,240px)] max-[1100px]:grid-cols-1">
+        <section className="panel grid grid-cols-1 gap-[0.55rem] self-start content-start sticky top-3 !p-[0.8rem] min-w-0 max-w-full max-[1100px]:static">
+          <div className={sideSectionCls}>
             <SectionToggle title="Platform" open={leftSectionsOpen.platform} onClick={() => toggleLeftSection("platform")} />
             {leftSectionsOpen.platform ? (
               <>
-                <div className="weapon-heatmap-page__mode-picker">
-                  <div className="members-combat-calc__section-pills">
-                    <button type="button" className={`ui-btn ui-btn--small${platformMode === "ship" ? " ui-btn--primary" : " ui-btn--soft"}`} onClick={() => setPlatformMode("ship")}>
+                <div className="grid gap-[0.22rem]">
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" className={`${uiButtonSmallBaseClass} ${platformMode === "ship" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setPlatformMode("ship")}>
                       Ships
                     </button>
-                    <button type="button" className={`ui-btn ui-btn--small${platformMode === "vehicle" ? " ui-btn--primary" : " ui-btn--soft"}`} onClick={() => setPlatformMode("vehicle")}>
+                    <button type="button" className={`${uiButtonSmallBaseClass} ${platformMode === "vehicle" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setPlatformMode("vehicle")}>
                       Vehicles
                     </button>
-                    <button type="button" className={`ui-btn ui-btn--small${platformMode === "item" ? " ui-btn--primary" : " ui-btn--soft"}`} onClick={() => setPlatformMode("item")}>
+                    <button type="button" className={`${uiButtonSmallBaseClass} ${platformMode === "item" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setPlatformMode("item")}>
                       Items
                     </button>
                   </div>
@@ -587,7 +597,7 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
                   id="weapon-heatmap-query"
                   value={query}
                   onChange={setQuery}
-                  placeholder={`Search ${platformMode}s by name, class, or UID`}
+                  placeholder={`Search ${platformMode}s…`}
                   suggestions={filteredPlatforms}
                   showSuggestions={query.trim().length > 0}
                   onShowSuggestions={() => {}}
@@ -606,15 +616,16 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
                       </span>
                     </>
                   )}
+                  className="w-full"
                 />
 
                 {selectedPlatformDetail ? (
-                  <div className="weapon-heatmap-page__selected-platform">
+                  <div className="grid gap-[0.15rem] p-[0.65rem_0.75rem] border border-white/[0.08] rounded-[10px] bg-white/[0.03]">
                     <strong>{selectedPlatformDetail.name ?? selectedPlatformDetail.uid}</strong>
                     <span className="small">{selectedPlatformDetail.class_name ?? "Unknown class"}</span>
                     <button
                       type="button"
-                      className="ui-btn ui-btn--small ui-btn--soft"
+                      className={`${uiButtonSmallBaseClass} ${uiButtonSoftClass}`}
                       onClick={() => {
                         setSelectedPlatformUid(null);
                         setSelectedWeaponKey(null);
@@ -632,21 +643,21 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
           </div>
 
           {usesDirectionalArcs ? (
-            <div className="weapon-heatmap-page__side-section">
+            <div className={sideSectionCls}>
               <SectionToggle title="Heading" open={leftSectionsOpen.heading} onClick={() => toggleLeftSection("heading")} />
               {leftSectionsOpen.heading ? (
-                <div className="weapon-heatmap-page__mode-picker">
-                  <div className="weapon-heatmap-page__heading-control">
+                <div className="grid gap-[0.22rem]">
+                  <div className="grid gap-2 justify-items-center">
                     <DirectionalCompass
                       headingDegrees={headingDegrees}
                       imageSrc={isdDirectionImage}
                       bearingLabel="Current Bearing"
                     />
-                    <div className="members-combat-calc__section-pills">
-                      <button type="button" className="ui-btn ui-btn--small ui-btn--soft" onClick={() => setHeadingDegrees((current) => normalizeDegrees(current - 15))}>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" className={`${uiButtonSmallBaseClass} ${uiButtonSoftClass}`} onClick={() => setHeadingDegrees((current) => normalizeDegrees(current - 15))}>
                         -15°
                       </button>
-                      <button type="button" className="ui-btn ui-btn--small ui-btn--soft" onClick={() => setHeadingDegrees((current) => normalizeDegrees(current + 15))}>
+                      <button type="button" className={`${uiButtonSmallBaseClass} ${uiButtonSoftClass}`} onClick={() => setHeadingDegrees((current) => normalizeDegrees(current + 15))}>
                         +15°
                       </button>
                     </div>
@@ -656,32 +667,32 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
             </div>
           ) : null}
 
-          <div className="weapon-heatmap-page__side-section">
+          <div className={sideSectionCls}>
             <SectionToggle title="Weapons" open={leftSectionsOpen.weapons} onClick={() => toggleLeftSection("weapons")} />
             {leftSectionsOpen.weapons ? (
-              <div className="weapon-heatmap-page__mode-picker">
-                <div className="members-combat-calc__section-pills">
-                  <button type="button" className={`ui-btn ui-btn--small${viewMode === "single" ? " ui-btn--primary" : " ui-btn--soft"}`} onClick={() => setViewMode("single")}>
+              <div className="grid gap-[0.22rem]">
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" className={`${uiButtonSmallBaseClass} ${viewMode === "single" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setViewMode("single")}>
                     Single
                   </button>
-                  <button type="button" className={`ui-btn ui-btn--small${viewMode === "combined" ? " ui-btn--primary" : " ui-btn--soft"}`} onClick={() => setViewMode("combined")}>
+                  <button type="button" className={`${uiButtonSmallBaseClass} ${viewMode === "combined" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setViewMode("combined")}>
                     Combined
                   </button>
                 </div>
                 {viewMode === "combined" && resolvedWeapons.length ? (
-                  <div className="weapon-heatmap-page__bulk-actions-wrap">
+                  <div className="grid gap-[0.25rem]">
                     <span className="small">Select</span>
-                    <div className="weapon-heatmap-page__bulk-actions">
+                    <div className="grid grid-cols-2 gap-[0.45rem]">
                       <button
                         type="button"
-                        className="ui-btn ui-btn--small ui-btn--soft"
+                        className={`${uiButtonSmallBaseClass} ${uiButtonSoftClass}`}
                         onClick={() => setEnabledWeaponKeys(resolvedWeapons.map((weapon) => weapon.key))}
                       >
                         All
                       </button>
                       <button
                         type="button"
-                        className="ui-btn ui-btn--small ui-btn--soft"
+                        className={`${uiButtonSmallBaseClass} ${uiButtonSoftClass}`}
                         onClick={() => setEnabledWeaponKeys([])}
                       >
                         None
@@ -691,12 +702,12 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
                 ) : null}
                 {resolvedWeaponsLoading ? <p className="small">Loading linked weapons…</p> : null}
                 {!resolvedWeaponsLoading && resolvedWeapons.length ? (
-                  <div className="weapon-heatmap-page__weapon-list">
+                  <div className="grid gap-[0.4rem] max-h-[220px] overflow-auto pr-[0.15rem]">
                     {resolvedWeapons.map((weapon) => (
-                      <div key={weapon.key} className={`weapon-heatmap-page__weapon-option${weapon.key === selectedWeaponKey ? " is-active" : ""}`}>
+                      <div key={weapon.key} className={`grid grid-cols-[minmax(0,1fr)_auto] gap-2 p-[0.65rem_0.75rem] border rounded-[10px] bg-white/[0.03] transition-[border-color,background] duration-[120ms] hover:border-[rgba(246,163,0,0.35)] ${weapon.key === selectedWeaponKey ? "border-[rgba(246,163,0,0.45)] bg-[rgba(246,163,0,0.08)]" : "border-white/[0.08]"}`}>
                         <button
                           type="button"
-                          className="weapon-heatmap-page__weapon-option-main"
+                          className="grid gap-[0.15rem] p-0 border-0 bg-transparent text-inherit text-left cursor-pointer focus-visible:outline-none"
                           onClick={() => setSelectedWeaponKey(weapon.key)}
                         >
                           <strong>{weapon.name ?? weapon.uid ?? "Unknown weapon"}</strong>
@@ -709,7 +720,7 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
                         {viewMode === "combined" ? (
                           <button
                             type="button"
-                            className={`ui-btn ui-btn--small${enabledWeaponKeys.includes(weapon.key) ? " ui-btn--primary" : " ui-btn--soft"}`}
+                            className={`${uiButtonSmallBaseClass} ${enabledWeaponKeys.includes(weapon.key) ? uiButtonPrimaryClass : uiButtonSoftClass}`}
                             onClick={() => {
                               setEnabledWeaponKeys((current) => current.includes(weapon.key)
                                 ? current.filter((key) => key !== weapon.key)
@@ -743,26 +754,26 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
           ) : null}
         </section>
 
-        <section className="panel weapon-heatmap-page__main">
-          <div className="weapon-heatmap-page__viz">
-            <div className="weapon-heatmap-page__board-controls">
-              <div className="members-combat-calc__section-pills">
-                <button type="button" className={`ui-btn ui-btn--small${boardMode === "space" ? " ui-btn--primary" : " ui-btn--soft"}`} onClick={() => setBoardMode("space")}>
+        <section className="panel grid gap-4 content-start">
+          <div className="grid gap-3 items-start justify-items-center">
+            <div className="w-[min(100%,760px)] grid gap-2 justify-items-center">
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className={`${uiButtonSmallBaseClass} ${boardMode === "space" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setBoardMode("space")}>
                   Space 20x20
                 </button>
-                <button type="button" className={`ui-btn ui-btn--small${boardMode === "atmo" ? " ui-btn--primary" : " ui-btn--soft"}`} onClick={() => setBoardMode("atmo")}>
+                <button type="button" className={`${uiButtonSmallBaseClass} ${boardMode === "atmo" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setBoardMode("atmo")}>
                   Atmo {atmoBoardSize}x{atmoBoardSize}
                 </button>
-                <button type="button" className={`ui-btn ui-btn--small${boardMode === "ground" ? " ui-btn--primary" : " ui-btn--soft"}`} onClick={() => setBoardMode("ground")}>
+                <button type="button" className={`${uiButtonSmallBaseClass} ${boardMode === "ground" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setBoardMode("ground")}>
                   Ground 21x21
                 </button>
               </div>
               {boardMode === "atmo" ? (
-                <div className="weapon-heatmap-page__atmo-picker">
-                  <label className="small" htmlFor="weapon-heatmap-atmo-size">Atmosphere Grid Size (1-20)</label>
+                <div className="w-[min(100%,520px)] grid gap-[0.35rem] justify-items-center">
+                  <label className="small text-center" htmlFor="weapon-heatmap-atmo-size">Atmosphere Grid Size (1-20)</label>
                   <input
                     id="weapon-heatmap-atmo-size"
-                    className="input weapon-heatmap-page__atmo-size-input"
+                    className={INPUT + " w-28 max-w-full justify-self-center text-center"}
                     type="number"
                     min={1}
                     max={20}
@@ -778,7 +789,7 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
                       setAtmoBoardSize(Math.max(1, Math.min(20, Math.round(parsed))));
                     }}
                   />
-                  <div className="weapon-heatmap-page__atmo-meta">
+                  <div className="flex items-center justify-center gap-2 flex-wrap text-center">
                     <span className="small">
                       Atmosphere board: {atmoBoardSize}x{atmoBoardSize}
                     </span>
@@ -802,20 +813,20 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
                 }
               }}
             />
-            <div className="weapon-heatmap-page__click-controls">
-              <div className="members-combat-calc__section-pills">
-                <button type="button" className={`ui-btn ui-btn--small${selectionMode === "none" ? " ui-btn--primary" : " ui-btn--soft"}`} onClick={() => setSelectionMode("none")}>
+            <div className="w-[min(100%,760px)] flex justify-center">
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className={`${uiButtonSmallBaseClass} ${selectionMode === "none" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setSelectionMode("none")}>
                   Inspect Only
                 </button>
-                <button type="button" className={`ui-btn ui-btn--small${selectionMode === "origin" ? " ui-btn--primary" : " ui-btn--soft"}`} onClick={() => setSelectionMode("origin")}>
+                <button type="button" className={`${uiButtonSmallBaseClass} ${selectionMode === "origin" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setSelectionMode("origin")}>
                   Set Weapon Grid
                 </button>
-                <button type="button" className={`ui-btn ui-btn--small${selectionMode === "target" ? " ui-btn--primary" : " ui-btn--soft"}`} onClick={() => setSelectionMode("target")}>
+                <button type="button" className={`${uiButtonSmallBaseClass} ${selectionMode === "target" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setSelectionMode("target")}>
                   Set Target Grid
                 </button>
                 <button
                   type="button"
-                  className="ui-btn ui-btn--small ui-btn--soft"
+                  className={`${uiButtonSmallBaseClass} ${uiButtonSoftClass}`}
                   onClick={() => {
                     setSelectedOrigin(defaultOrigin);
                     setSelectedTarget(defaultOrigin);
@@ -828,80 +839,80 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
           </div>
         </section>
 
-        <aside className="panel weapon-heatmap-page__side">
-                <div className="weapon-heatmap-page__side-section">
-                  <SectionToggle title="Summary" open={sideSectionsOpen.summary} onClick={() => toggleSideSection("summary")} />
-                  {sideSectionsOpen.summary ? (
-                    <div className="weapon-heatmap-page__side-head">
-                      {viewMode === "combined" ? (
-                        <>
-                          <strong>{enabledWeapons.length ? "Combined Battery" : "No Weapons Enabled"}</strong>
-                          <span className="small">
-                            {enabledWeapons.length} linked weapons enabled
-                            {combinedWeaponCount > 0 ? ` · ${combinedWeaponCount} total mounts` : ""}
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <strong>{selectedWeapon?.name ?? "No Weapon Selected"}</strong>
-                          <span className="small">
-                            {selectedWeapon
-                              ? `${selectedWeapon.className ?? "Unknown class"}${(selectedWeapon.quantity ?? 0) > 1 ? ` · x${selectedWeapon.quantity}` : ""}`
-                              : "Pick a linked weapon to see its live stats."}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  ) : null}
-                </div>
+        <aside className="panel grid gap-[0.6rem] content-start sticky top-3 max-[1100px]:static">
+          <div className={sideSectionCls}>
+            <SectionToggle title="Summary" open={sideSectionsOpen.summary} onClick={() => toggleSideSection("summary")} />
+            {sideSectionsOpen.summary ? (
+              <div className="grid gap-[0.15rem]">
+                {viewMode === "combined" ? (
+                  <>
+                    <strong>{enabledWeapons.length ? "Combined Battery" : "No Weapons Enabled"}</strong>
+                    <span className="small">
+                      {enabledWeapons.length} linked weapons enabled
+                      {combinedWeaponCount > 0 ? ` · ${combinedWeaponCount} total mounts` : ""}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <strong>{selectedWeapon?.name ?? "No Weapon Selected"}</strong>
+                    <span className="small">
+                      {selectedWeapon
+                        ? `${selectedWeapon.className ?? "Unknown class"}${(selectedWeapon.quantity ?? 0) > 1 ? ` · x${selectedWeapon.quantity}` : ""}`
+                        : "Pick a linked weapon to see its live stats."}
+                    </span>
+                  </>
+                )}
+              </div>
+            ) : null}
+          </div>
 
-                <div className="weapon-heatmap-page__side-section">
-                  <SectionToggle title="Stats" open={sideSectionsOpen.stats} onClick={() => toggleSideSection("stats")} />
-                  {sideSectionsOpen.stats ? (
-                    <div className="weapon-heatmap-page__stats weapon-heatmap-page__stats--side">
-                      {viewMode === "combined" ? (
-                        <>
-                          <article className="weapon-heatmap-page__stat"><span className="small">Enabled Weapons</span><strong>{formatNumber(enabledWeapons.length, 0)}</strong></article>
-                          <article className="weapon-heatmap-page__stat"><span className="small">Total Mount Count</span><strong>{formatNumber(combinedWeaponCount, 0)}</strong></article>
-                          <article className="weapon-heatmap-page__stat"><span className="small">Composite Logic</span><strong>Weighted %</strong></article>
-                        </>
-                      ) : selectedWeapon ? (
-                        <>
-                          <article className="weapon-heatmap-page__stat"><span className="small">Optimum Range</span><strong>{formatNumber(selectedWeapon.weapon.optimum_range, 1)}</strong></article>
-                          <article className="weapon-heatmap-page__stat"><span className="small">Drop Off</span><strong>{formatNumber(selectedWeapon.weapon.drop_off, 1)}</strong></article>
-                          <article className="weapon-heatmap-page__stat"><span className="small">Max Hits / Round</span><strong>{formatNumber(selectedMaxHits, 0)}</strong></article>
-                        </>
-                      ) : (
-                        <>
-                          <article className="weapon-heatmap-page__stat"><span className="small">Optimum Range</span><strong>0</strong></article>
-                          <article className="weapon-heatmap-page__stat"><span className="small">Drop Off</span><strong>0</strong></article>
-                          <article className="weapon-heatmap-page__stat"><span className="small">Max Hits / Round</span><strong>0</strong></article>
-                        </>
-                      )}
-                      {usesDirectionalArcs ? (
-                        <article className="weapon-heatmap-page__stat"><span className="small">Heading</span><strong>{headingDegrees}°</strong></article>
-                      ) : null}
-                      {usesDirectionalArcs ? (
-                        <article className="weapon-heatmap-page__stat"><span className="small">Arc</span><strong>{viewMode === "combined" ? "Per Weapon" : (selectedWeapon?.arc ?? "Omnidirectional")}</strong></article>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
+          <div className={sideSectionCls}>
+            <SectionToggle title="Stats" open={sideSectionsOpen.stats} onClick={() => toggleSideSection("stats")} />
+            {sideSectionsOpen.stats ? (
+              <div className="grid grid-cols-1 gap-[0.7rem]">
+                {viewMode === "combined" ? (
+                  <>
+                    <article className={statCls}><span className="small">Enabled Weapons</span><strong>{formatNumber(enabledWeapons.length, 0)}</strong></article>
+                    <article className={statCls}><span className="small">Total Mount Count</span><strong>{formatNumber(combinedWeaponCount, 0)}</strong></article>
+                    <article className={statCls}><span className="small">Composite Logic</span><strong>Weighted %</strong></article>
+                  </>
+                ) : selectedWeapon ? (
+                  <>
+                    <article className={statCls}><span className="small">Optimum Range</span><strong>{formatNumber(selectedWeapon.weapon.optimum_range, 1)}</strong></article>
+                    <article className={statCls}><span className="small">Drop Off</span><strong>{formatNumber(selectedWeapon.weapon.drop_off, 1)}</strong></article>
+                    <article className={statCls}><span className="small">Max Hits / Round</span><strong>{formatNumber(selectedMaxHits, 0)}</strong></article>
+                  </>
+                ) : (
+                  <>
+                    <article className={statCls}><span className="small">Optimum Range</span><strong>0</strong></article>
+                    <article className={statCls}><span className="small">Drop Off</span><strong>0</strong></article>
+                    <article className={statCls}><span className="small">Max Hits / Round</span><strong>0</strong></article>
+                  </>
+                )}
+                {usesDirectionalArcs ? (
+                  <article className={statCls}><span className="small">Heading</span><strong>{headingDegrees}°</strong></article>
+                ) : null}
+                {usesDirectionalArcs ? (
+                  <article className={statCls}><span className="small">Arc</span><strong>{viewMode === "combined" ? "Per Weapon" : (selectedWeapon?.arc ?? "Omnidirectional")}</strong></article>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
 
-                <div className="weapon-heatmap-page__side-section">
-                  <SectionToggle title="Legend" open={sideSectionsOpen.legend} onClick={() => toggleSideSection("legend")} />
-                  {sideSectionsOpen.legend ? (
-                    <div className="weapon-heatmap-page__legend">
-                      <div className="weapon-heatmap-page__legend-scale" />
-                      <div className="weapon-heatmap-page__legend-labels small">
-                        <span>Low Hit Chance</span>
-                        <span>High Hit Chance</span>
-                      </div>
-                      <p className="small">Orange marker = weapon grid. Red marker = target grid.</p>
-                      <p className="small">Use `Inspect Only` to read the board without moving markers, or switch to `Set Weapon Grid` / `Set Target Grid` when you want to reposition them.</p>
-                    </div>
-                  ) : null}
+          <div className={sideSectionCls}>
+            <SectionToggle title="Legend" open={sideSectionsOpen.legend} onClick={() => toggleSideSection("legend")} />
+            {sideSectionsOpen.legend ? (
+              <div className="grid gap-[0.45rem]">
+                <div className="h-3.5 rounded-full bg-[linear-gradient(90deg,rgba(255,255,255,0.08)_0%,rgba(205,105,32,0.55)_50%,rgba(255,191,82,0.95)_100%)]" />
+                <div className="flex justify-between small">
+                  <span>Low Hit Chance</span>
+                  <span>High Hit Chance</span>
                 </div>
+                <p className="small">Orange marker = weapon grid. Red marker = target grid.</p>
+                <p className="small">Use `Inspect Only` to read the board without moving markers, or switch to `Set Weapon Grid` / `Set Target Grid` when you want to reposition them.</p>
+              </div>
+            ) : null}
+          </div>
         </aside>
       </div>
     </div>

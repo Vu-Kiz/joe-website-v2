@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchAuthMe, getBackendOrigin, subscribeToAuthStateChange, type SwcUser } from "../api/auth";
-import { listAdminUsers, type AdminManageableUser } from "../api/adminUsers";
-import { getStoredSector, type StoredSectorDetail } from "../api/universe";
+import { fetchAuthMe, getBackendOrigin, subscribeToAuthStateChange, type SwcUser } from "../api/core/auth";
+import { listAdminUsers, type AdminManageableUser } from "../api/admin/adminUsers";
+import { getStoredSector, type StoredSectorDetail } from "../api/universe/universe";
 import SectorGridMap from "../components/maps/SectorGridMap";
 import {
   getDebugSystemUpdaterCursor,
@@ -21,12 +21,11 @@ import {
   testFactionPrivilege,
   testManualPayment,
   testPaymentTransfer,
-} from "../api/sysDebug";
+} from "../api/admin/sysDebug";
 import { canAccessSysadmin } from "../auth/permissions";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
-import "../styles/main.sass";
-import "../styles/_admin.sass";
+import { BTN, INPUT, SELECT_INPUT} from "../utils/ui";
 
 type DebugPanelState = {
   loading: boolean;
@@ -704,8 +703,8 @@ const SysDebugPage: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
-            <h1>Sys Debug</h1>
+          <main className="board flex flex-col gap-4">
+            <h1 className="h1">Sys Debug</h1>
             <p className="small">Loading debug tools…</p>
           </main>
         </div>
@@ -717,8 +716,8 @@ const SysDebugPage: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
-            <h1>Sys Debug</h1>
+          <main className="board flex flex-col gap-4">
+            <h1 className="h1">Sys Debug</h1>
             <p className="small" style={{ color: "salmon" }}>
               {pageError}
             </p>
@@ -732,7 +731,7 @@ const SysDebugPage: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
+          <main className="board flex flex-col gap-4">
             <NotLoggedInState
               title="Not logged in"
               message="You need to sign in to access sys debug tools."
@@ -747,7 +746,7 @@ const SysDebugPage: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
+          <main className="board flex flex-col gap-4">
             <ForbiddenState
               title="403 Forbidden"
               message="You do not have permission to access sys debug tools."
@@ -776,7 +775,7 @@ const SysDebugPage: React.FC = () => {
             flexWrap: "wrap",
           }}
         >
-          <h2 style={{ margin: 0 }}>{title}</h2>
+          <h2 className="h2" style={{ margin: 0 }}>{title}</h2>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {panel.ranAt ? (
               <span className="small" style={{ opacity: 0.75 }}>
@@ -784,7 +783,7 @@ const SysDebugPage: React.FC = () => {
               </span>
             ) : null}
             <button
-              className="btn"
+              className={BTN}
               type="button"
               onClick={() => copyPanel(key)}
               disabled={!panel.result}
@@ -836,7 +835,7 @@ const SysDebugPage: React.FC = () => {
               {universeTrail.map((item) => `${item.resource}:${item.identifier}`).join(" -> ")}
             </span>
           ) : null}
-          <button className="btn" type="button" onClick={resetUniverseTrail}>
+          <button className={BTN} type="button" onClick={resetUniverseTrail}>
             Clear path
           </button>
         </div>
@@ -848,7 +847,7 @@ const SysDebugPage: React.FC = () => {
               {universeData.systems.slice(0, 40).map((system: any, index: number) => (
                 <button
                   key={`${system.uid ?? system.name ?? index}`}
-                  className="btn"
+                  className={BTN}
                   type="button"
                   onClick={() => drillUniverse("system", system.uid ?? system.name)}
                 >
@@ -868,7 +867,7 @@ const SysDebugPage: React.FC = () => {
                   {universeData.planet_stubs.slice(0, 60).map((planet: any, index: number) => (
                     <button
                       key={`${planet.uid ?? planet.name ?? index}`}
-                      className="btn"
+                      className={BTN}
                       type="button"
                       onClick={() => drillUniverse("planet", planet.uid ?? planet.name)}
                     >
@@ -886,7 +885,7 @@ const SysDebugPage: React.FC = () => {
                   {universeData.station_stubs.slice(0, 60).map((station: any, index: number) => (
                     <button
                       key={`${station.uid ?? station.name ?? index}`}
-                      className="btn"
+                      className={BTN}
                       type="button"
                       onClick={() => drillUniverse("station", station.uid ?? station.name)}
                     >
@@ -903,7 +902,7 @@ const SysDebugPage: React.FC = () => {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <strong>Related:</strong>
             <button
-              className="btn"
+              className={BTN}
               type="button"
               onClick={() => drillUniverse("system", universeData.planet.system_uid)}
             >
@@ -916,7 +915,7 @@ const SysDebugPage: React.FC = () => {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <strong>Related:</strong>
             <button
-              className="btn"
+              className={BTN}
               type="button"
               onClick={() => drillUniverse("system", universeData.station.system_uid)}
             >
@@ -931,11 +930,11 @@ const SysDebugPage: React.FC = () => {
   return (
     <div className="site-scale">
       <div className="app app--one">
-        <main className="board admin-board">
-          <h1>Sys Debug</h1>
+        <main className="board flex flex-col gap-4">
+          <h1 className="h1">Sys Debug</h1>
           <p className="small">Target: {targetLabel}</p>
 
-          <nav className="admin-nav" aria-label="Sys debug sections">
+          <nav className="flex flex-col gap-3" aria-label="Sys debug sections">
             <button
               type="button"
               className={activeTab === "debug" ? "active" : undefined}
@@ -955,12 +954,12 @@ const SysDebugPage: React.FC = () => {
           {activeTab === "debug" ? (
             <>
               <div className="panel">
-                <h2>Runtime Check</h2>
+                <h2 className="h2">Runtime Check</h2>
                 <p className="small">
                   Confirms which backend answered this page and whether the Hyper Planner system-refresh guard is present.
                 </p>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <button className="btn" type="button" onClick={() => loadRuntime()} disabled={panels.runtime.loading}>
+                  <button className={BTN} type="button" onClick={() => loadRuntime()} disabled={panels.runtime.loading}>
                     {panels.runtime.loading ? "Checking Runtime..." : "Check Runtime"}
                   </button>
                 </div>
@@ -977,7 +976,7 @@ const SysDebugPage: React.FC = () => {
               </div>
 
               <div className="panel">
-                <h2>SWC Debug Auth</h2>
+                <h2 className="h2">SWC Debug Auth</h2>
                 <p className="small">
                   Re-authorize your SWC account with broader scopes for sys/debug and events testing.
                 </p>
@@ -999,20 +998,20 @@ const SysDebugPage: React.FC = () => {
                     flexWrap: "wrap",
                   }}
                 >
-                  <a className="btn" href={`${getBackendOrigin()}/oauth/events`}>
+                  <a className={BTN} href={`${getBackendOrigin()}/oauth/events`}>
                     Re-auth with character_events
                   </a>
-                  <a className="btn" href={`${getBackendOrigin()}/oauth/debug`}>
+                  <a className={BTN} href={`${getBackendOrigin()}/oauth/debug`}>
                     Re-auth with debug scopes
                   </a>
-                  <a className="btn" href={`${getBackendOrigin()}/oauth/market-faction`}>
+                  <a className={BTN} href={`${getBackendOrigin()}/oauth/market-faction`}>
                     Re-auth with market_faction scopes
                   </a>
                 </div>
               </div>
 
               <div className="panel">
-                <h2>Target User</h2>
+                <h2 className="h2">Target User</h2>
                 <p className="small">
                   Leave blank to inspect your own sysadmin session.
                 </p>
@@ -1025,16 +1024,16 @@ const SysDebugPage: React.FC = () => {
                   }}
                 >
                   <input
-                    className="input"
+                    className={INPUT}
                     value={targetUserId}
                     onChange={(e) => setTargetUserId(e.target.value)}
                     placeholder="User ID (blank = me)"
                   />
-                  <button className="btn" type="button" onClick={onLoadTarget}>
+                  <button className={BTN} type="button" onClick={onLoadTarget}>
                     Load target
                   </button>
                   <button
-                    className="btn"
+                    className={BTN}
                     type="button"
                     onClick={() => {
                       setTargetUserId("");
@@ -1052,7 +1051,7 @@ const SysDebugPage: React.FC = () => {
                 "SWC Authorization",
                 <div style={{ marginBottom: 12 }}>
                   <button
-                    className="btn"
+                    className={BTN}
                     type="button"
                     onClick={() => loadSwcAuth(activeTargetUserId)}
                     disabled={panels.swcAuth.loading}
@@ -1071,7 +1070,7 @@ const SysDebugPage: React.FC = () => {
                   </p>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                     <select
-                      className="input"
+                      className={INPUT}
                       value={refreshTestContext}
                       onChange={(e) =>
                         setRefreshTestContext(
@@ -1087,7 +1086,7 @@ const SysDebugPage: React.FC = () => {
                       <option value="market_faction">market_faction</option>
                     </select>
                     <button
-                      className="btn"
+                      className={BTN}
                       type="button"
                       onClick={onRunRefreshTokenTest}
                       disabled={panels.refreshTokenTest.loading}
@@ -1106,19 +1105,19 @@ const SysDebugPage: React.FC = () => {
                     Test applying or removing a tag on a specific SWC entity. Use this to diagnose tag failures from the market listing flow.
                   </p>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                    <input className="input" placeholder="entity_type (e.g. ship)" value={tagTestEntityType} onChange={(e) => setTagTestEntityType(e.target.value)} style={{ width: 130 }} />
-                    <input className="input" placeholder="entity_uid" value={tagTestEntityUid} onChange={(e) => setTagTestEntityUid(e.target.value)} style={{ width: 200 }} />
-                    <input className="input" placeholder="tag" value={tagTestTag} onChange={(e) => setTagTestTag(e.target.value)} style={{ width: 120 }} />
-                    <select className="input" value={tagTestMethod} onChange={(e) => setTagTestMethod(e.target.value as "PUT" | "DELETE")}>
+                    <input className={INPUT} placeholder="entity_type (e.g. ship)" value={tagTestEntityType} onChange={(e) => setTagTestEntityType(e.target.value)} style={{ width: 130 }} />
+                    <input className={INPUT} placeholder="entity_uid" value={tagTestEntityUid} onChange={(e) => setTagTestEntityUid(e.target.value)} style={{ width: 200 }} />
+                    <input className={INPUT} placeholder="tag" value={tagTestTag} onChange={(e) => setTagTestTag(e.target.value)} style={{ width: 120 }} />
+                    <select className={SELECT_INPUT} value={tagTestMethod} onChange={(e) => setTagTestMethod(e.target.value as "PUT" | "DELETE")}>
                       <option value="PUT">PUT (apply)</option>
                       <option value="DELETE">DELETE (remove)</option>
                     </select>
-                    <select className="input" value={tagTestContext} onChange={(e) => setTagTestContext(e.target.value)}>
+                    <select className={SELECT_INPUT} value={tagTestContext} onChange={(e) => setTagTestContext(e.target.value)}>
                       <option value="member_tools">member_tools</option>
                       <option value="market_faction">market_faction</option>
                       <option value="payments">payments</option>
                     </select>
-                    <button className="btn" type="button" onClick={onRunTagTest} disabled={panels.tagTest.loading || !tagTestEntityUid}>
+                    <button className={BTN} type="button" onClick={onRunTagTest} disabled={panels.tagTest.loading || !tagTestEntityUid}>
                       {panels.tagTest.loading ? "Testing…" : "Test Tag"}
                     </button>
                   </div>
@@ -1141,7 +1140,7 @@ const SysDebugPage: React.FC = () => {
                     ].map((preset) => (
                       <button
                         key={preset.label}
-                        className="btn"
+                        className={BTN}
                         type="button"
                         onClick={() => {
                           setEventsPath(preset.path);
@@ -1153,13 +1152,13 @@ const SysDebugPage: React.FC = () => {
                     ))}
                   </div>
                   <input
-                    className="input"
+                    className={INPUT}
                     value={eventsPath}
                     onChange={(e) => setEventsPath(e.target.value)}
                     placeholder="SWC events path, e.g. events/personal/ or events/faction/"
                   />
                   <textarea
-                    className="input"
+                    className={INPUT}
                     value={eventsQuery}
                     onChange={(e) => setEventsQuery(e.target.value)}
                     placeholder='Query string or JSON, e.g. start_index=0&item_count=1000&max_pages=50'
@@ -1167,7 +1166,7 @@ const SysDebugPage: React.FC = () => {
                   />
                   <div>
                     <button
-                      className="btn"
+                      className={BTN}
                       type="button"
                       onClick={onRunEventsTest}
                       disabled={panels.eventsTest.loading}
@@ -1175,7 +1174,7 @@ const SysDebugPage: React.FC = () => {
                       Run events test
                     </button>
                     <button
-                      className="btn"
+                      className={BTN}
                       type="button"
                       style={{ marginLeft: 8 }}
                       onClick={onImportEventsTest}
@@ -1184,7 +1183,7 @@ const SysDebugPage: React.FC = () => {
                       Import matched arrivals
                     </button>
                     <button
-                      className="btn"
+                      className={BTN}
                       type="button"
                       style={{ marginLeft: 8 }}
                       onClick={onShowSystemUpdaterCursor}
@@ -1193,7 +1192,7 @@ const SysDebugPage: React.FC = () => {
                       Show system-updater cursor
                     </button>
                     <button
-                      className="btn"
+                      className={BTN}
                       type="button"
                       style={{ marginLeft: 8 }}
                       onClick={onResetSystemUpdaterCursor}
@@ -1202,7 +1201,7 @@ const SysDebugPage: React.FC = () => {
                       Reset system-updater cursor
                     </button>
                     <button
-                      className="btn"
+                      className={BTN}
                       type="button"
                       style={{ marginLeft: 8 }}
                       onClick={() => {
@@ -1231,7 +1230,7 @@ const SysDebugPage: React.FC = () => {
                       Walk personal history
                     </button>
                     <button
-                      className="btn"
+                      className={BTN}
                       type="button"
                       style={{ marginLeft: 8 }}
                       onClick={() => {
@@ -1268,7 +1267,7 @@ const SysDebugPage: React.FC = () => {
                 "Payments",
                 <div style={{ marginBottom: 12 }}>
                   <button
-                    className="btn"
+                    className={BTN}
                     type="button"
                     onClick={() => loadPayments(activeTargetUserId)}
                     disabled={panels.payments.loading}
@@ -1283,7 +1282,7 @@ const SysDebugPage: React.FC = () => {
                 "Factions",
                 <div style={{ marginBottom: 12 }}>
                   <button
-                    className="btn"
+                    className={BTN}
                     type="button"
                     onClick={() => loadFactions()}
                     disabled={panels.factions.loading}
@@ -1298,7 +1297,7 @@ const SysDebugPage: React.FC = () => {
                 "Raw SWC Test",
                 <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
                   <select
-                    className="input"
+                    className={INPUT}
                     value={rawSwcAuthContext}
                     onChange={(e) =>
                       setRawSwcAuthContext(
@@ -1313,13 +1312,13 @@ const SysDebugPage: React.FC = () => {
                     <option value="market_faction">market_faction</option>
                   </select>
                   <input
-                    className="input"
+                    className={INPUT}
                     value={rawSwcPath}
                     onChange={(e) => setRawSwcPath(e.target.value)}
                     placeholder="SWC path, e.g. character/ or character/1:1479821/"
                   />
                   <textarea
-                    className="input"
+                    className={INPUT}
                     value={rawSwcQuery}
                     onChange={(e) => setRawSwcQuery(e.target.value)}
                     placeholder='Query string or JSON, e.g. faction_id=12 or {"faction_id":"12"}'
@@ -1327,7 +1326,7 @@ const SysDebugPage: React.FC = () => {
                   />
                   <div>
                     <button
-                      className="btn"
+                      className={BTN}
                       type="button"
                       onClick={onRunRawSwc}
                       disabled={panels.rawSwc.loading}
@@ -1343,7 +1342,7 @@ const SysDebugPage: React.FC = () => {
                 "Faction Privilege Test",
                 <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
                   <select
-                    className="input"
+                    className={INPUT}
                     value={privAuthContext}
                     onChange={(e) =>
                       setPrivAuthContext(
@@ -1358,26 +1357,26 @@ const SysDebugPage: React.FC = () => {
                     <option value="market_faction">market_faction</option>
                   </select>
                   <input
-                    className="input"
+                    className={INPUT}
                     value={privGroup}
                     onChange={(e) => setPrivGroup(e.target.value)}
                     placeholder="Privilege group"
                   />
                   <input
-                    className="input"
+                    className={INPUT}
                     value={privName}
                     onChange={(e) => setPrivName(e.target.value)}
                     placeholder="Privilege name"
                   />
                   <input
-                    className="input"
+                    className={INPUT}
                     value={privFactionId}
                     onChange={(e) => setPrivFactionId(e.target.value)}
                     placeholder="Faction ID"
                   />
                   <div>
                     <button
-                      className="btn"
+                      className={BTN}
                       type="button"
                       onClick={onRunPrivilegeTest}
                       disabled={panels.privilegeTest.loading}
@@ -1401,13 +1400,13 @@ const SysDebugPage: React.FC = () => {
                       borderRadius: 8,
                     }}
                   >
-                    <h3 style={{ margin: 0 }}>Test existing transfer</h3>
+                    <h3 className="h3" style={{ margin: 0 }}>Test existing transfer</h3>
                     <p className="small" style={{ margin: 0 }}>
                       Uses a real local payment transfer and checks whether the backend can match it in SWC credit log.
                     </p>
                     <div>
                       <button
-                        className="btn"
+                        className={BTN}
                         type="button"
                         onClick={onPullCreditLogTest}
                         disabled={panels.paymentTest.loading}
@@ -1416,14 +1415,14 @@ const SysDebugPage: React.FC = () => {
                       </button>
                     </div>
                     <input
-                      className="input"
+                      className={INPUT}
                       value={paymentTransferId}
                       onChange={(e) => setPaymentTransferId(e.target.value)}
                       placeholder="Payment transfer ID"
                     />
                     <div>
                       <button
-                        className="btn"
+                        className={BTN}
                         type="button"
                         onClick={onRunPaymentTransferTest}
                         disabled={panels.paymentTest.loading}
@@ -1442,13 +1441,13 @@ const SysDebugPage: React.FC = () => {
                       borderRadius: 8,
                     }}
                   >
-                    <h3 style={{ margin: 0 }}>Manual test</h3>
+                    <h3 className="h3" style={{ margin: 0 }}>Manual test</h3>
                     <p className="small" style={{ margin: 0 }}>
                       Builds the test like a real payout link, then checks whether that payment is visible in the payer credit log.
                     </p>
 
                     <select
-                      className="input"
+                      className={INPUT}
                       value={manualRecipientKey}
                       onChange={(e) => applyManualReceiverHandle(e.target.value)}
                     >
@@ -1461,7 +1460,7 @@ const SysDebugPage: React.FC = () => {
                     </select>
 
                     <select
-                      className="input"
+                      className={INPUT}
                       value={manualPayerType}
                       onChange={(e) => setManualPayerType(e.target.value as "user" | "faction")}
                     >
@@ -1470,28 +1469,28 @@ const SysDebugPage: React.FC = () => {
                     </select>
 
                     <input
-                      className="input"
+                      className={INPUT}
                       value={manualPayerId}
                       onChange={(e) => setManualPayerId(e.target.value)}
                       placeholder="Payer subject ID"
                     />
 
                     <input
-                      className="input"
+                      className={INPUT}
                       value={manualAmount}
                       onChange={(e) => setManualAmount(e.target.value)}
                       placeholder="Amount"
                     />
 
                     <input
-                      className="input"
+                      className={INPUT}
                       value={manualReceiverHandle}
                       onChange={(e) => setManualReceiverHandle(e.target.value)}
                       placeholder="Receiver handle (recommended)"
                     />
 
                     <input
-                      className="input"
+                      className={INPUT}
                       value={manualReference}
                       onChange={(e) => setManualReference(e.target.value)}
                       placeholder="Reference (e.g. JOE-XFER-12345678)"
@@ -1499,7 +1498,7 @@ const SysDebugPage: React.FC = () => {
 
                     <div>
                       <button
-                        className="btn"
+                        className={BTN}
                         type="button"
                         onClick={() => setManualReference(generateDebugTransferReference())}
                       >
@@ -1508,14 +1507,14 @@ const SysDebugPage: React.FC = () => {
                     </div>
 
                     <input
-                      className="input"
+                      className={INPUT}
                       value={manualCommunicationPrefix}
                       onChange={(e) => setManualCommunicationPrefix(e.target.value)}
                       placeholder="Communication prefix (optional, defaults to JOE payout)"
                     />
 
                     <input
-                      className="input"
+                      className={INPUT}
                       value={manualItemCount}
                       onChange={(e) => setManualItemCount(e.target.value)}
                       placeholder="Credit log item count to search (default 100)"
@@ -1523,7 +1522,7 @@ const SysDebugPage: React.FC = () => {
 
                     <div>
                       <button
-                        className="btn"
+                        className={BTN}
                         type="button"
                         onClick={onRunManualPaymentTest}
                         disabled={panels.paymentTest.loading}
@@ -1538,11 +1537,11 @@ const SysDebugPage: React.FC = () => {
           ) : (
             <>
               <div className="panel">
-                <h2>Universe Explorer</h2>
+                <h2 className="h2">Universe Explorer</h2>
                 <p className="small">
                   Use the dedicated universe page for sector {"->"} system {"->"} planet/station drill-down.
                 </p>
-                <Link to="/sys/debug/universe" className="btn">
+                <Link to="/sys/debug/universe" className={BTN}>
                   Open Universe Explorer
                 </Link>
               </div>
@@ -1552,7 +1551,7 @@ const SysDebugPage: React.FC = () => {
                 "Universe Pull Test",
                 <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
                   <select
-                    className="input"
+                    className={INPUT}
                     value={pullResource}
                     onChange={(e) =>
                       setPullResource(e.target.value as UniverseResource)
@@ -1564,14 +1563,14 @@ const SysDebugPage: React.FC = () => {
                     <option value="station">Station</option>
                   </select>
                   <input
-                    className="input"
+                    className={INPUT}
                     value={pullIdentifier}
                     onChange={(e) => setPullIdentifier(e.target.value)}
                     placeholder="UID or name, e.g. Tatoo or 9:178"
                   />
                   <div>
                     <button
-                      className="btn"
+                      className={BTN}
                       type="button"
                       onClick={onRunUniversePull}
                       disabled={panels.universePull.loading}
@@ -1587,7 +1586,7 @@ const SysDebugPage: React.FC = () => {
               )}
 
               <div className="panel">
-                <h2>Stored Sector Shape Inspector</h2>
+                <h2 className="h2">Stored Sector Shape Inspector</h2>
                 <p className="small">
                   Load a sector from the local database and inspect the stored bounds, outline,
                   systems, and filled sector cells to find bad overlays.
@@ -1595,14 +1594,14 @@ const SysDebugPage: React.FC = () => {
 
                 <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
                   <input
-                    className="input"
+                    className={INPUT}
                     value={inspectSectorIdentifier}
                     onChange={(e) => setInspectSectorIdentifier(e.target.value)}
                     placeholder="Sector UID or identifier, e.g. 25:308 or arkanis"
                   />
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <button
-                      className="btn"
+                      className={BTN}
                       type="button"
                       onClick={onInspectStoredSector}
                       disabled={inspectSectorLoading}
@@ -1611,7 +1610,7 @@ const SysDebugPage: React.FC = () => {
                     </button>
                     {inspectSectorDetail ? (
                       <button
-                        className="btn"
+                        className={BTN}
                         type="button"
                         onClick={() =>
                           navigator.clipboard
@@ -1690,7 +1689,7 @@ const SysDebugPage: React.FC = () => {
                     />
 
                     <div className="panel">
-                      <h3 style={{ marginTop: 0 }}>Stored Sector JSON</h3>
+                      <h3 className="h3" style={{ marginTop: 0 }}>Stored Sector JSON</h3>
                       <pre className="small" style={{ whiteSpace: "pre-wrap" }}>
                         {pretty(inspectSectorDetail)}
                       </pre>

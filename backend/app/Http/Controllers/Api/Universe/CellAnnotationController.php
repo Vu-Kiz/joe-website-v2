@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api\Universe;
 
 use App\Http\Controllers\Controller;
-use App\Models\SwcSector;
-use App\Models\SwcSectorCellAnnotation;
+use App\Models\Swc\SwcSector;
+use App\Models\Swc\SwcSectorCellAnnotation;
 use App\Support\Admin\AdminActionLogger;
 use App\Support\Swc\Auth\Permissions;
 use App\Support\ToolStore\ToolAccessService;

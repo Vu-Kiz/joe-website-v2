@@ -2,9 +2,9 @@
 
 namespace App\Support\Universe;
 
-use App\Models\DroidBrainPaymentSetting;
+use App\Models\DroidBrain\DroidBrainPaymentSetting;
 use App\Models\Faction;
-use App\Models\PaymentItem;
+use App\Models\Payment\PaymentItem;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 

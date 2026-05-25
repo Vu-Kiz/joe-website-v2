@@ -7,7 +7,8 @@ import {
   type FactionConsoleSubscription,
   type FactionConsoleDetail,
   type FactionConsoleMember,
-} from "../../api/factionConsole";
+} from "../../api/factions/factionConsole";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../../utils/ui";
 
 const FactionConsolePanel: React.FC = () => {
   const [subscriptions, setSubscriptions] = useState<FactionConsoleSubscription[]>([]);
@@ -114,7 +115,7 @@ const FactionConsolePanel: React.FC = () => {
           {subscriptions.map((s) => (
             <button
               key={s.id}
-              className={`btn btn--sm${selected?.subscription.id === s.id ? "" : " btn--ghost"}`}
+              className={(selected?.subscription.id === s.id ? BTN_SM : BTN_GHOST_SM)}
               type="button"
               onClick={() => loadDetail(s.id)}
             >
@@ -199,14 +200,14 @@ const FactionConsolePanel: React.FC = () => {
                       </span>
                       <div style={{ display: "flex", gap: 6 }}>
                         <button
-                          className="btn btn--ghost btn--sm"
+                          className={BTN_GHOST_SM}
                           type="button"
                           onClick={() => setConfirmRevokeId(null)}
                         >
                           Cancel
                         </button>
                         <button
-                          className="btn btn--sm"
+                          className={BTN_SM}
                           type="button"
                           style={{ borderColor: "salmon", color: "salmon" }}
                           disabled={saving === member.id}
@@ -218,7 +219,7 @@ const FactionConsolePanel: React.FC = () => {
                     </div>
                   ) : (
                   <button
-                    className="btn btn--ghost btn--sm"
+                    className={BTN_GHOST_SM}
                     type="button"
                     disabled={saving === member.id}
                     onClick={() => handleRevoke(member)}
@@ -228,7 +229,7 @@ const FactionConsolePanel: React.FC = () => {
                   )
                 ) : (
                   <button
-                    className="btn btn--sm"
+                    className={BTN_SM}
                     type="button"
                     disabled={saving === member.id || (seatsLeft !== null && seatsLeft <= 0)}
                     onClick={() => handleGrant(member)}

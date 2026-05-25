@@ -1,4 +1,5 @@
 import React, { useRef, useState } from "react";
+import { BTN, INPUT } from "../../utils/ui";
 
 type SectorBounds = {
   min_galx: number;
@@ -306,23 +307,23 @@ const SectorGridMap: React.FC<SectorGridMapProps> = ({
   return (
     <>
       {hasGrid && bounds ? (
-        <div className="sysuniverse-card">
-          <div className="sysuniverse-toolbar">
+        <div className="grid gap-2 p-3 border border-white/12 rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)]">
+          <div className="flex justify-between gap-2 items-center flex-wrap">
             <strong>Coordinate Grid</strong>
-            <div className="sysuniverse-toolbar__actions">
+            <div className="flex gap-2 items-center flex-wrap">
               <span className="small">Zoom: {zoom.toFixed(2)}x</span>
               {canEdit ? (
-                <button className="btn" type="button" onClick={() => setEditMode((prev) => !prev)}>
+                <button className={BTN} type="button" onClick={() => setEditMode((prev) => !prev)}>
                   {editMode ? "Done Editing" : "Edit Cells"}
                 </button>
               ) : null}
               {!readOnly ? (
-                <button className="btn" type="button" onClick={() => setShowDebug((prev) => !prev)}>
+                <button className={BTN} type="button" onClick={() => setShowDebug((prev) => !prev)}>
                   {showDebug ? "Hide Debug" : "Show Debug"}
                 </button>
               ) : null}
               <button
-                className="btn"
+                className={BTN}
                 type="button"
                 onClick={() => {
                   setZoom(0.45);
@@ -333,12 +334,12 @@ const SectorGridMap: React.FC<SectorGridMapProps> = ({
               </button>
             </div>
           </div>
-          <p className="small sysuniverse-copy-reset">
+          <p className="small m-0">
             Scroll to zoom, drag to move, and click an occupied coordinate to open that system.
           </p>
           <div
             ref={viewportRef}
-            className={`sysuniverse-map-viewport sysuniverse-map-viewport--sector ${isDragging ? "is-dragging" : ""}`}
+            className={`relative w-full min-h-130 max-h-[72vh] overflow-hidden rounded-[10px] border border-white/10 bg-[linear-gradient(180deg,rgba(0,0,0,0.98),rgba(5,5,10,0.98))] ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
             style={{ overscrollBehavior: "contain", touchAction: "none" }}
             onMouseDown={(event) => {
               if (event.button !== 0) return;
@@ -363,20 +364,20 @@ const SectorGridMap: React.FC<SectorGridMapProps> = ({
           >
             <div className="sysuniverse-map-viewport__stars" />
             <div
-              className="sysuniverse-map-canvas"
+              className="grid gap-0 origin-top-left w-max p-4 select-none"
               style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})` }}
             >
               {cells.map((row, rowIndex) => (
                 <div
                   key={`row-${rowIndex}`}
-                  className="sysuniverse-grid-row"
+                  className="grid gap-0"
                   style={{ gridTemplateColumns: `repeat(${bounds.width}, ${sectorCellWidth}px)` }}
                 >
                   {row.map((cell) =>
                     cell.system ? (
                       <button
                         key={`${cell.galx}-${cell.galy}`}
-                        className="btn"
+                        className={BTN}
                         type="button"
                         onClick={() => {
                           if (editMode) {
@@ -401,11 +402,11 @@ const SectorGridMap: React.FC<SectorGridMapProps> = ({
                         title={`${cell.system.name ?? cell.system.uid ?? "Unknown"} (${cell.galx}, ${cell.galy})`}
                         >
                         {cell.annotation ? (
-                          <span className="sysuniverse-sector-annotation-badge">
+                          <span className="inline-flex items-center justify-center w-fit px-1.5 py-0.5 border border-white/18 bg-[rgba(18,24,42,0.82)] text-white/92 text-[11px] leading-none uppercase tracking-[0.04em]">
                             {cell.annotation.marker_type ?? "note"}
                           </span>
                         ) : null}
-                        <strong className="sysuniverse-sector-system-name">
+                        <strong className="text-[0.9rem]">
                           {cell.system.name ?? cell.system.uid ?? "Unknown"}
                         </strong>
                         <span className="small">
@@ -415,7 +416,7 @@ const SectorGridMap: React.FC<SectorGridMapProps> = ({
                     ) : (
                       <div
                         key={`${cell.galx}-${cell.galy}`}
-                        className="sysuniverse-sector-cell"
+                        className="min-w-19.5"
                         onClick={() => {
                           if (!editMode) return;
                           setSelectedCell({ galx: cell.galx, galy: cell.galy });
@@ -429,7 +430,7 @@ const SectorGridMap: React.FC<SectorGridMapProps> = ({
                         title={`${cell.galx}, ${cell.galy}`}
                       >
                         {cell.annotation ? (
-                          <span className="sysuniverse-sector-annotation-badge sysuniverse-sector-annotation-badge--empty">
+                          <span className="inline-flex items-center justify-center w-fit px-1.5 py-0.5 border border-white/18 bg-[rgba(18,24,42,0.82)] text-white/92 text-[11px] leading-none uppercase tracking-[0.04em] m-1.5">
                             {cell.annotation.marker_type ?? "note"}
                           </span>
                         ) : null}
@@ -444,20 +445,20 @@ const SectorGridMap: React.FC<SectorGridMapProps> = ({
       ) : null}
 
       {canEdit && editMode && selectedCell ? (
-        <div className="sysuniverse-card">
-          <div className="sysuniverse-toolbar">
+        <div className="grid gap-2 p-3 border border-white/12 rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)]">
+          <div className="flex justify-between gap-2 items-center flex-wrap">
             <strong>
               Cell {selectedCell.galx}, {selectedCell.galy}
             </strong>
             {selectedAnnotation ? (
-              <span className="small sysuniverse-muted">Existing annotation loaded</span>
+              <span className="small opacity-75">Existing annotation loaded</span>
             ) : (
-              <span className="small sysuniverse-muted">No annotation yet</span>
+              <span className="small opacity-75">No annotation yet</span>
             )}
           </div>
-          <div className="sysuniverse-stack">
+          <div className="grid gap-3.5">
             <select
-              className="input"
+              className={INPUT}
               value={markerType}
               onChange={(event) => setMarkerType(event.target.value)}
             >
@@ -470,21 +471,21 @@ const SectorGridMap: React.FC<SectorGridMapProps> = ({
               <option value="note">Note</option>
             </select>
             <input
-              className="input"
+              className={INPUT}
               value={label}
               onChange={(event) => setLabel(event.target.value)}
               placeholder="Short label"
             />
             <textarea
-              className="input"
+              className={INPUT}
               rows={5}
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               placeholder="Notes for this sector grid cell"
             />
-            <div className="sysuniverse-chip-row">
+            <div className="flex gap-2 flex-wrap">
               <button
-                className="btn"
+                className={BTN}
                 type="button"
                 disabled={!onSaveAnnotation || savingAnnotation}
                 onClick={async () => {
@@ -506,7 +507,7 @@ const SectorGridMap: React.FC<SectorGridMapProps> = ({
                 {savingAnnotation ? "Saving..." : "Save Cell"}
               </button>
               <button
-                className="btn"
+                className={BTN}
                 type="button"
                 disabled={!onSaveAnnotation || savingAnnotation}
                 onClick={async () => {
@@ -535,7 +536,7 @@ const SectorGridMap: React.FC<SectorGridMapProps> = ({
                 .find((cell) => cell.galx === selectedCell.galx && cell.galy === selectedCell.galy)
                 ?.system ? (
                   <button
-                    className="btn"
+                    className={BTN}
                     type="button"
                     onClick={() =>
                       onSystemSelect(
@@ -568,34 +569,34 @@ const SectorGridMap: React.FC<SectorGridMapProps> = ({
       ) : null}
 
       {!readOnly && showDebug ? (
-        <div className="sysuniverse-card sysuniverse-card--debug">
+        <div className="grid gap-2 p-3 border border-[rgba(255,120,120,0.24)] rounded-[10px] bg-[linear-gradient(180deg,rgba(32,10,14,0.92),rgba(16,8,10,0.92))]">
           <strong>Sector Debug</strong>
-          <p className="small sysuniverse-copy-reset">
+          <p className="small m-0">
             Highlighted cells are the filled sector footprint from the SWC outline.
           </p>
-          <div className="sysuniverse-stat-grid">
-            <div className="sysuniverse-card">
-              <span className="small sysuniverse-muted">Outline Points</span>
+          <div className="grid gap-2.5 grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
+            <div className="grid gap-2 p-3 border border-white/12 rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)]">
+              <span className="small opacity-75">Outline Points</span>
               <strong>{polygon.length}</strong>
             </div>
-            <div className="sysuniverse-card">
-              <span className="small sysuniverse-muted">Expanded Outline Cells</span>
+            <div className="grid gap-2 p-3 border border-white/12 rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)]">
+              <span className="small opacity-75">Expanded Outline Cells</span>
               <strong>{expandedOutline.length}</strong>
             </div>
-            <div className="sysuniverse-card">
-              <span className="small sysuniverse-muted">Highlighted Sector Cells</span>
+            <div className="grid gap-2 p-3 border border-white/12 rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)]">
+              <span className="small opacity-75">Highlighted Sector Cells</span>
               <strong>{areaSet.size}</strong>
             </div>
-            <div className="sysuniverse-card">
-              <span className="small sysuniverse-muted">Bounds</span>
+            <div className="grid gap-2 p-3 border border-white/12 rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)]">
+              <span className="small opacity-75">Bounds</span>
               <strong>{bounds ? `${bounds.width} x ${bounds.height}` : "Unknown"}</strong>
             </div>
-            <div className="sysuniverse-card">
-              <span className="small sysuniverse-muted">First Point</span>
+            <div className="grid gap-2 p-3 border border-white/12 rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)]">
+              <span className="small opacity-75">First Point</span>
               <strong>{polygon[0] ? `${polygon[0].galx}, ${polygon[0].galy}` : "None"}</strong>
             </div>
-            <div className="sysuniverse-card">
-              <span className="small sysuniverse-muted">Last Point</span>
+            <div className="grid gap-2 p-3 border border-white/12 rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)]">
+              <span className="small opacity-75">Last Point</span>
               <strong>
                 {polygon[polygon.length - 1]
                   ? `${polygon[polygon.length - 1].galx}, ${polygon[polygon.length - 1].galy}`

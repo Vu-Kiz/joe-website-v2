@@ -3,8 +3,8 @@
 namespace App\Support\Swc;
 
 use App\Models\Faction;
-use App\Models\PaymentTransfer;
-use App\Models\SwcAuthorization;
+use App\Models\Payment\PaymentTransfer;
+use App\Models\Swc\SwcAuthorization;
 use App\Models\User;
 use Illuminate\Http\Client\Response;
 use RuntimeException;

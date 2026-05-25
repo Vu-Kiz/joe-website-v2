@@ -4,7 +4,35 @@ import type {
   ManualPaymentTemplate,
   ManualPaymentTemplateFormPayload,
   ManualPaymentTemplateOptionsResponse,
-} from "../../api/manualPayments";
+} from "../../api/payments/manualPayments";
+import { BTN, INPUT, SELECT_INPUT } from "../../utils/ui";
+import CreditInput, { parseCreditInput } from "../common/CreditInput";
+
+const CARD_CLS = "flex flex-col gap-3 p-[0.9rem] rounded-[12px] border border-white/[0.08] bg-white/[0.03]";
+const cardBadgeCls = (variant?: "ok" | "warn") =>
+  "inline-flex items-center min-h-[28px] px-[0.65rem] py-1 rounded-full border font-bold" +
+  (variant === "ok" ? " border-[rgba(107,201,137,0.35)] bg-[rgba(107,201,137,0.12)] text-[#8fe1a8]" :
+   variant === "warn" ? " border-[rgba(255,155,50,0.35)] bg-[rgba(255,155,50,0.12)] text-[#ffbf73]" :
+   " border-[rgba(245,213,70,0.28)] bg-[rgba(245,213,70,0.1)] text-[#f2c46f]");
+const CARD_HEADER_SPLIT_CLS = "flex flex-row justify-between items-start gap-3 flex-wrap";
+const CARD_TITLE_BLOCK_CLS = "flex flex-col gap-1";
+const CARD_EYEBROW_CLS = "m-0 opacity-[0.72] uppercase tracking-[0.06em]";
+const META_LIST_CLS = "grid gap-[0.35rem] [&_p]:m-0";
+const noteCls = (variant?: "warn") =>
+  "m-0 p-[0.65rem_0.8rem] rounded-[10px] border border-white/[0.08] bg-white/[0.025]" +
+  (variant === "warn" ? " !border-[rgba(255,120,120,0.28)] !bg-[rgba(255,120,120,0.08)] !text-[#ffb3b3]" : "");
+const ACTIONS_CLS = "flex gap-2 flex-wrap mt-1";
+const TOOLBAR_CLS = "flex gap-3 flex-wrap items-end mb-4";
+const FIELD_CLS = "grid gap-[0.4rem]";
+const FIELD_COMPACT_CLS = FIELD_CLS + " w-[min(100%,420px)]";
+const LABEL_WITH_HELP_CLS = "inline-flex items-center gap-[0.45rem] flex-wrap";
+const HELP_CLS = "relative inline-flex items-center justify-center w-[18px] h-[18px] rounded-full border border-[rgba(245,213,70,0.35)] bg-[rgba(245,213,70,0.08)] text-[#f2c46f] text-[0.78rem] font-bold leading-none cursor-help outline-none group";
+const HELP_TOOLTIP_CLS = "absolute left-0 top-[calc(100%+0.5rem)] z-[20] w-[min(260px,80vw)] p-[0.7rem_0.8rem] rounded-[10px] border border-[rgba(245,213,70,0.28)] bg-[rgba(12,12,12,0.96)] text-white/[0.86] shadow-[0_12px_28px_rgba(0,0,0,0.35)] opacity-0 translate-y-1 pointer-events-none transition-[opacity,transform] duration-[160ms] ease [&_strong]:text-[#f2c46f] group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-visible:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:pointer-events-auto";
+const FORM_GRID_CLS = "grid gap-3";
+const FORM_SPLIT_CLS = "grid [grid-template-columns:repeat(2,minmax(0,1fr))] gap-3 max-[720px]:[grid-template-columns:1fr]";
+const PAGINATION_CLS = "flex gap-3 items-center justify-start flex-wrap mt-4";
+const PAGINATION_LABEL_CLS = "m-0 min-w-[88px]";
+
 type Props = {
   templates?: ManualPaymentTemplate[];
   options?: ManualPaymentTemplateOptionsResponse["data"] | null;
@@ -193,8 +221,8 @@ const PaymentsTemplatesPanel = ({
       return;
     }
 
-    const parsedAmount = Number(amount);
-    const parsedBonusAmount = Number(bonusAmount || "0");
+    const parsedAmount = parseCreditInput(amount);
+    const parsedBonusAmount = parseCreditInput(bonusAmount || "0");
     const parsedDayOfMonth = Number(dayOfMonth);
 
     if (!Number.isFinite(parsedAmount) || parsedAmount < 0) {
@@ -247,21 +275,21 @@ const PaymentsTemplatesPanel = ({
 
   return (
     <div className="panel">
-      <h2>Manual Templates</h2>
-      <p className="small payments-panel__intro">
+      <h2 className="h2">Manual Templates</h2>
+      <p className="small mb-4 max-w-[68ch]">
         Create recurring manual payment items inside the live Payments system so they can be opened,
         synced against SWC, and verified like any other transfer.
       </p>
 
-      <div className="admin-card payments-card">
+      <div className={CARD_CLS}>
         <strong>Create Manual Payment Template</strong>
 
-        <form onSubmit={handleCreateTemplate} className="payments-template-form">
-          <div className="payments-form-grid">
-            <label className="small payments-field">
+        <form onSubmit={handleCreateTemplate} className="mt-3">
+          <div className={FORM_GRID_CLS}>
+            <label className={"small " + FIELD_CLS}>
               <strong>Template Name</strong>
               <input
-                className="input"
+                className={INPUT}
                 type="text"
                 placeholder="Monthly logistics payment"
                 value={name}
@@ -269,10 +297,10 @@ const PaymentsTemplatesPanel = ({
               />
             </label>
 
-            <label className="small payments-field">
+            <label className={"small " + FIELD_CLS}>
               <strong>Payer</strong>
               <select
-                className="input"
+                className={INPUT}
                 value={payerKey}
                 onChange={(e) => setPayerKey(e.target.value)}
               >
@@ -285,10 +313,10 @@ const PaymentsTemplatesPanel = ({
               <span>Only payers that passed the backend payment permission check are shown here.</span>
             </label>
 
-            <label className="small payments-field">
+            <label className={"small " + FIELD_CLS}>
               <strong>Payee</strong>
               <select
-                className="input"
+                className={INPUT}
                 value={payeeUserId}
                 onChange={(e) => setPayeeUserId(e.target.value)}
               >
@@ -302,49 +330,31 @@ const PaymentsTemplatesPanel = ({
               <span>The JOE member who should receive the payment.</span>
             </label>
 
-            <div className="payments-form-split">
-              <label className="small payments-field">
+            <div className={FORM_SPLIT_CLS}>
+              <label className={"small " + FIELD_CLS}>
                 <strong>Base Amount</strong>
-                <input
-                  className="input"
-                  type="number"
-                  min="0"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="Amount"
-                />
+                <CreditInput className={INPUT} value={amount} onChange={setAmount} placeholder="e.g. 1,000,000" />
               </label>
 
-              <label className="small payments-field">
+              <label className={"small " + FIELD_CLS}>
                 <strong>Bonus Amount</strong>
-                <input
-                  className="input"
-                  type="number"
-                  min="0"
-                  value={bonusAmount}
-                  onChange={(e) => setBonusAmount(e.target.value)}
-                  placeholder="Bonus amount"
-                />
+                <CreditInput className={INPUT} value={bonusAmount} onChange={setBonusAmount} placeholder="e.g. 500,000" />
               </label>
             </div>
 
-            <div className="payments-form-split">
-              <label className="small payments-field">
-                <span className="payments-label-with-help">
+            <div className={FORM_SPLIT_CLS}>
+              <label className={"small " + FIELD_CLS}>
+                <span className={LABEL_WITH_HELP_CLS}>
                   <strong>Monthly Due Day</strong>
-                  <span
-                    className="payments-help"
-                    tabIndex={0}
-                    aria-label="Monthly due day help"
-                  >
+                  <span className={HELP_CLS} tabIndex={0} aria-label="Monthly due day help">
                     ?
-                    <span className="payments-help__tooltip">
+                    <span className={HELP_TOOLTIP_CLS}>
                       Pick the day this payment should be generated each month. Use <strong>1</strong> for the 1st of the month. The <strong>Start Date</strong> is when the template becomes active, and the due day controls which day of that month it should generate.
                     </span>
                   </span>
                 </span>
                 <input
-                  className="input"
+                  className={INPUT}
                   type="number"
                   min="1"
                   max="31"
@@ -354,7 +364,7 @@ const PaymentsTemplatesPanel = ({
                 />
               </label>
 
-              <label className="small payments-field">
+              <label className={"small " + FIELD_CLS}>
                 <strong>Start Date</strong>
                 <DatePicker
                   id="payments-template-start-date"
@@ -365,10 +375,10 @@ const PaymentsTemplatesPanel = ({
               </label>
             </div>
 
-            <label className="small payments-field">
+            <label className={"small " + FIELD_CLS}>
               <strong>Communication Prefix</strong>
               <input
-                className="input"
+                className={INPUT}
                 type="text"
                 placeholder="Monthly payment"
                 value={communicationPrefix}
@@ -377,10 +387,10 @@ const PaymentsTemplatesPanel = ({
               <span>This text appears before the `JOE-XFER-...` reference when the payment link is generated.</span>
             </label>
 
-            <label className="small payments-field">
+            <label className={"small " + FIELD_CLS}>
               <strong>Internal Notes</strong>
               <textarea
-                className="input"
+                className={INPUT}
                 placeholder="What this template is for"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
@@ -390,13 +400,13 @@ const PaymentsTemplatesPanel = ({
           </div>
 
           {formError && (
-            <p className="small payments-note payments-note--warn">
+            <p className={"small " + noteCls("warn")}>
               {formError}
             </p>
           )}
 
-          <div className="payments-actions">
-            <button className="btn" type="submit" disabled={working}>
+          <div className={ACTIONS_CLS}>
+            <button className={BTN} type="submit" disabled={working}>
               {working ? "Saving..." : "Create Template"}
             </button>
           </div>
@@ -407,11 +417,11 @@ const PaymentsTemplatesPanel = ({
         <p className="small">No manual templates yet.</p>
       ) : (
         <>
-          <div className="payments-toolbar">
-            <label className="small payments-field payments-field--compact">
+          <div className={TOOLBAR_CLS}>
+            <label className={"small " + FIELD_COMPACT_CLS}>
               <strong>Search Templates</strong>
               <input
-                className="input"
+                className={INPUT + " rounded-full pl-4"}
                 type="search"
                 placeholder="Search template, payer, payee, or communication"
                 value={templateQuery}
@@ -419,9 +429,9 @@ const PaymentsTemplatesPanel = ({
               />
             </label>
 
-            <label className="small payments-field payments-field--compact">
+            <label className={"small " + FIELD_COMPACT_CLS}>
               <strong>Filter By</strong>
-              <select className="input" value={templateFilterBy} onChange={(e) => setTemplateFilterBy(e.target.value)}>
+              <select className={SELECT_INPUT} value={templateFilterBy} onChange={(e) => setTemplateFilterBy(e.target.value)}>
                 <option value="all">Everything</option>
                 <option value="name">Name</option>
                 <option value="payer">Payer</option>
@@ -431,9 +441,9 @@ const PaymentsTemplatesPanel = ({
             </label>
 
             {templateFilterBy !== "all" && (
-              <label className="small payments-field payments-field--compact">
+              <label className={"small " + FIELD_COMPACT_CLS}>
                 <strong>Value</strong>
-                <select className="input" value={templateFilterValue} onChange={(e) => setTemplateFilterValue(e.target.value)}>
+                <select className={SELECT_INPUT} value={templateFilterValue} onChange={(e) => setTemplateFilterValue(e.target.value)}>
                   <option value="all">All {templateFilterBy}s</option>
                   {activeTemplateFilterOptions.map((option) => (
                     <option key={option} value={option}>
@@ -445,10 +455,10 @@ const PaymentsTemplatesPanel = ({
             )}
 
             {(templateQuery || templateFilterBy !== "all" || templateFilterValue !== "all") && (
-              <label className="small payments-field payments-field--compact">
+              <label className={"small " + FIELD_COMPACT_CLS}>
                 <strong>Quick Reset</strong>
                 <button
-                  className="btn"
+                  className={BTN}
                   type="button"
                   onClick={() => {
                     setTemplateQuery("");
@@ -462,7 +472,7 @@ const PaymentsTemplatesPanel = ({
             )}
           </div>
 
-          <p className="small payments-panel__meta">
+          <p className="small mb-4 opacity-[0.85]">
             Showing {pagedTemplates.length} of {filteredTemplates.length} template{filteredTemplates.length === 1 ? "" : "s"}.
           </p>
 
@@ -471,78 +481,78 @@ const PaymentsTemplatesPanel = ({
           )}
 
           {pagedTemplates.map((template) => (
-          <div key={template.id} className="admin-card payments-card">
-            <div className="payments-card__header payments-card__header--split">
-              <div className="payments-card__title-block">
-                <p className="small payments-card__eyebrow">Template</p>
-                <strong>{template.name}</strong>
+            <div key={template.id} className={CARD_CLS}>
+              <div className={CARD_HEADER_SPLIT_CLS}>
+                <div className={CARD_TITLE_BLOCK_CLS}>
+                  <p className={"small " + CARD_EYEBROW_CLS}>Template</p>
+                  <strong>{template.name}</strong>
+                </div>
+                <span className={"small " + cardBadgeCls(template.status === "active" ? "ok" : "warn")}>
+                  {template.status}
+                </span>
               </div>
-              <span className={`small payments-card__badge ${template.status === "active" ? "is-ok" : "is-warn"}`}>
-                {template.status}
-              </span>
-            </div>
-            <div className="payments-meta-list">
-              <p className="small">
-                <strong>Payer:</strong> {template.payer_label ?? "Unknown"}
-              </p>
-              <p className="small">
-                <strong>Payee:</strong> {template.payee_handle ?? template.payee_label ?? "Unknown"}
-              </p>
-              <p className="small">
-                <strong>Total:</strong> {template.total_amount.toLocaleString()}
-              </p>
-              <p className="small">
-                <strong>Schedule:</strong> Monthly on the {formatOrdinalDay(template.day_of_month)} · Start: {template.start_date}
-                {template.end_date ? ` · End: ${template.end_date}` : ""}
-              </p>
-            </div>
-            {template.communication_prefix && (
-              <p className="small payments-note">Communication prefix: {template.communication_prefix}</p>
-            )}
-            {template.last_generated_period && (
-              <p className="small payments-note">Last generated period: {template.last_generated_period}</p>
-            )}
+              <div className={META_LIST_CLS}>
+                <p className="small">
+                  <strong>Payer:</strong> {template.payer_label ?? "Unknown"}
+                </p>
+                <p className="small">
+                  <strong>Payee:</strong> {template.payee_handle ?? template.payee_label ?? "Unknown"}
+                </p>
+                <p className="small">
+                  <strong>Total:</strong> {template.total_amount.toLocaleString()}
+                </p>
+                <p className="small">
+                  <strong>Schedule:</strong> Monthly on the {formatOrdinalDay(template.day_of_month)} · Start: {template.start_date}
+                  {template.end_date ? ` · End: ${template.end_date}` : ""}
+                </p>
+              </div>
+              {template.communication_prefix && (
+                <p className={"small " + noteCls()}>Communication prefix: {template.communication_prefix}</p>
+              )}
+              {template.last_generated_period && (
+                <p className={"small " + noteCls()}>Last generated period: {template.last_generated_period}</p>
+              )}
 
-            <div className="payments-actions">
-              <button
-                className="btn"
-                type="button"
-                onClick={() => onGenerateTemplate(template.id)}
-                disabled={working}
-              >
-                Generate Now
-              </button>
+              <div className={ACTIONS_CLS}>
+                <button
+                  className={BTN}
+                  type="button"
+                  onClick={() => onGenerateTemplate(template.id)}
+                  disabled={working}
+                >
+                  Generate Now
+                </button>
 
-              <button
-                className="btn"
-                type="button"
-                onClick={() => onToggleTemplate(template.id)}
-                disabled={working}
-              >
-                {template.status === "active" ? "Pause" : "Activate"}
-              </button>
+                <button
+                  className={BTN}
+                  type="button"
+                  onClick={() => onToggleTemplate(template.id)}
+                  disabled={working}
+                >
+                  {template.status === "active" ? "Pause" : "Activate"}
+                </button>
 
-              <button
-                className="btn"
-                type="button"
-                onClick={() => onDeleteTemplate(template.id)}
-                disabled={working}
-              >
-                Delete
-              </button>
+                <button
+                  className={BTN}
+                  type="button"
+                  onClick={() => onDeleteTemplate(template.id)}
+                  disabled={working}
+                >
+                  Delete
+                </button>
+              </div>
             </div>
-          </div>
           ))}
 
           {filteredTemplates.length > templatePageSize && (
-            <div className="payments-pagination">
-              <button className="btn" type="button" onClick={() => setTemplatePage((curr) => Math.max(1, curr - 1))} disabled={templatePage === 1}>
+            <div className={PAGINATION_CLS}>
+              <button className={BTN} type="button" onClick={() => setTemplatePage((curr) => Math.max(1, curr - 1))} disabled={templatePage === 1}>
                 Previous
               </button>
-              <p className="small payments-pagination__label">
+              <p className={"small " + PAGINATION_LABEL_CLS}>
                 Page {templatePage} of {templateTotalPages}
               </p>
-              <button className="btn" type="button" onClick={() => setTemplatePage((curr) => Math.min(templateTotalPages, curr + 1))} disabled={templatePage === templateTotalPages}>
+              <button className={BTN} type="button" onClick={() => setTemplatePage((curr) => Math.min(templateTotalPages, curr + 1))} disabled={templatePage === templateTotalPages}>
                 Next
               </button>
             </div>

@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Support\Market;
 
-use App\Models\MarketListing;
-use App\Models\MarketOrder;
+use App\Models\Market\MarketListing;
+use App\Models\Market\MarketListingStock;
+use App\Models\Market\MarketOrder;
 use App\Models\User;
 use App\Support\Swc\SwcInventoryService;
 use Illuminate\Support\Facades\DB;
@@ -54,15 +55,34 @@ class MarketFulfillmentService
         $buyerUid = '1:' . $buyer->swc_character_id;
         $reason = 'JOE Internal Market - ' . $order->order_reference;
 
+        // For stock listings, transfer the specific assigned unit
+        $transferEntityUid  = $listing->entity_uid;
+        $transferEntityType = $listing->entity_type;
+        $stockUnit          = null;
+
+        if ($listing->isStock()) {
+            $stockUnit = MarketListingStock::where('listing_id', $listing->id)
+                ->where('order_id', $order->id)
+                ->where('status', MarketListingStock::STATUS_RESERVED)
+                ->first();
+
+            if (!$stockUnit) {
+                throw new \RuntimeException('No stock unit assigned to this order.');
+            }
+
+            $transferEntityUid  = $stockUnit->entity_uid;
+            $transferEntityType = $stockUnit->entity_type;
+        }
+
         $result = $this->swcInventoryService->transferOwnership(
             $sellerAccessToken,
-            $listing->entity_type,
-            $listing->entity_uid,
+            $transferEntityType,
+            $transferEntityUid,
             $buyerUid,
             $reason
         );
 
-        DB::transaction(function () use ($order, $listing, $result) {
+        DB::transaction(function () use ($order, $listing, $result, $stockUnit) {
             $order = MarketOrder::lockForUpdate()->findOrFail($order->id);
             $order->swc_transfer_result = json_encode($result);
 
@@ -74,21 +94,36 @@ class MarketFulfillmentService
                 $listing = MarketListing::lockForUpdate()->findOrFail($listing->id);
                 $listing->increment('quantity_sold', $order->quantity);
                 $listing->decrement('quantity_reserved', $order->quantity);
-                $listing->status = MarketListing::STATUS_COMPLETED;
+
+                // Stock listings stay open until all units are sold
+                if ($listing->isStock()) {
+                    if ($listing->quantity_available === 0 && $listing->quantity_reserved === 0) {
+                        $listing->status = MarketListing::STATUS_COMPLETED;
+                    }
+                } else {
+                    $listing->status = MarketListing::STATUS_COMPLETED;
+                }
                 $listing->save();
 
-                // Remove the market tag now that it's sold
-                $this->removeListingTag($listing);
+                // Mark the stock unit as sold
+                if ($stockUnit) {
+                    $stockUnit->status  = MarketListingStock::STATUS_SOLD;
+                    $stockUnit->sold_at = now();
+                    $stockUnit->save();
+                }
+
+                // Remove the market tag from the transferred entity only
+                $this->removeListingTag($listing, $stockUnit?->entity_uid, $stockUnit?->entity_type);
             } else {
                 $order->status = MarketOrder::STATUS_DISPUTED;
                 $order->dispute_note = 'SWC ownership transfer failed: ' . $this->extractSwcError($result);
                 $order->save();
 
                 Log::error('Market ownership transfer failed', [
-                    'order_id' => $order->id,
+                    'order_id'   => $order->id,
                     'listing_id' => $listing->id,
-                    'entity_uid' => $listing->entity_uid,
-                    'result' => $result,
+                    'entity_uid' => $transferEntityUid,
+                    'result'     => $result,
                 ]);
             }
         });
@@ -124,7 +159,7 @@ class MarketFulfillmentService
         });
     }
 
-    protected function removeListingTag(MarketListing $listing): void
+    protected function removeListingTag(MarketListing $listing, ?string $entityUidOverride = null, ?string $entityTypeOverride = null): void
     {
         // Best-effort tag removal — logged on failure but does not block completion
         try {
@@ -133,16 +168,18 @@ class MarketFulfillmentService
                 return;
             }
 
-            $tag = $listing->channel === MarketListing::CHANNEL_FACTION_STORE
+            $tag        = $listing->channel === MarketListing::CHANNEL_FACTION_STORE
                 ? SwcInventoryService::TAG_FACTION_STORE
                 : SwcInventoryService::TAG_MEMBER_LISTING;
+            $entityUid  = $entityUidOverride  ?? $listing->entity_uid;
+            $entityType = $entityTypeOverride ?? $listing->entity_type;
 
-            $this->swcInventoryService->removeTag($sellerToken, $listing->entity_type, $listing->entity_uid, $tag);
+            $this->swcInventoryService->removeTag($sellerToken, $entityType, $entityUid, $tag);
         } catch (\Throwable $e) {
             Log::warning('Failed to remove market tag from entity', [
                 'listing_id' => $listing->id,
-                'entity_uid' => $listing->entity_uid,
-                'message' => $e->getMessage(),
+                'entity_uid' => $entityUidOverride ?? $listing->entity_uid,
+                'message'    => $e->getMessage(),
             ]);
         }
     }

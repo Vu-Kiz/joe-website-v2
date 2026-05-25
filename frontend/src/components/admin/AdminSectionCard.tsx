@@ -1,4 +1,5 @@
 import React from "react";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../../utils/ui";
 
 type Props = {
   title: string;
@@ -14,14 +15,14 @@ const AdminSectionCard: React.FC<Props> = ({
   onOpen,
 }) => {
   return (
-    <section className="panel admin-card">
-      <div className="admin-card__header">
-        <h2 className="admin-card__title">{title}</h2>
-        {description && <p className="small admin-card__desc">{description}</p>}
+    <section className="panel !mb-0 flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <h2 className="m-0">{title}</h2>
+        {description && <p className="small m-0 opacity-85">{description}</p>}
       </div>
 
-      <div className="admin-card__actions">
-        <button type="button" className="btn" onClick={onOpen}>
+      <div className="flex flex-wrap gap-3">
+        <button type="button" className={BTN} onClick={onOpen}>
           {buttonLabel}
         </button>
       </div>

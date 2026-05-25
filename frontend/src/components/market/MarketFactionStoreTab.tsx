@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
-import type { FactionPrivilegeCheckResult } from "../../api/factionPrivileges";
-import { ENTITY_TYPES, getFactionStoreListings, postFactionStoreListing } from "../../api/market";
-import type { EntityTypeKey, MarketListing } from "../../api/market";
+import type { FactionPrivilegeCheckResult } from "../../api/factions/factionPrivileges";
+import { ENTITY_TYPES, getFactionStoreListings, postFactionStoreListing } from "../../api/market/market";
+import type { EntityTypeKey, MarketListing } from "../../api/market/market";
 import MarketInventoryPicker from "./MarketInventoryPicker";
 import MarketListingCard from "./MarketListingCard";
+import { EMPTY_CLS, FILTER_CHIP_CLS, FORM_ROW_CLS, FORM_LABEL_CLS } from "./marketDisplay";
+import { BTN, INPUT} from "../../utils/ui";
+import CreditInput, { parseCreditInput } from "../common/CreditInput";
 
 type Props = {
   manageableFactions: FactionPrivilegeCheckResult[];
@@ -23,7 +26,6 @@ const MarketFactionStoreTab: React.FC<Props> = ({
   const [entityFilter, setEntityFilter] = useState<EntityTypeKey | "all">("all");
   const [showListForm, setShowListForm] = useState(false);
 
-  // List form state
   const [formFactionId, setFormFactionId] = useState<number | null>(null);
   const [formEntityType, setFormEntityType] = useState<EntityTypeKey>("ship");
   const [formSelectedUid, setFormSelectedUid] = useState<string | null>(null);
@@ -36,9 +38,7 @@ const MarketFactionStoreTab: React.FC<Props> = ({
 
   function loadListings() {
     setLoading(true);
-    getFactionStoreListings({
-      entity_type: entityFilter !== "all" ? entityFilter : undefined,
-    })
+    getFactionStoreListings({ entity_type: entityFilter !== "all" ? entityFilter : undefined })
       .then((res) => setListings(res.data ?? []))
       .catch(() => setListings([]))
       .finally(() => setLoading(false));
@@ -46,10 +46,6 @@ const MarketFactionStoreTab: React.FC<Props> = ({
 
   useEffect(() => { loadListings(); }, [entityFilter]);
 
-  // Entity types this user can manage for the selected faction.
-  // Types without a SWC makeover privilege (material, city) are allowed whenever the user
-  // has faction inventory access — they use manual transfer rather than SWC assign.
-  // Materials have no SWC assign API — manual transfer only — so no makeover privilege exists for them.
   const NO_PRIVILEGE_TYPES: EntityTypeKey[] = ["material"];
   const allowedEntityTypes: EntityTypeKey[] = formFactionId
     ? (ENTITY_TYPES
@@ -63,16 +59,9 @@ const MarketFactionStoreTab: React.FC<Props> = ({
 
   async function handleList(e: React.FormEvent) {
     e.preventDefault();
-    if (!formFactionId || !formSelectedUid) {
-      setFormError("Select a faction and an item.");
-      return;
-    }
-    const priceNum = parseInt(formPrice, 10);
-    if (!priceNum || priceNum < 1) {
-      setFormError("Enter a valid price.");
-      return;
-    }
-
+    if (!formFactionId || !formSelectedUid) { setFormError("Select a faction and an item."); return; }
+    const priceNum = parseCreditInput(formPrice);
+    if (!priceNum || priceNum < 1) { setFormError("Enter a valid price."); return; }
     setSubmitting(true);
     setFormError(null);
     try {
@@ -100,66 +89,41 @@ const MarketFactionStoreTab: React.FC<Props> = ({
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
-        <div className="market-filter-bar">
-          <button
-            className={`market-filter-chip${entityFilter === "all" ? " is-active" : ""}`}
-            type="button"
-            onClick={() => setEntityFilter("all")}
-          >
-            All Types
-          </button>
+    <div className="flex flex-col gap-4">
+      <div className="flex gap-3 items-center flex-wrap">
+        <div className="flex gap-[0.4rem] flex-wrap items-center">
+          <button className={FILTER_CHIP_CLS(entityFilter === "all")} type="button" onClick={() => setEntityFilter("all")}>All Types</button>
           {ENTITY_TYPES.map((et) => (
-            <button
-              key={et.key}
-              className={`market-filter-chip${entityFilter === et.key ? " is-active" : ""}`}
-              type="button"
-              onClick={() => setEntityFilter(et.key)}
-            >
-              {et.label}
-            </button>
+            <button key={et.key} className={FILTER_CHIP_CLS(entityFilter === et.key)} type="button" onClick={() => setEntityFilter(et.key)}>{et.label}</button>
           ))}
         </div>
-
         {!loadingPrivs && manageableFactions.length > 0 && hasFactionInventoryAccess && (
-          <button
-            className="btn"
-            type="button"
-            onClick={() => setShowListForm((v) => !v)}
-            style={{ marginLeft: "auto" }}
-          >
+          <button className={BTN + " ml-auto"} type="button" onClick={() => setShowListForm((v) => !v)}>
             {showListForm ? "Cancel" : "List Item"}
           </button>
         )}
       </div>
 
       {showListForm && (
-        <form className="market-form" onSubmit={handleList}>
+        <form className="flex flex-col gap-4 p-5 rounded-[12px] border border-white/[0.08] bg-white/[0.02]" onSubmit={handleList}>
           <h3 className="h3" style={{ margin: 0 }}>List Faction Item</h3>
 
-          <div className="market-form__row">
-            <label className="market-form__label">Faction</label>
+          <div className={FORM_ROW_CLS}>
+            <label className={FORM_LABEL_CLS}>Faction</label>
             <select
-              className="input"
+              className={INPUT}
               value={formFactionId ?? ""}
-              onChange={(e) => {
-                setFormFactionId(Number(e.target.value) || null);
-                setFormSelectedUid(null);
-                setFormSelectedName("");
-              }}
+              onChange={(e) => { setFormFactionId(Number(e.target.value) || null); setFormSelectedUid(null); setFormSelectedName(""); }}
               required
             >
               <option value="">Select faction…</option>
-              {manageableFactions.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
+              {manageableFactions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
 
           {formFactionId && (
-            <div className="market-form__row">
-              <label className="market-form__label">Select from faction inventory</label>
+            <div className={FORM_ROW_CLS}>
+              <label className={FORM_LABEL_CLS}>Select from faction inventory</label>
               <MarketInventoryPicker
                 mode="faction"
                 factionId={formFactionId}
@@ -172,69 +136,42 @@ const MarketFactionStoreTab: React.FC<Props> = ({
             </div>
           )}
 
-          {formSelectedUid && (
-            <p className="small muted">Selected: <strong>{formSelectedName}</strong> ({formSelectedUid})</p>
-          )}
+          {formSelectedUid && <p className="small muted">Selected: <strong>{formSelectedName}</strong> ({formSelectedUid})</p>}
 
-          <div className="market-form__row">
-            <label className="market-form__label" htmlFor="fstore-price">
+          <div className={FORM_ROW_CLS}>
+            <label className={FORM_LABEL_CLS} htmlFor="fstore-price">
               Price (Credits){formEntityType === "material" ? " per unit" : ""}
             </label>
-            <input
-              id="fstore-price"
-              className="input"
-              type="number"
-              min={1}
-              value={formPrice}
-              onChange={(e) => setFormPrice(e.target.value)}
-              placeholder="e.g. 250000"
-              required
-            />
+            <CreditInput id="fstore-price" className={INPUT} value={formPrice} onChange={setFormPrice} placeholder="e.g. 250,000" required />
           </div>
 
           {formEntityType === "material" && (
-            <div className="market-form__row">
-              <label className="market-form__label" htmlFor="fstore-quantity">Quantity</label>
-              <input
-                id="fstore-quantity"
-                className="input"
-                type="number"
-                min={1}
-                value={formQuantity}
-                onChange={(e) => setFormQuantity(e.target.value)}
-                required
-              />
+            <div className={FORM_ROW_CLS}>
+              <label className={FORM_LABEL_CLS} htmlFor="fstore-quantity">Quantity</label>
+              <input id="fstore-quantity" className={INPUT} type="number" min={1} value={formQuantity} onChange={(e) => setFormQuantity(e.target.value)} required />
             </div>
           )}
 
-          <div className="market-form__row">
-            <label className="market-form__label" htmlFor="fstore-notes">Notes (optional)</label>
-            <textarea
-              id="fstore-notes"
-              className="input"
-              rows={2}
-              value={formNotes}
-              onChange={(e) => setFormNotes(e.target.value)}
-            />
+          <div className={FORM_ROW_CLS}>
+            <label className={FORM_LABEL_CLS} htmlFor="fstore-notes">Notes (optional)</label>
+            <textarea id="fstore-notes" className={INPUT} rows={2} value={formNotes} onChange={(e) => setFormNotes(e.target.value)} />
           </div>
 
           {formError && <p className="small" style={{ color: "#f87171" }}>{formError}</p>}
 
-          <button className="btn" type="submit" disabled={submitting || !formSelectedUid}>
+          <button className={BTN} type="submit" disabled={submitting || !formSelectedUid}>
             {submitting ? "Listing…" : "List Item"}
           </button>
         </form>
       )}
 
       {loading ? (
-        <p className="market-empty">Loading…</p>
+        <p className={EMPTY_CLS}>Loading…</p>
       ) : listings.length === 0 ? (
-        <p className="market-empty">No faction store listings right now.</p>
+        <p className={EMPTY_CLS}>No faction store listings right now.</p>
       ) : (
-        <div className="market-grid">
-          {listings.map((listing) => (
-            <MarketListingCard key={listing.id} listing={listing} />
-          ))}
+        <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(240px,1fr))] max-[768px]:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] max-[480px]:grid-cols-1">
+          {listings.map((listing) => <MarketListingCard key={listing.id} listing={listing} />)}
         </div>
       )}
     </div>

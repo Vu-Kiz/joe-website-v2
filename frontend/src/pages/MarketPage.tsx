@@ -1,12 +1,10 @@
 import React, { Suspense, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../api/auth";
+import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../api/core/auth";
 import { canAccessMembers } from "../auth/permissions";
-import { getSwcAuthorizationStatus, type SwcAuthorizationStatus } from "../api/swcAuthorization";
+import { getSwcAuthorizationStatus, type SwcAuthorizationStatus } from "../api/members/swcAuthorization";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import joshBanner from "../assets/marketplace/JOSHBanner.png";
-import "../styles/main.sass";
-import "../styles/_market.sass";
 
 const MarketPanel = React.lazy(() => import("../components/market/MarketPanel"));
 
@@ -46,14 +44,14 @@ const MarketPage: React.FC = () => {
   if (!user) return <NotLoggedInState />;
 
   return (
-    <main className="page-content market-page">
-      <section className="panel market-page__panel">
+    <main className="page-content font-tektur">
+      <section className="panel">
         <img
-          className="market-page__banner"
           src={joshBanner}
           alt="Jawa Offworld Sales Hub"
+          className="block w-[min(100%,780px)] h-auto mx-auto mb-5 object-contain"
         />
-        <Suspense fallback={<p className="muted">Loading market…</p>}>
+        <Suspense fallback={<p className="small opacity-60">Loading market…</p>}>
           <MarketPanel
             swcAuth={swcAuth}
             canManageListings={canAccessMembers(user)}

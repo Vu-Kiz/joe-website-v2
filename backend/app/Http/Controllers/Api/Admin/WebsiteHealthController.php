@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\DiscordBotGuild;
-use App\Models\DiscordOutboxMessage;
+use App\Models\Discord\DiscordBotGuild;
+use App\Models\Discord\DiscordOutboxMessage;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;

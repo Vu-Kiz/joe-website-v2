@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Models\DroidBrainIndexStatus;
+use App\Models\DroidBrain\DroidBrainIndexStatus;
 use App\Support\DroidBrain\DroidBrainBrowserService;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -22,12 +22,12 @@ class DroidBrainReindexJob implements ShouldQueue, ShouldBeUnique
     public int $timeout = 300;
 
     private static array $modelMap = [
-        'ships'    => \App\Models\DroidBrainShip::class,
-        'stations' => \App\Models\DroidBrainStation::class,
-        'planets'  => \App\Models\DroidBrainPlanet::class,
-        'cities'   => \App\Models\DroidBrainCity::class,
-        'vehicles' => \App\Models\DroidBrainVehicle::class,
-        'npcs'     => \App\Models\DroidBrainNpc::class,
+        'ships'    => \App\Models\DroidBrain\DroidBrainShip::class,
+        'stations' => \App\Models\DroidBrain\DroidBrainStation::class,
+        'planets'  => \App\Models\DroidBrain\DroidBrainPlanet::class,
+        'cities'   => \App\Models\DroidBrain\DroidBrainCity::class,
+        'vehicles' => \App\Models\DroidBrain\DroidBrainVehicle::class,
+        'npcs'     => \App\Models\DroidBrain\DroidBrainNpc::class,
     ];
 
     public function __construct(public readonly string $tab)

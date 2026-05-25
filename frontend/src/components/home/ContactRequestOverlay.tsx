@@ -1,6 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { submitContactRequest } from "../../api/contactRequests";
-import styles from "../../styles/home.module.sass";
+import { submitContactRequest } from "../../api/content/contactRequests";
+import { BTN, BTN_GHOST } from "../../utils/ui";
+
+const OVERLAY_CLS = "fixed inset-0 z-[1200] flex items-center justify-center p-4";
+const BACKDROP_CLS = "absolute inset-0 border-0 bg-[rgba(0,0,0,0.72)] cursor-pointer";
+const PANEL_CLS = "relative z-[1] w-[min(720px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] overflow-auto";
+const HEADER_CLS = "flex items-start justify-between gap-4 mb-4";
+const FORM_CLS = "flex flex-col gap-4";
+const FIELD_CLS = "flex flex-col gap-[0.45rem]";
+const FIELD_LABEL_CLS = "font-['Tektur',sans-serif] tracking-[0.04em] uppercase text-[0.82rem]";
+const FIELD_INPUT_CLS = "w-full min-h-[42px] p-[0.8rem_0.9rem] rounded-[12px] border border-[rgba(245,213,70,0.22)] bg-[rgba(0,0,0,0.28)] text-inherit resize-y";
+const ACTIONS_CLS = "flex justify-start";
 
 type Props = {
   requestType: "contact" | "diplomacy";
@@ -67,30 +77,31 @@ const ContactRequestOverlay: React.FC<Props> = ({ requestType, onClose }) => {
   };
 
   return (
-    <div className={styles.contactOverlay}>
+    <div className={OVERLAY_CLS}>
       <button
         type="button"
-        className={styles.contactOverlayBackdrop}
+        className={BACKDROP_CLS}
         onClick={onClose}
         aria-label="Close contact request form"
       />
 
-      <section className={`panel ${styles.contactOverlayPanel}`}>
-        <div className={styles.contactOverlayHeader}>
+      <section className={`panel ${PANEL_CLS}`}>
+        <div className={HEADER_CLS}>
           <div>
-            <h2>{title}</h2>
+            <h2 className="h2">{title}</h2>
             <p className="small">{intro}</p>
           </div>
 
-          <button type="button" className="btn btn--ghost" onClick={onClose}>
+          <button type="button" className={BTN_GHOST} onClick={onClose}>
             Close
           </button>
         </div>
 
-        <form className={styles.contactForm} onSubmit={handleSubmit}>
-          <label className={styles.contactField}>
-            <span>Discord Name</span>
+        <form className={FORM_CLS} onSubmit={handleSubmit}>
+          <label className={FIELD_CLS}>
+            <span className={FIELD_LABEL_CLS}>Discord Name</span>
             <input
+              className={FIELD_INPUT_CLS}
               type="text"
               value={discordName}
               onChange={(event) => setDiscordName(event.target.value)}
@@ -99,9 +110,10 @@ const ContactRequestOverlay: React.FC<Props> = ({ requestType, onClose }) => {
             />
           </label>
 
-          <label className={styles.contactField}>
-            <span>Star Wars Handle</span>
+          <label className={FIELD_CLS}>
+            <span className={FIELD_LABEL_CLS}>Star Wars Handle</span>
             <input
+              className={FIELD_INPUT_CLS}
               type="text"
               value={starWarsHandle}
               onChange={(event) => setStarWarsHandle(event.target.value)}
@@ -110,9 +122,10 @@ const ContactRequestOverlay: React.FC<Props> = ({ requestType, onClose }) => {
             />
           </label>
 
-          <label className={styles.contactField}>
-            <span>Message</span>
+          <label className={FIELD_CLS}>
+            <span className={FIELD_LABEL_CLS}>Message</span>
             <textarea
+              className={FIELD_INPUT_CLS}
               value={message}
               onChange={(event) => setMessage(event.target.value)}
               maxLength={5000}
@@ -121,8 +134,8 @@ const ContactRequestOverlay: React.FC<Props> = ({ requestType, onClose }) => {
             />
           </label>
 
-          <div className={styles.contactFormActions}>
-            <button type="submit" className="btn" disabled={busy}>
+          <div className={ACTIONS_CLS}>
+            <button type="submit" className={BTN} disabled={busy}>
               {busy ? "Sending…" : submitLabel}
             </button>
           </div>

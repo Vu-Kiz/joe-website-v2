@@ -1,5 +1,5 @@
 import React from "react";
-import type { DroidBrainResultRow, DroidBrainTab } from "../../api/droidbrain";
+import type { DroidBrainResultRow, DroidBrainTab } from "../../api/universe/droidbrain";
 
 type Props = {
   summary: Record<string, DroidBrainResultRow[]>;
@@ -19,13 +19,13 @@ const DroidBrainSummaryPanel: React.FC<Props> = ({ summary, tabLabels }) => {
 
       {summaryEntries.map(([key, rows]) => (
         <div key={key} className="panel">
-          <h2 style={{ marginTop: 0 }}>{tabLabels[key as DroidBrainTab] ?? key}</h2>
+          <h2 className="h2" style={{ marginTop: 0 }}>{tabLabels[key as DroidBrainTab] ?? key}</h2>
           {rows.length === 0 ? (
             <p className="small">No assets recorded for this tab yet.</p>
           ) : (
             <div style={{ display: "grid", gap: 8 }}>
               {rows.map((row, index) => (
-                <div key={`${key}-${index}`} className="admin-card">
+                <div key={`${key}-${index}`} className="flex flex-col gap-4">
                   <p className="small">
                     <strong>Owner:</strong> {String(row.owner_name ?? "Unknown")}
                   </p>

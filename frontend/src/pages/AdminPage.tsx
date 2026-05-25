@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../api/auth";
+import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../api/core/auth";
 import { canAccessAdmin, canAccessSysadmin } from "../auth/permissions";
 
 import AdminHeader from "../components/admin/AdminHeader";
@@ -25,9 +25,10 @@ import AdminDiscordBotPanel from "../components/admin/AdminDiscordBotPanel";
 import AdminCombatValuesPanel from "../components/admin/AdminCombatValuesPanel";
 import AdminMemberChangelogPanel from "../components/admin/AdminMemberChangelogPanel";
 import AdminToolStorePanel from "../components/admin/AdminToolStorePanel";
+import AdminJobPayRatesPanel from "../components/admin/AdminJobPayRatesPanel";
+import AdminSupportTicketsPanel from "../components/admin/AdminSupportTicketsPanel";
+import { BTN } from "../utils/ui";
 
-import "../styles/main.sass";
-import "../styles/_admin.sass";
 
 const AdminPage: React.FC = () => {
   const navigate = useNavigate();
@@ -55,9 +56,10 @@ const AdminPage: React.FC = () => {
 
         setUser(res?.user ?? null);
         setError(null);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!cancelled) {
-          setError(e?.message ?? "Failed to load admin data");
+          const message = e instanceof Error ? e.message : "Failed to load admin data";
+          setError(message);
           setUser(null);
         }
       } finally {
@@ -76,19 +78,37 @@ const AdminPage: React.FC = () => {
   const canSeeAdmin = useMemo(() => canAccessAdmin(user), [user]);
   const showSystemTools = useMemo(() => canAccessSysadmin(user), [user]);
   const canSeeLogs = useMemo(() => canAccessSysadmin(user), [user]);
+  const sysadminOnlyViews: AdminView[] = useMemo(
+    () => [
+      "workerHealth",
+      "websiteHealth",
+      "siteLock",
+      "system",
+      "discordBot",
+      "combatValues",
+      "entityStats",
+      "droidbrainUploads",
+      "toolStore",
+    ],
+    []
+  );
 
   useEffect(() => {
-    if (!showSystemTools && (activeView === "workerHealth" || activeView === "websiteHealth" || activeView === "system" || activeView === "discordBot" || activeView === "combatValues" || activeView === "logs" || activeView === "entityStats" || activeView === "memberAccessLogs" || activeView === "droidbrainUploads")) {
+    if (!showSystemTools && sysadminOnlyViews.includes(activeView)) {
+      setActiveView("home");
+      return;
+    }
+    if (!canSeeLogs && (activeView === "logs" || activeView === "memberAccessLogs")) {
       setActiveView("home");
     }
-  }, [showSystemTools, canSeeLogs, activeView]);
+  }, [showSystemTools, canSeeLogs, activeView, sysadminOnlyViews]);
 
   if (loading) {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
-            <h1>Admin Control</h1>
+          <main className="board flex flex-col gap-4">
+            <h1 className="h1">Admin Control</h1>
             <p className="small">Loading admin tools…</p>
           </main>
         </div>
@@ -100,8 +120,8 @@ const AdminPage: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
-            <h1>Admin Control</h1>
+          <main className="board flex flex-col gap-4">
+            <h1 className="h1">Admin Control</h1>
             <p className="small" style={{ color: "salmon" }}>
               {error}
             </p>
@@ -115,7 +135,7 @@ const AdminPage: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
+          <main className="board flex flex-col gap-4">
             <NotLoggedInState />
           </main>
         </div>
@@ -127,7 +147,7 @@ const AdminPage: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
+          <main className="board flex flex-col gap-4">
             <ForbiddenState
               title="403 Forbidden"
               message="You do not have permission to access the admin control area."
@@ -141,45 +161,54 @@ const AdminPage: React.FC = () => {
   return (
     <div className="site-scale">
       <div className="app app--one">
-        <main className="board admin-board">
+        <main className="board flex flex-col gap-4">
           <AdminHeader user={user} />
 
-          <div className="members-tool-back">
-            <button className="btn" type="button" onClick={() => navigate("/tools")}>
+          <div className="flex justify-start mb-4">
+            <button className={BTN} type="button" onClick={() => navigate("/tools")}>
               Back to Tools Overview
             </button>
           </div>
 
-          <AdminNav
-            activeView={activeView}
-            onChange={setActiveView}
-            showSystemTools={showSystemTools}
-            canSeeLogs={canSeeLogs}
-          />
+          <div className="lg:grid lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] lg:items-start lg:gap-4">
+            <div>
+              <AdminNav
+                activeView={activeView}
+                onChange={setActiveView}
+                showSystemTools={showSystemTools}
+                canSeeLogs={canSeeLogs}
+                userId={user?.id}
+              />
+            </div>
 
-          {activeView === "home" && (
-            <AdminHomePanel
-              showSystemTools={showSystemTools}
-              canSeeLogs={canSeeLogs}
-            />
-          )}
-          {activeView === "workerHealth" && showSystemTools && <AdminWorkerHealthPanel />}
-          {activeView === "websiteHealth" && showSystemTools && <AdminWebsiteHealthPanel />}
-          {activeView === "tips" && <AdminTipsPanel />}
-          {activeView === "tenets" && <AdminTenetsPanel />}
-          {activeView === "eotm" && <AdminEotmPanel />}
-          {activeView === "users" && <AdminUsersPanel />}
-          {activeView === "logs" && canSeeLogs && <AdminActionLogPanel />}
-          {activeView === "memberAccessLogs" && canSeeLogs && <AdminMemberAccessLogPanel />}
-          {activeView === "weather" && <AdminWeatherPanel />}
-          {activeView === "system" && showSystemTools && <AdminSystemPanel />}
-          {activeView === "discordBot" && showSystemTools && <AdminDiscordBotPanel />}
-          {activeView === "combatValues" && showSystemTools && <AdminCombatValuesPanel />}
-          {activeView === "entityStats" && showSystemTools && <AdminEntityStatsPanel user={user} />}
-          {activeView === "memberChangelog" && <AdminMemberChangelogPanel />}
-          {activeView === "droidbrainUploads" && showSystemTools && <AdminDroidBrainUploadsPanel />}
-          {activeView === "siteLock" && showSystemTools && <AdminSiteLockPanel />}
-          {activeView === "toolStore" && showSystemTools && <AdminToolStorePanel />}
+            <div className="min-w-0">
+              {activeView === "home" && (
+                <AdminHomePanel
+                  showSystemTools={showSystemTools}
+                  canSeeLogs={canSeeLogs}
+                />
+              )}
+              {activeView === "workerHealth" && showSystemTools && <AdminWorkerHealthPanel />}
+              {activeView === "websiteHealth" && showSystemTools && <AdminWebsiteHealthPanel />}
+              {activeView === "tips" && <AdminTipsPanel />}
+              {activeView === "tenets" && <AdminTenetsPanel />}
+              {activeView === "eotm" && <AdminEotmPanel />}
+              {activeView === "users" && <AdminUsersPanel />}
+              {activeView === "logs" && canSeeLogs && <AdminActionLogPanel />}
+              {activeView === "memberAccessLogs" && canSeeLogs && <AdminMemberAccessLogPanel />}
+              {activeView === "weather" && <AdminWeatherPanel />}
+              {activeView === "system" && showSystemTools && <AdminSystemPanel />}
+              {activeView === "discordBot" && showSystemTools && <AdminDiscordBotPanel />}
+              {activeView === "combatValues" && showSystemTools && <AdminCombatValuesPanel />}
+              {activeView === "entityStats" && showSystemTools && <AdminEntityStatsPanel user={user} />}
+              {activeView === "memberChangelog" && <AdminMemberChangelogPanel />}
+              {activeView === "droidbrainUploads" && showSystemTools && <AdminDroidBrainUploadsPanel />}
+              {activeView === "siteLock" && showSystemTools && <AdminSiteLockPanel />}
+              {activeView === "toolStore" && showSystemTools && <AdminToolStorePanel />}
+              {activeView === "jobPayRates" && <AdminJobPayRatesPanel />}
+              {activeView === "supportTickets" && <AdminSupportTicketsPanel />}
+            </div>
+          </div>
         </main>
       </div>
     </div>

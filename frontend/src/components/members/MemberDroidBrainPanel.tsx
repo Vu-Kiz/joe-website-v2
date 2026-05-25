@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../../api/auth";
+import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../../api/core/auth";
 import {
   getDroidBrain,
   uploadDroidBrainFile,
@@ -8,7 +8,7 @@ import {
   type DroidBrainIndexStatus,
   type DroidBrainTab,
   type DroidBrainUploadResult,
-} from "../../api/droidbrain";
+} from "../../api/universe/droidbrain";
 import {
   canAccessDroidBrain,
   canAccessDroidBrainFull,
@@ -22,9 +22,8 @@ import DroidBrainResultsPanel from "../droidbrain/DroidBrainResultsPanel";
 import DroidBrainSummaryPanel from "../droidbrain/DroidBrainSummaryPanel";
 import DroidBrainTabs from "../droidbrain/DroidBrainTabs";
 import DroidBrainUploadPanel from "../droidbrain/DroidBrainUploadPanel";
-import "../../styles/main.sass";
-import "../../styles/_admin.sass";
-import "../../styles/_membersuniverse.sass";
+import { BTN } from "../../utils/ui";
+import ReportBugButton from "../support/ReportBugButton";
 
 const MAX_DROIDBRAIN_UPLOAD_FILES = 10;
 
@@ -250,10 +249,10 @@ const MemberDroidBrainPanel: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
-            <h1>DroidBrain</h1>
-            <div className="panel admin-panel">
-              <div className="admin-panel__body">
+          <main className="board flex flex-col gap-4">
+            <h1 className="h1">DroidBrain</h1>
+            <div className="panel flex flex-col gap-4">
+              <div className="flex flex-col gap-4">
                 <SpinnerLoadingCard
                   compact
                   title="Loading DroidBrain Intel"
@@ -271,7 +270,7 @@ const MemberDroidBrainPanel: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
+          <main className="board flex flex-col gap-4">
             <NotLoggedInState
               title="Not logged in"
               message="You need to sign in to access DroidBrain."
@@ -286,7 +285,7 @@ const MemberDroidBrainPanel: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
+          <main className="board flex flex-col gap-4">
             <ForbiddenState
               title="403 Forbidden"
               message="You do not have permission to access DroidBrain."
@@ -300,12 +299,13 @@ const MemberDroidBrainPanel: React.FC = () => {
   return (
     <div className="site-scale">
       <div className="app app--one">
-        <main className="board admin-board">
-          <h1>DroidBrain</h1>
-          <div className="members-tool-back">
-            <button className="btn" type="button" onClick={() => navigate("/tools")}>
+        <main className="board flex flex-col gap-4">
+          <h1 className="h1">DroidBrain</h1>
+          <div className="flex items-center gap-3 mb-4">
+            <button className={BTN} type="button" onClick={() => navigate("/tools")}>
               Back to Overview
             </button>
+            <ReportBugButton toolKey="droidbrain" toolLabel="DroidBrain" />
           </div>
           <p className="small">
             Internal intel browser for imported DroidBrain data. This first pass brings the browse layer online so legacy import and mobile `.rss` uploads can attach to the same database next.
@@ -392,8 +392,8 @@ const MemberDroidBrainPanel: React.FC = () => {
           />
 
           {isTabLoading && (
-            <div className="panel admin-panel">
-              <div className="admin-panel__body">
+            <div className="panel flex flex-col gap-4">
+              <div className="flex flex-col gap-4">
                 <SpinnerLoadingCard
                   compact
                   title="Loading DroidBrain Intel"
@@ -404,8 +404,8 @@ const MemberDroidBrainPanel: React.FC = () => {
           )}
 
           {isRefreshingResults && (
-            <div className="panel admin-panel">
-              <div className="admin-panel__body">
+            <div className="panel flex flex-col gap-4">
+              <div className="flex flex-col gap-4">
                 <SpinnerLoadingCard
                   compact
                   title="Refreshing DroidBrain Results"

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\DroidBrainIndexStatus;
+use App\Models\DroidBrain\DroidBrainIndexStatus;
 use App\Support\Admin\AdminActionLogger;
 use App\Support\DroidBrain\DroidBrainBrowserService;
 use App\Support\DroidBrain\DroidBrainRewardService;

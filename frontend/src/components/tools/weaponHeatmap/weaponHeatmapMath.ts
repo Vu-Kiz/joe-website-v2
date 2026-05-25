@@ -1,4 +1,4 @@
-import type { StoredWeaponTypeSummary } from "../../../api/universe";
+import type { StoredWeaponTypeSummary } from "../../../api/universe/universe";
 
 export type HeatCell = {
   x: number;

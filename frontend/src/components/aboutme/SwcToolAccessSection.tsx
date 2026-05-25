@@ -1,3 +1,5 @@
+import { BTN_SM } from "../../utils/ui";
+
 export type SwcToolCard<K extends string> = {
   key: K;
   title: string;
@@ -42,36 +44,46 @@ function SwcToolAccessSection<K extends string>({
       : (isConnected ? resyncLabel : connectLabel);
 
   return (
-    <>
-      <h2 className="h2">{title}</h2>
+    <div className="grid gap-2">
+      <h2 className="h2 mb-0">{title}</h2>
 
-      <p className="muted">{description}</p>
+      <p className="muted m-0 text-sm">{description}</p>
 
-      <button className="btn" type="button" onClick={onConnect} disabled={!canConnect}>
+      <button
+        className={BTN_SM + " w-full sm:w-auto sm:self-start"}
+        type="button"
+        onClick={onConnect}
+        disabled={!canConnect}
+      >
         {actionLabel}
       </button>
 
-      {!hasSelectedTools && (
-        <p className="small">{emptySelectionMessage}</p>
-      )}
+      {!hasSelectedTools && <p className="small m-0 mt-0.5">{emptySelectionMessage}</p>}
 
-      <div className="aboutme-access-grid">
+      <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((tool) => (
-          <section key={tool.key} className="aboutme-access-card">
-            <div className="aboutme-access-row">
-              <h3 className="aboutme-access-title">{tool.title}</h3>
+          <section
+            key={tool.key}
+            className="grid gap-2 rounded-xl border border-white/15 bg-white/[0.04] p-2.5"
+          >
+            <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-start">
+              <h3 className="m-0">{tool.title}</h3>
             </div>
 
-            <p className="muted aboutme-access-copy">{tool.description}</p>
+            <p className="muted m-0 text-sm leading-snug">{tool.description}</p>
 
-            <div className="aboutme-access-status-row">
-              <span className="small">Access now</span>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm text-white/70">Access now</span>
               <strong>{tool.accessNow ? "Yes" : "No"}</strong>
             </div>
 
-            <div className="aboutme-access-actions">
+            <div className="flex flex-wrap items-center gap-2">
               <button
-                className={`aboutme-access-toggle${tool.enabled ? " aboutme-access-toggle--on" : ""}`}
+                className={`rounded-full border px-2.5 py-1.5 text-xs font-bold transition ${
+                  tool.enabled
+                    ? "border-[#f5d546]/45 bg-[#f5d546]/15 text-[#ffe7a0]"
+                    : "border-white/20 bg-white/10 text-white/85"
+                }`}
                 type="button"
                 aria-pressed={tool.enabled}
                 onClick={() => onToggle(tool.key)}
@@ -82,7 +94,7 @@ function SwcToolAccessSection<K extends string>({
           </section>
         ))}
       </div>
-    </>
+    </div>
   );
 }
 

@@ -180,7 +180,7 @@ const WeaponHeatmapDeckGrid: React.FC<Props> = ({
 
       {popup && (
         <div
-          className="weapon-heatmap-page__hover"
+          className="absolute z-[5] grid gap-[0.4rem] min-w-[160px] max-w-[180px] p-[0.7rem_0.8rem] border border-[rgba(246,163,0,0.5)] rounded-[14px] bg-[rgba(12,12,12,0.96)] shadow-[0_16px_28px_rgba(0,0,0,0.32)] pointer-events-none"
           style={{
             left: Math.min(popup.x + 8, (containerRef.current?.clientWidth ?? 300) - 190),
             top: popup.y > 140 ? popup.y - 140 : popup.y + 16,
@@ -188,18 +188,18 @@ const WeaponHeatmapDeckGrid: React.FC<Props> = ({
           }}
         >
           <strong>{popup.cell.x}, {popup.cell.y}</strong>
-          <div className="weapon-heatmap-page__hover-group">
-            <span className="small weapon-heatmap-page__hover-label">Distance</span>
+          <div className="grid gap-[0.1rem]">
+            <span className="small text-[rgba(246,163,0,0.95)]">Distance</span>
             <span className="small">{formatNumber(popup.cell.distance, 2)}</span>
           </div>
           {usesDirectionalArcs && (
-            <div className="weapon-heatmap-page__hover-group">
-              <span className="small weapon-heatmap-page__hover-label">Bearing</span>
+            <div className="grid gap-[0.1rem]">
+              <span className="small text-[rgba(246,163,0,0.95)]">Bearing</span>
               <span className="small">{formatNumber(bearingFromPoint(activeOrigin.x, activeOrigin.y, popup.cell.x, popup.cell.y), 0)}°</span>
             </div>
           )}
-          <div className="weapon-heatmap-page__hover-group">
-            <span className="small weapon-heatmap-page__hover-label">Hit Chance</span>
+          <div className="grid gap-[0.1rem]">
+            <span className="small text-[rgba(246,163,0,0.95)]">Hit Chance</span>
             <span className="small">{formatNumber(popup.cell.hitChance * 100, 0)}%</span>
           </div>
         </div>

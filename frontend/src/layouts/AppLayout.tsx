@@ -1,7 +1,8 @@
 import React, { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import Navbar from "../components/Navbar";
-import { emitAuthStateChanged, fetchAuthMe, getApiBaseUrl, getSessionStreamUrl } from "../api/auth";
+import SwcStatusBanner from "../components/common/SwcStatusBanner";
+import { emitAuthStateChanged, fetchAuthMe, getApiBaseUrl, getSessionStreamUrl } from "../api/core/auth";
 
 const AppLayout: React.FC = () => {
   const envLabel = (() => {
@@ -118,11 +119,13 @@ const AppLayout: React.FC = () => {
     <>
       {envLabel === "dev" ? (
         <div className="page-shell">
-          <div className="env-dev-banner" role="status" aria-live="polite">
+          <div className="w-full mx-auto mb-2.5 px-3 py-2 sticky top-0 z-1100 rounded-lg border border-[rgba(255,120,120,0.65)] bg-[linear-gradient(90deg,rgba(95,0,0,0.85),rgba(140,0,0,0.85),rgba(95,0,0,0.85))] text-[#ffd9d9] font-englibeesh text-[18px] tracking-[0.22em] text-center uppercase animate-env-dev-flash" role="status" aria-live="polite">
             DEV
           </div>
         </div>
       ) : null}
+
+      <SwcStatusBanner />
 
       <div className="page-shell">
         <Navbar />

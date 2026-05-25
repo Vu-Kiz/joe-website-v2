@@ -1,7 +1,10 @@
 import React, { useState } from "react";
-import { postMemberListing } from "../../api/market";
-import type { EntityTypeKey } from "../../api/market";
+import { postMemberListing } from "../../api/market/market";
+import type { EntityTypeKey } from "../../api/market/market";
 import MarketInventoryPicker from "./MarketInventoryPicker";
+import { FORM_ROW_CLS, FORM_LABEL_CLS } from "./marketDisplay";
+import { BTN, BTN_GHOST, INPUT} from "../../utils/ui";
+import CreditInput, { parseCreditInput } from "../common/CreditInput";
 
 type Props = {
   hasPersonalInventoryAccess: boolean;
@@ -21,30 +24,19 @@ const MarketPostListingTab: React.FC<Props> = ({ hasPersonalInventoryAccess, onP
   if (!hasPersonalInventoryAccess) {
     return (
       <div>
-        <p className="muted">
-          You need Market (Personal Inventory) access synced on your About Me page before you can post listings.
-        </p>
-        <a className="btn btn--ghost" href="/aboutme">Open About Me</a>
+        <p className="muted">You need Market (Personal Inventory) access synced on your About Me page before you can post listings.</p>
+        <a className={BTN_GHOST} href="/aboutme">Open About Me</a>
       </div>
     );
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedUid) {
-      setError("Select an item from your inventory.");
-      return;
-    }
-
-    const priceNum = parseInt(price, 10);
-    if (!priceNum || priceNum < 1) {
-      setError("Enter a valid price.");
-      return;
-    }
-
+    if (!selectedUid) { setError("Select an item from your inventory."); return; }
+    const priceNum = parseCreditInput(price);
+    if (!priceNum || priceNum < 1) { setError("Enter a valid price."); return; }
     setSubmitting(true);
     setError(null);
-
     try {
       await postMemberListing({
         entity_type: entityType,
@@ -63,11 +55,14 @@ const MarketPostListingTab: React.FC<Props> = ({ hasPersonalInventoryAccess, onP
   }
 
   return (
-    <form className="market-form" onSubmit={handleSubmit}>
+    <form
+      className="flex flex-col gap-4 p-5 rounded-[12px] border border-white/[0.08] bg-white/[0.02]"
+      onSubmit={handleSubmit}
+    >
       <h3 className="h3" style={{ margin: 0 }}>Post a Listing</h3>
 
-      <div className="market-form__row">
-        <label className="market-form__label">Select from your inventory</label>
+      <div className={FORM_ROW_CLS}>
+        <label className={FORM_LABEL_CLS}>Select from your inventory</label>
         <MarketInventoryPicker
           mode="personal"
           entityType={entityType}
@@ -77,57 +72,31 @@ const MarketPostListingTab: React.FC<Props> = ({ hasPersonalInventoryAccess, onP
         />
       </div>
 
-      {selectedUid && (
-        <p className="small muted">Selected: <strong>{selectedName}</strong> ({selectedUid})</p>
-      )}
+      {selectedUid && <p className="small muted">Selected: <strong>{selectedName}</strong> ({selectedUid})</p>}
 
-      <div className="market-form__row">
-        <label className="market-form__label" htmlFor="market-price">
+      <div className={FORM_ROW_CLS}>
+        <label className={FORM_LABEL_CLS} htmlFor="market-price">
           Price (Credits){entityType === "material" ? " per unit" : ""}
         </label>
-        <input
-          id="market-price"
-          className="input"
-          type="number"
-          min={1}
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-          placeholder="e.g. 50000"
-          required
-        />
+        <CreditInput id="market-price" className={INPUT} value={price} onChange={setPrice} placeholder="e.g. 50,000" required />
       </div>
 
       {entityType === "material" && (
-        <div className="market-form__row">
-          <label className="market-form__label" htmlFor="market-quantity">Quantity</label>
-          <input
-            id="market-quantity"
-            className="input"
-            type="number"
-            min={1}
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            required
-          />
+        <div className={FORM_ROW_CLS}>
+          <label className={FORM_LABEL_CLS} htmlFor="market-quantity">Quantity</label>
+          <input id="market-quantity" className={INPUT} type="number" min={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
           <p className="small muted">Pre-split the stack in SWC before listing.</p>
         </div>
       )}
 
-      <div className="market-form__row">
-        <label className="market-form__label" htmlFor="market-notes">Notes (optional)</label>
-        <textarea
-          id="market-notes"
-          className="input"
-          rows={3}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Condition, restrictions, etc."
-        />
+      <div className={FORM_ROW_CLS}>
+        <label className={FORM_LABEL_CLS} htmlFor="market-notes">Notes (optional)</label>
+        <textarea id="market-notes" className={INPUT} rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Condition, restrictions, etc." />
       </div>
 
       {error && <p className="small" style={{ color: "#f87171" }}>{error}</p>}
 
-      <button className="btn" type="submit" disabled={submitting || !selectedUid}>
+      <button className={BTN} type="submit" disabled={submitting || !selectedUid}>
         {submitting ? "Posting…" : "Post Listing"}
       </button>
     </form>

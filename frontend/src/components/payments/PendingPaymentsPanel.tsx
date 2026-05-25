@@ -1,7 +1,30 @@
 import React, { useEffect, useMemo, useState } from "react";
-import type { FactionPrivilegeCheckResult } from "../../api/factionPrivileges";
-import type { PaymentItem, PaymentSubjectType } from "../../api/payments";
+import type { FactionPrivilegeCheckResult } from "../../api/factions/factionPrivileges";
+import type { PaymentItem, PaymentSubjectType } from "../../api/payments/payments";
 import type { PaymentGroup } from "./types";
+import { BTN, INPUT } from "../../utils/ui";
+
+const CARD_CLS = "flex flex-col gap-3 p-[0.9rem] rounded-[12px] border border-white/[0.08] bg-white/[0.03]";
+const cardBadgeCls = (variant?: "ok" | "warn") =>
+  "inline-flex items-center min-h-[28px] px-[0.65rem] py-1 rounded-full border font-bold" +
+  (variant === "ok" ? " border-[rgba(107,201,137,0.35)] bg-[rgba(107,201,137,0.12)] text-[#8fe1a8]" :
+   variant === "warn" ? " border-[rgba(255,155,50,0.35)] bg-[rgba(255,155,50,0.12)] text-[#ffbf73]" :
+   " border-[rgba(245,213,70,0.28)] bg-[rgba(245,213,70,0.1)] text-[#f2c46f]");
+const CARD_HEADER_SPLIT_CLS = "flex flex-row justify-between items-start gap-3 flex-wrap";
+const CARD_TITLE_BLOCK_CLS = "flex flex-col gap-1";
+const CARD_EYEBROW_CLS = "m-0 opacity-[0.72] uppercase tracking-[0.06em]";
+const CARD_HEADER_ACTIONS_CLS = "flex flex-col items-end gap-[0.4rem]";
+const SELECT_ALL_CLS = "flex items-center gap-[0.3rem] cursor-pointer opacity-[0.85]";
+const META_LIST_CLS = "grid gap-[0.35rem] [&_p]:m-0";
+const noteCls = (variant?: "warn") =>
+  "m-0 p-[0.65rem_0.8rem] rounded-[10px] border border-white/[0.08] bg-white/[0.025]" +
+  (variant === "warn" ? " !border-[rgba(255,120,120,0.28)] !bg-[rgba(255,120,120,0.08)] !text-[#ffb3b3]" : "");
+const ACTIONS_CLS = "flex gap-2 flex-wrap mt-1";
+const TOOLBAR_CLS = "flex gap-3 flex-wrap items-end mb-4";
+const FIELD_CLS = "grid gap-[0.4rem]";
+const FIELD_COMPACT_CLS = FIELD_CLS + " w-[min(100%,420px)]";
+const ITEM_LIST_CLS = "grid gap-[0.45rem]";
+const ITEM_ROW_CLS = "flex gap-[0.6rem] items-start p-[0.55rem_0.65rem] rounded-[10px] bg-[rgba(0,0,0,0.18)] border border-white/[0.05]";
 
 type Props = {
   grouped: PaymentGroup[];
@@ -74,15 +97,15 @@ const PendingPaymentsPanel: React.FC<Props> = ({
 
   return (
     <div className="panel">
-      <h2>Pending</h2>
+      <h2 className="h2">Pending</h2>
 
-      <div className="payments-toolbar">
+      <div className={TOOLBAR_CLS}>
         <label className="small" htmlFor="payments-payer-filter">
           <strong>Show Payer Type</strong>
         </label>
         <select
           id="payments-payer-filter"
-          className="input"
+          className={INPUT}
           value={payerFilter}
           onChange={(e) =>
             onPayerFilterChange(e.target.value as "all" | "user" | "faction")
@@ -93,11 +116,11 @@ const PendingPaymentsPanel: React.FC<Props> = ({
           <option value="faction">Faction only</option>
         </select>
 
-        <label className="small payments-field payments-field--compact" htmlFor="payments-recipient-filter">
+        <label className={"small " + FIELD_COMPACT_CLS} htmlFor="payments-recipient-filter">
           <strong>Recipient</strong>
           <select
             id="payments-recipient-filter"
-            className="input"
+            className={INPUT}
             value={recipientFilter}
             onChange={(e) => setRecipientFilter(e.target.value)}
           >
@@ -112,7 +135,7 @@ const PendingPaymentsPanel: React.FC<Props> = ({
       </div>
 
       {grouped.length > 0 && (
-        <p className="small payments-panel__meta">
+        <p className="small mb-4 opacity-[0.85]">
           Showing {visibleGroups.length} of {grouped.length} recipient group{grouped.length === 1 ? "" : "s"}.
         </p>
       )}
@@ -134,14 +157,14 @@ const PendingPaymentsPanel: React.FC<Props> = ({
           !!selectedPayerContextKey && selectedPayerContextKey !== groupPayerContextKey;
 
         return (
-          <div key={group.key} className="admin-card payments-card payments-card--group">
-            <div className="payments-card__header payments-card__header--split">
-              <div className="payments-card__title-block">
-                <p className="small payments-card__eyebrow">Recipient</p>
+          <div key={group.key} className={CARD_CLS}>
+            <div className={CARD_HEADER_SPLIT_CLS}>
+              <div className={CARD_TITLE_BLOCK_CLS}>
+                <p className={"small " + CARD_EYEBROW_CLS}>Recipient</p>
                 <strong>{group.payee}</strong>
               </div>
-              <div className="payments-card__header-actions">
-                <label className="small payments-select-all">
+              <div className={CARD_HEADER_ACTIONS_CLS}>
+                <label className={"small " + SELECT_ALL_CLS}>
                   <input
                     type="checkbox"
                     checked={allGroupSelected}
@@ -150,13 +173,13 @@ const PendingPaymentsPanel: React.FC<Props> = ({
                   />
                   {" "}Select all
                 </label>
-                <span className="small payments-card__badge">
+                <span className={"small " + cardBadgeCls()}>
                   {group.payerType === "faction" ? "Faction Payment" : "Personal Payment"}
                 </span>
               </div>
             </div>
 
-            <div className="payments-meta-list">
+            <div className={META_LIST_CLS}>
               <p className="small">
                 <strong>Payer:</strong> {group.payer}
               </p>
@@ -169,7 +192,7 @@ const PendingPaymentsPanel: React.FC<Props> = ({
             </div>
 
             {group.payerType === "faction" && (
-              <p className="small payments-note">
+              <p className={"small " + noteCls()}>
                 SWC privilege ({privilegeGroup}/{privilegeName}):{" "}
                 {factionPrivilege?.check?.ok
                   ? factionPrivilege.check.allowed
@@ -180,14 +203,14 @@ const PendingPaymentsPanel: React.FC<Props> = ({
             )}
 
             {group.payerType === "faction" && !hasFactionPrivilege && (
-              <p className="small payments-note payments-note--warn">
+              <p className={"small " + noteCls("warn")}>
                 SWC faction privilege check did not currently show this action as allowed, but the backend will still validate on send.
               </p>
             )}
 
-            <div className="payments-item-list">
+            <div className={ITEM_LIST_CLS}>
               {group.items.map((item: PaymentItem) => (
-                <label key={item.id} className="small payments-item-row">
+                <label key={item.id} className={"small " + ITEM_ROW_CLS}>
                   <input
                     type="checkbox"
                     checked={selected.includes(item.id)}
@@ -202,15 +225,15 @@ const PendingPaymentsPanel: React.FC<Props> = ({
             </div>
 
             {selectionLockedToAnotherPayer && (
-              <p className="small payments-note">
+              <p className={"small " + noteCls()}>
                 Bulk selection is currently locked to {selectedPayerLabel ?? "another payer"}.
                 Finish or clear that selection before adding items from this payer.
               </p>
             )}
 
-            <div className="payments-actions">
+            <div className={ACTIONS_CLS}>
               <button
-                className="btn"
+                className={BTN}
                 type="button"
                 onClick={() => onPayRecipient(group.items.map((i) => i.id), group.payerType)}
               >
@@ -221,21 +244,21 @@ const PendingPaymentsPanel: React.FC<Props> = ({
         );
       })}
 
-      <div className="admin-card payments-card">
+      <div className={CARD_CLS}>
         <strong>Batch Payment</strong>
         <p className="small">
           Selected payments run from this site one recipient transfer at a time.
         </p>
 
         {selectedPayerLabel && (
-          <p className="small payments-note">
+          <p className={"small " + noteCls()}>
             Current bulk payer: {selectedPayerLabel}
           </p>
         )}
 
-        <div className="payments-actions">
+        <div className={ACTIONS_CLS}>
           <button
-            className="btn"
+            className={BTN}
             type="button"
             onClick={onBuildBulk}
             disabled={selected.length === 0}
@@ -245,7 +268,7 @@ const PendingPaymentsPanel: React.FC<Props> = ({
 
           {bulkUrl && (
             <a
-              className="btn"
+              className={BTN}
               href={bulkUrl}
               target="_blank"
               rel="noreferrer"
@@ -257,7 +280,7 @@ const PendingPaymentsPanel: React.FC<Props> = ({
 
         {bulkLines && (
           <textarea
-            className="input"
+            className={INPUT}
             readOnly
             value={bulkLines}
             style={{ minHeight: 220, width: "100%" }}

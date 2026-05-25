@@ -1,16 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { fetchAuthMe, getBackendOrigin } from "../api/auth";
-import type { SwcUser } from "../api/auth";
+import { fetchAuthMe, getBackendOrigin } from "../api/core/auth";
+import type { SwcUser } from "../api/core/auth";
 import {
   getSwcAuthorizationStatus,
   updateSwcAuthorizationPreferences,
   updateSwcPublicAuthorizationPreferences,
   type SwcAuthorizationStatus,
-} from "../api/swcAuthorization";
+} from "../api/members/swcAuthorization";
 import SwcToolAccessSection from "../components/aboutme/SwcToolAccessSection";
 import FactionConsolePanel from "../components/faction/FactionConsolePanel";
-import "../styles/_aboutme.sass";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../utils/ui";
 
 type Pill = { key: string; label: string; hue: number };
 type MemberToolKey = "galaxy" | "payments" | "fleet_command" | "market_personal" | "market_faction";
@@ -330,76 +330,80 @@ const AboutMe: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="panel aboutme-panel">
-        <h1 className="h1">About Me</h1>
-        <p className="muted">Loading…</p>
+      <div className="panel !px-3 !py-2.5 grid gap-2 sm:gap-2.5">
+        <h1 className="h1 m-0">About Me</h1>
+        <p className="muted m-0">Loading…</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="panel aboutme-panel">
-        <h1 className="h1">About Me</h1>
-        <p className="muted">Error: {error}</p>
+      <div className="panel !px-3 !py-2.5 grid gap-2 sm:gap-2.5">
+        <h1 className="h1 m-0">About Me</h1>
+        <p className="muted m-0">Error: {error}</p>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="panel aboutme-panel">
-        <h1 className="h1">About Me</h1>
-        <p className="muted">You’re not logged in.</p>
+      <div className="panel !px-3 !py-2.5 grid gap-2 sm:gap-2.5">
+        <h1 className="h1 m-0">About Me</h1>
+        <p className="muted m-0">You’re not logged in.</p>
       </div>
     );
   }
 
   return (
-    <div className="panel aboutme-panel">
-      <h1 className="h1">About Me</h1>
+    <div className="panel !px-3 !py-2.5 grid gap-2 sm:gap-2.5">
+      <h1 className="h1 m-0">About Me</h1>
 
       {swcLinked && (
-        <p className="small">Your SWC account has been linked to this profile.</p>
+        <p className="small m-0">Your SWC account has been linked to this profile.</p>
       )}
 
-      <div className="aboutme-header">
+      <div className="flex items-center gap-2">
         {user.avatar_url ? (
-          <img className="aboutme-avatar" src={user.avatar_url} alt={user.handle ?? "Avatar"} />
+          <img
+            className="h-12 w-12 rounded-full border-2 border-[var(--accent)] object-cover"
+            src={user.avatar_url}
+            alt={user.handle ?? "Avatar"}
+          />
         ) : (
-          <div className="aboutme-avatar aboutme-avatar--placeholder" />
+          <div className="h-12 w-12 rounded-full border-2 border-[var(--accent)] bg-white/5" />
         )}
 
-        <div className="aboutme-meta">
-          <div className="aboutme-handle">{user.handle ?? "Unknown"}</div>
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <div className="text-[1.65rem] leading-none font-extrabold tracking-[0.02em]">{user.handle ?? "Unknown"}</div>
 
-          <div className="aboutme-sub muted">
+          <div className="muted text-[0.94rem] leading-tight">
             Character ID: {user.swc_character_id ?? "—"}
           </div>
 
-          <div className="aboutme-sub muted">
+          <div className="muted text-[0.94rem] leading-tight">
             User Row ID: {user.id}
           </div>
         </div>
       </div>
 
-      <hr className="divider" />
+      <hr className="w-full border-0 border-t border-white/22 my-1.5" />
 
-      <h2 className="h2">SWC Account</h2>
+      <h2 className="h2 m-0">SWC Account</h2>
 
-      <p className="muted">
+      <p className="muted m-0">
         {user.swc_character_id
           ? `Linked as ${user.handle ?? "Unknown"} (${user.swc_character_id}).`
           : "No SWC account linked yet."}
       </p>
 
-      <button className="btn" type="button" onClick={onLinkSwc}>
+      <button className={BTN_SM + " w-full sm:w-auto sm:self-start"} type="button" onClick={onLinkSwc}>
         {user.swc_character_id ? "Relink SWC Account" : "Link SWC Account"}
       </button>
 
       {user.is_joe_member ? (
         <>
-          <hr className="divider" />
+          <hr className="w-full border-0 border-t border-white/22 my-1.5" />
           <SwcToolAccessSection
             title="SWC Tool Access"
             description="Turn tools on or off here, then sync once to grant only the access you want."
@@ -417,7 +421,7 @@ const AboutMe: React.FC = () => {
         </>
       ) : (
         <>
-          <hr className="divider" />
+          <hr className="w-full border-0 border-t border-white/22 my-1.5" />
           <SwcToolAccessSection
             title="Public Tool Access"
             description="Enable public tools and sync SWC access for the tools you want to use."
@@ -435,18 +439,18 @@ const AboutMe: React.FC = () => {
         </>
       )}
 
-      <hr className="divider" />
+      <hr className="w-full border-0 border-t border-white/22 my-1.5" />
 
       <FactionConsolePanel />
 
-      <h2 className="h2">Permissions</h2>
+      <h2 className="h2 m-0">Permissions</h2>
 
-      <div className="pill-row">
+      <div className="mt-2 flex flex-wrap gap-2">
         {pills.length > 0 ? (
           pills.map(p => (
             <span
               key={p.key}
-              className="pill"
+              className="inline-flex items-center rounded-full border border-transparent bg-transparent px-2.5 py-1 text-xs font-bold tracking-[0.02em]"
               style={{
                 borderColor: `hsl(${p.hue}, 70%, 50%, 0.45)`,
                 background: `hsl(${p.hue}, 70%, 50%, 0.12)`,
@@ -457,15 +461,20 @@ const AboutMe: React.FC = () => {
             </span>
           ))
         ) : (
-          <span className="pill pill--muted">No permissions granted</span>
+          <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-xs font-bold tracking-[0.02em] opacity-70">
+            No permissions granted
+          </span>
         )}
         {user.tool_subscription && (
-          <span className="pill" style={{ borderColor: "hsl(145, 70%, 50%, 0.45)", background: "hsl(145, 70%, 50%, 0.12)", color: "hsl(145, 80%, 75%)" }}>
+          <span
+            className="inline-flex items-center rounded-full border border-transparent bg-transparent px-2.5 py-1 text-xs font-bold tracking-[0.02em]"
+            style={{ borderColor: "hsl(145, 70%, 50%, 0.45)", background: "hsl(145, 70%, 50%, 0.12)", color: "hsl(145, 80%, 75%)" }}
+          >
             Subscriber ({user.tool_subscription.subscriber_type === "faction" ? "Faction" : "Individual"})
           </span>
         )}
         {(user.scan_window_top_left_galx != null || user.scan_window_bottom_right_galx != null) && (
-          <span className="pill aboutme-scan-window-pill">
+          <span className="inline-flex items-center whitespace-nowrap rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[0.72rem] text-white/45">
             {user.scan_window_top_left_galx ?? "—"},{user.scan_window_top_left_galy ?? "—"} → {user.scan_window_bottom_right_galx ?? "—"},{user.scan_window_bottom_right_galy ?? "—"}
           </span>
         )}

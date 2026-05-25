@@ -1,13 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
-import type { SwcUser } from "../../api/auth";
+import type { SwcUser } from "../../api/core/auth";
 import { isSysadmin } from "../../auth/permissions";
-import { getMemberChangelog, type MemberChangelogEntry } from "../../api/memberChangelog";
+import { getMemberChangelog, type MemberChangelogEntry } from "../../api/members/memberChangelog";
 import HamburgerToggle from "../common/HamburgerToggle";
 import PrivilegePreviewPanel, {
   canSeeAudienceWithPrivs,
   toPreviewPrivs,
   type PreviewPrivs,
 } from "./PrivilegePreviewPanel";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../utils/ui";
+import ReportBugButton from "../support/ReportBugButton";
 
 type MemberRoleChangelogPanelProps = {
   user: SwcUser | null;
@@ -182,21 +184,22 @@ const MemberRoleChangelogPanel: React.FC<MemberRoleChangelogPanelProps> = ({
 
   return (
     <>
-      <div className="members-tool-back">
-        <button className="btn" type="button" onClick={onBack}>
+      <div className="flex items-center gap-3 mb-4">
+        <button className={BTN} type="button" onClick={onBack}>
           Back to Overview
         </button>
+        <ReportBugButton toolKey="member_changelog" toolLabel="Role-Based Change Log" />
       </div>
 
-      <section className="panel members-changelog">
-        <div className="members-changelog__header">
-          <h2 className="members-changelog__title">Role-Based Change Log</h2>
-          <p className="small members-changelog__subtitle">
+      <section className="panel grid gap-[0.85rem]">
+        <div className="grid gap-[0.3rem]">
+          <h2 className="m-0">Role-Based Change Log</h2>
+          <p className="small m-0 opacity-[0.86]">
             Showing only updates for tools this account can access.
           </p>
         </div>
 
-        <div className="members-changelog__toolbar">
+        <div className="grid gap-[0.55rem]">
           {isSysadminUser ? (
             <PrivilegePreviewPanel
               value={previewPrivs}
@@ -208,14 +211,14 @@ const MemberRoleChangelogPanel: React.FC<MemberRoleChangelogPanelProps> = ({
 
           <input
             type="text"
-            className="input"
+            className={INPUT}
             placeholder="Search updates by version, title, details, or tool"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
-          <div className="members-changelog__filters">
+          <div className="grid grid-cols-[repeat(2,minmax(0,1fr))_auto] gap-[0.55rem] items-center max-[900px]:grid-cols-1">
             <select
-              className="input"
+              className={INPUT}
               value={versionFilter}
               onChange={(event) => setVersionFilter(event.target.value)}
             >
@@ -227,7 +230,7 @@ const MemberRoleChangelogPanel: React.FC<MemberRoleChangelogPanelProps> = ({
               ))}
             </select>
             <select
-              className="input"
+              className={INPUT}
               value={toolFilter}
               onChange={(event) => setToolFilter(event.target.value)}
             >
@@ -238,20 +241,20 @@ const MemberRoleChangelogPanel: React.FC<MemberRoleChangelogPanelProps> = ({
                 </option>
               ))}
             </select>
-            <button type="button" className="btn btn--small" onClick={clearFilters}>
+            <button type="button" className={BTN_SM + " all"} onClick={clearFilters}>
               Clear Filters
             </button>
           </div>
-          <p className="small members-changelog__count">
+          <p className="small m-0 opacity-[0.86]">
             {loading ? "Loading…" : `${filteredEntries.length} update${filteredEntries.length === 1 ? "" : "s"} shown`}
           </p>
         </div>
 
-        <div className="members-changelog__body">
-          {loading ? <p className="small members-changelog__status">Loading changelog…</p> : null}
-          {error ? <p className="small members-changelog__status members-changelog__status--error">{error}</p> : null}
+        <div className="grid gap-[0.75rem]">
+          {loading ? <p className="small m-0">Loading changelog…</p> : null}
+          {error ? <p className="small m-0 text-[salmon]">{error}</p> : null}
           {!loading && !error && !filteredEntries.length ? (
-            <p className="small members-changelog__status">
+            <p className="small m-0">
               No changelog entries are available for your current role flags.
             </p>
           ) : null}
@@ -260,11 +263,11 @@ const MemberRoleChangelogPanel: React.FC<MemberRoleChangelogPanelProps> = ({
                 const isOpen = !!openVersions[group.version];
                 const releasedLabel = group.releasedAt ? new Date(group.releasedAt).toLocaleDateString() : null;
                 return (
-                  <section key={group.version} className="panel members-changelog__version">
-                    <div className="members-changelog__version-head">
-                      <div className="members-changelog__version-copy">
-                        <h3 className="members-changelog__version-title">v{group.version}</h3>
-                        <p className="small members-changelog__version-meta">
+                  <section key={group.version} className="panel grid gap-[0.75rem]">
+                    <div className="flex items-center justify-between gap-[0.8rem]">
+                      <div className="grid gap-[0.2rem]">
+                        <h3 className="m-0 text-[rgba(246,163,0,0.95)]">v{group.version}</h3>
+                        <p className="small m-0 opacity-80">
                           {group.entries.length} update{group.entries.length === 1 ? "" : "s"}
                           {releasedLabel ? ` · Released ${releasedLabel}` : ""}
                         </p>
@@ -277,14 +280,14 @@ const MemberRoleChangelogPanel: React.FC<MemberRoleChangelogPanelProps> = ({
                     </div>
 
                     {isOpen ? (
-                      <div className="members-changelog__entries">
+                      <div className="grid gap-[0.55rem]">
                         {group.entries.map((entry) => (
-                          <article key={entry.id} className="members-changelog__entry">
-                            <h4 className="members-changelog__entry-title">{entry.title}</h4>
-                            <p className="small members-changelog__entry-details">{entry.details}</p>
-                            <div className="members-changelog__tool-list">
+                          <article key={entry.id} className="grid gap-[0.35rem] p-[0.75rem_0.85rem] rounded-[12px] border border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(246,163,0,0.05))]">
+                            <h4 className="m-0 text-base">{entry.title}</h4>
+                            <p className="small m-0 leading-[1.42]">{entry.details}</p>
+                            <div className="flex flex-wrap gap-[0.35rem]">
                               {entry.tools.map((tool) => (
-                                <span key={`${entry.id}-${tool}`} className="members-changelog__tool-chip">
+                                <span key={`${entry.id}-${tool}`} className="inline-flex items-center min-h-[26px] px-[0.55rem] py-[0.2rem] rounded-full border border-[rgba(246,163,0,0.42)] bg-[rgba(246,163,0,0.1)] text-[rgba(255,214,122,0.95)] text-[0.78rem] font-bold">
                                   {tool}
                                 </span>
                               ))}
@@ -299,7 +302,7 @@ const MemberRoleChangelogPanel: React.FC<MemberRoleChangelogPanelProps> = ({
             : null}
 
           {isSysadminUser ? (
-            <p className="small members-changelog__sys-note">
+            <p className="small m-0 opacity-70">
               Toggle privilege flags above to preview visibility the same way access perms are enabled.
             </p>
           ) : null}

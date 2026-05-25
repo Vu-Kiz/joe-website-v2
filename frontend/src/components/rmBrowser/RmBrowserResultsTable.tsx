@@ -1,5 +1,5 @@
 import React from "react";
-import type { RmMaterial } from "../../api/rmBrowser";
+import type { RmMaterial } from "../../api/universe/rmBrowser";
 import RmBrowserResultRow from "./RmBrowserResultRow";
 import Pagination from "../common/Pagination";
 
@@ -63,15 +63,15 @@ const RmBrowserResultsTable: React.FC<Props> = ({
   onSort,
 }) => {
   if (loading) {
-    return <p className="rm-browser__status">Fetching materials…</p>;
+    return <p className="text-center opacity-50 py-8 text-[0.85rem]">Fetching materials…</p>;
   }
 
   if (error) {
-    return <p className="rm-browser__status rm-browser__status--error">{error}</p>;
+    return <p className="text-center py-8 text-[0.85rem] text-[salmon]">{error}</p>;
   }
 
   if (materials.length === 0) {
-    return <p className="rm-browser__status">No results. Adjust filters and search.</p>;
+    return <p className="text-center opacity-50 py-8 text-[0.85rem]">No results. Adjust filters and search.</p>;
   }
 
   const sorted = [...materials].sort((a, b) => {
@@ -91,21 +91,21 @@ const RmBrowserResultsTable: React.FC<Props> = ({
     return (
       <th
         key={label}
-        className={`rm-browser__th rm-browser__th--sortable${isSorted ? " is-sorted" : ""}`}
+        className={`px-3 py-2 text-left font-medium whitespace-nowrap select-none cursor-pointer border-b border-white/[0.08] ${isSorted ? "opacity-100 text-[#ffc107]" : "opacity-60 hover:opacity-90"}`}
         onClick={() => onSort(key)}
       >
         {label}
-        {isSorted && <span className="rm-browser__sort-arrow">{sortDir === "asc" ? " ▲" : " ▼"}</span>}
+        {isSorted && <span className="text-[0.7rem] ml-[2px]">{sortDir === "asc" ? " ▲" : " ▼"}</span>}
       </th>
     );
   }
 
   return (
-    <div className="rm-browser__results">
+    <div className="flex flex-col gap-3">
       {apiErrors && apiErrors.length > 0 && (
-        <div className="rm-browser__api-errors">
+        <div className="mb-3">
           {apiErrors.map((e, i) => (
-            <p key={i} className="rm-browser__status rm-browser__status--warn">{e}</p>
+            <p key={i} className="text-center py-8 text-[0.85rem] text-[#ffc107]">{e}</p>
           ))}
         </div>
       )}
@@ -119,8 +119,8 @@ const RmBrowserResultsTable: React.FC<Props> = ({
         pageSizeOptions={[25, 50, 100, 200]}
       />
 
-      <div className="rm-browser__table-wrap">
-        <table className="rm-browser__table">
+      <div className="overflow-x-auto border border-white/[0.08] rounded-[6px]">
+        <table className="w-full border-collapse text-[0.82rem]">
           <thead>
             <tr>
               {headerCell("name", "Name")}

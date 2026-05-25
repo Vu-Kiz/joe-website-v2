@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api\Universe;
 
 use App\Http\Controllers\Controller;
 use App\Models\SubscriberCellRecord;
-use App\Models\ToolSubscription;
-use App\Models\ToolSubscriptionMember;
+use App\Models\ToolStore\ToolSubscription;
+use App\Models\ToolStore\ToolSubscriptionMember;
 use App\Support\ToolStore\ToolAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

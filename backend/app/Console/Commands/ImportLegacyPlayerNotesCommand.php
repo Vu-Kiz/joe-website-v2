@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Models\SwcSector;
-use App\Models\SwcSectorCellAnnotation;
+use App\Models\Swc\SwcSector;
+use App\Models\Swc\SwcSectorCellAnnotation;
 use Illuminate\Console\Command;
 
 class ImportLegacyPlayerNotesCommand extends Command

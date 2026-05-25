@@ -2,7 +2,7 @@
 
 namespace App\Support\Swc;
 
-use App\Models\SwcTimeState;
+use App\Models\Swc\SwcTimeState;
 use Carbon\Carbon;
 
 class CombineTime

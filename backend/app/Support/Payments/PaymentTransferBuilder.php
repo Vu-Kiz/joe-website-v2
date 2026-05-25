@@ -2,8 +2,8 @@
 
 namespace App\Support\Payments;
 
-use App\Models\PaymentItem;
-use App\Models\PaymentTransfer;
+use App\Models\Payment\PaymentItem;
+use App\Models\Payment\PaymentTransfer;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 

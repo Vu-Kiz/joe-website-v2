@@ -3,7 +3,8 @@ import {
   getDebugCombatSettings,
   updateDebugCombatSettings,
   type DebugCombatSettingsResponse,
-} from "../../api/sysDebug";
+} from "../../api/admin/sysDebug";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../utils/ui";
 
 type CombatSettingsPayload = DebugCombatSettingsResponse["data"];
 
@@ -154,19 +155,19 @@ const AdminCombatValuesPanel: React.FC = () => {
       <div className="panel" style={{ display: "grid", gap: "1rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
           <div>
-            <h2>Combat Values</h2>
+            <h2 className="h2">Combat Values</h2>
             <p className="small">
               DB-backed combat math tables for ship heatmap testing and future combat calculators.
             </p>
           </div>
-          <button className="btn" type="button" onClick={saveSettings} disabled={saving || !settings}>
+          <button className={BTN} type="button" onClick={saveSettings} disabled={saving || !settings}>
             {saving ? "Saving…" : "Save Combat Values"}
           </button>
         </div>
 
         <div style={{ display: "grid", gap: "1rem" }}>
           <div>
-            <h3>Ship Damage Type Modifiers</h3>
+            <h3 className="h3">Ship Damage Type Modifiers</h3>
             <p className="small">These apply after armour reduction for ship, vehicle, and station style targets.</p>
           </div>
 
@@ -190,13 +191,13 @@ const AdminCombatValuesPanel: React.FC = () => {
       <div className="panel" style={{ display: "grid", gap: "1rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap", alignItems: "end" }}>
           <div>
-            <h2>Ship Class Modifier Matrix</h2>
+            <h2 className="h2">Ship Class Modifier Matrix</h2>
             <p className="small">Attacker classes are rows. Defender classes are columns.</p>
           </div>
           <label className="small" style={{ display: "grid", gap: "0.35rem" }}>
             <span>Damage Type</span>
             <select
-              className="input"
+              className={INPUT}
               value={selectedDamageType}
               onChange={(event) => setSelectedDamageType(event.target.value)}
             >

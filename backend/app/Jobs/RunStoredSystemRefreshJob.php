@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Models\SwcSystem;
-use App\Models\SwcUniverseSyncRun;
+use App\Models\Swc\SwcSystem;
+use App\Models\Swc\SwcUniverseSyncRun;
 use App\Support\Swc\UniversePersistenceService;
 use App\Support\Swc\UniversePullService;
 use App\Support\Swc\UniverseSyncCancelledException;

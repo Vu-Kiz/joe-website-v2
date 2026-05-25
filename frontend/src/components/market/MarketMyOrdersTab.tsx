@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { cancelOrder, getMyOrders, payOrder } from "../../api/market";
-import type { MarketOrder } from "../../api/market";
+import { cancelOrder, getMyOrders, payOrder } from "../../api/market/market";
+import type { MarketOrder } from "../../api/market/market";
 import MarketConfirmDialog from "./MarketConfirmDialog";
 import { formatMarketName } from "./marketDisplay";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../../utils/ui";
 
 function formatCredits(n: number): string {
   return n.toLocaleString() + " Credits";
@@ -84,38 +85,37 @@ const MarketMyOrdersTab: React.FC<{ hasPaymentsAccess: boolean }> = ({ hasPaymen
     }
   }
 
-  if (loading) return <p className="market-empty">Loading…</p>;
-  if (orders.length === 0) return <p className="market-empty">You have no active orders.</p>;
+  const emptyCls = "text-white/40 text-[0.9rem] py-8";
+  if (loading) return <p className={emptyCls}>Loading…</p>;
+  if (orders.length === 0) return <p className={emptyCls}>You have no active orders.</p>;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
       {orders.map((order) => {
         const payResult = payResults[order.id];
         return (
-          <div key={order.id} className="market-card" style={{ maxWidth: 520 }}>
-            <div className="market-card__eyebrow">
-              <span className="market-badge market-badge--entity">{order.listing?.entity_type ?? "—"}</span>
-              <span className="small" style={{ marginLeft: "auto", color: statusColor(order.status) }}>
+          <div key={order.id} className="bg-white/[0.03] border border-white/[0.08] hover:border-white/[0.14] rounded-[12px] flex flex-col gap-[0.45rem] p-[0.82rem]" style={{ maxWidth: 520 }}>
+            <div className="flex items-center gap-[0.4rem] flex-wrap text-[0.72rem] opacity-60 uppercase tracking-[0.06em]">
+              <span className="rounded-[4px] text-[0.7rem] font-semibold px-[0.45rem] py-[0.15rem] uppercase tracking-[0.05em] bg-white/[0.07] text-white/70">{order.listing?.entity_type ?? "—"}</span>
+              <span className="small ml-auto normal-case" style={{ opacity: 1, letterSpacing: 0, color: statusColor(order.status) }}>
                 {statusLabel(order.status)}
               </span>
             </div>
 
-            <p className="market-card__name">{formatMarketName(order.listing?.entity_name)}</p>
+            <p className="m-0 text-[0.95rem] font-semibold leading-[1.2]">{formatMarketName(order.listing?.entity_name)}</p>
 
-            <p className="market-card__meta">
+            <p className="m-0 text-white/55 text-[0.78rem]">
               {order.quantity > 1 && `Qty: ${order.quantity.toLocaleString()} · `}
               Total: <strong>{formatCredits(order.total_credits)}</strong>
             </p>
 
             {order.status === "pending_payment" && !payResult?.ok && (
               <>
-                <div className="market-order-box">
+                <div className="flex flex-col gap-3 max-w-[520px] p-5 rounded-[12px] border border-[rgba(255,200,80,0.2)] bg-[rgba(255,200,80,0.06)]">
                   <p className="small muted">Reference</p>
-                  <div className="market-order-box__ref">{order.order_reference}</div>
+                  <div className="font-mono text-[1rem] font-bold text-[#ffd875]">{order.order_reference}</div>
                   {payResult?.needs_payments_access ? (
-                    <p className="small" style={{ color: "#facc15", marginTop: "0.5rem" }}>
-                      {payResult.message}
-                    </p>
+                    <p className="small" style={{ color: "#facc15", marginTop: "0.5rem" }}>{payResult.message}</p>
                   ) : payResult && !payResult.ok ? (
                     <p className="small" style={{ color: "#f87171", marginTop: "0.5rem" }}>{payResult.message}</p>
                   ) : (
@@ -125,28 +125,18 @@ const MarketMyOrdersTab: React.FC<{ hasPaymentsAccess: boolean }> = ({ hasPaymen
                   )}
                 </div>
 
-                <div className="market-card__actions">
+                <div className="flex flex-col gap-[0.42rem] pt-[0.15rem]">
                   {hasPaymentsAccess ? (
-                    <button
-                      className="btn"
-                      type="button"
-                      onClick={() => handlePay(order.id)}
-                      disabled={paying === order.id}
-                    >
+                    <button className={BTN} type="button" onClick={() => handlePay(order.id)} disabled={paying === order.id}>
                       {paying === order.id ? "Paying…" : `Pay ${formatCredits(order.total_credits)} via SWC`}
                     </button>
                   ) : (
                     <div>
                       <p className="small muted">Link Chain Code Verification (Payments) on your About Me page to pay.</p>
-                      <a className="btn btn--ghost" href="/aboutme">Open About Me</a>
+                      <a className={BTN_GHOST} href="/aboutme">Open About Me</a>
                     </div>
                   )}
-                  <button
-                    className="btn btn--ghost"
-                    type="button"
-                    onClick={() => setOrderToCancel(order)}
-                    disabled={cancelling === order.id}
-                  >
+                  <button className={BTN_GHOST} type="button" onClick={() => setOrderToCancel(order)} disabled={cancelling === order.id}>
                     {cancelling === order.id ? "Cancelling…" : "Cancel"}
                   </button>
                 </div>

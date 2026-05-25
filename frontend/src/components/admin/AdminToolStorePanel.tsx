@@ -23,8 +23,10 @@ import {
   type ToolSubscriptionFactionDeal,
   type ToolSubscriptionPlan,
   type UserSearchResult,
-} from "../../api/adminToolStore";
+} from "../../api/admin/adminToolStore";
 import SearchSuggestionPicker from "../common/SearchSuggestionPicker";
+import { BTN, BTN_SM, INPUT} from "../../utils/ui";
+import CreditInput, { parseCreditInput } from "../common/CreditInput";
 
 // ---------------------------------------------------------------------------
 // Plans section
@@ -61,13 +63,13 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, publicTools, onSaved }) => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const priceNum = parseInt(editor.monthly_price_credits, 10) || 0;
+  const priceNum = parseCreditInput(editor.monthly_price_credits) || 0;
   const perTool = publicTools.length > 0 ? Math.round(priceNum / publicTools.length) : 0;
 
   const isDirty =
     editor.label !== plan.label ||
     editor.description !== (plan.description ?? "") ||
-    parseInt(editor.monthly_price_credits, 10) !== plan.monthly_price_credits ||
+    parseCreditInput(editor.monthly_price_credits) !== plan.monthly_price_credits ||
     editor.is_active !== plan.is_active;
 
   async function handleSave(e: React.FormEvent) {
@@ -78,7 +80,7 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, publicTools, onSaved }) => {
       const res = await updateToolStorePlan(plan.key, {
         label: editor.label,
         description: editor.description || null,
-        monthly_price_credits: parseInt(editor.monthly_price_credits, 10) || 0,
+        monthly_price_credits: parseCreditInput(editor.monthly_price_credits) || 0,
         is_active: editor.is_active,
       });
       onSaved(res.data);
@@ -95,10 +97,10 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, publicTools, onSaved }) => {
   }
 
   return (
-    <form className="panel admin-card" onSubmit={handleSave}>
-      <div className="admin-card__header">
-        <h3 className="admin-card__title">{plan.key}</h3>
-        <label className="admin-form__check" style={{ margin: 0 }}>
+    <form className="panel flex flex-col gap-4" onSubmit={handleSave}>
+      <div className="flex flex-col gap-1.5">
+        <h3 className="m-0">{plan.key}</h3>
+        <label className="flex items-center gap-2" style={{ margin: 0 }}>
           <input
             type="checkbox"
             checked={editor.is_active}
@@ -108,11 +110,11 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, publicTools, onSaved }) => {
         </label>
       </div>
 
-      <div className="admin-card__body">
+      <div className="flex flex-col gap-3">
         <div className="field">
           <label className="field__label">Plan label</label>
           <input
-            className="input"
+            className={INPUT}
             value={editor.label}
             onChange={(e) => setEditor((s) => ({ ...s, label: e.target.value }))}
             required
@@ -122,7 +124,7 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, publicTools, onSaved }) => {
         <div className="field">
           <label className="field__label">Description</label>
           <textarea
-            className="input"
+            className={INPUT}
             rows={2}
             value={editor.description}
             onChange={(e) => setEditor((s) => ({ ...s, description: e.target.value }))}
@@ -131,13 +133,10 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, publicTools, onSaved }) => {
 
         <div className="field">
           <label className="field__label">Monthly price (Credits)</label>
-          <input
-            className="input"
-            type="number"
-            min={0}
-            step={1}
+          <CreditInput
+            className={INPUT}
             value={editor.monthly_price_credits}
-            onChange={(e) => setEditor((s) => ({ ...s, monthly_price_credits: e.target.value }))}
+            onChange={(v) => setEditor((s) => ({ ...s, monthly_price_credits: v }))}
             required
           />
           {priceNum > 0 && publicTools.length > 0 && (
@@ -164,13 +163,13 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, publicTools, onSaved }) => {
           </p>
         )}
 
-        <div className="admin-form__actions">
+        <div className="flex flex-wrap gap-3">
           {isDirty && (
-            <button type="button" className="btn btn--small" onClick={handleReset} disabled={saving}>
+            <button type="button" className={BTN_SM + " all"} onClick={handleReset} disabled={saving}>
               Reset
             </button>
           )}
-          <button type="submit" className="btn" disabled={saving || !isDirty}>
+          <button type="submit" className={BTN} disabled={saving || !isDirty}>
             {saving ? "Saving…" : "Save plan"}
           </button>
         </div>
@@ -204,7 +203,7 @@ const SeatTiersSection: React.FC<SeatTiersProps> = ({ tiers, planKeys, onTiersCh
       const res = await createSeatTier({
         plan_key: form.plan_key,
         min_seats: parseInt(form.min_seats),
-        price_per_seat_credits: parseInt(form.price_per_seat_credits),
+        price_per_seat_credits: parseCreditInput(form.price_per_seat_credits),
       });
       onTiersChanged([...tiers, res.data].sort((a, b) => a.plan_key.localeCompare(b.plan_key) || a.min_seats - b.min_seats));
       setForm({ plan_key: "", min_seats: "", price_per_seat_credits: "" });
@@ -219,7 +218,7 @@ const SeatTiersSection: React.FC<SeatTiersProps> = ({ tiers, planKeys, onTiersCh
     setSaving(true);
     setError(null);
     try {
-      const res = await updateSeatTier(id, { price_per_seat_credits: parseInt(editPrice) });
+      const res = await updateSeatTier(id, { price_per_seat_credits: parseCreditInput(editPrice) });
       onTiersChanged(tiers.map((t) => (t.id === id ? res.data : t)));
       setEditingId(null);
     } catch (err: unknown) {
@@ -251,24 +250,24 @@ const SeatTiersSection: React.FC<SeatTiersProps> = ({ tiers, planKeys, onTiersCh
   })).filter((g) => g.tiers.length > 0 || true);
 
   return (
-    <div className="panel admin-card">
-      <div className="admin-card__header">
-        <h3 className="admin-card__title">Volume Seat Tiers</h3>
+    <div className="panel flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <h3 className="m-0">Volume Seat Tiers</h3>
         <p className="small" style={{ margin: 0, opacity: 0.7 }}>
           Automatic per-seat discounts based on seat count — no manual deal needed
         </p>
       </div>
-      <div className="admin-card__body">
+      <div className="flex flex-col gap-3">
         {error && <p className="small" style={{ color: "salmon", marginBottom: 8 }}>{error}</p>}
 
         {/* Add tier form */}
-        <form onSubmit={handleCreate} className="admin-form" style={{ marginBottom: 24 }}>
+        <form onSubmit={handleCreate} className="flex flex-col gap-3" style={{ marginBottom: 24 }}>
           <p className="small" style={{ marginBottom: 8, fontWeight: 600 }}>Add tier</p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
             <div className="field">
               <label className="field__label">Plan</label>
               <select
-                className="input"
+                className={INPUT}
                 value={form.plan_key}
                 onChange={(e) => setForm((s) => ({ ...s, plan_key: e.target.value }))}
                 required
@@ -282,7 +281,7 @@ const SeatTiersSection: React.FC<SeatTiersProps> = ({ tiers, planKeys, onTiersCh
             <div className="field">
               <label className="field__label">Min seats (from)</label>
               <input
-                className="input"
+                className={INPUT}
                 type="number"
                 min={1}
                 step={1}
@@ -294,20 +293,17 @@ const SeatTiersSection: React.FC<SeatTiersProps> = ({ tiers, planKeys, onTiersCh
             </div>
             <div className="field">
               <label className="field__label">Price per seat (Cr / mo)</label>
-              <input
-                className="input"
-                type="number"
-                min={0}
-                step={1}
+              <CreditInput
+                className={INPUT}
                 value={form.price_per_seat_credits}
-                onChange={(e) => setForm((s) => ({ ...s, price_per_seat_credits: e.target.value }))}
-                placeholder="e.g. 60000"
+                onChange={(v) => setForm((s) => ({ ...s, price_per_seat_credits: v }))}
+                placeholder="e.g. 60,000"
                 required
               />
             </div>
           </div>
-          <div className="admin-form__actions">
-            <button type="submit" className="btn" disabled={saving}>
+          <div className="flex flex-wrap gap-3">
+            <button type="submit" className={BTN} disabled={saving}>
               {saving ? "Adding…" : "Add tier"}
             </button>
           </div>
@@ -334,13 +330,11 @@ const SeatTiersSection: React.FC<SeatTiersProps> = ({ tiers, planKeys, onTiersCh
                       <td style={{ padding: "6px 8px" }}>{tier.min_seats}+</td>
                       <td style={{ padding: "6px 8px" }}>
                         {editingId === tier.id ? (
-                          <input
-                            className="input"
-                            type="number"
-                            min={0}
+                          <CreditInput
+                            className={INPUT}
                             style={{ width: 130 }}
                             value={editPrice}
-                            onChange={(e) => setEditPrice(e.target.value)}
+                            onChange={setEditPrice}
                           />
                         ) : (
                           formatCredits(tier.price_per_seat_credits)
@@ -349,19 +343,19 @@ const SeatTiersSection: React.FC<SeatTiersProps> = ({ tiers, planKeys, onTiersCh
                       <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>
                         {editingId === tier.id ? (
                           <>
-                            <button className="btn btn--small" type="button" onClick={() => handleUpdate(tier.id)} disabled={saving} style={{ marginRight: 4 }}>Save</button>
-                            <button className="btn btn--small" type="button" onClick={() => setEditingId(null)} disabled={saving}>Cancel</button>
+                            <button className={BTN_SM + " all"} type="button" onClick={() => handleUpdate(tier.id)} disabled={saving} style={{ marginRight: 4 }}>Save</button>
+                            <button className={BTN_SM + " all"} type="button" onClick={() => setEditingId(null)} disabled={saving}>Cancel</button>
                           </>
                         ) : (
                           <>
                             <button
-                              className="btn btn--small"
+                              className={BTN_SM + " all"}
                               type="button"
                               onClick={() => { setEditingId(tier.id); setEditPrice(String(tier.price_per_seat_credits)); }}
                               disabled={saving}
                               style={{ marginRight: 4 }}
                             >Edit</button>
-                            <button className="btn btn--small" type="button" onClick={() => handleDelete(tier.id)} disabled={saving} style={{ color: "salmon" }}>Delete</button>
+                            <button className={BTN_SM + " all"} type="button" onClick={() => handleDelete(tier.id)} disabled={saving} style={{ color: "salmon" }}>Delete</button>
                           </>
                         )}
                       </td>
@@ -439,14 +433,14 @@ const FactionDealsSection: React.FC<DealsProps> = ({ deals, factions, planKeys, 
           ? {
               faction_id: parseInt(form.faction_id),
               plan_key: form.plan_key,
-              per_seat_price_credits: parseInt(form.per_seat_price_credits) || 0,
+              per_seat_price_credits: parseCreditInput(form.per_seat_price_credits) || 0,
               max_seats: form.max_seats ? parseInt(form.max_seats) : null,
               notes: form.notes || null,
             }
           : {
               faction_id: parseInt(form.faction_id),
               plan_key: form.plan_key,
-              override_price_credits: parseInt(form.override_price_credits) || 0,
+              override_price_credits: parseCreditInput(form.override_price_credits) || 0,
               notes: form.notes || null,
             };
       const res = await createToolStoreDeal(payload);
@@ -466,13 +460,13 @@ const FactionDealsSection: React.FC<DealsProps> = ({ deals, factions, planKeys, 
       const payload =
         editForm.pricing_type === "per_seat"
           ? {
-              per_seat_price_credits: parseInt(editForm.per_seat_price_credits) || 0,
+              per_seat_price_credits: parseCreditInput(editForm.per_seat_price_credits) || 0,
               override_price_credits: null,
               max_seats: editForm.max_seats ? parseInt(editForm.max_seats) : null,
               notes: editForm.notes || null,
             }
           : {
-              override_price_credits: parseInt(editForm.override_price_credits) || 0,
+              override_price_credits: parseCreditInput(editForm.override_price_credits) || 0,
               per_seat_price_credits: null,
               max_seats: null,
               notes: editForm.notes || null,
@@ -525,23 +519,23 @@ const FactionDealsSection: React.FC<DealsProps> = ({ deals, factions, planKeys, 
   }
 
   return (
-    <div className="panel admin-card">
-      <div className="admin-card__header">
-        <h3 className="admin-card__title">Faction Deals</h3>
+    <div className="panel flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <h3 className="m-0">Faction Deals</h3>
         <p className="small" style={{ margin: 0, opacity: 0.7 }}>Negotiated pricing overrides for specific factions</p>
       </div>
 
-      <div className="admin-card__body">
+      <div className="flex flex-col gap-3">
         {error && <p className="small" style={{ color: "salmon", marginBottom: 8 }}>{error}</p>}
 
         {/* New deal form */}
-        <form onSubmit={handleCreate} className="admin-form" style={{ marginBottom: 24 }}>
+        <form onSubmit={handleCreate} className="flex flex-col gap-3" style={{ marginBottom: 24 }}>
           <p className="small" style={{ marginBottom: 8, fontWeight: 600 }}>New deal</p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <div className="field">
               <label className="field__label">Faction</label>
               <select
-                className="input"
+                className={INPUT}
                 value={form.faction_id}
                 onChange={(e) => setForm((s) => ({ ...s, faction_id: e.target.value }))}
                 required
@@ -557,7 +551,7 @@ const FactionDealsSection: React.FC<DealsProps> = ({ deals, factions, planKeys, 
             <div className="field">
               <label className="field__label">Plan</label>
               <select
-                className="input"
+                className={INPUT}
                 value={form.plan_key}
                 onChange={(e) => setForm((s) => ({ ...s, plan_key: e.target.value }))}
                 required
@@ -571,7 +565,7 @@ const FactionDealsSection: React.FC<DealsProps> = ({ deals, factions, planKeys, 
             <div className="field" style={{ gridColumn: "1 / -1" }}>
               <label className="field__label">Pricing type</label>
               <select
-                className="input"
+                className={INPUT}
                 value={form.pricing_type}
                 onChange={(e) => setForm((s) => ({ ...s, pricing_type: e.target.value as "per_seat" | "flat" }))}
               >
@@ -583,20 +577,17 @@ const FactionDealsSection: React.FC<DealsProps> = ({ deals, factions, planKeys, 
               <>
                 <div className="field">
                   <label className="field__label">Price per seat (Cr / mo)</label>
-                  <input
-                    className="input"
-                    type="number"
-                    min={0}
-                    step={1}
+                  <CreditInput
+                    className={INPUT}
                     value={form.per_seat_price_credits}
-                    onChange={(e) => setForm((s) => ({ ...s, per_seat_price_credits: e.target.value }))}
+                    onChange={(v) => setForm((s) => ({ ...s, per_seat_price_credits: v }))}
                     required
                   />
                 </div>
                 <div className="field">
                   <label className="field__label">Max seats (optional)</label>
                   <input
-                    className="input"
+                    className={INPUT}
                     type="number"
                     min={1}
                     step={1}
@@ -609,13 +600,10 @@ const FactionDealsSection: React.FC<DealsProps> = ({ deals, factions, planKeys, 
             ) : (
               <div className="field">
                 <label className="field__label">Flat monthly price (Cr)</label>
-                <input
-                  className="input"
-                  type="number"
-                  min={0}
-                  step={1}
+                <CreditInput
+                  className={INPUT}
                   value={form.override_price_credits}
-                  onChange={(e) => setForm((s) => ({ ...s, override_price_credits: e.target.value }))}
+                  onChange={(v) => setForm((s) => ({ ...s, override_price_credits: v }))}
                   required
                 />
               </div>
@@ -623,15 +611,15 @@ const FactionDealsSection: React.FC<DealsProps> = ({ deals, factions, planKeys, 
             <div className="field" style={form.pricing_type === "flat" ? {} : undefined}>
               <label className="field__label">Notes (optional)</label>
               <input
-                className="input"
+                className={INPUT}
                 value={form.notes}
                 onChange={(e) => setForm((s) => ({ ...s, notes: e.target.value }))}
                 placeholder="e.g. 6-month locked deal"
               />
             </div>
           </div>
-          <div className="admin-form__actions">
-            <button type="submit" className="btn" disabled={saving}>
+          <div className="flex flex-wrap gap-3">
+            <button type="submit" className={BTN} disabled={saving}>
               {saving ? "Creating…" : "Create deal"}
             </button>
           </div>
@@ -662,7 +650,7 @@ const FactionDealsSection: React.FC<DealsProps> = ({ deals, factions, planKeys, 
                       <td style={{ padding: "6px 8px" }} colSpan={2}>
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                           <select
-                            className="input"
+                            className={INPUT}
                             style={{ width: 160 }}
                             value={editForm.pricing_type}
                             onChange={(e) => setEditForm((s) => ({ ...s, pricing_type: e.target.value as "per_seat" | "flat" }))}
@@ -672,17 +660,15 @@ const FactionDealsSection: React.FC<DealsProps> = ({ deals, factions, planKeys, 
                           </select>
                           {editForm.pricing_type === "per_seat" ? (
                             <>
-                              <input
-                                className="input"
-                                type="number"
-                                min={0}
+                              <CreditInput
+                                className={INPUT}
                                 style={{ width: 110 }}
                                 placeholder="Cr / seat"
                                 value={editForm.per_seat_price_credits}
-                                onChange={(e) => setEditForm((s) => ({ ...s, per_seat_price_credits: e.target.value }))}
+                                onChange={(v) => setEditForm((s) => ({ ...s, per_seat_price_credits: v }))}
                               />
                               <input
-                                className="input"
+                                className={INPUT}
                                 type="number"
                                 min={1}
                                 style={{ width: 90 }}
@@ -692,18 +678,16 @@ const FactionDealsSection: React.FC<DealsProps> = ({ deals, factions, planKeys, 
                               />
                             </>
                           ) : (
-                            <input
-                              className="input"
-                              type="number"
-                              min={0}
+                            <CreditInput
+                              className={INPUT}
                               style={{ width: 120 }}
                               placeholder="Flat Cr"
                               value={editForm.override_price_credits}
-                              onChange={(e) => setEditForm((s) => ({ ...s, override_price_credits: e.target.value }))}
+                              onChange={(v) => setEditForm((s) => ({ ...s, override_price_credits: v }))}
                             />
                           )}
                           <input
-                            className="input"
+                            className={INPUT}
                             placeholder="Notes"
                             value={editForm.notes}
                             onChange={(e) => setEditForm((s) => ({ ...s, notes: e.target.value }))}
@@ -715,7 +699,7 @@ const FactionDealsSection: React.FC<DealsProps> = ({ deals, factions, planKeys, 
                       <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>
                         <button
                           type="button"
-                          className="btn btn--small"
+                          className={BTN_SM + " all"}
                           onClick={() => handleUpdate(deal.id)}
                           disabled={saving}
                           style={{ marginRight: 4 }}
@@ -724,7 +708,7 @@ const FactionDealsSection: React.FC<DealsProps> = ({ deals, factions, planKeys, 
                         </button>
                         <button
                           type="button"
-                          className="btn btn--small"
+                          className={BTN_SM + " all"}
                           onClick={() => setEditingId(null)}
                           disabled={saving}
                         >
@@ -742,7 +726,7 @@ const FactionDealsSection: React.FC<DealsProps> = ({ deals, factions, planKeys, 
                       <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>
                         <button
                           type="button"
-                          className="btn btn--small"
+                          className={BTN_SM + " all"}
                           onClick={() => startEdit(deal)}
                           disabled={saving}
                           style={{ marginRight: 4 }}
@@ -751,7 +735,7 @@ const FactionDealsSection: React.FC<DealsProps> = ({ deals, factions, planKeys, 
                         </button>
                         <button
                           type="button"
-                          className="btn btn--small"
+                          className={BTN_SM + " all"}
                           onClick={() => handleDelete(deal.id)}
                           disabled={saving}
                           style={{ color: "salmon" }}
@@ -836,12 +820,12 @@ const ManualGrantSection: React.FC<ManualGrantSectionProps> = ({ planKeys }) => 
   }
 
   return (
-    <form className="panel admin-card" onSubmit={handleSubmit}>
-      <div className="admin-card__header">
-        <h3 className="admin-card__title">Manual Grant</h3>
+    <form className="panel flex flex-col gap-4" onSubmit={handleSubmit}>
+      <div className="flex flex-col gap-1.5">
+        <h3 className="m-0">Manual Grant</h3>
         <p className="small" style={{ margin: 0, opacity: 0.7 }}>Grant access without payment — for testing or comped accounts</p>
       </div>
-      <div className="admin-card__body">
+      <div className="flex flex-col gap-3">
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 80px", gap: 8 }}>
           <div className="field">
             <label className="field__label">User (SWC handle)</label>
@@ -861,7 +845,7 @@ const ManualGrantSection: React.FC<ManualGrantSectionProps> = ({ planKeys }) => 
           <div className="field">
             <label className="field__label">Plan</label>
             <select
-              className="input"
+              className={INPUT}
               value={planKey}
               onChange={(e) => setPlanKey(e.target.value)}
               required
@@ -875,7 +859,7 @@ const ManualGrantSection: React.FC<ManualGrantSectionProps> = ({ planKeys }) => 
           <div className="field">
             <label className="field__label">Months</label>
             <input
-              className="input"
+              className={INPUT}
               type="number"
               min={1}
               max={24}
@@ -896,8 +880,8 @@ const ManualGrantSection: React.FC<ManualGrantSectionProps> = ({ planKeys }) => 
           </p>
         )}
 
-        <div className="admin-form__actions">
-          <button type="submit" className="btn" disabled={saving || !selectedUser || !planKey}>
+        <div className="flex flex-wrap gap-3">
+          <button type="submit" className={BTN} disabled={saving || !selectedUser || !planKey}>
             {saving ? "Granting…" : "Grant access"}
           </button>
         </div>
@@ -941,18 +925,18 @@ const PayeeSettingsSection: React.FC<PayeeSettingsSectionProps> = ({ settings, o
   const configured = settings.payee_faction_id;
 
   return (
-    <form className="panel admin-card" onSubmit={handleSave}>
-      <div className="admin-card__header">
-        <h3 className="admin-card__title">Payment Recipient</h3>
+    <form className="panel flex flex-col gap-4" onSubmit={handleSave}>
+      <div className="flex flex-col gap-1.5">
+        <h3 className="m-0">Payment Recipient</h3>
         <span className="small" style={{ opacity: 0.6 }}>
           {configured ? "✓ Configured" : "⚠ Not configured — subscriptions will not work"}
         </span>
       </div>
-      <div className="admin-card__body">
+      <div className="flex flex-col gap-3">
         <div className="field">
           <label className="field__label">Payee faction</label>
           <select
-            className="input"
+            className={INPUT}
             value={factionId}
             onChange={(e) => setFactionId(e.target.value)}
           >
@@ -968,8 +952,8 @@ const PayeeSettingsSection: React.FC<PayeeSettingsSectionProps> = ({ settings, o
           </p>
         </div>
         {error && <p className="small" style={{ color: "salmon" }}>{error}</p>}
-        <div className="admin-form__actions">
-          <button type="submit" className="btn" disabled={saving || !isDirty}>
+        <div className="flex flex-wrap gap-3">
+          <button type="submit" className={BTN} disabled={saving || !isDirty}>
             {saving ? "Saving…" : "Save"}
           </button>
         </div>
@@ -1052,17 +1036,17 @@ const FactionGrantSection: React.FC<FactionGrantSectionProps> = ({ planKeys, fac
   }
 
   return (
-    <form className="panel admin-card" onSubmit={handleSubmit}>
-      <div className="admin-card__header">
-        <h3 className="admin-card__title">Faction Manual Grant</h3>
+    <form className="panel flex flex-col gap-4" onSubmit={handleSubmit}>
+      <div className="flex flex-col gap-1.5">
+        <h3 className="m-0">Faction Manual Grant</h3>
         <p className="small" style={{ margin: 0, opacity: 0.7 }}>Grant a faction subscription with seat allocation — for comped or deal-based access</p>
       </div>
-      <div className="admin-card__body">
+      <div className="flex flex-col gap-3">
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           <div className="field">
             <label className="field__label">Faction</label>
             <select
-              className="input"
+              className={INPUT}
               value={factionId}
               onChange={(e) => setFactionId(e.target.value)}
               required
@@ -1091,7 +1075,7 @@ const FactionGrantSection: React.FC<FactionGrantSectionProps> = ({ planKeys, fac
           <div className="field">
             <label className="field__label">Plan</label>
             <select
-              className="input"
+              className={INPUT}
               value={planKey}
               onChange={(e) => setPlanKey(e.target.value)}
               required
@@ -1105,7 +1089,7 @@ const FactionGrantSection: React.FC<FactionGrantSectionProps> = ({ planKeys, fac
           <div className="field">
             <label className="field__label">Seats</label>
             <input
-              className="input"
+              className={INPUT}
               type="number"
               min={1}
               max={500}
@@ -1117,7 +1101,7 @@ const FactionGrantSection: React.FC<FactionGrantSectionProps> = ({ planKeys, fac
           <div className="field">
             <label className="field__label">Months</label>
             <input
-              className="input"
+              className={INPUT}
               type="number"
               min={1}
               max={24}
@@ -1139,8 +1123,8 @@ const FactionGrantSection: React.FC<FactionGrantSectionProps> = ({ planKeys, fac
           </p>
         )}
 
-        <div className="admin-form__actions">
-          <button type="submit" className="btn" disabled={saving || !factionId || !planKey || !managerUser}>
+        <div className="flex flex-wrap gap-3">
+          <button type="submit" className={BTN} disabled={saving || !factionId || !planKey || !managerUser}>
             {saving ? "Granting…" : "Grant faction access"}
           </button>
         </div>
@@ -1193,7 +1177,7 @@ const AdminToolStorePanel: React.FC = () => {
 
   if (loading) {
     return (
-      <section className="panel admin-panel">
+      <section className="panel flex flex-col gap-4">
         <p className="small">Loading tool store settings…</p>
       </section>
     );
@@ -1201,17 +1185,17 @@ const AdminToolStorePanel: React.FC = () => {
 
   if (error) {
     return (
-      <section className="panel admin-panel">
+      <section className="panel flex flex-col gap-4">
         <p className="small" style={{ color: "salmon" }}>{error}</p>
-        <button className="btn" onClick={load}>Retry</button>
+        <button className={BTN} onClick={load}>Retry</button>
       </section>
     );
   }
 
   return (
-    <section className="panel admin-panel">
-      <div className="admin-panel__header">
-        <h2>Tools Store</h2>
+    <section className="panel flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <h2 className="h2">Tools Store</h2>
         <p className="small" style={{ margin: 0, opacity: 0.7 }}>
           Manage Anarchy Industries public tool subscription plans and pricing.
         </p>

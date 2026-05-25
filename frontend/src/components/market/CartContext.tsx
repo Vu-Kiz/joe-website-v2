@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from "react";
-import type { MarketListing } from "../../api/market";
+import type { MarketListing } from "../../api/market/market";
 
 export type CartItem = {
   listing: MarketListing;

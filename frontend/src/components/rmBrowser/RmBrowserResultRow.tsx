@@ -1,5 +1,5 @@
 import React from "react";
-import type { RmMaterial } from "../../api/rmBrowser";
+import type { RmMaterial } from "../../api/universe/rmBrowser";
 
 type Props = {
   material: RmMaterial;
@@ -43,16 +43,16 @@ const RmBrowserResultRow: React.FC<Props> = ({ material }) => {
   const container = nested(loc.container);
 
   return (
-    <tr className="rm-browser__result-row">
-      <td className="rm-browser__cell rm-browser__cell--name">{name}</td>
-      <td className="rm-browser__cell rm-browser__cell--type">{type}</td>
-      <td className="rm-browser__cell rm-browser__cell--qty">{quantity}</td>
-      <td className="rm-browser__cell rm-browser__cell--system">{system}</td>
-      <td className="rm-browser__cell rm-browser__cell--planet">{planet}</td>
-      <td className="rm-browser__cell rm-browser__cell--sector">{sector}</td>
-      <td className="rm-browser__cell rm-browser__cell--container">{container}</td>
-      <td className="rm-browser__cell rm-browser__cell--faction">
-        <span className="rm-browser__faction-tag">{factionLabel}</span>
+    <tr className="border-b border-white/[0.04] hover:bg-white/[0.03]">
+      <td className="px-3 py-[7px] align-middle font-medium whitespace-nowrap">{name}</td>
+      <td className="px-3 py-[7px] align-middle opacity-75">{type}</td>
+      <td className="px-3 py-[7px] align-middle text-right tabular-nums">{quantity}</td>
+      <td className="px-3 py-[7px] align-middle opacity-75">{system}</td>
+      <td className="px-3 py-[7px] align-middle opacity-75">{planet}</td>
+      <td className="px-3 py-[7px] align-middle opacity-75">{sector}</td>
+      <td className="px-3 py-[7px] align-middle opacity-75">{container}</td>
+      <td className="px-3 py-[7px] align-middle">
+        <span className="text-[0.72rem] font-semibold px-[7px] py-[2px] rounded-[10px] bg-[rgba(255,193,7,0.12)] text-[#ffc107] whitespace-nowrap">{factionLabel}</span>
       </td>
     </tr>
   );

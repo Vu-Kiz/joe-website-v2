@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\SwcAuthorization;
+use App\Models\Swc\SwcAuthorization;
 use App\Models\User;
 use App\Models\UserSwcAccount;
 use App\Support\Swc\SwcAuthorizationService;

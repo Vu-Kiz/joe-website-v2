@@ -13,7 +13,7 @@ import PaymentsPage from "./pages/PaymentsPage";
 import DroidBrainPage from "./pages/DroidBrainPage";
 import AdminRoute from "./components/auth/AdminRoute";
 import SiteLockState from "./components/common/SiteLockState";
-import { fetchSiteLockStatus } from "./api/siteLock";
+import { fetchSiteLockStatus } from "./api/admin/siteLock";
 import SysDebugPage from "./pages/SysDebugPage";
 import SysUniversePage from "./pages/SysUniversePage";
 import MembersUniverseSystemPage from "./pages/MembersUniverseSystemPage";
@@ -65,7 +65,7 @@ function App() {
   return (
     <div className="site-scale">
       <div className="app app--one">
-        <main className="board admin-board">
+        <main className="board flex flex-col gap-4">
           <p className="small">Checking site status…</p>
         </main>
       </div>

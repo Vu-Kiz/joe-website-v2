@@ -11,8 +11,9 @@ import {
   updateAdminUserPermissions,
   type AdminFactionSubscription,
   type AdminManageableUser,
-} from "../../api/adminUsers";
-import { fetchAuthMe } from "../../api/auth";
+} from "../../api/admin/adminUsers";
+import { fetchAuthMe } from "../../api/core/auth";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../utils/ui";
 
 type EditableUserState = {
   id: number;
@@ -146,6 +147,15 @@ const AdminUsersPanel: React.FC = () => {
       );
     });
   }, [users, search]);
+
+  const menuButtonBaseClass = "inline-flex h-10 w-10 shrink-0 cursor-pointer flex-col justify-center gap-1 rounded-[10px] border border-white/10 bg-white/[0.03] text-inherit";
+  const menuButtonOpenClass = "border-[#f5d546]/35 bg-[#f5d546]/10";
+  const menuBarBaseClass = "block h-[2px] w-5 rounded-full bg-white/80 transition-colors duration-150";
+  const menuBarOpenClass = "bg-[#f5d546]";
+  const permTileBaseClass = "relative flex cursor-pointer flex-col gap-3 rounded-[14px] border border-white/10 bg-white/[0.02] px-4 py-4 transition-all duration-150 hover:-translate-y-px hover:border-[#f5d546]/30 hover:bg-[#f5d546]/[0.04]";
+  const permTileActiveClass = "border-[#f5d546]/40 bg-[#f5d546]/10 shadow-[inset_0_0_0_1px_rgba(245,213,70,0.15)]";
+  const permSwitchActiveClass = "border-[#f5d546]/35 bg-[#f5d546]/25";
+  const permSwitchKnobActiveClass = "translate-x-5";
 
   const updateLocalUser = (
     userId: number,
@@ -335,9 +345,9 @@ const AdminUsersPanel: React.FC = () => {
 
   if (loading) {
     return (
-      <section className="panel admin-panel">
-        <div className="admin-panel__header">
-          <h2 style={{ margin: 0 }}>Users</h2>
+      <section className="panel flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <h2 className="h2" style={{ margin: 0 }}>Users</h2>
           <p className="small" style={{ margin: 0 }}>
             Loading user permissions…
           </p>
@@ -347,25 +357,25 @@ const AdminUsersPanel: React.FC = () => {
   }
 
   return (
-    <section className="panel admin-panel">
-      <div className="admin-panel__header">
-        <h2 style={{ margin: 0 }}>Users</h2>
+    <section className="panel flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <h2 className="h2" style={{ margin: 0 }}>Users</h2>
         <p className="small" style={{ margin: 0 }}>
           Manage admin and feature permissions.
         </p>
       </div>
 
-      <div className="admin-users-toolbar">
+      <div className="flex flex-wrap items-center gap-3">
         <input
           type="text"
-          className="input"
+          className={INPUT}
           placeholder="Search by handle, Discord, or SWC ID"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         <button
           type="button"
-          className="btn btn--small btn--ghost"
+          className={BTN_GHOST_SM}
           onClick={handleRevokeAllSwcAuthorizations}
           disabled={revokingAllSwc}
         >
@@ -390,7 +400,7 @@ const AdminUsersPanel: React.FC = () => {
           No matching users found.
         </p>
       ) : (
-        <div className="admin-users-list">
+        <div className="flex flex-col gap-4">
           {filteredUsers.map((user) => {
             const isOpen = openId === user.id;
             const hasScanWindowValues = Boolean(
@@ -402,10 +412,10 @@ const AdminUsersPanel: React.FC = () => {
             const isScanWindowOpen = openScanWindowId === user.id || hasScanWindowValues;
 
             return (
-              <article key={user.id} className="panel admin-users-card">
-                <div className="admin-users-card__top">
-                  <div className="admin-users-card__identity">
-                    <div className="admin-users-avatar">
+              <article key={user.id} className="panel flex flex-col gap-4">
+                <div className="flex flex-wrap items-start justify-between gap-4 max-md:flex-col max-md:items-stretch">
+                  <div className="flex min-w-0 items-center gap-4">
+                    <div className="inline-flex h-[54px] w-[54px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#f5d546]/25 bg-white/5 font-extrabold text-[#f2c46f]">
                       {user.avatarUrl ? (
                         <img src={user.avatarUrl} alt={user.handle} />
                       ) : (
@@ -414,8 +424,8 @@ const AdminUsersPanel: React.FC = () => {
                     </div>
 
                     <div>
-                      <h3 className="admin-users-card__title">{user.handle}</h3>
-                      <div className="small admin-users-card__meta">
+                      <h3 className="m-0">{user.handle}</h3>
+                      <div className="small mt-1 opacity-80">
                         {user.swcCharacterId
                           ? `SWC ID ${user.swcCharacterId}`
                           : user.discordIdentity
@@ -425,8 +435,8 @@ const AdminUsersPanel: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="admin-users-card__controls">
-                    <div className="admin-users-card__badges">
+                  <div className="flex items-start gap-3 max-md:items-center max-md:justify-between">
+                    <div className="flex flex-wrap gap-2">
                       {([
                         { show: user.isJoeMember,                        label: "JOE Member",     hue: 47  },
                         { show: user.isAdmin,                            label: "Admin",           hue: 25  },
@@ -445,7 +455,7 @@ const AdminUsersPanel: React.FC = () => {
                       ] as const).filter(b => b.show && b.label).map(b => (
                         <span
                           key={b.label}
-                          className="admin-badge"
+                          className="inline-flex min-h-8 items-center rounded-full border border-transparent bg-transparent px-3 py-1 text-[0.82rem] font-bold"
                           style={{
                             borderColor: `hsl(${b.hue}, 70%, 50%, 0.45)`,
                             background: `hsl(${b.hue}, 70%, 50%, 0.12)`,
@@ -458,192 +468,200 @@ const AdminUsersPanel: React.FC = () => {
                     </div>
 
                     {hasScanWindowValues && (
-                      <span className="admin-badge admin-users-scan-window-pill">
+                      <span className="inline-flex min-h-8 items-center whitespace-nowrap rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[0.72rem] text-white/45">
                         {user.scanWindowTopLeftGalx},{user.scanWindowTopLeftGaly} → {user.scanWindowBottomRightGalx},{user.scanWindowBottomRightGaly}
                       </span>
                     )}
 
                     <button
                       type="button"
-                      className={"admin-users-menu-btn" + (isOpen ? " is-open" : "")}
+                      className={`${menuButtonBaseClass} ${isOpen ? menuButtonOpenClass : ""}`}
                       onClick={() => setOpenId((current) => (current === user.id ? null : user.id))}
                       aria-label={isOpen ? "Close permissions" : "Open permissions"}
                       aria-expanded={isOpen}
                     >
-                      <span />
-                      <span />
-                      <span />
+                      <span className={`${menuBarBaseClass} ${isOpen ? menuBarOpenClass : ""}`} />
+                      <span className={`${menuBarBaseClass} ${isOpen ? menuBarOpenClass : ""}`} />
+                      <span className={`${menuBarBaseClass} ${isOpen ? menuBarOpenClass : ""}`} />
                     </button>
                   </div>
                 </div>
 
                 {isOpen && (
                   <>
-                    <div className="admin-users-perms admin-users-perms--pretty">
-                      <label className={"admin-perm-tile" + (user.isAdmin ? " is-active" : "")}>
+                    <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
+                      <label className={`${permTileBaseClass} ${user.isAdmin ? permTileActiveClass : ""}`}>
                         <input
                           type="checkbox"
+                          className="sr-only"
                           checked={user.isAdmin}
                           onChange={() => handleToggle(user.id, "isAdmin")}
                         />
-                        <span className="admin-perm-tile__head">
-                          <span className="admin-perm-tile__title">Admin</span>
-                          <span className="admin-perm-tile__switch" aria-hidden="true">
-                            <span className="admin-perm-tile__knob" />
+                        <span className="flex items-center justify-between gap-4">
+                          <span className="font-bold leading-tight">Admin</span>
+                          <span className={`relative inline-flex h-[26px] w-[46px] shrink-0 items-center rounded-full border border-white/15 bg-white/10 transition-all duration-150 ${user.isAdmin ? permSwitchActiveClass : ""}`} aria-hidden="true">
+                            <span className={`absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white transition-transform duration-150 ${user.isAdmin ? permSwitchKnobActiveClass : ""}`} />
                           </span>
                         </span>
-                        <span className="admin-perm-tile__desc">
+                        <span className="text-[0.82rem] leading-snug opacity-80">
                           Grants access to the admin area and permission tools.
                         </span>
                       </label>
 
-                      <label className={"admin-perm-tile" + (user.canManageBlog ? " is-active" : "")}>
+                      <label className={`${permTileBaseClass} ${user.canManageBlog ? permTileActiveClass : ""}`}>
                         <input
                           type="checkbox"
+                          className="sr-only"
                           checked={user.canManageBlog}
                           onChange={() => handleToggle(user.id, "canManageBlog")}
                         />
-                        <span className="admin-perm-tile__head">
-                          <span className="admin-perm-tile__title">Manage Blog</span>
-                          <span className="admin-perm-tile__switch" aria-hidden="true">
-                            <span className="admin-perm-tile__knob" />
+                        <span className="flex items-center justify-between gap-4">
+                          <span className="font-bold leading-tight">Manage Blog</span>
+                          <span className={`relative inline-flex h-[26px] w-[46px] shrink-0 items-center rounded-full border border-white/15 bg-white/10 transition-all duration-150 ${user.canManageBlog ? permSwitchActiveClass : ""}`} aria-hidden="true">
+                            <span className={`absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white transition-transform duration-150 ${user.canManageBlog ? permSwitchKnobActiveClass : ""}`} />
                           </span>
                         </span>
-                        <span className="admin-perm-tile__desc">
+                        <span className="text-[0.82rem] leading-snug opacity-80">
                           Can create and edit JEN blog content.
                         </span>
                       </label>
 
-                      <label className={"admin-perm-tile" + (user.isIntel ? " is-active" : "")}>
+                      <label className={`${permTileBaseClass} ${user.isIntel ? permTileActiveClass : ""}`}>
                         <input
                           type="checkbox"
+                          className="sr-only"
                           checked={user.isIntel}
                           onChange={() => handleToggle(user.id, "isIntel")}
                         />
-                        <span className="admin-perm-tile__head">
-                          <span className="admin-perm-tile__title">Intel Role</span>
-                          <span className="admin-perm-tile__switch" aria-hidden="true">
-                            <span className="admin-perm-tile__knob" />
+                        <span className="flex items-center justify-between gap-4">
+                          <span className="font-bold leading-tight">Intel Role</span>
+                          <span className={`relative inline-flex h-[26px] w-[46px] shrink-0 items-center rounded-full border border-white/15 bg-white/10 transition-all duration-150 ${user.isIntel ? permSwitchActiveClass : ""}`} aria-hidden="true">
+                            <span className={`absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white transition-transform duration-150 ${user.isIntel ? permSwitchKnobActiveClass : ""}`} />
                           </span>
                         </span>
-                        <span className="admin-perm-tile__desc">
+                        <span className="text-[0.82rem] leading-snug opacity-80">
                           Grants intel-role access for DroidBrain and related intel workflows.
                         </span>
                       </label>
 
-                      <label className={"admin-perm-tile" + (user.canViewAsteroidIntel ? " is-active" : "")}>
+                      <label className={`${permTileBaseClass} ${user.canViewAsteroidIntel ? permTileActiveClass : ""}`}>
                         <input
                           type="checkbox"
+                          className="sr-only"
                           checked={user.canViewAsteroidIntel}
                           onChange={() => handleToggle(user.id, "canViewAsteroidIntel")}
                         />
-                        <span className="admin-perm-tile__head">
-                          <span className="admin-perm-tile__title">Asteroid Intel</span>
-                          <span className="admin-perm-tile__switch" aria-hidden="true">
-                            <span className="admin-perm-tile__knob" />
+                        <span className="flex items-center justify-between gap-4">
+                          <span className="font-bold leading-tight">Asteroid Intel</span>
+                          <span className={`relative inline-flex h-[26px] w-[46px] shrink-0 items-center rounded-full border border-white/15 bg-white/10 transition-all duration-150 ${user.canViewAsteroidIntel ? permSwitchActiveClass : ""}`} aria-hidden="true">
+                            <span className={`absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white transition-transform duration-150 ${user.canViewAsteroidIntel ? permSwitchKnobActiveClass : ""}`} />
                           </span>
                         </span>
-                        <span className="admin-perm-tile__desc">
+                        <span className="text-[0.82rem] leading-snug opacity-80">
                           Can view asteroid types, intel flags, and grid note data on the galaxy map.
                         </span>
                       </label>
 
-                      <label className={"admin-perm-tile" + (user.canAccessCombatCalc ? " is-active" : "")}>
+                      <label className={`${permTileBaseClass} ${user.canAccessCombatCalc ? permTileActiveClass : ""}`}>
                         <input
                           type="checkbox"
+                          className="sr-only"
                           checked={user.canAccessCombatCalc}
                           onChange={() => handleToggle(user.id, "canAccessCombatCalc")}
                         />
-                        <span className="admin-perm-tile__head">
-                          <span className="admin-perm-tile__title">Combat Calculator</span>
-                          <span className="admin-perm-tile__switch" aria-hidden="true">
-                            <span className="admin-perm-tile__knob" />
+                        <span className="flex items-center justify-between gap-4">
+                          <span className="font-bold leading-tight">Combat Calculator</span>
+                          <span className={`relative inline-flex h-[26px] w-[46px] shrink-0 items-center rounded-full border border-white/15 bg-white/10 transition-all duration-150 ${user.canAccessCombatCalc ? permSwitchActiveClass : ""}`} aria-hidden="true">
+                            <span className={`absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white transition-transform duration-150 ${user.canAccessCombatCalc ? permSwitchKnobActiveClass : ""}`} />
                           </span>
                         </span>
-                        <span className="admin-perm-tile__desc">
+                        <span className="text-[0.82rem] leading-snug opacity-80">
                           Grants access to the members-side combat calculator while the math is being validated.
                         </span>
                       </label>
 
-                      <label className={"admin-perm-tile" + (user.canAccessWreckingHelperExtension ? " is-active" : "")}>
+                      <label className={`${permTileBaseClass} ${user.canAccessWreckingHelperExtension ? permTileActiveClass : ""}`}>
                         <input
                           type="checkbox"
+                          className="sr-only"
                           checked={user.canAccessWreckingHelperExtension}
                           onChange={() => handleToggle(user.id, "canAccessWreckingHelperExtension")}
                         />
-                        <span className="admin-perm-tile__head">
-                          <span className="admin-perm-tile__title">Wrecking Helper Extension</span>
-                          <span className="admin-perm-tile__switch" aria-hidden="true">
-                            <span className="admin-perm-tile__knob" />
+                        <span className="flex items-center justify-between gap-4">
+                          <span className="font-bold leading-tight">Wrecking Helper Extension</span>
+                          <span className={`relative inline-flex h-[26px] w-[46px] shrink-0 items-center rounded-full border border-white/15 bg-white/10 transition-all duration-150 ${user.canAccessWreckingHelperExtension ? permSwitchActiveClass : ""}`} aria-hidden="true">
+                            <span className={`absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white transition-transform duration-150 ${user.canAccessWreckingHelperExtension ? permSwitchKnobActiveClass : ""}`} />
                           </span>
                         </span>
-                        <span className="admin-perm-tile__desc">
+                        <span className="text-[0.82rem] leading-snug opacity-80">
                           Grants backend authorization for this specific browser extension.
                         </span>
                       </label>
 
-                      <label className={"admin-perm-tile" + (user.canAccessFleetCommander ? " is-active" : "")}>
+                      <label className={`${permTileBaseClass} ${user.canAccessFleetCommander ? permTileActiveClass : ""}`}>
                         <input
                           type="checkbox"
+                          className="sr-only"
                           checked={user.canAccessFleetCommander}
                           onChange={() => handleToggle(user.id, "canAccessFleetCommander")}
                         />
-                        <span className="admin-perm-tile__head">
-                          <span className="admin-perm-tile__title">Fleet Commander</span>
-                          <span className="admin-perm-tile__switch" aria-hidden="true">
-                            <span className="admin-perm-tile__knob" />
+                        <span className="flex items-center justify-between gap-4">
+                          <span className="font-bold leading-tight">Fleet Commander</span>
+                          <span className={`relative inline-flex h-[26px] w-[46px] shrink-0 items-center rounded-full border border-white/15 bg-white/10 transition-all duration-150 ${user.canAccessFleetCommander ? permSwitchActiveClass : ""}`} aria-hidden="true">
+                            <span className={`absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white transition-transform duration-150 ${user.canAccessFleetCommander ? permSwitchKnobActiveClass : ""}`} />
                           </span>
                         </span>
-                        <span className="admin-perm-tile__desc">
+                        <span className="text-[0.82rem] leading-snug opacity-80">
                           Grants access to the Biometrics member skills tool.
                         </span>
                       </label>
 
-                      <label className={"admin-perm-tile" + (user.canAccessRmBrowser ? " is-active" : "")}>
+                      <label className={`${permTileBaseClass} ${user.canAccessRmBrowser ? permTileActiveClass : ""}`}>
                         <input
                           type="checkbox"
+                          className="sr-only"
                           checked={user.canAccessRmBrowser}
                           onChange={() => handleToggle(user.id, "canAccessRmBrowser")}
                         />
-                        <span className="admin-perm-tile__head">
-                          <span className="admin-perm-tile__title">RM Browser</span>
-                          <span className="admin-perm-tile__switch" aria-hidden="true">
-                            <span className="admin-perm-tile__knob" />
+                        <span className="flex items-center justify-between gap-4">
+                          <span className="font-bold leading-tight">RM Browser</span>
+                          <span className={`relative inline-flex h-[26px] w-[46px] shrink-0 items-center rounded-full border border-white/15 bg-white/10 transition-all duration-150 ${user.canAccessRmBrowser ? permSwitchActiveClass : ""}`} aria-hidden="true">
+                            <span className={`absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white transition-transform duration-150 ${user.canAccessRmBrowser ? permSwitchKnobActiveClass : ""}`} />
                           </span>
                         </span>
-                        <span className="admin-perm-tile__desc">
+                        <span className="text-[0.82rem] leading-snug opacity-80">
                           Grants access to the Raw Materials browser tool.
                         </span>
                       </label>
 
                       {isSysadmin && (
-                        <label className={"admin-perm-tile" + (user.isRmBrowserServiceAccount ? " is-active" : "")}>
+                        <label className={`${permTileBaseClass} ${user.isRmBrowserServiceAccount ? permTileActiveClass : ""}`}>
                           <input
                             type="checkbox"
+                            className="sr-only"
                             checked={user.isRmBrowserServiceAccount}
                             onChange={() => handleToggle(user.id, "isRmBrowserServiceAccount")}
                           />
-                          <span className="admin-perm-tile__head">
-                            <span className="admin-perm-tile__title">RM Service Account</span>
-                            <span className="admin-perm-tile__switch" aria-hidden="true">
-                              <span className="admin-perm-tile__knob" />
+                          <span className="flex items-center justify-between gap-4">
+                            <span className="font-bold leading-tight">RM Service Account</span>
+                            <span className={`relative inline-flex h-[26px] w-[46px] shrink-0 items-center rounded-full border border-white/15 bg-white/10 transition-all duration-150 ${user.isRmBrowserServiceAccount ? permSwitchActiveClass : ""}`} aria-hidden="true">
+                              <span className={`absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white transition-transform duration-150 ${user.isRmBrowserServiceAccount ? permSwitchKnobActiveClass : ""}`} />
                             </span>
                           </span>
-                          <span className="admin-perm-tile__desc">
+                          <span className="text-[0.82rem] leading-snug opacity-80">
                             Designates this user's SWC token as the source for RM Browser faction inventory calls. Only one user should have this set.
                           </span>
                         </label>
                       )}
 
-                      <div className="admin-perm-tile">
+                      <div className="relative flex cursor-pointer flex-col gap-3 rounded-[14px] border border-white/10 bg-white/[0.02] px-4 py-4 transition-all duration-150 hover:-translate-y-px hover:border-[#f5d546]/30 hover:bg-[#f5d546]/[0.04]">
                         <div
-                          className="admin-perm-tile__head"
-                          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}
+                          className="flex items-center justify-between gap-4"
                         >
-                          <span className="admin-perm-tile__title">Scan Window</span>
+                          <span className="font-bold leading-tight">Scan Window</span>
                           <button
                             type="button"
-                            className="btn btn--small btn--ghost"
+                            className={BTN_GHOST_SM}
                             onClick={() =>
                               setOpenScanWindowId((current) => (current === user.id ? null : user.id))
                             }
@@ -651,20 +669,13 @@ const AdminUsersPanel: React.FC = () => {
                             {isScanWindowOpen ? "Hide" : "Set Window"}
                           </button>
                         </div>
-                        <span className="admin-perm-tile__desc">
+                        <span className="text-[0.82rem] leading-snug opacity-80">
                           Lets this user see scanned and rescan-due markers only inside a rectangular coordinate area.
                         </span>
                         {isScanWindowOpen ? (
-                          <div
-                            style={{
-                              display: "grid",
-                              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                              gap: 8,
-                              marginTop: 10,
-                            }}
-                          >
+                          <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
                             <input
-                              className="input"
+                              className={INPUT}
                               type="number"
                               placeholder="Top Left X"
                               value={user.scanWindowTopLeftGalx}
@@ -676,7 +687,7 @@ const AdminUsersPanel: React.FC = () => {
                               }
                             />
                             <input
-                              className="input"
+                              className={INPUT}
                               type="number"
                               placeholder="Top Left Y"
                               value={user.scanWindowTopLeftGaly}
@@ -688,7 +699,7 @@ const AdminUsersPanel: React.FC = () => {
                               }
                             />
                             <input
-                              className="input"
+                              className={INPUT}
                               type="number"
                               placeholder="Bottom Right X"
                               value={user.scanWindowBottomRightGalx}
@@ -700,7 +711,7 @@ const AdminUsersPanel: React.FC = () => {
                               }
                             />
                             <input
-                              className="input"
+                              className={INPUT}
                               type="number"
                               placeholder="Bottom Right Y"
                               value={user.scanWindowBottomRightGaly}
@@ -717,11 +728,11 @@ const AdminUsersPanel: React.FC = () => {
 
                     </div>
 
-                    <div className="admin-users-card__actions">
+                    <div className="flex flex-wrap justify-end gap-2">
                       {isSysadmin && user.activeSub && (
                         <button
                           type="button"
-                          className="btn btn--small btn--ghost"
+                          className={BTN_GHOST_SM}
                           style={{ color: "salmon", borderColor: "salmon" }}
                           onClick={() => handleRevokeSubscription(user)}
                           disabled={revokingSubId === user.id}
@@ -731,7 +742,7 @@ const AdminUsersPanel: React.FC = () => {
                       )}
                       <button
                         type="button"
-                        className="btn btn--small btn--ghost"
+                        className={BTN_GHOST_SM}
                         onClick={() => handleRevokeSwcAuthorization(user)}
                         disabled={
                           revokingSwcId === user.id ||
@@ -744,7 +755,7 @@ const AdminUsersPanel: React.FC = () => {
                       </button>
                       <button
                         type="button"
-                        className="btn btn--small btn--ghost"
+                        className={BTN_GHOST_SM}
                         onClick={() => handleForceLogout(user)}
                         disabled={
                           forcingLogoutId === user.id ||
@@ -757,7 +768,7 @@ const AdminUsersPanel: React.FC = () => {
                       </button>
                       <button
                         type="button"
-                        className="btn btn--small btn--ghost"
+                        className={BTN_GHOST_SM}
                         onClick={() => handleFullResetSystemUpdater(user)}
                         disabled={
                           resettingSystemUpdaterId === user.id ||
@@ -772,7 +783,7 @@ const AdminUsersPanel: React.FC = () => {
                       </button>
                       <button
                         type="button"
-                        className="btn btn--small"
+                        className={BTN_SM + " all"}
                         onClick={() => handleSave(user)}
                         disabled={savingId === user.id}
                       >
@@ -793,29 +804,29 @@ const AdminUsersPanel: React.FC = () => {
           <h3 className="h3" style={{ margin: "0 0 12px" }}>Active Faction Subscriptions</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {factionSubs.map((sub) => (
-              <article key={sub.id} className="panel admin-users-card">
-                <div className="admin-users-card__top">
-                  <div className="admin-users-card__identity">
+              <article key={sub.id} className="panel flex flex-col gap-4">
+                <div className="flex flex-wrap items-start justify-between gap-4 max-md:flex-col max-md:items-stretch">
+                  <div className="flex min-w-0 items-center gap-4">
                     <div>
-                      <h3 className="admin-users-card__title">
+                      <h3 className="m-0">
                         {sub.faction?.name ?? `Faction #${sub.id}`}
                       </h3>
-                      <div className="small admin-users-card__meta">
+                      <div className="small mt-1 opacity-80">
                         {sub.plan_key} — {sub.seats_used}{sub.seat_count != null ? ` / ${sub.seat_count}` : ""} seats used
                         {sub.current_period_end ? ` — renews ${new Date(sub.current_period_end).toLocaleDateString()}` : ""}
                         {sub.manager ? ` — managed by ${sub.manager.handle}` : ""}
                       </div>
                     </div>
                   </div>
-                  <div className="admin-users-card__controls">
-                    <div className="admin-users-card__badges">
-                      <span className="admin-badge" style={{ borderColor: "hsl(145, 70%, 50%, 0.45)", background: "hsl(145, 70%, 50%, 0.12)", color: "hsl(145, 80%, 75%)" }}>
+                  <div className="flex items-start gap-3 max-md:items-center max-md:justify-between">
+                    <div className="flex flex-wrap gap-2">
+                      <span className="inline-flex min-h-8 items-center rounded-full border border-transparent bg-transparent px-3 py-1 text-[0.82rem] font-bold" style={{ borderColor: "hsl(145, 70%, 50%, 0.45)", background: "hsl(145, 70%, 50%, 0.12)", color: "hsl(145, 80%, 75%)" }}>
                         Faction Subscriber
                       </span>
                     </div>
                     <button
                       type="button"
-                      className="btn btn--small btn--ghost"
+                      className={BTN_GHOST_SM}
                       style={{ color: "salmon", borderColor: "salmon" }}
                       onClick={() => handleRevokeFactionSubscription(sub)}
                       disabled={revokingFactionSubId === sub.id}

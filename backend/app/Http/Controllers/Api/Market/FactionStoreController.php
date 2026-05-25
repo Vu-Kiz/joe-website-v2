@@ -6,7 +6,7 @@ namespace App\Http\Controllers\Api\Market;
 
 use App\Http\Controllers\Controller;
 use App\Models\Faction;
-use App\Models\MarketListing;
+use App\Models\Market\MarketListing;
 use App\Support\Market\MarketWatermarkService;
 use App\Support\Swc\SwcInventoryService;
 use Illuminate\Http\JsonResponse;

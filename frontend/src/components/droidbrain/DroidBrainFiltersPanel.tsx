@@ -1,5 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import type { DroidBrainFilters, DroidBrainTab } from "../../api/droidbrain";
+import type { DroidBrainFilters, DroidBrainTab } from "../../api/universe/droidbrain";
+import { BTN, INPUT } from "../../utils/ui";
+
+const TYPEAHEAD_CLS = "relative min-w-0 w-full flex-[1_1_auto]";
+const TYPEAHEAD_LIST_CLS = "absolute top-[calc(100%+0.35rem)] left-0 right-0 z-[8] grid gap-[0.35rem] max-h-[260px] overflow-y-auto p-[0.45rem] rounded-[12px] border border-[rgba(246,163,0,0.18)] bg-[rgba(18,21,24,0.98)] shadow-[0_16px_40px_rgba(0,0,0,0.34)]";
+const typeaheadOptionCls = (active: boolean) =>
+  "grid gap-[0.15rem] p-[0.7rem_0.8rem] border border-white/[0.06] rounded-[10px] bg-white/[0.03] text-inherit text-left cursor-pointer transition-[border-color,background,transform] duration-[140ms] [&_strong]:leading-[1.2] hover:border-[rgba(246,163,0,0.26)] hover:bg-[rgba(246,163,0,0.08)] hover:-translate-y-px" +
+  (active ? " !border-[rgba(246,163,0,0.4)] !bg-[rgba(246,163,0,0.12)]" : "");
 
 type Props = {
   activeTab: DroidBrainTab;
@@ -178,7 +185,7 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
               <label className="small">
                 Search
                 <input
-                  className="input"
+                  className={INPUT}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Name, free text, or UID"
@@ -189,7 +196,7 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
             <label className="small">
               Exact ID
               <input
-                className="input"
+                className={INPUT}
                 value={uidQuery}
                 onChange={(e) => setUidQuery(e.target.value)}
                 placeholder="Exact UID match"
@@ -205,12 +212,11 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
               {activeTab === "npcs" ? "Race / Type" : "Type"}
             </label>
             <div
-              className="members-universe__typeahead"
-              style={{ minWidth: 0, width: "100%", flex: "1 1 auto" }}
+              className={TYPEAHEAD_CLS}
             >
               <input
                 id="droidbrain-type-filter"
-                className="input"
+                className={INPUT}
                 value={typeQuery}
                 onChange={(event) => {
                   setTypeQuery(event.target.value);
@@ -224,14 +230,12 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
                 autoComplete="off"
               />
               {showTypeMatches && filteredTypeOptions.length ? (
-                <div className="members-universe__typeahead-list">
+                <div className={TYPEAHEAD_LIST_CLS}>
                   {filteredTypeOptions.map((option) => (
                     <button
                       key={option}
                       type="button"
-                      className={`members-universe__typeahead-option${
-                        option === filters.type ? " is-active" : ""
-                      }`}
+                      className={typeaheadOptionCls(option === filters.type)}
                       onMouseDown={(event) => {
                         event.preventDefault();
                         setTypeQuery(option);
@@ -253,12 +257,11 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
               Class
             </label>
             <div
-              className="members-universe__typeahead"
-              style={{ minWidth: 0, width: "100%", flex: "1 1 auto" }}
+              className={TYPEAHEAD_CLS}
             >
               <input
                 id="droidbrain-class-filter"
-                className="input"
+                className={INPUT}
                 value={classQuery}
                 onChange={(event) => {
                   setClassQuery(event.target.value);
@@ -272,14 +275,12 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
                 autoComplete="off"
               />
               {showClassMatches && filteredClassOptions.length ? (
-                <div className="members-universe__typeahead-list">
+                <div className={TYPEAHEAD_LIST_CLS}>
                   {filteredClassOptions.map((option) => (
                     <button
                       key={option}
                       type="button"
-                      className={`members-universe__typeahead-option${
-                        option === filters.class ? " is-active" : ""
-                      }`}
+                      className={typeaheadOptionCls(option === filters.class)}
                       onMouseDown={(event) => {
                         event.preventDefault();
                         setClassQuery(option);
@@ -301,12 +302,11 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
               System
             </label>
             <div
-              className="members-universe__typeahead"
-              style={{ minWidth: 0, width: "100%", flex: "1 1 auto" }}
+              className={TYPEAHEAD_CLS}
             >
               <input
                 id="droidbrain-system-filter"
-                className="input"
+                className={INPUT}
                 value={systemQuery}
                 onChange={(event) => {
                   setSystemQuery(event.target.value);
@@ -320,14 +320,12 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
                 autoComplete="off"
               />
               {showSystemMatches && filteredSystemOptions.length ? (
-                <div className="members-universe__typeahead-list">
+                <div className={TYPEAHEAD_LIST_CLS}>
                   {filteredSystemOptions.map((option) => (
                     <button
                       key={option}
                       type="button"
-                      className={`members-universe__typeahead-option${
-                        option === filters.system ? " is-active" : ""
-                      }`}
+                      className={typeaheadOptionCls(option === filters.system)}
                       onMouseDown={(event) => {
                         event.preventDefault();
                         setSystemQuery(option);
@@ -349,12 +347,11 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
               Planet
             </label>
             <div
-              className="members-universe__typeahead"
-              style={{ minWidth: 0, width: "100%", flex: "1 1 auto" }}
+              className={TYPEAHEAD_CLS}
             >
               <input
                 id="droidbrain-planet-filter"
-                className="input"
+                className={INPUT}
                 value={planetQuery}
                 onChange={(event) => {
                   setPlanetQuery(event.target.value);
@@ -368,14 +365,12 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
                 autoComplete="off"
               />
               {showPlanetMatches && filteredPlanetOptions.length ? (
-                <div className="members-universe__typeahead-list">
+                <div className={TYPEAHEAD_LIST_CLS}>
                   {filteredPlanetOptions.map((option) => (
                     <button
                       key={option}
                       type="button"
-                      className={`members-universe__typeahead-option${
-                        option === filters.planet ? " is-active" : ""
-                      }`}
+                      className={typeaheadOptionCls(option === filters.planet)}
                       onMouseDown={(event) => {
                         event.preventDefault();
                         setPlanetQuery(option);
@@ -397,12 +392,11 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
             Owner
           </label>
           <div
-            className="members-universe__typeahead"
-            style={{ minWidth: 0, width: "100%", flex: "1 1 auto" }}
+            className={TYPEAHEAD_CLS}
           >
             <input
               id="droidbrain-owner-filter"
-              className="input"
+              className={INPUT}
               value={ownerQuery}
               onChange={(event) => {
                 setOwnerQuery(event.target.value);
@@ -416,14 +410,12 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
               autoComplete="off"
             />
             {showOwnerMatches && filteredOwnerOptions.length ? (
-              <div className="members-universe__typeahead-list">
+              <div className={TYPEAHEAD_LIST_CLS}>
                 {filteredOwnerOptions.map((option) => (
                   <button
                     key={option}
                     type="button"
-                    className={`members-universe__typeahead-option${
-                      option === filters.owner ? " is-active" : ""
-                    }`}
+                    className={typeaheadOptionCls(option === filters.owner)}
                     onMouseDown={(event) => {
                       event.preventDefault();
                       setOwnerQuery(option);
@@ -440,11 +432,11 @@ const DroidBrainFiltersPanelInner: React.FC<Props> = ({
         ) : null}
       </div>
       {activeTab !== "summary" ? (
-        <div className="payments-actions" style={{ marginTop: 12 }}>
-          <button className="btn" type="button" onClick={applyFilters}>
+        <div className="flex gap-2 flex-wrap mt-3">
+          <button className={BTN} type="button" onClick={applyFilters}>
             Search
           </button>
-          <button className="btn btn-secondary" type="button" onClick={handleReset}>
+          <button className={BTN + " btn-secondary"} type="button" onClick={handleReset}>
             Clear
           </button>
         </div>

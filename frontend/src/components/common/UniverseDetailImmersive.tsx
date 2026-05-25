@@ -16,17 +16,19 @@ const UniverseDetailImmersive: React.FC<UniverseDetailImmersiveProps> = ({
   selection,
 }) => {
   return (
-    <section className="panel admin-card members-universe-system__immersive">
-      <div className="admin-card__header">
-        <h3 className="admin-card__title">{title}</h3>
+    <section className="panel flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <h3 className="m-0">{title}</h3>
       </div>
 
       {toolbar ? toolbar : null}
-      {copy ? <p className="small sysuniverse-copy-reset">{copy}</p> : null}
+      {copy ? <p className="small m-0">{copy}</p> : null}
 
-      <div className="members-universe-system__map-shell">
+      <div className="grid [grid-template-columns:minmax(0,1fr)_320px] gap-4 items-start">
         {viewport}
-        <aside className="members-universe-system__selection-panel">{selection}</aside>
+        <aside className="grid gap-3 p-[0.95rem] rounded-[12px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.025))] min-w-0">
+          {selection}
+        </aside>
       </div>
     </section>
   );

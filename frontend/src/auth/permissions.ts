@@ -1,5 +1,5 @@
-import type { SwcUser } from "../api/auth";
-import type { BlogPost } from "../api/blog";
+import type { SwcUser } from "../api/core/auth";
+import type { BlogPost } from "../api/content/blog";
 
 export function isAdmin(user: SwcUser | null | undefined): boolean {
   if (!user) return false;

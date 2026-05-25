@@ -31,8 +31,9 @@ import {
   populateAdminStationIcons,
   type EntityStatsKind,
   updateAdminEntityStats,
-} from "../../api/universe";
-import type { SwcUser } from "../../api/auth";
+} from "../../api/universe/universe";
+import type { SwcUser } from "../../api/core/auth";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../../utils/ui";
 
 type EntityRecordSummary = {
   uid: string;
@@ -62,6 +63,12 @@ type ShieldArcEntry = {
   value: string;
   percent: string;
 };
+
+const uiButtonSmallBaseClass =
+  "inline-flex min-h-[34px] items-center justify-center rounded-[10px] border px-[0.8rem] py-2 text-[0.88rem] font-bold leading-none no-underline transition-[border-color,background,transform,box-shadow] duration-150 ease-out hover:enabled:-translate-y-px hover:enabled:border-[#f5d546]/[0.28] hover:enabled:bg-[#f5d546]/[0.07] disabled:cursor-not-allowed disabled:opacity-[0.55]";
+const uiButtonSoftClass = "border-white/10 bg-white/[0.025] text-white/90";
+const uiButtonPrimaryClass =
+  "border-[#f5d546]/35 bg-[#f5d546]/10 text-[#f2c46f] shadow-[inset_0_0_0_1px_rgba(245,213,70,0.08)] hover:enabled:border-[#f5d546]/45 hover:enabled:bg-[#f5d546]/15";
 
 type ShieldArcPreset = {
   key: string;
@@ -801,21 +808,21 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
   }
 
   return (
-    <section className="panel admin-panel">
-      <div className="admin-panel__header">
-        <h2>Entity Stats</h2>
+    <section className="panel flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <h2 className="h2">Entity Stats</h2>
         <p className="small">
           Browse and edit stored station, facility, item, ship, vehicle, droid, creature, NPC, race, weapon, terrain, and material catalog records without opening the database directly.
         </p>
       </div>
 
-      <div className="admin-entity-stats__toolbar">
-        <div className="admin-card__actions">
+      <div className="grid gap-3">
+        <div className="flex flex-wrap gap-3">
           {kindOptions.map((option) => (
             <button
               key={option.key}
               type="button"
-              className={`btn${kind === option.key ? " admin-nav__btn--active" : ""}`}
+              className={BTN + " " + (kind === option.key ? "border-[#f5d546]/45 bg-[#f5d546]/10 shadow-[inset_0_0_0_1px_rgba(245,213,70,0.2)]" : "border-white/10 bg-white/[0.02]")}
               onClick={() => setKind(option.key)}
             >
               {option.label}
@@ -823,11 +830,11 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
           ))}
         </div>
 
-        <div className="admin-entity-stats__utility-actions">
+        <div className="flex flex-wrap gap-3">
           {kind === "station" ? (
             <button
               type="button"
-              className="btn"
+              className={BTN}
               onClick={onPopulateStationIcons}
               disabled={iconPopulateLoading}
             >
@@ -837,7 +844,7 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
           {kind === "material" ? (
             <button
               type="button"
-              className="btn"
+              className={BTN}
               onClick={onPopulateMaterialIcons}
               disabled={materialIconPopulateLoading}
             >
@@ -846,7 +853,7 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
           ) : null}
           <button
             type="button"
-            className="btn"
+            className={BTN}
             onClick={onExportCsv}
             disabled={exportingCsv}
           >
@@ -858,17 +865,17 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
       {error ? <p className="small" style={{ color: "salmon" }}>{error}</p> : null}
       {message ? <p className="small" style={{ color: "#f2c46f" }}>{message}</p> : null}
 
-      <div className="admin-entity-stats">
-        <article className="panel admin-card admin-entity-stats__sidebar">
-          <div className="admin-card__header">
-            <h3 className="admin-card__title">Records</h3>
-            <p className="admin-card__desc">
+      <div className="grid items-start gap-4 [grid-template-columns:minmax(360px,520px)_minmax(0,1fr)] max-[900px]:grid-cols-1">
+        <article className="panel flex flex-col gap-4 flex min-h-[560px] flex-col overflow-hidden max-h-[calc(100vh-11rem)] max-[900px]:max-h-none max-[900px]:overflow-visible">
+          <div className="flex flex-col gap-1.5">
+            <h3 className="m-0">Records</h3>
+            <p className="m-0 opacity-[0.85]">
               {loading ? "Loading records…" : `${filteredItems.length} matching records`}
             </p>
           </div>
 
           <input
-            className="admin-entity-stats__search"
+            className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit"
             type="text"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -876,10 +883,10 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
           />
 
           {kind === "item" && itemClassOptions.length > 0 ? (
-            <div className="admin-entity-stats__subnav">
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                className={`btn admin-entity-stats__subnav-btn${itemClassFilter === "all" ? " is-active" : ""}`}
+                className={BTN + " flex flex-wrap gap-2 " + (itemClassFilter === "all" ? "border-[#f5d546]/45 bg-[#f5d546]/10 shadow-[inset_0_0_0_1px_rgba(245,213,70,0.2)]" : "border-white/10 bg-white/[0.02]")}
                 onClick={() => setItemClassFilter("all")}
               >
                 All
@@ -888,7 +895,7 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
                 <button
                   key={className}
                   type="button"
-                  className={`btn admin-entity-stats__subnav-btn${itemClassFilter === className.toLowerCase() ? " is-active" : ""}`}
+                  className={BTN + " flex flex-wrap gap-2 " + (itemClassFilter === className.toLowerCase() ? "border-[#f5d546]/45 bg-[#f5d546]/10 shadow-[inset_0_0_0_1px_rgba(245,213,70,0.2)]" : "border-white/10 bg-white/[0.02]")}
                   onClick={() => setItemClassFilter(className.toLowerCase())}
                 >
                   {className}
@@ -897,30 +904,30 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
             </div>
           ) : null}
 
-          <div className="admin-entity-stats__list">
+          <div className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 overflow-auto pr-1">
             {filteredItems.map((item) => (
               <button
                 key={item.key}
                 type="button"
-                className={`admin-entity-stats__item${selectedId === item.key ? " is-active" : ""}`}
+                className={`flex min-h-[168px] cursor-pointer flex-col justify-between gap-3 rounded-[14px] border p-3.5 text-left transition-colors ${selectedId === item.key ? "border-[#f5d546]/45 bg-[#f5d546]/10 shadow-[inset_0_0_0_1px_rgba(245,213,70,0.2)]" : "border-white/10 bg-white/[0.02] hover:border-[#f5d546]/30 hover:bg-[#f5d546]/[0.04]"}`}
                 onClick={() => {
                   setSelectedId(item.key);
                   setSelectedSourceKind(item.primaryRecord.sourceKind);
                 }}
               >
-                <div className="admin-entity-stats__item-top">
+                <div className="flex flex-col items-start gap-3">
                   {item.imageUrl ? (
                     <img
                       src={item.imageUrl}
                       alt={item.name ?? item.primaryRecord.uid}
-                      className="admin-entity-stats__item-icon"
+                      className="h-11 w-11 rounded-[10px] border border-white/10 bg-white/[0.04] p-1 object-contain opacity-80"
                     />
                   ) : (
-                    <span className="admin-entity-stats__item-icon admin-entity-stats__item-icon--placeholder">
+                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.04] font-bold text-[#f2c46f]">
                       {item.name?.charAt(0)?.toUpperCase() ?? "?"}
                     </span>
                   )}
-                  <div className="admin-entity-stats__item-copy">
+                  <div className="flex min-w-0 flex-col gap-1">
                     <strong>{item.name ?? item.primaryRecord.uid}</strong>
                     <span className="small">
                       {item.primaryRecord.uid}
@@ -928,7 +935,7 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
                     </span>
                   </div>
                 </div>
-                <div className="admin-entity-stats__item-meta">
+                <div className="flex flex-col gap-1 opacity-80">
                   {item.itemRecord && item.weaponRecord ? <span className="small">Item + Weapon</span> : null}
                   {item.className ? <span className="small">{item.className}</span> : null}
                   {item.code ? <span className="small">Code {item.code}</span> : null}
@@ -941,30 +948,30 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
           </div>
         </article>
 
-        <article className="panel admin-card admin-entity-stats__editor">
-          <div className="admin-card__header">
-            <h3 className="admin-card__title">Editor</h3>
-            <p className="admin-card__desc">
+        <article className="panel flex flex-col gap-4 flex min-h-[560px] flex-col max-[900px]:max-h-none max-[900px]:overflow-visible">
+          <div className="flex flex-col gap-1.5">
+            <h3 className="m-0">Editor</h3>
+            <p className="m-0 opacity-[0.85]">
               Edit the stored detail record as JSON. UID and last-pulled are preserved automatically.
             </p>
           </div>
 
           {isCapitalShieldArcEditor ? (
-            <div className="admin-entity-stats__shield-arcs">
-              <div className="admin-card__header">
-                <h4 className="admin-card__title">Shield Arcs</h4>
-                <p className="admin-card__desc">
+            <div className="grid gap-3 rounded-[14px] border border-white/10 bg-white/[0.02] p-3.5">
+              <div className="flex flex-col gap-1.5">
+                <h4 className="m-0">Shield Arcs</h4>
+                <p className="m-0 opacity-[0.85]">
                   Sysadmin-only helper for capital and super-capital deflector segments.
                   {totalShieldValue != null ? ` Total Deflectors: ${totalShieldValue.toLocaleString()}.` : ""}
                 </p>
               </div>
 
-              <div className="admin-card__actions">
+              <div className="flex flex-wrap gap-3">
                 {SHIELD_ARC_PRESETS.map((preset) => (
                   <button
                     key={preset.key}
                     type="button"
-                    className={`ui-btn ui-btn--small admin-entity-stats__subnav-btn${activeShieldArcPresetKey === preset.key ? " ui-btn--primary" : " ui-btn--soft"}`}
+                    className={`${uiButtonSmallBaseClass} flex flex-wrap gap-2 ${activeShieldArcPresetKey === preset.key ? uiButtonPrimaryClass : uiButtonSoftClass}`}
                     onClick={() => applyShieldArcPreset(preset)}
                     title={preset.arcs.map((arc) => `${arc.name}: ${arc.percent.toFixed(2)}%`).join("\n")}
                   >
@@ -973,11 +980,11 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
                 ))}
               </div>
 
-              <div className="admin-entity-stats__shield-arc-list">
+              <div className="grid gap-2.5">
                 {shieldArcDraftRows.map((row, index) => (
-                  <div key={`${row.name}-${index}`} className="admin-entity-stats__shield-arc-row">
+                  <div key={`${row.name}-${index}`} className="grid items-center gap-2.5 [grid-template-columns:minmax(0,1.4fr)_minmax(110px,0.7fr)_minmax(110px,0.7fr)_auto] max-[900px]:grid-cols-1">
                     <select
-                      className="admin-entity-stats__search"
+                      className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit"
                       value={row.name}
                       onChange={(event) => patchShieldArcRow(index, { name: event.target.value })}
                     >
@@ -987,7 +994,7 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
                       ))}
                     </select>
                     <input
-                      className="admin-entity-stats__search"
+                      className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit"
                       type="number"
                       min="0"
                       step="1"
@@ -1002,7 +1009,7 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
                       placeholder="Value"
                     />
                     <input
-                      className="admin-entity-stats__search"
+                      className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit"
                       type="number"
                       min="0"
                       step="0.01"
@@ -1018,7 +1025,7 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
                     />
                     <button
                       type="button"
-                      className="btn admin-entity-stats__shield-arc-remove"
+                      className={BTN + " min-h-[42px]"}
                       onClick={() => updateEditorShieldArcs(shieldArcDraftRows.filter((_, rowIndex) => rowIndex !== index))}
                     >
                       Remove
@@ -1027,10 +1034,10 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
                 ))}
               </div>
 
-              <div className="admin-card__actions">
+              <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
-                  className="btn"
+                  className={BTN}
                   onClick={() => {
                     const nextRows = [...shieldArcDraftRows, { name: "", value: "", percent: "" }];
                     setShieldArcDraftRows(nextRows);
@@ -1040,7 +1047,7 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
                 </button>
                 <button
                   type="button"
-                  className="btn"
+                  className={BTN}
                   onClick={onSave}
                   disabled={saving || detailLoading || !selectedId}
                 >
@@ -1051,11 +1058,11 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
           ) : null}
 
           {selectedItem && (selectedItem.itemRecord || selectedItem.weaponRecord) && (kind === "item" || kind === "weapon") ? (
-            <div className="admin-card__actions">
+            <div className="flex flex-wrap gap-3">
               {selectedItem.itemRecord ? (
                 <button
                   type="button"
-                  className={`btn${selectedSourceKind === "item" ? " admin-nav__btn--active" : ""}`}
+                  className={BTN + " " + (selectedSourceKind === "item" ? "border-[#f5d546]/45 bg-[#f5d546]/10 shadow-[inset_0_0_0_1px_rgba(245,213,70,0.2)]" : "border-white/10 bg-white/[0.02]")}
                   onClick={() => setSelectedSourceKind("item")}
                 >
                   Item Record
@@ -1064,7 +1071,7 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
               {selectedItem.weaponRecord ? (
                 <button
                   type="button"
-                  className={`btn${selectedSourceKind === "weapon" ? " admin-nav__btn--active" : ""}`}
+                  className={BTN + " " + (selectedSourceKind === "weapon" ? "border-[#f5d546]/45 bg-[#f5d546]/10 shadow-[inset_0_0_0_1px_rgba(245,213,70,0.2)]" : "border-white/10 bg-white/[0.02]")}
                   onClick={() => setSelectedSourceKind("weapon")}
                 >
                   Weapon Record
@@ -1074,17 +1081,17 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
           ) : null}
 
           <textarea
-            className="admin-entity-stats__textarea"
+            className="min-h-[360px] w-full resize-y rounded-xl border border-white/10 bg-black/30 p-4 font-mono text-[0.92rem] leading-relaxed text-inherit"
             value={editorValue}
             onChange={(event) => setEditorValue(event.target.value)}
             spellCheck={false}
             placeholder={detailLoading ? "Loading record…" : "{\n  \"name\": \"...\"\n}"}
           />
 
-          <div className="admin-card__actions">
+          <div className="flex flex-wrap gap-3">
             <button
               type="button"
-              className="btn"
+              className={BTN}
               onClick={onSave}
               disabled={saving || detailLoading || !selectedId}
             >

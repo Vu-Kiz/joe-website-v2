@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Support\Market;
 
-use App\Models\MarketListing;
-use App\Models\MarketOrder;
+use App\Models\Market\MarketListing;
+use App\Models\Market\MarketListingStock;
+use App\Models\Market\MarketOrder;
 use Illuminate\Support\Facades\DB;
 
 class MarketReservationService
@@ -32,7 +33,7 @@ class MarketReservationService
                 $listing->save();
             }
 
-            return MarketOrder::create([
+            $order = MarketOrder::create([
                 'listing_id' => $listing->id,
                 'buyer_user_id' => request()->user()->id,
                 'quantity' => $quantity,
@@ -40,6 +41,24 @@ class MarketReservationService
                 'status' => MarketOrder::STATUS_PENDING_PAYMENT,
                 'expires_at' => now()->addMinutes(self::ORDER_TTL_MINUTES),
             ]);
+
+            // For stock listings, atomically assign a specific entity unit to this order
+            if ($listing->isStock()) {
+                $unit = MarketListingStock::where('listing_id', $listing->id)
+                    ->where('status', MarketListingStock::STATUS_AVAILABLE)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$unit) {
+                    throw new \RuntimeException('No available stock unit found.');
+                }
+
+                $unit->status   = MarketListingStock::STATUS_RESERVED;
+                $unit->order_id = $order->id;
+                $unit->save();
+            }
+
+            return $order;
         });
     }
 
@@ -59,6 +78,14 @@ class MarketReservationService
             if ($listing->status === MarketListing::STATUS_RESERVED) {
                 $listing->status = MarketListing::STATUS_OPEN;
                 $listing->save();
+            }
+
+            // Return the reserved stock unit to available
+            if ($listing->isStock()) {
+                MarketListingStock::where('listing_id', $listing->id)
+                    ->where('order_id', $order->id)
+                    ->where('status', MarketListingStock::STATUS_RESERVED)
+                    ->update(['status' => MarketListingStock::STATUS_AVAILABLE, 'order_id' => null]);
             }
 
             $order->status = MarketOrder::STATUS_CANCELLED;

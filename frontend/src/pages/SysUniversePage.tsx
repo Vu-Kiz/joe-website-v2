@@ -1,19 +1,17 @@
 import React, { useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../api/auth";
+import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../api/core/auth";
 import { canAccessSysadmin } from "../auth/permissions";
 import {
   getSectorCellAnnotations,
   runUniversePull,
   saveSectorCellAnnotation,
   type SectorCellAnnotation,
-} from "../api/sysDebug";
+} from "../api/admin/sysDebug";
 import ForbiddenState from "../components/common/ForbiddenState";
 import SectorGridMap from "../components/maps/SectorGridMap";
 import NotLoggedInState from "../components/common/NotLoggedInState";
-import "../styles/main.sass";
-import "../styles/_admin.sass";
-import "../styles/_sysuniverse.sass";
+import { BTN, BTN_SM, INPUT } from "../utils/ui";
 
 type UniverseResource = "system" | "sector" | "planet" | "station";
 type UniverseTrailItem = {
@@ -294,8 +292,8 @@ const SysUniversePage: React.FC = () => {
 
   function renderValue(label: string, value: React.ReactNode) {
     return (
-      <div className="sysuniverse-card">
-        <span className="small sysuniverse-muted">
+      <div className="grid gap-2 p-3 border border-white/[0.12] rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)]">
+        <span className="small opacity-[0.75]">
           {label}
         </span>
         <strong>{value || "Unknown"}</strong>
@@ -313,7 +311,7 @@ const SysUniversePage: React.FC = () => {
 
     return (
       <button
-        className="btn"
+        className={BTN}
         type="button"
         onClick={() => runPull(nextResource, nextIdentifier)}
       >
@@ -327,8 +325,8 @@ const SysUniversePage: React.FC = () => {
     const systems = sectorSystems;
 
     return (
-      <div className="sysuniverse-stack">
-        <div className="sysuniverse-stat-grid">
+      <div className="grid gap-[14px]">
+        <div className="grid gap-[10px] [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
           {renderValue("Sector", result?.sector?.name ?? result?.sector?.uid ?? pullIdentifier)}
           {renderValue("UID", result?.sector?.uid ?? "Unknown")}
           {renderValue("Systems Returned", systems.length)}
@@ -362,16 +360,16 @@ const SysUniversePage: React.FC = () => {
           }}
         />
 
-        <details className="sysuniverse-card sysuniverse-card--foldout">
+        <details className="grid gap-2 p-3 border border-white/[0.12] rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)] sysuniverse-card--foldout">
           <summary>System List</summary>
-          <p className="small sysuniverse-copy-reset">
+          <p className="small m-0">
             Keep the flat list too, in case you want to jump by name instead of coordinates.
           </p>
-          <div className="sysuniverse-chip-row">
+          <div className="flex gap-2 flex-wrap">
             {systems.slice(0, 80).map((system: any, index: number) => (
               <button
                 key={`${system.uid ?? system.name ?? index}`}
-                className="btn"
+                className={BTN}
                 type="button"
                 onClick={() =>
                   runPull(
@@ -470,8 +468,8 @@ const SysUniversePage: React.FC = () => {
     }
 
     return (
-      <div className="sysuniverse-stack">
-        <div className="sysuniverse-stat-grid">
+      <div className="grid gap-[14px]">
+        <div className="grid gap-[10px] [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
           {renderValue("System", system?.name ?? system?.uid ?? pullIdentifier)}
           {renderValue("UID", system?.uid ?? "Unknown")}
           {renderValue("Sector", system?.sector_name ?? system?.sector_uid ?? "Unknown")}
@@ -492,17 +490,17 @@ const SysUniversePage: React.FC = () => {
           {renderValue("Hyperlanes", hyperlanes.length)}
         </div>
 
-        <div className="sysuniverse-card">
+        <div className="grid gap-2 p-3 border border-white/[0.12] rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)]">
           <strong>System Links</strong>
-          <div className="sysuniverse-chip-row">
+          <div className="flex gap-2 flex-wrap">
             {renderActionButton("Open Sector", "sector", system?.sector_name ?? system?.sector_uid)}
           </div>
         </div>
 
-        <div className="sysuniverse-card">
-          <div className="sysuniverse-toolbar">
+        <div className="grid gap-2 p-3 border border-white/[0.12] rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)]">
+          <div className="flex justify-between gap-2 items-center flex-wrap">
             <strong>Top-Down System Map</strong>
-            <div className="sysuniverse-toolbar__actions">
+            <div className="flex gap-2 items-center flex-wrap">
               <span className="small">
                 Grid:
                 {" "}
@@ -511,17 +509,17 @@ const SysUniversePage: React.FC = () => {
                 {mapBounds.maxX},{mapBounds.maxY}
               </span>
               <span className="small">Zoom: {systemZoom.toFixed(2)}x</span>
-              <button className="btn" type="button" onClick={resetSystemViewport}>
+              <button className={BTN} type="button" onClick={resetSystemViewport}>
                 Reset View
               </button>
             </div>
           </div>
-          <p className="small sysuniverse-copy-reset">
+          <p className="small m-0">
             Scroll to zoom, drag to move, and click a coordinate cell to inspect everything located there.
           </p>
           <div
             ref={systemViewportRef}
-            className={`sysuniverse-map-viewport sysuniverse-map-viewport--system ${isDraggingSystem ? "is-dragging" : ""}`}
+            className={`relative w-[min(100%,82vh,980px)] max-[860px]:w-full aspect-square min-h-0 max-h-none mx-auto overflow-hidden rounded-[10px] border border-white/[0.1] bg-[radial-gradient(circle_at_50%_38%,rgba(20,26,38,0.52),transparent_42%),linear-gradient(180deg,rgba(4,6,10,0.98),rgba(9,11,16,0.98))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04),0_28px_72px_rgba(0,0,0,0.32)] cursor-grab${isDraggingSystem ? " cursor-grabbing" : ""}`}
             style={{
               overscrollBehavior: "contain",
               touchAction: "none",
@@ -549,7 +547,7 @@ const SysUniversePage: React.FC = () => {
           >
             <div className="sysuniverse-map-viewport__stars" />
             <div
-              className="sysuniverse-map-canvas"
+              className="grid gap-0 origin-top-left w-max p-4 select-none"
               style={{
                 transform: `translate(${systemOffset.x}px, ${systemOffset.y}px) scale(${systemZoom})`,
               }}
@@ -557,7 +555,7 @@ const SysUniversePage: React.FC = () => {
               {mapCells.map((row, rowIndex) => (
                 <div
                   key={`sys-row-${rowIndex}`}
-                  className="sysuniverse-grid-row"
+                  className="grid gap-0"
                   style={{
                     gridTemplateColumns: `repeat(${row.length}, 88px)`,
                   }}
@@ -571,7 +569,7 @@ const SysUniversePage: React.FC = () => {
                     return (
                       <button
                         key={`cell-${cell.x}-${cell.y}`}
-                        className="btn sysuniverse-system-cell"
+                        className={BTN + " grid gap-[6px] content-start text-left pointer-events-auto rounded-none"}
                         type="button"
                         onClick={() => drillFromSystemCell(cell)}
                         style={{
@@ -586,23 +584,23 @@ const SysUniversePage: React.FC = () => {
                               : "rgba(255,255,255,0.02)",
                         }}
                       >
-                        <div className="sysuniverse-system-cell__header">
+                        <div className="flex justify-between gap-2 items-center">
                           <strong>{cell.x}, {cell.y}</strong>
                           <span className="small">{occupancy}</span>
                         </div>
                         {cell.planets.slice(0, 2).map((planet: any) => (
                           <span
                             key={`planet-preview-${planet.uid ?? planet.name}`}
-                            className="sysuniverse-planet-preview"
+                            className="grid gap-1 justify-items-start"
                           >
                             {bestPlanetImage(planet) ? (
                               <img
                                 src={bestPlanetImage(planet) ?? ""}
                                 alt={planet.name ?? planet.uid ?? "Planet"}
-                                className="sysuniverse-planet-preview__thumb sysuniverse-planet-preview__thumb--small"
+                                className="w-[26px] h-[26px] rounded-full object-cover border border-white/[0.15]"
                               />
                             ) : null}
-                            <span className="small sysuniverse-planet-preview__name">
+                            <span className="small opacity-[0.9] leading-[1.15]">
                               {planet.name ?? planet.uid}
                             </span>
                           </span>
@@ -614,7 +612,7 @@ const SysUniversePage: React.FC = () => {
                           <span className="small">Stations: {cell.stations.length}</span>
                         ) : null}
                         {occupancy > 1 ? (
-                          <span className="small sysuniverse-muted">
+                          <span className="small opacity-[0.75]">
                             {occupancy} objects
                           </span>
                         ) : null}
@@ -626,18 +624,18 @@ const SysUniversePage: React.FC = () => {
             </div>
           </div>
           {selectedCellData ? (
-            <div className="sysuniverse-card sysuniverse-card--highlight">
+            <div className="grid gap-2 p-3 border border-white/[0.12] rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)] mt-2 !border-[rgba(245,213,70,0.35)]">
               <strong>
                 Cell {selectedCellData.x}, {selectedCellData.y}
               </strong>
               {selectedCellData.planets.length > 0 ? (
-                <div className="sysuniverse-stack--tight">
+                <div className="grid gap-2">
                   <span className="small">Planets</span>
-                  <div className="sysuniverse-chip-row">
+                  <div className="flex gap-2 flex-wrap">
                     {selectedCellData.planets.map((planet: any, index: number) => (
                       <button
                         key={`${planet.uid ?? planet.name ?? index}`}
-                        className="btn sysuniverse-entity-button"
+                        className={BTN + " grid gap-2 items-center"}
                         type="button"
                         onClick={() =>
                           runPull(
@@ -655,7 +653,7 @@ const SysUniversePage: React.FC = () => {
                           <img
                             src={bestPlanetImage(planet) ?? ""}
                             alt={planet.name ?? planet.uid ?? "Planet"}
-                            className="sysuniverse-planet-preview__thumb"
+                            className="w-9 h-9 rounded-full object-cover border border-white/[0.15]"
                           />
                         ) : null}
                         <span>{planet.name ?? planet.uid ?? `Planet ${index + 1}`}</span>
@@ -665,13 +663,13 @@ const SysUniversePage: React.FC = () => {
                 </div>
               ) : null}
               {selectedCellData.stations.length > 0 ? (
-                <div className="sysuniverse-stack--tight">
+                <div className="grid gap-2">
                   <span className="small">Stations</span>
-                  <div className="sysuniverse-chip-row">
+                  <div className="flex gap-2 flex-wrap">
                     {selectedCellData.stations.map((station: any, index: number) => (
                       <button
                         key={`${station.uid ?? station.name ?? index}`}
-                        className="btn"
+                        className={BTN}
                         type="button"
                         onClick={() =>
                           runPull(
@@ -688,7 +686,7 @@ const SysUniversePage: React.FC = () => {
               ) : null}
               {selectedCellData.planets.length === 0 &&
               selectedCellData.stations.length === 0 ? (
-                <p className="small sysuniverse-copy-reset">
+                <p className="small m-0">
                   Nothing is registered at this coordinate.
                 </p>
               ) : null}
@@ -697,13 +695,13 @@ const SysUniversePage: React.FC = () => {
         </div>
 
         {planets.length > 0 && (
-          <details className="sysuniverse-card sysuniverse-card--foldout">
+          <details className="grid gap-2 p-3 border border-white/[0.12] rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)] sysuniverse-card--foldout">
             <summary>Planet Layer</summary>
-            <div className="sysuniverse-chip-row">
+            <div className="flex gap-2 flex-wrap">
               {planets.slice(0, 80).map((planet: any, index: number) => (
                 <button
                   key={`${planet.uid ?? planet.name ?? index}`}
-                    className="btn sysuniverse-entity-button"
+                    className={BTN + " grid gap-2 items-center"}
                     type="button"
                     onClick={() =>
                       runPull(
@@ -721,7 +719,7 @@ const SysUniversePage: React.FC = () => {
                     <img
                       src={bestPlanetImage(planet) ?? ""}
                       alt={planet.name ?? planet.uid ?? "Planet"}
-                      className="sysuniverse-planet-preview__thumb sysuniverse-planet-preview__thumb--medium"
+                      className="w-8 h-8 rounded-full object-cover border border-white/[0.15]"
                     />
                   ) : null}
                   <span>{planet.name ?? planet.uid ?? `Planet ${index + 1}`}</span>
@@ -732,13 +730,13 @@ const SysUniversePage: React.FC = () => {
         )}
 
         {stations.length > 0 && (
-          <details className="sysuniverse-card sysuniverse-card--foldout">
+          <details className="grid gap-2 p-3 border border-white/[0.12] rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)] sysuniverse-card--foldout">
             <summary>Station Layer</summary>
-            <div className="sysuniverse-chip-row">
+            <div className="flex gap-2 flex-wrap">
               {stations.slice(0, 80).map((station: any, index: number) => (
                 <button
                   key={`${station.uid ?? station.name ?? index}`}
-                    className="btn"
+                    className={BTN}
                     type="button"
                     onClick={() =>
                       runPull(
@@ -755,18 +753,18 @@ const SysUniversePage: React.FC = () => {
         )}
 
         {hyperlanes.length > 0 && (
-          <details className="sysuniverse-card sysuniverse-card--foldout">
+          <details className="grid gap-2 p-3 border border-white/[0.12] rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)] sysuniverse-card--foldout">
             <summary>Hyperlane Layer</summary>
-            <div className="sysuniverse-stack--tight">
+            <div className="grid gap-2">
               {hyperlanes.slice(0, 40).map((hyperlane: any, index: number) => (
                 <div
                   key={`${hyperlane.uid ?? hyperlane.name ?? index}`}
-                  className="sysuniverse-hyperlane-row"
+                  className="flex justify-between gap-2 flex-wrap pb-2 border-b border-b-white/[0.08]"
                 >
                   <span>
                     {hyperlane.name ?? hyperlane.uid ?? `Hyperlane ${index + 1}`}
                   </span>
-                  <span className="small sysuniverse-muted">
+                  <span className="small opacity-[0.75]">
                     {hyperlane.destination_name ??
                       hyperlane.system_name ??
                       hyperlane.destination_uid ??
@@ -827,8 +825,8 @@ const SysUniversePage: React.FC = () => {
       : null;
 
     return (
-      <div className="sysuniverse-stack">
-        <div className="sysuniverse-stat-grid">
+      <div className="grid gap-[14px]">
+        <div className="grid gap-[10px] [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
           {renderValue("Planet", planet?.name ?? planet?.uid ?? pullIdentifier)}
           {renderValue("UID", planet?.uid ?? "Unknown")}
           {renderValue("System", planet?.system_name ?? planet?.system_uid ?? "Unknown")}
@@ -841,27 +839,27 @@ const SysUniversePage: React.FC = () => {
         </div>
 
         {mapCells.length > 0 ? (
-          <div className="sysuniverse-card">
-            <div className="sysuniverse-toolbar">
+          <div className="grid gap-2 p-3 border border-white/[0.12] rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)]">
+            <div className="flex justify-between gap-2 items-center flex-wrap">
               <strong>Planet Surface Map</strong>
-              <div className="sysuniverse-toolbar__actions">
+              <div className="flex gap-2 items-center flex-wrap">
                 <span className="small">
                   Grid: {surfaceBounds.min_x},{surfaceBounds.min_y}
                   {" -> "}
                   {surfaceBounds.max_x},{surfaceBounds.max_y}
                 </span>
                 <span className="small">Zoom: {planetZoom.toFixed(2)}x</span>
-                <button className="btn" type="button" onClick={resetPlanetViewport}>
+                <button className={BTN} type="button" onClick={resetPlanetViewport}>
                   Reset View
                 </button>
               </div>
             </div>
-            <p className="small sysuniverse-copy-reset">
+            <p className="small m-0">
               Scroll to zoom, drag to move, and click a terrain cell to inspect its terrain and any cities on it.
             </p>
             <div
               ref={planetViewportRef}
-              className={`sysuniverse-map-viewport sysuniverse-map-viewport--planet ${isDraggingPlanet ? "is-dragging" : ""}`}
+              className={`relative w-full min-h-[520px] max-h-[72vh] overflow-hidden rounded-[10px] border border-white/[0.1] bg-[linear-gradient(180deg,rgba(8,8,8,0.98),rgba(18,18,18,0.98))] cursor-grab${isDraggingPlanet ? " cursor-grabbing" : ""}`}
               style={{
                 overscrollBehavior: "contain",
                 touchAction: "none",
@@ -887,11 +885,11 @@ const SysUniversePage: React.FC = () => {
                 planetDragRef.current = null;
               }}
             >
-              <div className="sysuniverse-map-canvas" style={{ transform: `translate(${planetOffset.x}px, ${planetOffset.y}px) scale(${planetZoom})` }}>
+              <div className="grid gap-0 origin-top-left w-max p-4 select-none" style={{ transform: `translate(${planetOffset.x}px, ${planetOffset.y}px) scale(${planetZoom})` }}>
                 {mapCells.map((row, rowIndex) => (
                   <div
                     key={`planet-row-${rowIndex}`}
-                    className="sysuniverse-grid-row"
+                    className="grid gap-0"
                     style={{ gridTemplateColumns: `repeat(${row.length}, 42px)` }}
                   >
                     {row.map((cell) => {
@@ -901,7 +899,7 @@ const SysUniversePage: React.FC = () => {
                       return (
                         <button
                           key={`planet-cell-${cell.x}-${cell.y}`}
-                          className="btn sysuniverse-planet-cell"
+                          className={BTN + " relative min-w-[42px] min-h-[42px] p-0 rounded-none border border-white/[0.18]"}
                           type="button"
                           onClick={() => setSelectedPlanetCell({ x: cell.x, y: cell.y })}
                           style={{
@@ -910,7 +908,7 @@ const SysUniversePage: React.FC = () => {
                           }}
                           title={`${cell.x}, ${cell.y}${cell.terrain?.name ? ` · ${cell.terrain.name}` : ""}`}
                         >
-                          {cell.cities.length > 0 ? <span className="sysuniverse-planet-cell__city-dot" /> : null}
+                          {cell.cities.length > 0 ? <span className="absolute top-1/2 left-1/2 w-2 h-2 rounded-full bg-white/[0.95] shadow-[0_0_0_2px_rgba(0,0,0,0.28)] -translate-x-1/2 -translate-y-1/2" /> : null}
                         </button>
                       );
                     })}
@@ -919,23 +917,23 @@ const SysUniversePage: React.FC = () => {
               </div>
             </div>
             {selectedSurfaceCell ? (
-              <div className="sysuniverse-card sysuniverse-card--highlight">
+              <div className="grid gap-2 p-3 border border-white/[0.12] rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)] mt-2 !border-[rgba(245,213,70,0.35)]">
                 <strong>
                   Surface Cell {selectedSurfaceCell.x}, {selectedSurfaceCell.y}
                 </strong>
-                <div className="sysuniverse-stat-grid">
+                <div className="grid gap-[10px] [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
                   {renderValue("Terrain", selectedSurfaceCell.terrain?.name ?? "Unknown")}
                   {renderValue("Code", selectedSurfaceCell.terrain?.code ?? "Unknown")}
                   {renderValue("Cities", selectedSurfaceCell.cities.length)}
                 </div>
                 {selectedSurfaceCell.cities.length > 0 ? (
-                  <div className="sysuniverse-stack--tight">
+                  <div className="grid gap-2">
                     <span className="small">Cities</span>
-                    <div className="sysuniverse-chip-row">
+                    <div className="flex gap-2 flex-wrap">
                       {selectedSurfaceCell.cities.map((city: any, index: number) => (
                         <a
                           key={`${city.uid ?? city.name ?? index}`}
-                          className="btn"
+                          className={BTN}
                           href={city.href ?? undefined}
                           target="_blank"
                           rel="noreferrer"
@@ -952,36 +950,36 @@ const SysUniversePage: React.FC = () => {
         ) : null}
 
         {bestPlanetImage(planet) ? (
-          <div className="sysuniverse-card">
+          <div className="grid gap-2 p-3 border border-white/[0.12] rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)]">
             <strong>Planet Image</strong>
             <img
               src={planet?.image_large_url ?? bestPlanetImage(planet) ?? ""}
               alt={planet?.name ?? planet?.uid ?? "Planet"}
-              className="sysuniverse-planet-image"
+              className="w-full max-w-[420px] rounded-[12px] object-cover border border-white/[0.12]"
             />
-            <div className="sysuniverse-chip-row">
+            <div className="flex gap-2 flex-wrap">
               {planet?.image_small_url ? (
-                <a className="btn" href={planet.image_small_url} target="_blank" rel="noreferrer">
+                <a className={BTN} href={planet.image_small_url} target="_blank" rel="noreferrer">
                   Small Image
                 </a>
               ) : null}
               {planet?.image_large_url ? (
-                <a className="btn" href={planet.image_large_url} target="_blank" rel="noreferrer">
+                <a className={BTN} href={planet.image_large_url} target="_blank" rel="noreferrer">
                   Large Image
                 </a>
               ) : null}
               {planet?.image_atmosphere_url ? (
-                <a className="btn" href={planet.image_atmosphere_url} target="_blank" rel="noreferrer">
+                <a className={BTN} href={planet.image_atmosphere_url} target="_blank" rel="noreferrer">
                   Atmosphere
                 </a>
               ) : null}
               {planet?.image_stratosphere_url ? (
-                <a className="btn" href={planet.image_stratosphere_url} target="_blank" rel="noreferrer">
+                <a className={BTN} href={planet.image_stratosphere_url} target="_blank" rel="noreferrer">
                   Stratosphere
                 </a>
               ) : null}
               {planet?.image_loworbit_url ? (
-                <a className="btn" href={planet.image_loworbit_url} target="_blank" rel="noreferrer">
+                <a className={BTN} href={planet.image_loworbit_url} target="_blank" rel="noreferrer">
                   Low Orbit
                 </a>
               ) : null}
@@ -989,9 +987,9 @@ const SysUniversePage: React.FC = () => {
           </div>
         ) : null}
 
-        <div className="sysuniverse-card">
+        <div className="grid gap-2 p-3 border border-white/[0.12] rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)]">
           <strong>Planet Actions</strong>
-          <div className="sysuniverse-chip-row">
+          <div className="flex gap-2 flex-wrap">
             {renderActionButton("Open Parent System", "system", planet?.system_uid)}
           </div>
         </div>
@@ -1004,8 +1002,8 @@ const SysUniversePage: React.FC = () => {
     const station = result?.station;
 
     return (
-      <div className="sysuniverse-stack">
-        <div className="sysuniverse-stat-grid">
+      <div className="grid gap-[14px]">
+        <div className="grid gap-[10px] [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
           {renderValue("Station", station?.name ?? station?.uid ?? pullIdentifier)}
           {renderValue("UID", station?.uid ?? "Unknown")}
           {renderValue("Type", station?.station_type?.name ?? station?.type_name ?? "Unknown")}
@@ -1017,9 +1015,9 @@ const SysUniversePage: React.FC = () => {
           {renderValue("Owner", station?.owner_name ?? station?.owner_uid ?? "Unowned")}
         </div>
 
-        <div className="sysuniverse-card">
+        <div className="grid gap-2 p-3 border border-white/[0.12] rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)]">
           <strong>Station Actions</strong>
-          <div className="sysuniverse-chip-row">
+          <div className="flex gap-2 flex-wrap">
             {renderActionButton("Open Parent System", "system", station?.system_uid)}
           </div>
         </div>
@@ -1031,17 +1029,17 @@ const SysUniversePage: React.FC = () => {
     if (!result) return null;
 
     return (
-      <div className="sysuniverse-explorer">
+      <div className="grid gap-[10px] p-3 border border-white/[0.12] rounded-lg bg-white/[0.02]">
         <strong>Quick Links</strong>
 
         {resource === "sector" && Array.isArray(result.systems) && (
-          <div className="sysuniverse-stack--tight">
+          <div className="grid gap-2">
             <strong>Systems In Sector</strong>
-            <div className="sysuniverse-chip-row">
+            <div className="flex gap-2 flex-wrap">
               {result.systems.slice(0, 60).map((system: any, index: number) => (
                 <button
                   key={`${system.uid ?? system.name ?? index}`}
-                  className="btn"
+                  className={BTN}
                   type="button"
                   onClick={() => runPull("system", system.uid ?? system.name ?? "")}
                 >
@@ -1055,13 +1053,13 @@ const SysUniversePage: React.FC = () => {
         {resource === "system" && (
           <>
             {Array.isArray(result.planet_stubs) && result.planet_stubs.length > 0 && (
-              <div className="sysuniverse-stack--tight">
+              <div className="grid gap-2">
                 <strong>Planets In System</strong>
-                <div className="sysuniverse-chip-row">
+                <div className="flex gap-2 flex-wrap">
                   {result.planet_stubs.slice(0, 60).map((planet: any, index: number) => (
                     <button
                       key={`${planet.uid ?? planet.name ?? index}`}
-                      className="btn"
+                      className={BTN}
                       type="button"
                       onClick={() => runPull("planet", planet.uid ?? planet.name ?? "")}
                     >
@@ -1073,13 +1071,13 @@ const SysUniversePage: React.FC = () => {
             )}
 
             {Array.isArray(result.station_stubs) && result.station_stubs.length > 0 && (
-              <div className="sysuniverse-stack--tight">
+              <div className="grid gap-2">
                 <strong>Stations In System</strong>
-                <div className="sysuniverse-chip-row">
+                <div className="flex gap-2 flex-wrap">
                   {result.station_stubs.slice(0, 60).map((station: any, index: number) => (
                     <button
                       key={`${station.uid ?? station.name ?? index}`}
-                      className="btn"
+                      className={BTN}
                       type="button"
                       onClick={() => runPull("station", station.uid ?? station.name ?? "")}
                     >
@@ -1093,9 +1091,9 @@ const SysUniversePage: React.FC = () => {
         )}
 
         {resource === "planet" && result.planet?.system_uid && (
-          <div className="sysuniverse-chip-row">
+          <div className="flex gap-2 flex-wrap">
             <button
-              className="btn"
+              className={BTN}
               type="button"
               onClick={() => runPull("system", result.planet.system_uid)}
             >
@@ -1105,9 +1103,9 @@ const SysUniversePage: React.FC = () => {
         )}
 
         {resource === "station" && result.station?.system_uid && (
-          <div className="sysuniverse-chip-row">
+          <div className="flex gap-2 flex-wrap">
             <button
-              className="btn"
+              className={BTN}
               type="button"
               onClick={() => runPull("system", result.station.system_uid)}
             >
@@ -1124,7 +1122,7 @@ const SysUniversePage: React.FC = () => {
 
     return (
       <div className="panel">
-        <h2>Layer Visualizer</h2>
+        <h2 className="h2">Layer Visualizer</h2>
         <p className="small">
           Each layer gets its own quick summary so you can inspect the shape before drilling deeper.
         </p>
@@ -1140,8 +1138,8 @@ const SysUniversePage: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
-            <h1>Galaxy Explorer</h1>
+          <main className="board flex flex-col gap-4">
+            <h1 className="h1">Galaxy Explorer</h1>
             <p className="small">Loading galaxy tools…</p>
           </main>
         </div>
@@ -1153,9 +1151,9 @@ const SysUniversePage: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
-            <h1>Galaxy Explorer</h1>
-            <p className="small sysuniverse-error">
+          <main className="board flex flex-col gap-4">
+            <h1 className="h1">Galaxy Explorer</h1>
+            <p className="small text-[salmon]">
               {pageError}
             </p>
           </main>
@@ -1168,7 +1166,7 @@ const SysUniversePage: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
+          <main className="board flex flex-col gap-4">
             <NotLoggedInState
               title="Not logged in"
               message="You need to sign in to access the galaxy explorer."
@@ -1183,7 +1181,7 @@ const SysUniversePage: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
+          <main className="board flex flex-col gap-4">
             <ForbiddenState
               title="403 Forbidden"
               message="You do not have permission to access the galaxy explorer."
@@ -1197,25 +1195,25 @@ const SysUniversePage: React.FC = () => {
   return (
     <div className="site-scale">
       <div className="app app--one">
-        <main className="board admin-board sysuniverse-board">
-          <div className="sysuniverse-pagehead">
-            <div className="sysuniverse-pagehead__copy">
-              <h1>Galaxy Explorer</h1>
+        <main className="board flex flex-col gap-4 bg-[linear-gradient(180deg,rgba(0,0,0,0.98),rgba(3,3,8,0.98))] !border-white/[0.08] shadow-[0_28px_80px_rgba(0,0,0,0.35)]">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="grid gap-[6px] [&_h1]:m-0 [&_p]:m-0">
+              <h1 className="h1">Galaxy Explorer</h1>
               <p className="small">
                 Start from a sector, then drill down into systems, planets, and stations.
               </p>
             </div>
-            <Link to="/sys/debug" className="btn">
+            <Link to="/sys/debug" className={BTN}>
               Back to Sys Debug
             </Link>
           </div>
 
-          <div className="sysuniverse-shell">
-            <aside className="panel sysuniverse-sidebar">
-              <div className="sysuniverse-stack">
-                <div className="sysuniverse-form">
+          <div className="grid [grid-template-columns:minmax(0,320px)_minmax(0,1fr)] gap-4 items-start max-\[1100px\]:[grid-template-columns:1fr]">
+            <aside className="panel sticky top-4 self-start max-[1100px]:static">
+              <div className="grid gap-[14px]">
+                <div className="grid gap-[10px] mb-3">
                   <select
-                    className="input"
+                    className={INPUT}
                     value={pullResource}
                     onChange={(e) => setPullResource(e.target.value as UniverseResource)}
                   >
@@ -1226,7 +1224,7 @@ const SysUniversePage: React.FC = () => {
                   </select>
 
                   <input
-                    className="input"
+                    className={INPUT}
                     value={pullIdentifier}
                     onChange={(e) => setPullIdentifier(e.target.value)}
                     placeholder="UID or name, e.g. Arkanis, Tatoo, or 9:178"
@@ -1259,7 +1257,7 @@ const SysUniversePage: React.FC = () => {
                   </label>
 
                   <div>
-                    <button className="btn" type="button" onClick={onSubmit} disabled={loading}>
+                    <button className={BTN} type="button" onClick={onSubmit} disabled={loading}>
                       Run galaxy pull
                     </button>
                   </div>
@@ -1267,19 +1265,19 @@ const SysUniversePage: React.FC = () => {
 
                 {loading ? <p className="small">Running…</p> : null}
                 {error ? (
-                  <p className="small sysuniverse-error">
+                  <p className="small text-[salmon]">
                     {error}
                   </p>
                 ) : null}
 
                 {trail.length > 0 ? (
-                  <div className="sysuniverse-card">
+                  <div className="grid gap-2 p-3 border border-white/[0.12] rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)]">
                     <strong>Path</strong>
-                    <span className="small sysuniverse-muted">
+                    <span className="small opacity-[0.75]">
                       {trail.map((item) => `${item.resource}:${item.identifier}`).join(" -> ")}
                     </span>
                     <div>
-                      <button className="btn" type="button" onClick={resetTrail}>
+                      <button className={BTN} type="button" onClick={resetTrail}>
                         Clear path
                       </button>
                     </div>
@@ -1288,25 +1286,25 @@ const SysUniversePage: React.FC = () => {
               </div>
             </aside>
 
-            <section className="sysuniverse-main">
-              <div className="sysuniverse-subnav">
+            <section className="min-w-0 grid gap-3">
+              <div className="flex gap-2 flex-wrap p-[10px] border border-white/[0.1] rounded-[10px] bg-white/[0.03]">
                 <button
                   type="button"
-                  className={`btn sysuniverse-subnav__btn${activeSection === "visualizer" ? " is-active" : ""}`}
+                  className={BTN_SM + " border-white/[0.12] bg-white/[0.03]" + (activeSection === "visualizer" ? " !border-[rgba(245,213,70,0.38)] !bg-[rgba(245,213,70,0.12)] !text-white/[0.96]" : "")}
                   onClick={() => setActiveSection("visualizer")}
                 >
                   Visualizer
                 </button>
                 <button
                   type="button"
-                  className={`btn sysuniverse-subnav__btn${activeSection === "navigation" ? " is-active" : ""}`}
+                  className={BTN_SM + " border-white/[0.12] bg-white/[0.03]" + (activeSection === "navigation" ? " !border-[rgba(245,213,70,0.38)] !bg-[rgba(245,213,70,0.12)] !text-white/[0.96]" : "")}
                   onClick={() => setActiveSection("navigation")}
                 >
                   Navigation
                 </button>
                 <button
                   type="button"
-                  className={`btn sysuniverse-subnav__btn${activeSection === "payload" ? " is-active" : ""}`}
+                  className={BTN_SM + " border-white/[0.12] bg-white/[0.03]" + (activeSection === "payload" ? " !border-[rgba(245,213,70,0.38)] !bg-[rgba(245,213,70,0.12)] !text-white/[0.96]" : "")}
                   onClick={() => setActiveSection("payload")}
                 >
                   Payload
@@ -1316,19 +1314,19 @@ const SysUniversePage: React.FC = () => {
               {activeSection === "visualizer" ? renderLayerVisualizer() : null}
               {activeSection === "navigation" ? renderExplorer() : null}
               {activeSection === "payload" ? (
-                <div className="sysuniverse-stack">
+                <div className="grid gap-[14px]">
                   {persistenceSummary ? (
-                    <div className="sysuniverse-card">
+                    <div className="grid gap-2 p-3 border border-white/[0.12] rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)]">
                       <strong>Persistence</strong>
-                      <pre className="small sysuniverse-json">
+                      <pre className="small whitespace-pre-wrap mt-3">
                         {pretty(persistenceSummary)}
                       </pre>
                     </div>
                   ) : null}
 
-                  <div className="sysuniverse-card">
+                  <div className="grid gap-2 p-3 border border-white/[0.12] rounded-[10px] bg-[linear-gradient(180deg,rgba(14,22,40,0.92),rgba(8,14,28,0.9)),radial-gradient(circle_at_top,rgba(117,162,255,0.12),transparent_55%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_14px_40px_rgba(0,0,0,0.24)]">
                     <strong>Raw Response</strong>
-                    <pre className="small sysuniverse-json">
+                    <pre className="small whitespace-pre-wrap mt-3">
                       {result ? pretty(result) : "No data yet."}
                     </pre>
                   </div>

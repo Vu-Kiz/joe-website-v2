@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { getDebugCombatSettings } from "../../api/sysDebug";
+import { getDebugCombatSettings } from "../../api/admin/sysDebug";
 import {
   getStoredShipType,
   getStoredShipTypes,
@@ -7,10 +7,9 @@ import {
   type StoredShipTypeDetail,
   type StoredShipTypeSummary,
   type StoredWeaponTypeDetail,
-} from "../../api/universe";
-import "../../styles/main.sass";
-import "../../styles/_admin.sass";
-import "../../styles/_weaponheatmap.sass";
+} from "../../api/universe/universe";
+import ReportBugButton from "../support/ReportBugButton";
+
 
 type HeatmapBoardMode = "auto" | "space" | "ground";
 type GridPoint = { x: number; y: number };
@@ -1248,69 +1247,77 @@ const MemberCombatCalculatorPanel: React.FC = () => {
     return allRuns.slice(start, start + scenarioPageSize);
   }, [currentScenarioProjection, scenarioPage, scenarioPageSize]);
 
+  const statCls = "grid gap-[0.25rem] p-[0.8rem] border border-white/[0.08] rounded-[12px] bg-white/[0.025]";
+  const sectionHeadCls = "flex justify-between items-start gap-3 [&_h3]:m-0 [&_h4]:m-0 [&_p]:m-0 [&_h3]:text-[0.95rem]";
+  const pillCls = (active: boolean) =>
+    `px-[0.8rem] py-2 border rounded-full bg-white/[0.03] text-inherit cursor-pointer transition-[border-color,background] duration-150 hover:border-[rgba(246,163,0,0.3)] hover:bg-[rgba(246,163,0,0.08)] disabled:opacity-50 disabled:cursor-not-allowed ${active ? "border-[rgba(246,163,0,0.55)] bg-[rgba(246,163,0,0.14)]" : "border-white/10"}`;
+  const tileCls = (active: boolean) =>
+    `grid gap-[0.15rem] w-full p-[0.75rem_0.8rem] text-left border rounded-[10px] bg-white/[0.025] text-inherit cursor-pointer transition-[border-color,background] duration-150 hover:border-[rgba(246,163,0,0.3)] hover:bg-[rgba(246,163,0,0.08)] ${active ? "border-[rgba(246,163,0,0.55)] bg-[rgba(246,163,0,0.14)]" : "border-white/[0.08]"}`;
+
   return (
-    <div className="members-combat-calc">
-      <section className="panel admin-panel members-combat-calc__hero">
-        <div className="admin-panel__header members-combat-calc__hero-head">
+    <div className="grid gap-4">
+      <section className="panel flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
           <div>
-            <h2>Combat Calculator</h2>
+            <h2 className="h2 m-0">Combat Calculator</h2>
             <p className="small">
               Sysadmin-only combat brief for working out where a ship should fight, how hard it should hit, and how quickly it is likely to connect before we turn this into the full fleet tool.
             </p>
+            <ReportBugButton toolKey="combat_calculator" toolLabel="Combat Calculator" />
           </div>
-          <div className="members-combat-calc__hero-badges">
-            <span className="members-combat-calc__badge">Ship vs Ship</span>
-            <span className="members-combat-calc__badge">Range Math Live</span>
-            <span className="members-combat-calc__badge">Combat Tables Active</span>
+          <div className="flex flex-wrap gap-[0.55rem]">
+            <span className="inline-flex items-center px-[0.7rem] py-[0.45rem] rounded-full border border-[rgba(246,163,0,0.24)] bg-[rgba(246,163,0,0.08)] text-[rgba(255,215,145,0.95)] text-[0.82rem] font-bold">Ship vs Ship</span>
+            <span className="inline-flex items-center px-[0.7rem] py-[0.45rem] rounded-full border border-[rgba(246,163,0,0.24)] bg-[rgba(246,163,0,0.08)] text-[rgba(255,215,145,0.95)] text-[0.82rem] font-bold">Range Math Live</span>
+            <span className="inline-flex items-center px-[0.7rem] py-[0.45rem] rounded-full border border-[rgba(246,163,0,0.24)] bg-[rgba(246,163,0,0.08)] text-[rgba(255,215,145,0.95)] text-[0.82rem] font-bold">Combat Tables Active</span>
           </div>
         </div>
         {visibleSections.engagement ? (
-          <div className="admin-panel__body members-combat-calc__headline-grid">
-            <article className="members-combat-calc__headline-card">
+          <div className="grid grid-cols-3 gap-[0.8rem] max-[960px]:grid-cols-1">
+            <article className="grid gap-[0.28rem] p-[0.95rem_1rem] border border-white/[0.08] rounded-[14px] bg-[linear-gradient(180deg,rgba(246,163,0,0.08)_0%,rgba(255,255,255,0.03)_100%)]">
               <span className="small">Best Holding Range</span>
-              <strong>{rangeRecommendations.bestOverall ? `${formatNumber(rangeRecommendations.bestOverall.range, 0)}` : "Unknown"}</strong>
+              <strong className="text-[1.5rem] leading-none">{rangeRecommendations.bestOverall ? `${formatNumber(rangeRecommendations.bestOverall.range, 0)}` : "Unknown"}</strong>
               <span className="small">Best sustained average damage band</span>
             </article>
-            <article className="members-combat-calc__headline-card">
+            <article className="grid gap-[0.28rem] p-[0.95rem_1rem] border border-white/[0.08] rounded-[14px] bg-[linear-gradient(180deg,rgba(246,163,0,0.08)_0%,rgba(255,255,255,0.03)_100%)]">
               <span className="small">Damage At Best Range</span>
-              <strong>{rangeRecommendations.bestOverall ? formatNumber(rangeRecommendations.bestOverall.averageDamage, 1) : "Unknown"}</strong>
+              <strong className="text-[1.5rem] leading-none">{rangeRecommendations.bestOverall ? formatNumber(rangeRecommendations.bestOverall.averageDamage, 1) : "Unknown"}</strong>
               <span className="small">{rangeRecommendations.bestOverall ? `${formatNumber(rangeRecommendations.bestOverall.averageHitChance * 100, 0)}% average hit chance` : "Awaiting profile"}</span>
             </article>
-            <article className="members-combat-calc__headline-card">
+            <article className="grid gap-[0.28rem] p-[0.95rem_1rem] border border-white/[0.08] rounded-[14px] bg-[linear-gradient(180deg,rgba(246,163,0,0.08)_0%,rgba(255,255,255,0.03)_100%)]">
               <span className="small">Current Range Outlook</span>
-              <strong>{currentTargetSummary?.damageBand ?? "Unknown"}</strong>
+              <strong className="text-[1.5rem] leading-none">{currentTargetSummary?.damageBand ?? "Unknown"}</strong>
               <span className="small">{recommendationDelta == null ? "Awaiting target profile" : `${recommendationDelta >= 0 ? "+" : ""}${formatNumber(recommendationDelta, 1)} damage swing to best range`}</span>
             </article>
           </div>
         ) : null}
       </section>
 
-      <div className="members-combat-calc__layout">
-        <section className="panel admin-panel members-combat-calc__sidebar">
-          <div className="admin-panel__header">
-            <h3>Combat Setup</h3>
+      <div className="grid grid-cols-[minmax(290px,340px)_minmax(0,1fr)] gap-4 items-start max-[1100px]:grid-cols-1">
+        <section className="panel flex flex-col gap-4 sticky top-3 max-[1100px]:static max-[768px]:static">
+          <div className="flex flex-col gap-1.5">
+            <h3 className="h3">Combat Setup</h3>
           </div>
-          <div className="admin-panel__body members-combat-calc__sidebar-body">
-            <div className="members-combat-calc__section-pills">
-              <button type="button" className={`members-combat-calc__section-pill${visibleSections.setup ? " is-active" : ""}`} onClick={() => toggleSection("setup")}>Setup</button>
-              <button type="button" className={`members-combat-calc__section-pill${visibleSections.matchup ? " is-active" : ""}`} onClick={() => toggleSection("matchup")}>Matchup</button>
-              <button type="button" className={`members-combat-calc__section-pill${visibleSections.engagement ? " is-active" : ""}`} onClick={() => toggleSection("engagement")}>Engagement</button>
-              <button type="button" className={`members-combat-calc__section-pill${visibleSections.weapon ? " is-active" : ""}`} onClick={() => toggleSection("weapon")}>Weapon</button>
-              <button type="button" className={`members-combat-calc__section-pill${visibleSections.maneuver ? " is-active" : ""}`} onClick={() => toggleSection("maneuver")}>Maneuver</button>
-              <button type="button" className={`members-combat-calc__section-pill${visibleSections.ranges ? " is-active" : ""}`} onClick={() => toggleSection("ranges")}>Ranges</button>
-              <button type="button" className={`members-combat-calc__section-pill${visibleSections.scenarios ? " is-active" : ""}`} onClick={() => toggleSection("scenarios")}>Scenarios</button>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className={pillCls(visibleSections.setup)} onClick={() => toggleSection("setup")}>Setup</button>
+              <button type="button" className={pillCls(visibleSections.matchup)} onClick={() => toggleSection("matchup")}>Matchup</button>
+              <button type="button" className={pillCls(visibleSections.engagement)} onClick={() => toggleSection("engagement")}>Engagement</button>
+              <button type="button" className={pillCls(visibleSections.weapon)} onClick={() => toggleSection("weapon")}>Weapon</button>
+              <button type="button" className={pillCls(visibleSections.maneuver)} onClick={() => toggleSection("maneuver")}>Maneuver</button>
+              <button type="button" className={pillCls(visibleSections.ranges)} onClick={() => toggleSection("ranges")}>Ranges</button>
+              <button type="button" className={pillCls(visibleSections.scenarios)} onClick={() => toggleSection("scenarios")}>Scenarios</button>
             </div>
 
             {visibleSections.setup ? (
-            <div className="members-combat-calc__field-group">
-              <h4>Attacker Search</h4>
+            <div className="grid gap-[0.6rem]">
+              <h4 className="m-0">Attacker Search</h4>
 
               <label className="small" htmlFor="ship-heatmap-query">
                 Search
               </label>
               <input
                 id="ship-heatmap-query"
-                className="admin-input"
+                className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search by name, class, or UID"
@@ -1319,16 +1326,16 @@ const MemberCombatCalculatorPanel: React.FC = () => {
             ) : null}
 
             {visibleSections.setup ? (
-            <div className="members-combat-calc__field-group">
-              <h4>Combat Inputs</h4>
+            <div className="grid gap-[0.6rem]">
+              <h4 className="m-0">Combat Inputs</h4>
               <label className="small" htmlFor="ship-heatmap-combat-skill">Combat Skill</label>
-              <input id="ship-heatmap-combat-skill" className="admin-input" type="number" min={0} max={10} step={1} value={combatSkill} onChange={(event) => setCombatSkill(Math.max(0, Math.min(10, Number(event.target.value) || 0)))} />
+              <input id="ship-heatmap-combat-skill" className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit" type="number" min={0} max={10} step={1} value={combatSkill} onChange={(event) => setCombatSkill(Math.max(0, Math.min(10, Number(event.target.value) || 0)))} />
               <label className="small" htmlFor="ship-heatmap-attacker-piloting-skill">Attacker Piloting Skill</label>
-              <input id="ship-heatmap-attacker-piloting-skill" className="admin-input" type="number" min={0} max={10} step={1} value={attackerPilotingSkill} onChange={(event) => setAttackerPilotingSkill(Math.max(0, Math.min(10, Number(event.target.value) || 0)))} />
+              <input id="ship-heatmap-attacker-piloting-skill" className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit" type="number" min={0} max={10} step={1} value={attackerPilotingSkill} onChange={(event) => setAttackerPilotingSkill(Math.max(0, Math.min(10, Number(event.target.value) || 0)))} />
               <label className="small" htmlFor="ship-heatmap-target-ship">Target Ship</label>
               <select
                 id="ship-heatmap-target-ship"
-                className="admin-input"
+                className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit"
                 value={targetShipUid ?? ""}
                 onChange={(event) => setTargetShipUid(event.target.value || null)}
               >
@@ -1339,11 +1346,11 @@ const MemberCombatCalculatorPanel: React.FC = () => {
                 ))}
               </select>
               <label className="small" htmlFor="ship-heatmap-piloting-skill">Target Piloting Skill</label>
-              <input id="ship-heatmap-piloting-skill" className="admin-input" type="number" min={0} max={10} step={1} value={targetPilotingSkill} onChange={(event) => setTargetPilotingSkill(Math.max(0, Math.min(10, Number(event.target.value) || 0)))} />
+              <input id="ship-heatmap-piloting-skill" className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit" type="number" min={0} max={10} step={1} value={targetPilotingSkill} onChange={(event) => setTargetPilotingSkill(Math.max(0, Math.min(10, Number(event.target.value) || 0)))} />
               <label className="small" htmlFor="ship-heatmap-range">Current Engagement Range</label>
               <input
                 id="ship-heatmap-range"
-                className="admin-input"
+                className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit"
                 type="number"
                 min={0}
                 max={Math.max(0, Math.round(selectedMaxRange))}
@@ -1358,7 +1365,7 @@ const MemberCombatCalculatorPanel: React.FC = () => {
               <label className="small" htmlFor="ship-heatmap-rounds">Scenario Runs</label>
               <input
                 id="ship-heatmap-rounds"
-                className="admin-input"
+                className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit"
                 type="number"
                 min={1}
                 max={9999}
@@ -1377,14 +1384,14 @@ const MemberCombatCalculatorPanel: React.FC = () => {
             {shipsError ? <p className="small">{shipsError}</p> : null}
 
             {visibleSections.setup ? (
-            <div className="members-combat-calc__field-group">
-              <h4>Attacker Ship</h4>
-              <div className="weapon-heatmap-page__weapon-list">
+            <div className="grid gap-[0.6rem]">
+              <h4 className="m-0">Attacker Ship</h4>
+              <div className="grid gap-[0.4rem] max-h-[220px] overflow-auto pr-[0.15rem]">
                 {filteredShips.map((ship) => (
                   <button
                     key={ship.uid}
                     type="button"
-                    className={`weapon-heatmap-page__weapon-button${selectedShipUid === ship.uid ? " is-active" : ""}`}
+                    className={tileCls(selectedShipUid === ship.uid)}
                     onClick={() => setSelectedShipUid(ship.uid)}
                   >
                     <strong>{ship.name ?? ship.uid}</strong>
@@ -1397,40 +1404,40 @@ const MemberCombatCalculatorPanel: React.FC = () => {
           </div>
         </section>
 
-        <section className="members-combat-calc__main">
+        <section className="grid gap-4">
           {selectedShip ? (
             <>
-              <section className="panel admin-panel members-combat-calc__focus">
-                <div className="admin-panel__header members-combat-calc__focus-head">
+              <section className="panel flex flex-col gap-4 overflow-hidden">
+                <div className="flex flex-col gap-1.5">
                   <div>
-                    <h3>{selectedShip.name ?? selectedShip.uid}</h3>
+                    <h3 className="h3">{selectedShip.name ?? selectedShip.uid}</h3>
                     <p className="small">{selectedShip.class_name ?? "Unknown class"}</p>
                   </div>
-                  <div className="members-combat-calc__focus-vs">
+                  <div className="grid gap-[0.2rem] p-[0.75rem_0.9rem] min-w-[15rem] border border-white/[0.08] rounded-[12px] bg-white/[0.03]">
                     <span className="small">Against</span>
                     <strong>{targetShipDetail?.name ?? targetShipUid ?? "Unknown target"}</strong>
                   </div>
                 </div>
               </section>
 
-              <div className="weapon-heatmap-page__stats">
-                <article className="weapon-heatmap-page__stat"><span className="small">Recommended Range</span><strong>{rangeRecommendations.bestOverall ? `${formatNumber(rangeRecommendations.bestOverall.range, 0)}` : "Unknown"}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Expected Damage At Best Range</span><strong>{rangeRecommendations.bestOverall ? formatNumber(rangeRecommendations.bestOverall.averageDamage, 1) : "Unknown"}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Current Engagement Range</span><strong>{currentTargetSummary ? `${formatNumber(currentTargetSummary.range, 0)}` : formatNumber(engagementRange, 0)}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Current Damage Outlook</span><strong>{currentTargetSummary?.damageBand ?? "Unknown"}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Scenario Runs</span><strong>{formatNumber(scenarioRuns, 0)}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Average Damage To Defender</span><strong>{currentScenarioProjection ? formatNumber(currentScenarioProjection.averageDamageToDefender, 1) : "Unknown"}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Average Damage To Attacker</span><strong>{currentScenarioProjection ? formatNumber(currentScenarioProjection.averageDamageToAttacker, 1) : "Unknown"}</strong></article>
+              <div className="grid grid-cols-4 gap-[0.7rem] max-[980px]:grid-cols-2 max-[560px]:grid-cols-1">
+                <article className={statCls}><span className="small">Recommended Range</span><strong>{rangeRecommendations.bestOverall ? `${formatNumber(rangeRecommendations.bestOverall.range, 0)}` : "Unknown"}</strong></article>
+                <article className={statCls}><span className="small">Expected Damage At Best Range</span><strong>{rangeRecommendations.bestOverall ? formatNumber(rangeRecommendations.bestOverall.averageDamage, 1) : "Unknown"}</strong></article>
+                <article className={statCls}><span className="small">Current Engagement Range</span><strong>{currentTargetSummary ? `${formatNumber(currentTargetSummary.range, 0)}` : formatNumber(engagementRange, 0)}</strong></article>
+                <article className={statCls}><span className="small">Current Damage Outlook</span><strong>{currentTargetSummary?.damageBand ?? "Unknown"}</strong></article>
+                <article className={statCls}><span className="small">Scenario Runs</span><strong>{formatNumber(scenarioRuns, 0)}</strong></article>
+                <article className={statCls}><span className="small">Average Damage To Defender</span><strong>{currentScenarioProjection ? formatNumber(currentScenarioProjection.averageDamageToDefender, 1) : "Unknown"}</strong></article>
+                <article className={statCls}><span className="small">Average Damage To Attacker</span><strong>{currentScenarioProjection ? formatNumber(currentScenarioProjection.averageDamageToAttacker, 1) : "Unknown"}</strong></article>
               </div>
 
-              <div className="weapon-heatmap-page__report-grid">
+              <div className="grid grid-cols-2 gap-[0.8rem] max-[980px]:grid-cols-1">
                 {visibleSections.matchup ? (
-                <section className="panel admin-panel weapon-heatmap-page__report-card">
-                  <div className="weapon-heatmap-page__section-head">
+                <section className="panel flex flex-col gap-4">
+                  <div className={sectionHeadCls}>
                     <h4>Matchup Summary</h4>
                     <span className="small">Attacker vs target</span>
                   </div>
-                  <div className="weapon-heatmap-page__inspector-list">
+                  <div className="grid gap-2">
                     <div><span className="small">Attacker</span><strong>{selectedShipDetail?.name ?? selectedShipUid ?? "Unknown"}</strong></div>
                     <div><span className="small">Target</span><strong>{targetShipDetail?.name ?? targetShipUid ?? "Unknown"}</strong></div>
                     <div><span className="small">Attacker Class</span><strong>{selectedShipDetail?.class_name ?? "Unknown"}</strong></div>
@@ -1444,12 +1451,12 @@ const MemberCombatCalculatorPanel: React.FC = () => {
                 ) : null}
 
                 {visibleSections.engagement ? (
-                <section className="panel admin-panel weapon-heatmap-page__report-card">
-                  <div className="weapon-heatmap-page__section-head">
+                <section className="panel flex flex-col gap-4">
+                  <div className={sectionHeadCls}>
                     <h4>Engagement Summary</h4>
                     <span className="small">What the maths is saying</span>
                   </div>
-                  <div className="weapon-heatmap-page__inspector-list">
+                  <div className="grid gap-2">
                     <div><span className="small">Recommended Range</span><strong>{rangeRecommendations.bestOverall ? `${formatNumber(rangeRecommendations.bestOverall.range, 0)}` : "Unknown"}</strong></div>
                     <div><span className="small">Best Average Hit Chance</span><strong>{rangeRecommendations.bestOverall ? `${formatNumber(rangeRecommendations.bestOverall.averageHitChance * 100, 0)}%` : "Unknown"}</strong></div>
                     <div><span className="small">Best Average Damage</span><strong>{rangeRecommendations.bestOverall ? `${formatNumber(rangeRecommendations.bestOverall.averageDamage, 1)}/round` : "Unknown"}</strong></div>
@@ -1478,11 +1485,11 @@ const MemberCombatCalculatorPanel: React.FC = () => {
                     <div><span className="small">Damage Swing To Best Range</span><strong>{recommendationDelta == null ? "Unknown" : `${recommendationDelta >= 0 ? "+" : ""}${formatNumber(recommendationDelta, 1)}`}</strong></div>
                   </div>
                   {currentScenarioProjection?.outcomeRoundBreakdown?.length ? (
-                    <div className="members-combat-calc__round-breakdown">
+                    <div className="grid gap-[0.45rem]">
                       <span className="small">All Scenario Outcomes By Round</span>
-                      <div className="members-combat-calc__round-pill-row">
+                      <div className="flex flex-wrap gap-[0.45rem]">
                         {currentScenarioProjection.outcomeRoundBreakdown.slice(0, 12).map((entry) => (
-                          <span key={`outcome-${entry.round}`} className="members-combat-calc__round-pill">
+                          <span key={`outcome-${entry.round}`} className="inline-flex items-center px-[0.6rem] py-[0.38rem] rounded-full border border-white/10 bg-white/[0.04] text-[0.82rem]">
                             R{formatNumber(entry.round, 0)}: {formatNumber(entry.count, 0)}
                           </span>
                         ))}
@@ -1490,11 +1497,11 @@ const MemberCombatCalculatorPanel: React.FC = () => {
                     </div>
                   ) : null}
                   {currentScenarioProjection?.defenderRoundBreakdown?.length ? (
-                    <div className="members-combat-calc__round-breakdown">
+                    <div className="grid gap-[0.45rem]">
                       <span className="small">Defender Defeated By Round</span>
-                      <div className="members-combat-calc__round-pill-row">
+                      <div className="flex flex-wrap gap-[0.45rem]">
                         {currentScenarioProjection.defenderRoundBreakdown.slice(0, 12).map((entry) => (
-                          <span key={`defender-${entry.round}`} className="members-combat-calc__round-pill">
+                          <span key={`defender-${entry.round}`} className="inline-flex items-center px-[0.6rem] py-[0.38rem] rounded-full border border-white/10 bg-white/[0.04] text-[0.82rem]">
                             R{formatNumber(entry.round, 0)}: {formatNumber(entry.count, 0)}
                           </span>
                         ))}
@@ -1502,11 +1509,11 @@ const MemberCombatCalculatorPanel: React.FC = () => {
                     </div>
                   ) : null}
                   {currentScenarioProjection?.attackerRoundBreakdown?.length ? (
-                    <div className="members-combat-calc__round-breakdown">
+                    <div className="grid gap-[0.45rem]">
                       <span className="small">Attacker Defeated By Round</span>
-                      <div className="members-combat-calc__round-pill-row">
+                      <div className="flex flex-wrap gap-[0.45rem]">
                         {currentScenarioProjection.attackerRoundBreakdown.slice(0, 12).map((entry) => (
-                          <span key={`attacker-${entry.round}`} className="members-combat-calc__round-pill">
+                          <span key={`attacker-${entry.round}`} className="inline-flex items-center px-[0.6rem] py-[0.38rem] rounded-full border border-white/10 bg-white/[0.04] text-[0.82rem]">
                             R{formatNumber(entry.round, 0)}: {formatNumber(entry.count, 0)}
                           </span>
                         ))}
@@ -1517,12 +1524,12 @@ const MemberCombatCalculatorPanel: React.FC = () => {
                 ) : null}
 
                 {visibleSections.weapon ? (
-                <section className="panel admin-panel weapon-heatmap-page__report-card">
-                  <div className="weapon-heatmap-page__section-head">
+                <section className="panel flex flex-col gap-4">
+                  <div className={sectionHeadCls}>
                     <h4>Focused Weapon Brief</h4>
                     <span className="small">Current firing profile</span>
                   </div>
-                  <div className="weapon-heatmap-page__inspector-list">
+                  <div className="grid gap-2">
                     <div><span className="small">Weapon</span><strong>{focusedWeapon?.name ?? focusedWeapon?.uid ?? "Unknown"}</strong></div>
                     <div><span className="small">Linked Weapons</span><strong>{formatNumber(resolvedWeapons.length, 0)}</strong></div>
                     <div><span className="small">Attacks / Round</span><strong>{formatNumber(totalAttackCount, 0)}</strong></div>
@@ -1538,12 +1545,12 @@ const MemberCombatCalculatorPanel: React.FC = () => {
                 ) : null}
 
                 {visibleSections.maneuver ? (
-                <section className="panel admin-panel weapon-heatmap-page__report-card">
-                  <div className="weapon-heatmap-page__section-head">
+                <section className="panel flex flex-col gap-4">
+                  <div className={sectionHeadCls}>
                     <h4>Maneuver Brief</h4>
                     <span className="small">Pilot and tracking context</span>
                   </div>
-                  <div className="weapon-heatmap-page__inspector-list">
+                  <div className="grid gap-2">
                     <div><span className="small">Combat Skill</span><strong>{formatNumber(combatSkill, 0)}</strong></div>
                     <div><span className="small">Attacker Piloting</span><strong>{formatNumber(attackerPilotingSkill, 0)}</strong></div>
                     <div><span className="small">Target Piloting</span><strong>{formatNumber(targetPilotingSkill, 0)}</strong></div>
@@ -1558,20 +1565,20 @@ const MemberCombatCalculatorPanel: React.FC = () => {
               </div>
 
               {visibleSections.weapon ? (
-              <section className="panel admin-panel members-combat-calc__weapons">
-                <div className="weapon-heatmap-page__section-head">
+              <section className="panel flex flex-col gap-4">
+                <div className={sectionHeadCls}>
                   <h4>Linked Weapons</h4>
                   <span className="small">
                     {focusedWeapon ? "Select the weapon you want the brief and board to follow" : "Pick a weapon"}
                   </span>
                 </div>
                 {shipDetailLoading || resolvedWeaponsLoading || targetShipDetailLoading || targetResolvedWeaponsLoading ? <p className="small">Resolving ship data…</p> : null}
-                <div className="ship-heatmap-page__weapon-picker">
+                <div className="grid grid-cols-2 gap-[0.65rem] max-[820px]:grid-cols-1">
                   {resolvedWeapons.map((entry) => (
                     <button
                       key={entry.key}
                       type="button"
-                      className={`ship-heatmap-page__weapon-tile${focusedWeapon?.key === entry.key ? " is-active" : ""}`}
+                      className={tileCls(focusedWeapon?.key === entry.key)}
                       onClick={() => setFocusedWeaponKey(entry.key)}
                     >
                       <strong>{entry.name ?? entry.uid ?? entry.weapon.uid}</strong>
@@ -1588,14 +1595,14 @@ const MemberCombatCalculatorPanel: React.FC = () => {
               ) : null}
 
               {visibleSections.ranges && rangeRecommendations.topRanges.length ? (
-                <div className="panel admin-panel" style={{ display: "grid", gap: "0.65rem" }}>
-                  <div className="weapon-heatmap-page__section-head">
+                <div className="panel grid gap-[0.65rem]">
+                  <div className={sectionHeadCls}>
                     <h4>Recommended Engagement Ranges</h4>
                     <span className="small">Quick range plan based on average damage bands</span>
                   </div>
                   <div style={{ display: "grid", gap: "0.55rem", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
                     {rangeRecommendations.topRanges.map((entry) => (
-                      <div key={entry.range} className="weapon-heatmap-page__stat">
+                      <div key={entry.range} className={statCls}>
                         <span className="small">Range {formatNumber(entry.range, 0)}</span>
                         <strong>{formatNumber(entry.averageDamage, 1)} dmg/round</strong>
                         <span className="small">{formatNumber(entry.averageHitChance * 100, 0)}% avg hit chance · {formatNumber(entry.averageRoundsToHit, 2, "No Hit")} avg rounds</span>
@@ -1606,17 +1613,17 @@ const MemberCombatCalculatorPanel: React.FC = () => {
               ) : null}
 
               {visibleSections.scenarios && currentScenarioProjection?.sampleRuns?.length ? (
-                <section className="panel admin-panel members-combat-calc__scenario-panel">
-                  <div className="weapon-heatmap-page__section-head">
+                <section className="panel flex flex-col gap-4">
+                  <div className={sectionHeadCls}>
                     <h4>Scenario Samples</h4>
                     <span className="small">
                       Showing {formatNumber(pagedScenarioRuns.length, 0)} of {formatNumber(currentScenarioProjection.sampleRuns.length, 0)} scenarios
                     </span>
                   </div>
-                  <div className="members-combat-calc__scenario-paging">
+                  <div className="flex items-center gap-3 flex-wrap">
                     <button
                       type="button"
-                      className="members-combat-calc__section-pill"
+                      className={pillCls(false)}
                       onClick={() => setScenarioPage((current) => Math.max(1, current - 1))}
                       disabled={scenarioPage <= 1}
                     >
@@ -1625,22 +1632,22 @@ const MemberCombatCalculatorPanel: React.FC = () => {
                     <span className="small">Page {formatNumber(scenarioPage, 0)} / {formatNumber(scenarioPageCount, 0)}</span>
                     <button
                       type="button"
-                      className="members-combat-calc__section-pill"
+                      className={pillCls(false)}
                       onClick={() => setScenarioPage((current) => Math.min(scenarioPageCount, current + 1))}
                       disabled={scenarioPage >= scenarioPageCount}
                     >
                       Next
                     </button>
                   </div>
-                  <div className="members-combat-calc__scenario-list">
+                  <div className="grid gap-[0.75rem]" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
                     {pagedScenarioRuns.map((scenario) => (
-                      <article key={scenario.run} className="members-combat-calc__scenario-card">
+                      <article key={scenario.run} className="grid gap-[0.75rem] p-[0.9rem] border border-white/[0.08] rounded-[12px] bg-white/[0.03]">
                         <button
                           type="button"
-                          className="members-combat-calc__scenario-toggle"
+                          className="w-full p-0 border-0 bg-transparent text-inherit text-left cursor-pointer"
                           onClick={() => toggleScenarioRun(scenario.run)}
                         >
-                          <div className="members-combat-calc__scenario-head">
+                          <div className="flex justify-between items-start gap-3">
                             <strong>Scenario {scenario.run}</strong>
                             <span className="small">
                               {scenario.winner === "attacker"
@@ -1654,7 +1661,7 @@ const MemberCombatCalculatorPanel: React.FC = () => {
                           </div>
                         </button>
                         {expandedScenarioRuns[scenario.run] ? (
-                          <div className="weapon-heatmap-page__inspector-list">
+                          <div className="grid gap-2">
                             <div><span className="small">Seed</span><strong>{scenario.seed}</strong></div>
                             <div><span className="small">Winner</span><strong>{scenario.winner}</strong></div>
                             <div><span className="small">Damage To Defender</span><strong>{formatNumber(scenario.damageToDefender, 1)}</strong></div>

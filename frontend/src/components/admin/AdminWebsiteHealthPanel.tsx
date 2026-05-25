@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { getAdminWebsiteHealth, type AdminWebsiteHealthState } from "../../api/adminWebsiteHealth";
-import { ensureCsrfCookie, fetchAuthMe, getApiBaseUrl, getBackendOrigin } from "../../api/auth";
+import { getAdminWebsiteHealth, type AdminWebsiteHealthState } from "../../api/admin/adminWebsiteHealth";
+import { ensureCsrfCookie, fetchAuthMe, getApiBaseUrl, getBackendOrigin } from "../../api/core/auth";
 
 declare const __APP_VERSION__: string;
 
@@ -127,7 +127,7 @@ const AdminWebsiteHealthPanel: React.FC = () => {
           throw new Error("VITE_API_BASE_URL is missing");
         }
 
-        const healthResponse = await fetch(`${apiBaseUrl}/health`, {
+        const healthResponse = await fetch(`${apiBaseUrl}/time`, {
           method: "GET",
           credentials: "include",
           headers: {
@@ -177,7 +177,7 @@ const AdminWebsiteHealthPanel: React.FC = () => {
 
   return (
     <div className="panel">
-      <h2 style={{ marginTop: 0 }}>Website Health</h2>
+      <h2 className="h2" style={{ marginTop: 0 }}>Website Health</h2>
       <p className="small">
         Sysadmin-only snapshot of backend health, queue pressure, and writable runtime paths.
       </p>
@@ -188,9 +188,9 @@ const AdminWebsiteHealthPanel: React.FC = () => {
       {!loading && !error && health ? (
         <>
           <div style={{ ...rowStyle, marginBottom: "1rem" }}>
-            <section className="panel admin-card" style={cardStyle}>
-              <div className="admin-card__header">
-                <h3 className="admin-card__title">Application</h3>
+            <section className="panel flex flex-col gap-4" style={cardStyle}>
+              <div className="flex flex-col gap-1.5">
+                <h3 className="m-0">Application</h3>
                 <p className="small"><strong>Name:</strong> {health.app.name ?? "Unknown"}</p>
                 <p className="small"><strong>Env:</strong> {formatEnv(health.app.env)}</p>
                 <p className="small"><strong>URL:</strong> {health.app.app_url ?? "Unknown"}</p>
@@ -200,9 +200,9 @@ const AdminWebsiteHealthPanel: React.FC = () => {
               </div>
             </section>
 
-            <section className="panel admin-card" style={cardStyle}>
-              <div className="admin-card__header">
-                <h3 className="admin-card__title">Frontend Path</h3>
+            <section className="panel flex flex-col gap-4" style={cardStyle}>
+              <div className="flex flex-col gap-1.5">
+                <h3 className="m-0">Frontend Path</h3>
                 <p className="small">
                   <strong>Status:</strong>{" "}
                   <span style={{ color: toneForStatus(frontendCheck.status) }}>
@@ -228,9 +228,9 @@ const AdminWebsiteHealthPanel: React.FC = () => {
               </div>
             </section>
 
-            <section className="panel admin-card" style={cardStyle}>
-              <div className="admin-card__header">
-                <h3 className="admin-card__title">Database</h3>
+            <section className="panel flex flex-col gap-4" style={cardStyle}>
+              <div className="flex flex-col gap-1.5">
+                <h3 className="m-0">Database</h3>
                 <p className="small">
                   <strong>Status:</strong>{" "}
                   <span style={{ color: toneForStatus(health.database.status) }}>
@@ -248,9 +248,9 @@ const AdminWebsiteHealthPanel: React.FC = () => {
               </div>
             </section>
 
-            <section className="panel admin-card" style={cardStyle}>
-              <div className="admin-card__header">
-                <h3 className="admin-card__title">Queue</h3>
+            <section className="panel flex flex-col gap-4" style={cardStyle}>
+              <div className="flex flex-col gap-1.5">
+                <h3 className="m-0">Queue</h3>
                 <p className="small">
                   <strong>Status:</strong>{" "}
                   <span style={{ color: toneForStatus(health.queue.status) }}>
@@ -279,9 +279,9 @@ const AdminWebsiteHealthPanel: React.FC = () => {
               </div>
             </section>
 
-            <section className="panel admin-card" style={cardStyle}>
-              <div className="admin-card__header">
-                <h3 className="admin-card__title">Discord Bot</h3>
+            <section className="panel flex flex-col gap-4" style={cardStyle}>
+              <div className="flex flex-col gap-1.5">
+                <h3 className="m-0">Discord Bot</h3>
                 <p className="small">
                   <strong>Status:</strong>{" "}
                   <span style={{ color: toneForStatus(health.discord_bot.status) }}>
@@ -312,11 +312,11 @@ const AdminWebsiteHealthPanel: React.FC = () => {
           </div>
 
           <section className="panel">
-            <h3 style={{ marginTop: 0 }}>Writable Paths</h3>
+            <h3 className="h3" style={{ marginTop: 0 }}>Writable Paths</h3>
             <div style={rowStyle}>
               {storageChecks.map(([label, value]) => (
-                <div key={label} className="admin-card" style={cardStyle}>
-                  <h3 className="admin-card__title">{label}</h3>
+                <div key={label} className="flex flex-col gap-4" style={cardStyle}>
+                  <h3 className="m-0">{label}</h3>
                   <p className="small" style={{ color: value ? toneForStatus("ok") : toneForStatus("error") }}>
                     {boolLabel(value)}
                   </p>

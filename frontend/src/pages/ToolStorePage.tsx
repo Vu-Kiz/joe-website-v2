@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../api/auth";
+import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../api/core/auth";
 import {
   getStoreCatalog,
   getSubscribeQuote,
@@ -8,10 +8,9 @@ import {
   type StorePlanSeatTier,
   type PublicTool,
   type StoreSubscription,
-} from "../api/toolStore";
-import { getMyPayableFactions, type PayableFaction } from "../api/factions";
-import "../styles/main.sass";
-import "../styles/_toolstore.sass";
+} from "../api/market/toolStore";
+import { getMyPayableFactions, type PayableFaction } from "../api/factions/factions";
+import { BTN, BTN_SM, INPUT} from "../utils/ui";
 
 function formatCredits(n: number): string {
   return n.toLocaleString() + " Cr";
@@ -91,9 +90,9 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({ plan, user, factions, o
   }
 
   return (
-    <div className="store-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="store-modal">
-        <h3 className="store-modal__title">Subscribe — {plan.label}</h3>
+    <div className="fixed inset-0 bg-[rgba(0,0,0,0.7)] flex items-center justify-center z-[999] p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="bg-[#1a1d22] border border-white/[0.12] rounded-[14px] p-8 max-w-[420px] w-full flex flex-col gap-5">
+        <h3 className="text-[1.1rem] font-semibold m-0">Subscribe — {plan.label}</h3>
 
         {!modal && (
           <>
@@ -102,7 +101,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({ plan, user, factions, o
                 <div className="field">
                   <label className="field__label">Faction</label>
                   <select
-                    className="input"
+                    className={INPUT}
                     value={factionId ?? ""}
                     onChange={(e) => setFactionId(Number(e.target.value) || null)}
                     required
@@ -118,7 +117,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({ plan, user, factions, o
                 <div className="field">
                   <label className="field__label">Seats</label>
                   <input
-                    className="input"
+                    className={INPUT}
                     type="number"
                     min={1}
                     value={seatCount}
@@ -128,15 +127,15 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({ plan, user, factions, o
               </>
             )}
 
-            <p className="store-modal__warning">
+            <p className="text-[0.82rem] opacity-60 leading-[1.5]">
               Payment is made directly in Star Wars Combine Credits via the SWC API.
               Your Chain Code Verification must be active for payments.
             </p>
 
-            <div className="store-modal__actions">
-              <button className="btn btn--small" type="button" onClick={onClose}>Cancel</button>
+            <div className="flex gap-3 justify-end">
+              <button className={BTN_SM + " all"} type="button" onClick={onClose}>Cancel</button>
               <button
-                className="btn"
+                className={BTN}
                 type="button"
                 onClick={handleQuote}
                 disabled={quoting || (subscriberType === "faction" && (!factionId || seatCount < 1))}
@@ -149,45 +148,45 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({ plan, user, factions, o
 
         {modal?.stage === "confirm" && (
           <>
-            <div className="store-modal__row">
-              <span className="store-modal__label">Plan</span>
-              <span className="store-modal__value">{modal.plan.label}</span>
+            <div className="flex justify-between items-center text-[0.9rem]">
+              <span className="opacity-60">Plan</span>
+              <span className="font-semibold">{modal.plan.label}</span>
             </div>
             {isFactionPlan && factionId && (
-              <div className="store-modal__row">
-                <span className="store-modal__label">Faction</span>
-                <span className="store-modal__value">{factions.find((f) => f.id === factionId)?.name ?? `#${factionId}`}</span>
+              <div className="flex justify-between items-center text-[0.9rem]">
+                <span className="opacity-60">Faction</span>
+                <span className="font-semibold">{factions.find((f) => f.id === factionId)?.name ?? `#${factionId}`}</span>
               </div>
             )}
             {modal.seatCount !== null && (
-              <div className="store-modal__row">
-                <span className="store-modal__label">Seats</span>
-                <span className="store-modal__value">{modal.seatCount}</span>
+              <div className="flex justify-between items-center text-[0.9rem]">
+                <span className="opacity-60">Seats</span>
+                <span className="font-semibold">{modal.seatCount}</span>
               </div>
             )}
             {modal.perSeat && modal.perSeatPrice !== null && modal.seatCount !== null && (
-              <div className="store-modal__row">
-                <span className="store-modal__label">Rate</span>
-                <span className="store-modal__value">{formatCredits(modal.perSeatPrice)} × {modal.seatCount} seats</span>
+              <div className="flex justify-between items-center text-[0.9rem]">
+                <span className="opacity-60">Rate</span>
+                <span className="font-semibold">{formatCredits(modal.perSeatPrice)} × {modal.seatCount} seats</span>
               </div>
             )}
-            <div className="store-modal__row">
-              <span className="store-modal__label">Total / month</span>
-              <span className="store-modal__value">{formatCredits(modal.price)}</span>
+            <div className="flex justify-between items-center text-[0.9rem]">
+              <span className="opacity-60">Total / month</span>
+              <span className="font-semibold">{formatCredits(modal.price)}</span>
             </div>
             {!modal.payeeConfigured && (
-              <p className="store-modal__error">
+              <p className="text-[0.85rem] text-[salmon] m-0">
                 Subscriptions are not yet configured by the administrators. Please check back soon.
               </p>
             )}
-            <p className="store-modal__warning">
+            <p className="text-[0.82rem] opacity-60 leading-[1.5]">
               Clicking confirm will immediately send {formatCredits(modal.price)} from your SWC account.
               Your subscription will activate instantly and run for 30 days.
             </p>
-            <div className="store-modal__actions">
-              <button className="btn btn--small" type="button" onClick={() => setModal(null)}>Back</button>
+            <div className="flex gap-3 justify-end">
+              <button className={BTN_SM + " all"} type="button" onClick={() => setModal(null)}>Back</button>
               <button
-                className="btn"
+                className={BTN}
                 type="button"
                 onClick={handleConfirm}
                 disabled={!modal.payeeConfigured}
@@ -199,29 +198,29 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({ plan, user, factions, o
         )}
 
         {modal?.stage === "sending" && (
-          <p className="store-modal__warning" style={{ textAlign: "center" }}>
+          <p className="text-[0.82rem] opacity-60 leading-[1.5] text-center">
             Sending payment via SWC…
           </p>
         )}
 
         {modal?.stage === "success" && (
           <>
-            <p className="store-modal__success">
+            <p className="text-[0.9rem] text-[#8ef0a0] text-center m-0">
               Subscription activated! Access is live now.
               {modal.periodEnd && <><br />Renews on {formatDate(modal.periodEnd)}.</>}
             </p>
-            <div className="store-modal__actions">
-              <button className="btn" type="button" onClick={onClose}>Done</button>
+            <div className="flex gap-3 justify-end">
+              <button className={BTN} type="button" onClick={onClose}>Done</button>
             </div>
           </>
         )}
 
         {modal?.stage === "error" && (
           <>
-            <p className="store-modal__error">{modal.message}</p>
-            <div className="store-modal__actions">
-              <button className="btn btn--small" type="button" onClick={() => setModal(null)}>Back</button>
-              <button className="btn btn--small" type="button" onClick={onClose}>Cancel</button>
+            <p className="text-[0.85rem] text-[salmon] m-0">{modal.message}</p>
+            <div className="flex gap-3 justify-end">
+              <button className={BTN_SM + " all"} type="button" onClick={() => setModal(null)}>Back</button>
+              <button className={BTN_SM + " all"} type="button" onClick={onClose}>Cancel</button>
             </div>
           </>
         )}
@@ -250,32 +249,32 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, publicTools, seatTiers, curre
   const isFullMember = tier === "full";
 
   return (
-    <div className={`store-plan${isCurrentPlan ? " store-plan--active" : ""}`}>
-      <p className="store-plan__name">{plan.label}</p>
+    <div className={`border rounded-xl p-7 flex flex-col gap-4 ${isCurrentPlan ? "border-[rgba(100,200,120,0.4)] bg-[rgba(100,200,120,0.05)]" : "border-white/10 bg-white/[0.03]"}`}>
+      <p className="text-[1rem] font-semibold uppercase tracking-[0.08em] opacity-60 m-0">{plan.label}</p>
 
-      <div className="store-plan__price">
-        <span className="store-plan__price-amount">{formatCredits(plan.monthly_price_credits)}</span>
-        <span className="store-plan__price-unit">{plan.key === "faction" ? "/ seat / month" : "/ month"}</span>
+      <div className="flex items-baseline gap-[0.4rem]">
+        <span className="text-[2rem] font-bold leading-none">{formatCredits(plan.monthly_price_credits)}</span>
+        <span className="text-[0.8rem] opacity-50">{plan.key === "faction" ? "/ seat / month" : "/ month"}</span>
       </div>
 
       {plan.has_faction_deal && (
-        <span className="store-plan__deal-badge">Faction pricing applied</span>
+        <span className="text-[0.7rem] bg-[rgba(255,200,60,0.15)] border border-[rgba(255,200,60,0.3)] text-[#ffd060] rounded px-[6px] py-[2px] self-start">Faction pricing applied</span>
       )}
 
-      {plan.description && <p className="store-plan__desc">{plan.description}</p>}
+      {plan.description && <p className="text-[0.88rem] opacity-70 leading-[1.55] m-0">{plan.description}</p>}
 
       {seatTiers.length > 0 && (
-        <div className="store-plan__tiers">
-          <p className="store-plan__tiers-label">Volume pricing</p>
-          <table className="store-plan__tiers-table">
+        <div>
+          <p className="text-[0.82rem] opacity-60 m-0 mb-1">Volume pricing</p>
+          <table className="text-[0.8rem] w-full">
             <tbody>
               <tr>
-                <td>1+ seats</td>
+                <td className="opacity-60">1+ seats</td>
                 <td>{formatCredits(plan.monthly_price_credits)} / seat</td>
               </tr>
               {seatTiers.map((t) => (
                 <tr key={t.min_seats}>
-                  <td>{t.min_seats}+ seats</td>
+                  <td className="opacity-60">{t.min_seats}+ seats</td>
                   <td>{formatCredits(t.price_per_seat_credits)} / seat</td>
                 </tr>
               ))}
@@ -284,34 +283,34 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, publicTools, seatTiers, curre
         </div>
       )}
 
-      <ul className="store-plan__tools">
+      <ul className="list-none p-0 m-0 flex flex-col gap-[0.3rem]">
         {publicTools.map((t) => (
-          <li key={t.key} className="store-plan__tool">{t.label}</li>
+          <li key={t.key} className="text-[0.82rem] opacity-65 flex items-center gap-[0.4rem] before:content-['✓'] before:text-[#8ef0a0] before:font-bold before:text-[0.75rem]">{t.label}</li>
         ))}
       </ul>
 
-      <div className="store-plan__cta">
+      <div className="mt-auto">
         {isFullMember ? (
-          <p className="store-plan__subscribed">Included with JOE membership</p>
+          <p className="text-[0.85rem] text-[#8ef0a0] py-[0.6rem] text-center">Included with JOE membership</p>
         ) : isCurrentPlan ? (
-          <p className="store-plan__subscribed">
+          <p className="text-[0.85rem] text-[#8ef0a0] py-[0.6rem] text-center">
             Active — renews {formatDate(currentSubscription?.current_period_end ?? null)}
           </p>
         ) : !user ? (
-          <p className="store-plan__subscribed" style={{ color: "rgba(255,255,255,0.4)" }}>
+          <p className="text-[0.85rem] text-white/40 py-[0.6rem] text-center">
             Log in to subscribe
           </p>
         ) : !hasPaymentsAccess ? (
-          <div style={{ textAlign: "center" }}>
-            <p className="store-plan__subscribed" style={{ color: "rgba(255,255,255,0.5)", marginBottom: 8 }}>
+          <div className="text-center">
+            <p className="text-[0.85rem] text-white/50 py-[0.6rem] text-center mb-2">
               Chain Code Verification required
             </p>
-            <a className="btn" style={{ width: "100%", display: "block" }} href="/aboutme">
+            <a className={BTN + " w-full"} href="/aboutme">
               Connect payments on About Me
             </a>
           </div>
         ) : (
-          <button className="btn" style={{ width: "100%" }} onClick={() => onSubscribe(plan)}>
+          <button className={BTN + " w-full"} onClick={() => onSubscribe(plan)}>
             Subscribe
           </button>
         )}
@@ -376,9 +375,9 @@ const ToolStorePage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="store-page">
-        <div className="store-page__inner">
-          <p className="small" style={{ textAlign: "center", opacity: 0.5 }}>Loading…</p>
+      <div className="min-h-screen py-8 px-4 pb-16">
+        <div className="max-w-[1100px] mx-auto">
+          <p className="small text-center opacity-50">Loading…</p>
         </div>
       </div>
     );
@@ -386,11 +385,11 @@ const ToolStorePage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="store-page">
-        <div className="store-page__inner">
-          <p className="small" style={{ color: "salmon", textAlign: "center" }}>{error}</p>
-          <div style={{ textAlign: "center", marginTop: 12 }}>
-            <button className="btn" onClick={load}>Retry</button>
+      <div className="min-h-screen py-8 px-4 pb-16">
+        <div className="max-w-[1100px] mx-auto">
+          <p className="small text-[salmon] text-center">{error}</p>
+          <div className="text-center mt-3">
+            <button className={BTN} onClick={load}>Retry</button>
           </div>
         </div>
       </div>
@@ -398,23 +397,23 @@ const ToolStorePage: React.FC = () => {
   }
 
   return (
-    <div className="store-page">
-      <div className="store-page__inner">
-        <header className="store-page__header">
-          <p className="store-page__brand">Anarchy Industries</p>
-          <h1 className="store-page__title">Tools Platform</h1>
-          <p className="store-page__subtitle">
+    <div className="min-h-screen py-8 px-4 pb-16">
+      <div className="max-w-[1100px] mx-auto">
+        <header className="text-center mb-12">
+          <p className="text-[0.75rem] tracking-[0.12em] uppercase opacity-50 mb-2">Anarchy Industries</p>
+          <h1 className="text-[2.2rem] font-bold m-0 mb-3">Tools Platform</h1>
+          <p className="opacity-70 max-w-[560px] mx-auto mb-6 leading-[1.6]">
             Access the full suite of Anarchy Industries galactic tools — astrogation, intel,
             hyper planning, entity stats, and more.
           </p>
           {subscription && (
-            <div className="store-page__active-sub">
+            <div className="inline-block bg-[rgba(100,200,120,0.12)] border border-[rgba(100,200,120,0.3)] rounded-lg px-5 py-2 text-[0.85rem] text-[#8ef0a0]">
               Active subscription — {subscription.plan_key} — renews {formatDate(subscription.current_period_end)}
             </div>
           )}
         </header>
 
-        <div className="store-plans">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6 mb-12">
           {plans.map((plan) => (
             <PlanCard
               key={plan.key}
@@ -430,13 +429,13 @@ const ToolStorePage: React.FC = () => {
           ))}
         </div>
 
-        <section className="store-tools">
-          <h2 className="store-tools__title">What's included</h2>
-          <div className="store-tools__grid">
+        <section className="mb-12">
+          <h2 className="text-[1.1rem] font-semibold m-0 mb-4 opacity-80">What's included</h2>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
             {publicTools.map((tool) => (
-              <div key={tool.key} className="store-tool-card">
-                <p className="store-tool-card__name">{tool.label}</p>
-                <p className="store-tool-card__desc">{tool.description}</p>
+              <div key={tool.key} className="border border-white/[0.08] rounded-lg px-5 py-4 bg-white/[0.02]">
+                <p className="text-[0.9rem] font-semibold m-0 mb-[0.3rem]">{tool.label}</p>
+                <p className="text-[0.8rem] opacity-55 m-0 leading-[1.5]">{tool.description}</p>
               </div>
             ))}
           </div>

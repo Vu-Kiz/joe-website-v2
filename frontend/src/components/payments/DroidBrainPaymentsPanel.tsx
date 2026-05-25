@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../utils/ui";
 
 type Props = {
   defaultPayerFactionId: number | null;
@@ -26,7 +27,7 @@ const DroidBrainPaymentsPanel: React.FC<Props> = ({
 
   return (
     <section className="panel">
-      <h2 style={{ marginTop: 0 }}>DroidBrain</h2>
+      <h2 className="h2" style={{ marginTop: 0 }}>DroidBrain</h2>
       <p className="small">
         Set the default faction payer used when sysadmins create DroidBrain reward payment items.
       </p>
@@ -35,7 +36,7 @@ const DroidBrainPaymentsPanel: React.FC<Props> = ({
         <label className="small" style={{ display: "grid", gap: 6 }}>
           <span>Default payer faction</span>
           <select
-            className="input"
+            className={INPUT}
             value={selectedId}
             onChange={(event) => setSelectedId(event.target.value)}
             disabled={working}
@@ -53,7 +54,7 @@ const DroidBrainPaymentsPanel: React.FC<Props> = ({
         <div>
           <button
             type="button"
-            className="btn"
+            className={BTN}
             disabled={working}
             onClick={() => onSave(selectedId ? Number(selectedId) : null)}
           >

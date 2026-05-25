@@ -6,7 +6,8 @@ namespace App\Http\Controllers\Api\Market;
 
 use App\Http\Controllers\Controller;
 use App\Models\Faction;
-use App\Models\MarketListing;
+use App\Models\Market\MarketListing;
+use App\Models\Market\MarketListingStock;
 use App\Support\Market\MarketReservationService;
 use App\Support\Market\MarketWatermarkService;
 use App\Support\Swc\SwcInventoryService;
@@ -95,6 +96,10 @@ class MarketListingController extends Controller
             return $this->storeBundle($request, $user);
         }
 
+        if ($saleType === 'stock') {
+            return $this->storeStock($request, $user);
+        }
+
         return $this->storeStandard($request, $user);
     }
 
@@ -119,11 +124,14 @@ class MarketListingController extends Controller
             return response()->json(['ok' => false, 'message' => 'No SWC access token.'], 422);
         }
 
-        $applyWatermark = (bool) ($validated['image_watermarked'] ?? false);
-        $bundleItems    = [];
-        $totalPrice     = 0;
-        $factionId      = $validated['faction_id'] ?? null;
-        $tag            = $factionId ? SwcInventoryService::TAG_FACTION_STORE : SwcInventoryService::TAG_MEMBER_LISTING;
+        $applyWatermark  = (bool) ($validated['image_watermarked'] ?? false);
+        $bundleItems     = [];
+        $totalPrice      = 0;
+        $factionId       = $validated['faction_id'] ?? null;
+        $tag             = $factionId ? SwcInventoryService::TAG_FACTION_STORE : SwcInventoryService::TAG_MEMBER_LISTING;
+        $firstLocationGalx  = null;
+        $firstLocationGaly  = null;
+        $firstLocationLabel = null;
 
         foreach ($validated['items'] as $item) {
             $snapshot = $this->marketInventoryController->snapshotEntity($token, $item['entity_type'], $item['entity_uid']);
@@ -159,7 +167,27 @@ class MarketListingController extends Controller
                 'quantity_total' => $requestedQuantity,
                 'entity_image_url' => $imageUrl,
                 'type_uid'      => $snapshot['type_uid'] ?? null,
+                'wrecked'       => $snapshot['wrecked'] ?? false,
+                'hull'          => $snapshot['hull'] ?? null,
+                'max_hull'      => $snapshot['max_hull'] ?? null,
+                'shield'        => $snapshot['shield'] ?? null,
+                'max_shield'    => $snapshot['max_shield'] ?? null,
+                'ionic'         => $snapshot['ionic'] ?? null,
+                'max_ionic'     => $snapshot['max_ionic'] ?? null,
+                'location'      => $snapshot['location'] ?? null,
+                'cargo'         => isset($snapshot['cargo']) ? [
+                    'weight_total'         => $snapshot['cargo']['weight_total'] ?? null,
+                    'weight_remaining'     => $snapshot['cargo']['weight_remaining'] ?? null,
+                    'passengers_total'     => $snapshot['cargo']['passengers_total'] ?? null,
+                    'passengers_remaining' => $snapshot['cargo']['passengers_remaining'] ?? null,
+                ] : null,
             ];
+
+            if ($firstLocationLabel === null) {
+                $firstLocationGalx  = $snapshot['location']['galx'] ?? null;
+                $firstLocationGaly  = $snapshot['location']['galy'] ?? null;
+                $firstLocationLabel = $snapshot['location']['system'] ?? null;
+            }
 
             $totalPrice += $item['price_credits'] * $requestedQuantity;
         }
@@ -181,7 +209,97 @@ class MarketListingController extends Controller
             'image_watermarked' => $applyWatermark,
             'bundle_items'    => $bundleItems,
             'entity_image_url' => $bundleItems[0]['entity_image_url'] ?? null,
+            'location_galx'   => $firstLocationGalx,
+            'location_galy'   => $firstLocationGaly,
+            'location_label'  => $firstLocationLabel,
         ]);
+
+        return response()->json(['ok' => true, 'data' => $this->formatListing($listing)], 201);
+    }
+
+    protected function storeStock(Request $request, $user): JsonResponse
+    {
+        $validated = $request->validate([
+            'entity_type'      => ['required', 'string', 'max:32'],
+            'entity_uids'      => ['required', 'array', 'min:2'],
+            'entity_uids.*'    => ['required', 'string', 'max:64'],
+            'price_credits'    => ['required', 'integer', 'min:0'],
+            'notes'            => ['nullable', 'string', 'max:2000'],
+            'image_watermarked' => ['nullable', 'boolean'],
+            'audience'         => ['nullable', 'in:public,joe_members'],
+            'faction_id'       => ['nullable', 'integer', 'exists:factions,id'],
+        ]);
+
+        $token = $this->swcInventoryService->resolveAccessTokenForUser($user);
+        if (!$token) {
+            return response()->json(['ok' => false, 'message' => 'No SWC access token.'], 422);
+        }
+
+        $factionId    = $validated['faction_id'] ?? null;
+        $tag          = $factionId ? SwcInventoryService::TAG_FACTION_STORE : SwcInventoryService::TAG_MEMBER_LISTING;
+        $applyWatermark = (bool) ($validated['image_watermarked'] ?? false);
+        $entityType   = $validated['entity_type'];
+        $entityUids   = array_values(array_unique($validated['entity_uids']));
+
+        // Snapshot first entity for display (name, image, location)
+        $firstSnapshot = $this->marketInventoryController->snapshotEntity($token, $entityType, $entityUids[0]);
+        $firstEntityName = $this->normalizeEntityName($firstSnapshot['name'] ?? $entityUids[0]);
+        $imageUrl = $firstSnapshot['image_url'] ?? null;
+        if ($applyWatermark && $imageUrl) {
+            $imageUrl = $this->watermark->watermarkFromUrl($imageUrl) ?? $imageUrl;
+        }
+
+        // Tag all entities in SWC
+        foreach ($entityUids as $uid) {
+            $tagResult = $this->swcInventoryService->applyTag($token, $entityType, $uid, $tag);
+            if (!$tagResult['ok']) {
+                // Untag any already-tagged entities before returning error
+                foreach ($entityUids as $taggedUid) {
+                    if ($taggedUid === $uid) break;
+                    $this->swcInventoryService->removeTag($token, $entityType, $taggedUid, $tag);
+                }
+                return response()->json(['ok' => false, 'message' => "Failed to tag {$uid} in SWC."], 422);
+            }
+        }
+
+        $listing = \Illuminate\Support\Facades\DB::transaction(function () use (
+            $validated, $user, $factionId, $entityType, $entityUids,
+            $firstEntityName, $firstSnapshot, $imageUrl, $applyWatermark
+        ) {
+            $listing = MarketListing::create([
+                'sale_type'         => 'stock',
+                'channel'           => $factionId ? MarketListing::CHANNEL_FACTION_STORE : MarketListing::CHANNEL_MEMBER,
+                'audience'          => $this->resolveAudience($validated['audience'] ?? null),
+                'seller_type'       => $factionId ? 'faction' : 'user',
+                'seller_id'         => $factionId ?? $user->id,
+                'status'            => MarketListing::STATUS_OPEN,
+                'listed_by_user_id' => $user->id,
+                'entity_type'       => $entityType,
+                'entity_uid'        => $entityUids[0],
+                'entity_name'       => $firstEntityName,
+                'entity_type_uid'   => $firstSnapshot['type_uid'] ?? null,
+                'entity_image_url'  => $imageUrl,
+                'entity_snapshot'   => $firstSnapshot ?: null,
+                'price_credits'     => $validated['price_credits'],
+                'quantity_total'    => count($entityUids),
+                'notes'             => $validated['notes'] ?? null,
+                'image_watermarked' => $applyWatermark,
+                'location_galx'     => $firstSnapshot['location']['galx'] ?? null,
+                'location_galy'     => $firstSnapshot['location']['galy'] ?? null,
+                'location_label'    => $firstSnapshot['location']['system'] ?? null,
+            ]);
+
+            foreach ($entityUids as $uid) {
+                MarketListingStock::create([
+                    'listing_id'  => $listing->id,
+                    'entity_uid'  => $uid,
+                    'entity_type' => $entityType,
+                    'status'      => MarketListingStock::STATUS_AVAILABLE,
+                ]);
+            }
+
+            return $listing;
+        });
 
         return response()->json(['ok' => true, 'data' => $this->formatListing($listing)], 201);
     }
@@ -334,9 +452,9 @@ class MarketListingController extends Controller
 
         $hasActivePayment = $marketListing->orders()
             ->whereIn('status', [
-                \App\Models\MarketOrder::STATUS_PAID,
-                \App\Models\MarketOrder::STATUS_TRANSFER_PENDING,
-                \App\Models\MarketOrder::STATUS_DISPUTED,
+                \App\Models\Market\MarketOrder::STATUS_PAID,
+                \App\Models\Market\MarketOrder::STATUS_TRANSFER_PENDING,
+                \App\Models\Market\MarketOrder::STATUS_DISPUTED,
             ])
             ->exists();
 
@@ -359,6 +477,14 @@ class MarketListingController extends Controller
                     if (!empty($item['entity_type']) && !empty($item['entity_uid'])) {
                         $this->swcInventoryService->removeTag($token, $item['entity_type'], $item['entity_uid'], $tag);
                     }
+                }
+            } elseif ($marketListing->isStock()) {
+                // Untag all unsold stock units
+                $units = MarketListingStock::where('listing_id', $marketListing->id)
+                    ->whereIn('status', [MarketListingStock::STATUS_AVAILABLE, MarketListingStock::STATUS_RESERVED])
+                    ->get();
+                foreach ($units as $unit) {
+                    $this->swcInventoryService->removeTag($token, $unit->entity_type, $unit->entity_uid, $tag);
                 }
             } else {
                 $this->swcInventoryService->removeTag($token, $marketListing->entity_type, $marketListing->entity_uid, $tag);

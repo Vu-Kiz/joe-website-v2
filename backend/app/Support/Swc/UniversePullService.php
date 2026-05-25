@@ -2,7 +2,7 @@
 
 namespace App\Support\Swc;
 
-use App\Models\SwcSystem;
+use App\Models\Swc\SwcSystem;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;

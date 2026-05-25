@@ -5,7 +5,8 @@ import {
   type AdminDiscordChannelConfig,
   type AdminDiscordRecipient,
   updateAdminDiscordContactRecipient,
-} from "../../api/adminDiscordBot";
+} from "../../api/admin/adminDiscordBot";
+import { BTN, INPUT } from "../../utils/ui";
 
 const AdminDiscordBotPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -130,7 +131,7 @@ const AdminDiscordBotPanel: React.FC = () => {
 
   return (
     <div className="panel">
-      <h2 style={{ marginTop: 0 }}>Discord Bot</h2>
+      <h2 className="h2" style={{ marginTop: 0 }}>Discord Bot</h2>
       <p className="small">
         Sysadmin view for Discord bot presence, invite setup, and announcement routing.
       </p>
@@ -144,11 +145,11 @@ const AdminDiscordBotPanel: React.FC = () => {
 
       {!loading && !error && (
         <>
-          <div className="admin-grid" style={{ marginBottom: "1rem" }}>
-            <section className="panel admin-card">
-              <div className="admin-card__header">
-                <h3 className="admin-card__title">Bot Setup</h3>
-                <p className="admin-card__desc">
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]" style={{ marginBottom: "1rem" }}>
+            <section className="panel flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <h3 className="m-0">Bot Setup</h3>
+                <p className="m-0 opacity-[0.85]">
                   Client ID: {clientId ?? "Unknown"}
                 </p>
                 {inviteUrl ? (
@@ -163,16 +164,16 @@ const AdminDiscordBotPanel: React.FC = () => {
               </div>
             </section>
 
-            <section className="panel admin-card">
-              <div className="admin-card__header">
-                <h3 className="admin-card__title">Announcement Channels</h3>
-                <p className="admin-card__desc">
+            <section className="panel flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <h3 className="m-0">Announcement Channels</h3>
+                <p className="m-0 opacity-[0.85]">
                   Jobs:{" "}
                   {configByKey.jobs
                     ? `${configByKey.jobs.channel_name || configByKey.jobs.channel_id}`
                     : "Not configured"}
                 </p>
-                <p className="admin-card__desc">
+                <p className="m-0 opacity-[0.85]">
                   JEN:{" "}
                   {configByKey.jen
                     ? `${configByKey.jen.channel_name || configByKey.jen.channel_id}`
@@ -181,15 +182,15 @@ const AdminDiscordBotPanel: React.FC = () => {
               </div>
             </section>
 
-            <section className="panel admin-card">
-              <div className="admin-card__header">
-                <h3 className="admin-card__title">Contact Request Recipient</h3>
-                <p className="admin-card__desc">
+            <section className="panel flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <h3 className="m-0">Contact Request Recipient</h3>
+                <p className="m-0 opacity-[0.85]">
                   Default Discord DM recipient for website contact and diplomacy requests.
                 </p>
               </div>
 
-              <label className="members-universe__field" htmlFor="discord-contact-recipient">
+              <label className="flex flex-col gap-2" htmlFor="discord-contact-recipient">
                 <span className="small">Default recipient</span>
               <input
                 id="discord-contact-recipient"
@@ -201,7 +202,7 @@ const AdminDiscordBotPanel: React.FC = () => {
                     setSelectedRecipientId("");
                   }
                 }}
-                className="input"
+                className={INPUT}
                 disabled={savingRecipient}
                 placeholder="Type a handle or Discord name…"
                 autoComplete="off"
@@ -256,10 +257,10 @@ const AdminDiscordBotPanel: React.FC = () => {
                 </p>
               )}
 
-              <div className="admin-card__actions">
+              <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
-                  className="btn"
+                  className={BTN}
                   onClick={handleSaveRecipient}
                   disabled={savingRecipient}
                 >
@@ -279,12 +280,12 @@ const AdminDiscordBotPanel: React.FC = () => {
           </div>
 
           <section className="panel" style={{ marginBottom: "1rem" }}>
-            <h3 style={{ marginTop: 0 }}>Known Servers</h3>
+            <h3 className="h3" style={{ marginTop: 0 }}>Known Servers</h3>
             {guilds.length === 0 ? (
               <p className="small">No Discord servers have been synced by the bot yet.</p>
             ) : (
-              <div className="admin-table-wrap">
-                <table className="admin-table">
+              <div className="overflow-x-auto">
+                <table className="min-w-full border-collapse text-sm">
                   <thead>
                     <tr>
                       <th>Name</th>
@@ -311,12 +312,12 @@ const AdminDiscordBotPanel: React.FC = () => {
           </section>
 
           <section className="panel">
-            <h3 style={{ marginTop: 0 }}>Channel Routing</h3>
+            <h3 className="h3" style={{ marginTop: 0 }}>Channel Routing</h3>
             {configs.length === 0 ? (
               <p className="small">No Discord announcement channels configured yet.</p>
             ) : (
-              <div className="admin-table-wrap">
-                <table className="admin-table">
+              <div className="overflow-x-auto">
+                <table className="min-w-full border-collapse text-sm">
                   <thead>
                     <tr>
                       <th>Notification</th>

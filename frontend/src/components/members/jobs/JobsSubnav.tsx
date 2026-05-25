@@ -1,36 +1,23 @@
 import React from "react";
+import SlideTabNav, { type TabItem } from "../../common/SlideTabNav";
 
-export type JobsView = "open" | "posted" | "taken" | "create";
+export type JobsView = "open" | "posted" | "taken" | "create" | "payClaims";
 
 type Props = {
   activeView: JobsView;
   onChange: (view: JobsView) => void;
 };
 
-const JobsSubnav: React.FC<Props> = ({ activeView, onChange }) => {
-  const items: Array<{ key: JobsView; label: string }> = [
-    { key: "open", label: "Open Jobs" },
-    { key: "posted", label: "My Posted Jobs" },
-    { key: "taken", label: "My Taken Jobs" },
-    { key: "create", label: "Create Job" },
-  ];
+const items: TabItem<JobsView>[] = [
+  { key: "open",      label: "Open Jobs" },
+  { key: "posted",    label: "My Posted" },
+  { key: "taken",     label: "My Taken" },
+  { key: "create",    label: "Create" },
+  { key: "payClaims", label: "Pay Claims" },
+];
 
-  return (
-    <div className="panel admin-nav">
-      <div className="admin-nav__list">
-        {items.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            className={"btn admin-nav__btn" + (activeView === item.key ? " admin-nav__btn--active" : "")}
-            onClick={() => onChange(item.key)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-};
+const JobsSubnav: React.FC<Props> = ({ activeView, onChange }) => (
+  <SlideTabNav items={items} activeKey={activeView} onChange={onChange} />
+);
 
 export default JobsSubnav;

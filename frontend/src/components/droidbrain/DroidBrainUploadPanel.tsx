@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { getDroidBrainUploadQueueStatus, type DroidBrainUploadResult } from "../../api/droidbrain";
+import { getDroidBrainUploadQueueStatus, type DroidBrainUploadResult } from "../../api/universe/droidbrain";
+import { BTN_SM, INPUT } from "../../utils/ui";
 
 type Props = {
   onUpload: (files: File[]) => Promise<void>;
@@ -148,17 +149,20 @@ const DroidBrainUploadPanel: React.FC<Props> = ({
     }));
   }, [mergedUploadResults]);
 
+  const IMPORT_LOG_CLS = "grid gap-[0.3rem]";
+  const IMPORT_LOG_ENTRY_CLS = "grid gap-[0.2rem]";
+
   if (compact) {
     return (
-      <div className="members-universe__droidbrain-upload" style={{ display: "grid", gap: 8 }}>
-        <div className="members-universe__top-actions-copy">
-          <h4 className="admin-card__title">Upload RSS/XML</h4>
+      <div className="grid gap-2">
+        <div className="grid gap-[0.2rem]">
+          <h4 className="m-0">Upload RSS/XML</h4>
         </div>
 
-        <div className="members-universe__top-actions-controls">
+        <div className="flex justify-start items-center gap-[0.65rem] flex-wrap">
           <input
             id={compactInputId}
-            className="members-universe__droidbrain-file-input"
+            className="sr-only"
             type="file"
             multiple
             accept=".xml,.rss,text/xml,application/xml,application/rss+xml"
@@ -167,12 +171,12 @@ const DroidBrainUploadPanel: React.FC<Props> = ({
               setFiles(selected);
             }}
           />
-          <label htmlFor={compactInputId} className="btn btn--sm" style={{ margin: 0 }}>
+          <label htmlFor={compactInputId} className={BTN_SM}>
             {files.length > 0 ? "Change Files" : "Choose Files"}
           </label>
           <button
             type="button"
-            className="btn btn--sm"
+            className={BTN_SM}
             disabled={files.length === 0 || uploading}
             onClick={async () => {
               if (files.length === 0) {
@@ -201,9 +205,9 @@ const DroidBrainUploadPanel: React.FC<Props> = ({
             <summary className="small" style={{ cursor: "pointer" }}>
               Upload Results ({uploadSummary.length})
             </summary>
-            <div className="members-universe__import-log" style={{ marginTop: 8 }}>
+            <div className={IMPORT_LOG_CLS} style={{ marginTop: 8 }}>
               {uploadSummary.map((result, index) => (
-                <div key={`${result.file_id ?? "queue"}-${result.queue_id ?? index}`} className="members-universe__import-log-entry">
+                <div key={`${result.file_id ?? "queue"}-${result.queue_id ?? index}`} className={IMPORT_LOG_ENTRY_CLS}>
                   <p className="small" style={{ marginTop: 0 }}>
                     <strong>{result.message}</strong>
                   </p>
@@ -239,7 +243,7 @@ const DroidBrainUploadPanel: React.FC<Props> = ({
   return (
     <div className="panel" style={{ display: "grid", gap: 12 }}>
       <div>
-        <h2 style={{ marginTop: 0, marginBottom: 6 }}>Upload XML / RSS</h2>
+        <h2 className="h2" style={{ marginTop: 0, marginBottom: 6 }}>Upload XML / RSS</h2>
         <p className="small" style={{ margin: 0 }}>
           Upload DroidBrain XML or phone RSS exports.
         </p>
@@ -250,7 +254,7 @@ const DroidBrainUploadPanel: React.FC<Props> = ({
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
         <input
-          className="input"
+          className={INPUT}
           type="file"
           multiple
           accept=".xml,.rss,text/xml,application/xml,application/rss+xml"
@@ -261,7 +265,7 @@ const DroidBrainUploadPanel: React.FC<Props> = ({
         />
         <button
           type="button"
-          className="ui-btn ui-btn--primary"
+          className="inline-flex min-h-10 items-center justify-center rounded-[12px] border border-[#f5d546]/35 bg-[#f5d546]/10 px-[0.95rem] py-[0.65rem] font-bold leading-none text-[#f2c46f] no-underline shadow-[inset_0_0_0_1px_rgba(245,213,70,0.08)] transition-[border-color,background,transform,box-shadow] duration-150 ease-out hover:enabled:-translate-y-px hover:enabled:border-[#f5d546]/45 hover:enabled:bg-[#f5d546]/15 disabled:cursor-not-allowed disabled:opacity-[0.55]"
           disabled={files.length === 0 || uploading}
           onClick={async () => {
             if (files.length === 0) {
@@ -291,7 +295,7 @@ const DroidBrainUploadPanel: React.FC<Props> = ({
       ) : null}
 
       {uploadSummary.length > 0 ? (
-        <div className="admin-card" style={{ display: "grid", gap: 10 }}>
+        <div className="grid gap-[10px]">
           <p className="small" style={{ marginTop: 0, marginBottom: 0 }}>
             <strong>Upload Results</strong>
           </p>

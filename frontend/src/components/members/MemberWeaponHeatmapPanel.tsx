@@ -1,8 +1,5 @@
 import React from "react";
 import WeaponHeatmapTool from "../tools/weaponHeatmap/WeaponHeatmapTool";
-import "../../styles/main.sass";
-import "../../styles/_admin.sass";
-import "../../styles/_weaponheatmap.sass";
 
 const MemberWeaponHeatmapPanel: React.FC = () => {
   return (

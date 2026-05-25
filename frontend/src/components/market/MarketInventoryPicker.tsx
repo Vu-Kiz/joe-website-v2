@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { ENTITY_TYPES, getFactionInventory, getPersonalInventory } from "../../api/market";
-import type { EntityTypeKey } from "../../api/market";
+import { ENTITY_TYPES, getFactionInventory, getPersonalInventory } from "../../api/market/market";
+import type { EntityTypeKey } from "../../api/market/market";
 import EntityDetailPopup from "./EntityDetailPopup";
+import { EMPTY_CLS, FILTER_CHIP_CLS } from "./marketDisplay";
+import { INPUT } from '../../utils/ui';
 
 type InventoryItem = {
   uid: string;
   name: string;
   quantity?: number | null;
+  typeUid?: string | null;
+  typeName?: string | null;
 };
 
 type Props = {
@@ -17,10 +21,11 @@ type Props = {
   selectedUid: string | null;
   onSelect: (item: InventoryItem) => void;
   allowedEntityTypes?: EntityTypeKey[];
-  // Multi-select mode
   multiSelect?: boolean;
   selectedUids?: Set<string>;
   onToggle?: (item: InventoryItem) => void;
+  restrictTypeUid?: string | null;
+  onToggleAll?: (items: InventoryItem[]) => void;
 };
 
 function getTags(val: any): string[] {
@@ -44,22 +49,12 @@ function normalizeDisplayName(name: string): string {
 }
 
 function extractQuantity(val: any): number | null {
-  const candidates = [
-    val?.quantity?.value,
-    val?.quantity,
-    val?.attributes?.quantity,
-    val?.amount?.value,
-    val?.amount,
-  ];
-
+  const candidates = [val?.quantity?.value, val?.quantity, val?.attributes?.quantity, val?.amount?.value, val?.amount];
   for (const candidate of candidates) {
     const raw = typeof candidate === "object" && candidate !== null ? candidate.value : candidate;
     const parsed = Number(raw);
-    if (Number.isFinite(parsed) && parsed >= 0) {
-      return parsed;
-    }
+    if (Number.isFinite(parsed) && parsed >= 0) return parsed;
   }
-
   return null;
 }
 
@@ -83,11 +78,20 @@ function parseInventoryItems(json: any): { items: InventoryItem[]; protectedCoun
       uid: item?.value?.uid ?? "",
       name: normalizeDisplayName(item?.value?.name ?? "Unknown"),
       quantity: extractQuantity(item?.value ?? item),
+      typeUid: item?.value?.type?.attributes?.uid ?? null,
+      typeName: typeof item?.value?.type?.value === "string" ? item.value.type.value : null,
     }))
     .filter((i: InventoryItem) => i.uid !== "");
 
   return { items, protectedCount, untaggedCount };
 }
+
+const ITEM_CLS = (selected: boolean) =>
+  `flex items-center gap-3 px-3 py-[0.6rem] rounded-[8px] border cursor-pointer transition-[background,border-color] duration-150 ${
+    selected
+      ? "bg-white/[0.08] border-white/25"
+      : "bg-white/[0.02] border-white/[0.07] hover:bg-white/[0.05] hover:border-white/[0.14]"
+  }`;
 
 const MarketInventoryPicker: React.FC<Props> = ({
   mode,
@@ -100,6 +104,8 @@ const MarketInventoryPicker: React.FC<Props> = ({
   multiSelect = false,
   selectedUids,
   onToggle,
+  restrictTypeUid,
+  onToggleAll,
 }) => {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [protectedCount, setProtectedCount] = useState(0);
@@ -140,9 +146,7 @@ const MarketInventoryPicker: React.FC<Props> = ({
           }
         }
       })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+      .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
   }, [mode, factionId, entityType]);
@@ -151,17 +155,23 @@ const MarketInventoryPicker: React.FC<Props> = ({
     ? ENTITY_TYPES.filter((et) => allowedEntityTypes.includes(et.key))
     : ENTITY_TYPES;
 
-  const filteredItems = search.trim()
-    ? items.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()))
+  const typeFilteredItems = restrictTypeUid
+    ? items.filter((i) => i.typeUid === restrictTypeUid)
     : items;
 
+  const filteredItems = search.trim()
+    ? typeFilteredItems.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()))
+    : typeFilteredItems;
+
+  const allVisibleSelected = filteredItems.length > 0 && filteredItems.every((i) => selectedUids?.has(i.uid));
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-      <div className="market-filter-bar">
+    <div className="flex flex-col gap-3">
+      <div className="flex gap-[0.4rem] flex-wrap items-center">
         {visibleTypes.map((et) => (
           <button
             key={et.key}
-            className={`market-filter-chip${entityType === et.key ? " is-active" : ""}`}
+            className={FILTER_CHIP_CLS(entityType === et.key)}
             type="button"
             onClick={() => onEntityTypeChange(et.key)}
           >
@@ -170,12 +180,12 @@ const MarketInventoryPicker: React.FC<Props> = ({
         ))}
       </div>
 
-      {loading && <p className="market-empty">Loading inventory…</p>}
+      {loading && <p className={EMPTY_CLS}>Loading inventory…</p>}
       {error && <p className="small" style={{ color: "#f87171" }}>{error}</p>}
 
       {!loading && !error && items.length > 0 && (
         <input
-          className="input"
+          className={INPUT + " rounded-full pl-4"}
           type="search"
           placeholder={`Search ${items.length.toLocaleString()} items…`}
           value={search}
@@ -184,7 +194,7 @@ const MarketInventoryPicker: React.FC<Props> = ({
       )}
 
       {!loading && !error && items.length === 0 && (
-        <p className="market-empty">
+        <p className={EMPTY_CLS}>
           No {entityType}s tagged "For Sale" in inventory.
           {(protectedCount > 0 || untaggedCount > 0) && (
             <> {[
@@ -205,27 +215,43 @@ const MarketInventoryPicker: React.FC<Props> = ({
       )}
 
       {!loading && !error && items.length > 0 && filteredItems.length === 0 && (
-        <p className="market-empty">No items match "{search}".</p>
+        <p className={EMPTY_CLS}>No items match "{search}".</p>
+      )}
+
+      {!loading && filteredItems.length > 0 && onToggleAll && (
+        <div className="flex items-center justify-between">
+          <span className="text-[0.75rem] text-white/40">{filteredItems.length} available</span>
+          <button
+            type="button"
+            className="text-[0.75rem] text-white/55 hover:text-white/90 bg-transparent border-0 cursor-pointer underline underline-offset-2"
+            onClick={() => onToggleAll(filteredItems)}
+          >
+            {allVisibleSelected ? "Deselect all" : "Select all"}
+          </button>
+        </div>
       )}
 
       {!loading && filteredItems.length > 0 && (
-        <div className="market-inventory-picker">
+        <div className="flex flex-col gap-2 max-h-[320px] overflow-y-auto">
           {filteredItems.map((item) => {
             const isSelected = multiSelect ? (selectedUids?.has(item.uid) ?? false) : selectedUid === item.uid;
             return (
               <div
                 key={item.uid}
-                className={`market-inventory-item${isSelected ? " is-selected" : ""}`}
+                className={ITEM_CLS(isSelected)}
                 onClick={() => multiSelect ? onToggle?.(item) : setPopup(item)}
               >
                 {multiSelect && (
                   <input type="checkbox" checked={isSelected} onChange={() => onToggle?.(item)} onClick={(e) => e.stopPropagation()} />
                 )}
-                <span className="market-inventory-item__name">
-                  {item.name}
-                  {entityType === "material" && item.quantity != null ? ` (${item.quantity.toLocaleString()})` : ""}
-                </span>
-                <span className="market-inventory-item__uid">{item.uid}</span>
+                <div className="flex flex-col gap-[0.1rem] flex-1 min-w-0">
+                  <span className="text-[0.88rem] font-medium">
+                    {item.name}
+                    {entityType === "material" && item.quantity != null ? ` (${item.quantity.toLocaleString()})` : ""}
+                  </span>
+                  {item.typeName && <span className="text-[0.72rem] text-white/40">{item.typeName}</span>}
+                </div>
+                <span className="text-white/30 font-mono text-[0.72rem] shrink-0">{item.uid}</span>
               </div>
             );
           })}

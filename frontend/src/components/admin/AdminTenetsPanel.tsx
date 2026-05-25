@@ -5,9 +5,10 @@ import {
   updateTenetOfSalvage,
   deleteTenetOfSalvage,
   type TenetOfSalvageItem,
-} from "../../api/tenetsOfSalvageAdmin";
+} from "../../api/admin/tenetsOfSalvageAdmin";
 import BBCodeEditor from "../bbcode/BBCodeEditor";
 import BBCodeView from "../bbcode/BBCodeView";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../utils/ui";
 
 type Mode = "create" | "edit";
 
@@ -167,9 +168,9 @@ const AdminTenetsPanel: React.FC = () => {
 
   if (loading) {
     return (
-      <section className="panel admin-panel">
-        <div className="admin-panel__header">
-          <h2 style={{ margin: 0 }}>Tenets</h2>
+      <section className="panel flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <h2 className="h2" style={{ margin: 0 }}>Tenets</h2>
           <p className="small" style={{ margin: 0 }}>
             Loading Tenets of Salvage…
           </p>
@@ -179,25 +180,25 @@ const AdminTenetsPanel: React.FC = () => {
   }
 
   return (
-    <section className="panel admin-panel">
-      <div className="admin-panel__header">
-        <h2 style={{ margin: 0 }}>Tenets of Salvage</h2>
+    <section className="panel flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <h2 className="h2" style={{ margin: 0 }}>Tenets of Salvage</h2>
         <p className="small" style={{ margin: 0 }}>
           Manage Tenets of Salvage entries with BBCode and weight ordering.
         </p>
       </div>
 
-      <div className="admin-eotm-layout">
-        <form className="panel admin-eotm-editor" onSubmit={handleSave}>
-          <div className="admin-eotm-editor__header">
-            <h3 style={{ margin: 0 }}>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <form className="panel flex flex-col gap-4" onSubmit={handleSave}>
+          <div className="flex flex-col gap-1.5">
+            <h3 className="h3" style={{ margin: 0 }}>
               {mode === "create" ? "Create Tenet" : "Edit Tenet"}
             </h3>
 
             {mode === "edit" && (
               <button
                 type="button"
-                className="btn btn--small"
+                className={BTN_SM + " all"}
                 onClick={resetForm}
                 disabled={saving}
               >
@@ -212,7 +213,7 @@ const AdminTenetsPanel: React.FC = () => {
             </label>
             <input
               id="tenet-title"
-              className="input"
+              className={INPUT}
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -226,14 +227,14 @@ const AdminTenetsPanel: React.FC = () => {
             </label>
             <input
               id="tenet-weight"
-              className="input"
+              className={INPUT}
               type="number"
               value={weight}
               onChange={(e) => setWeight(Number(e.target.value) || 0)}
             />
           </div>
 
-          <label className="admin-users-perm">
+          <label className="inline-flex min-h-10 items-center gap-2 rounded-[10px] border border-white/10 bg-white/[0.02] px-3 py-2">
             <input
               type="checkbox"
               checked={isActive}
@@ -247,8 +248,8 @@ const AdminTenetsPanel: React.FC = () => {
             <BBCodeEditor value={bodyBbcode} onChange={setBodyBbcode} toolbarMode="basic" />
           </div>
 
-          <div className="admin-tip-editor__actions">
-            <button type="submit" className="btn" disabled={saving}>
+          <div className="flex flex-wrap gap-3">
+            <button type="submit" className={BTN} disabled={saving}>
               {saving ? "Saving…" : mode === "create" ? "Create Tenet" : "Save Changes"}
             </button>
           </div>
@@ -266,15 +267,15 @@ const AdminTenetsPanel: React.FC = () => {
           )}
         </form>
 
-        <div className="panel admin-tip-list">
-          <div className="admin-tip-list__header">
-            <h3 style={{ margin: 0 }}>Existing Tenets</h3>
+        <div className="panel flex flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="h3" style={{ margin: 0 }}>Existing Tenets</h3>
           </div>
 
-          <div className="admin-users-toolbar">
+          <div className="flex flex-wrap items-center gap-3">
             <input
               type="text"
-              className="input"
+              className={INPUT}
               placeholder="Search tenets"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -286,11 +287,11 @@ const AdminTenetsPanel: React.FC = () => {
               No tenets found.
             </p>
           ) : (
-            <div className="admin-tip-list__items">
+            <div className="flex flex-col gap-3">
               {filteredItems.map((item) => (
-                <article key={item.id} className="panel admin-tip-card">
-                  <div className="admin-tip-card__copy">
-                    <div className="small admin-tip-card__meta">
+                <article key={item.id} className="panel flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <div className="small">
                       #{item.id}
                       {" · "}weight {item.weight}
                       {" · "}{item.is_active ? "active" : "inactive"}
@@ -306,10 +307,10 @@ const AdminTenetsPanel: React.FC = () => {
                     <BBCodeView value={item.body_bbcode} className="small" />
                   </div>
 
-                  <div className="admin-tip-card__actions">
+                  <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      className="btn btn--small"
+                      className={BTN_SM + " all"}
                       onClick={() => startEdit(item)}
                     >
                       Edit
@@ -317,7 +318,7 @@ const AdminTenetsPanel: React.FC = () => {
 
                     <button
                       type="button"
-                      className="btn btn--small"
+                      className={BTN_SM + " all"}
                       onClick={() => handleDelete(item)}
                       disabled={busyDeleteId === item.id}
                     >

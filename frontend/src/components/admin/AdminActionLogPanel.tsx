@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   listAdminActionLogs,
   type AdminActionLogItem,
-} from "../../api/adminActionLogs";
+} from "../../api/admin/adminActionLogs";
 import Pagination from "../common/Pagination";
+import { INPUT } from '../../utils/ui';
 
 const AREA_LABELS: Record<string, string> = {
   droidbrain: "DroidBrain",
@@ -12,6 +13,12 @@ const AREA_LABELS: Record<string, string> = {
   website_health: "Website Health",
   discord_bot: "Discord Bot",
 };
+
+const uiButtonSmallBaseClass =
+  "inline-flex min-h-[34px] items-center justify-center rounded-[10px] border px-[0.8rem] py-2 text-[0.88rem] font-bold leading-none no-underline transition-[border-color,background,transform,box-shadow] duration-150 ease-out hover:enabled:-translate-y-px hover:enabled:border-[#f5d546]/[0.28] hover:enabled:bg-[#f5d546]/[0.07] disabled:cursor-not-allowed disabled:opacity-[0.55]";
+const uiButtonSoftClass = "border-white/10 bg-white/[0.025] text-white/90";
+const uiButtonPrimaryClass =
+  "border-[#f5d546]/35 bg-[#f5d546]/10 text-[#f2c46f] shadow-[inset_0_0_0_1px_rgba(245,213,70,0.08)] hover:enabled:border-[#f5d546]/45 hover:enabled:bg-[#f5d546]/15";
 
 function formatLabel(value: string | null | undefined): string {
   const raw = String(value ?? "").trim();
@@ -163,22 +170,22 @@ const AdminActionLogPanel: React.FC = () => {
   }
 
   return (
-    <section className="admin-panel">
-      <header className="admin-panel__header">
-        <h2>Action Log</h2>
+    <section className="flex flex-col gap-4">
+      <header className="flex flex-col gap-1.5">
+        <h2 className="h2">Action Log</h2>
         <p className="small">Audit trail of admin changes across the website.</p>
       </header>
 
-      <div className="admin-panel__body">
-        <div className="admin-users-toolbar admin-action-log__toolbar">
-          <div className="admin-action-log__filters">
-            <div className="admin-action-log__filter">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-3 flex flex-col items-stretch gap-2.5">
+          <div className="grid w-full gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
+            <div className="flex flex-col gap-1">
               <label className="small" htmlFor="action-log-actor">
                 Actor
               </label>
               <select
                 id="action-log-actor"
-                className="input"
+                className={INPUT}
                 value={actorHandleFilter}
                 onChange={(e) => setActorHandleFilter(e.target.value)}
               >
@@ -191,13 +198,13 @@ const AdminActionLogPanel: React.FC = () => {
               </select>
             </div>
 
-            <div className="admin-action-log__filter">
+            <div className="flex flex-col gap-1">
               <label className="small" htmlFor="action-log-area">
                 Area
               </label>
               <select
                 id="action-log-area"
-                className="input"
+                className={INPUT}
                 value={areaFilter}
                 onChange={(e) => setAreaFilter(e.target.value)}
               >
@@ -210,13 +217,13 @@ const AdminActionLogPanel: React.FC = () => {
               </select>
             </div>
 
-            <div className="admin-action-log__filter">
+            <div className="flex flex-col gap-1">
               <label className="small" htmlFor="action-log-action">
                 Action
               </label>
               <select
                 id="action-log-action"
-                className="input"
+                className={INPUT}
                 value={actionFilter}
                 onChange={(e) => setActionFilter(e.target.value)}
               >
@@ -229,13 +236,13 @@ const AdminActionLogPanel: React.FC = () => {
               </select>
             </div>
 
-            <div className="admin-action-log__filter">
+            <div className="flex flex-col gap-1">
               <label className="small" htmlFor="action-log-target-type">
                 Target type
               </label>
               <select
                 id="action-log-target-type"
-                className="input"
+                className={INPUT}
                 value={targetTypeFilter}
                 onChange={(e) => setTargetTypeFilter(e.target.value)}
               >
@@ -249,14 +256,14 @@ const AdminActionLogPanel: React.FC = () => {
             </div>
           </div>
 
-          <div className="admin-action-log__meta">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="small">
               Showing {filteredLogs.length} filtered entries
             </p>
 
             <button
               type="button"
-              className="ui-btn ui-btn--soft ui-btn--small"
+              className={`${uiButtonSmallBaseClass} ${uiButtonSoftClass}`}
               onClick={clearFilters}
               disabled={
                 !actorHandleFilter &&
@@ -280,8 +287,8 @@ const AdminActionLogPanel: React.FC = () => {
           <p className="small">No action log entries found.</p>
         ) : (
           <>
-            <div className="admin-action-log-table">
-              <div className="admin-action-log-table__head">
+            <div className="flex flex-col overflow-hidden rounded-[14px] border border-white/10 bg-white/[0.02] max-[1180px]:overflow-x-auto">
+              <div className="grid border-b border-white/10 bg-white/[0.04] [grid-template-columns:170px_130px_110px_130px_minmax(320px,1fr)_150px_96px]">
                 <div>When</div>
                 <div>Actor</div>
                 <div>Area</div>
@@ -291,44 +298,39 @@ const AdminActionLogPanel: React.FC = () => {
                 <div></div>
               </div>
 
-              <div className="admin-action-log-table__body">
+              <div className="flex min-w-[980px] flex-col">
                 {paginatedLogs.map((log) => {
                   const expanded = expandedIds.includes(log.id);
 
                   return (
-                    <div
-                      key={log.id}
-                      className={`admin-action-log-table__group${
-                        expanded ? " is-expanded" : ""
-                      }`}
-                    >
-                      <div className="admin-action-log-table__row">
-                        <div className="admin-action-log-table__cell admin-action-log-table__when">
+                    <div key={log.id} className="flex flex-col border-t border-white/5 first:border-t-0">
+                      <div className="grid min-h-14 items-start [grid-template-columns:170px_130px_110px_130px_minmax(320px,1fr)_150px_96px] hover:bg-white/[0.025]">
+                        <div className="min-w-0 overflow-wrap-anywhere px-3.5 py-2.5 text-[0.82rem] leading-[1.3] text-white/70">
                           {log.created_at
                             ? new Date(log.created_at).toLocaleString()
                             : "Unknown time"}
                         </div>
 
-                        <div className="admin-action-log-table__cell">
+                        <div className="min-w-0 overflow-wrap-anywhere px-3.5 py-2.5 text-[0.92rem] leading-[1.3]">
                           {log.actor_handle ??
                             (log.actor_user_id
                               ? `User #${log.actor_user_id}`
                               : "System")}
                         </div>
 
-                        <div className="admin-action-log-table__cell">
+                        <div className="min-w-0 overflow-wrap-anywhere px-3.5 py-2.5 text-[0.92rem] leading-[1.3]">
                           {formatLabel(log.area)}
                         </div>
 
-                        <div className="admin-action-log-table__cell">
+                        <div className="min-w-0 overflow-wrap-anywhere px-3.5 py-2.5 text-[0.92rem] leading-[1.3]">
                           {formatLabel(log.action)}
                         </div>
 
-                        <div className="admin-action-log-table__cell admin-action-log-table__summary">
+                        <div className="min-w-0 overflow-wrap-anywhere px-3.5 py-2.5 text-[0.92rem] leading-[1.3] whitespace-normal break-words font-semibold">
                           {log.summary}
                         </div>
 
-                        <div className="admin-action-log-table__cell">
+                        <div className="min-w-0 overflow-wrap-anywhere px-3.5 py-2.5 text-[0.92rem] leading-[1.3]">
                           {log.target_type
                             ? `${formatLabel(log.target_type)}${
                                 log.target_id !== null ? ` #${log.target_id}` : ""
@@ -336,10 +338,10 @@ const AdminActionLogPanel: React.FC = () => {
                             : "—"}
                         </div>
 
-                        <div className="admin-action-log-table__cell admin-action-log-table__actions">
+                        <div className="min-w-0 overflow-wrap-anywhere px-3.5 py-2.5 text-[0.92rem] leading-[1.3] flex items-start justify-end">
                           <button
                             type="button"
-                            className="ui-btn ui-btn--primary ui-btn--small"
+                            className={`${uiButtonSmallBaseClass} ${uiButtonPrimaryClass}`}
                             onClick={() => toggleExpanded(log.id)}
                           >
                             {expanded ? "Hide" : "View"}
@@ -348,7 +350,7 @@ const AdminActionLogPanel: React.FC = () => {
                       </div>
 
                       {expanded && (
-                        <div className="admin-action-log-table__details">
+                        <div className="flex flex-col gap-2.5 border-t border-white/5 bg-black/15 px-4 pb-4 pt-3">
                           {log.ip_address && (
                             <p className="small">
                               <strong>IP:</strong> {log.ip_address}
@@ -362,7 +364,7 @@ const AdminActionLogPanel: React.FC = () => {
                           )}
 
                           {log.before && (
-                            <div className="admin-action-log__json-block">
+                            <div className="flex flex-col gap-1">
                               <p className="small">
                                 <strong>Before</strong>
                               </p>
@@ -371,7 +373,7 @@ const AdminActionLogPanel: React.FC = () => {
                           )}
 
                           {log.after && (
-                            <div className="admin-action-log__json-block">
+                            <div className="flex flex-col gap-1">
                               <p className="small">
                                 <strong>After</strong>
                               </p>

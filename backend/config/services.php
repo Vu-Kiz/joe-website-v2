@@ -54,4 +54,11 @@ return [
         'language' => env('LANGUAGETOOL_DEFAULT_LANGUAGE', 'en-US'),
     ],
 
+    'uptime_kuma' => [
+        'url'           => env('UPTIME_KUMA_URL', ''),
+        'api_key'       => env('UPTIME_KUMA_API_KEY', ''),
+        'monitor_id'    => env('UPTIME_KUMA_MONITOR_ID', ''),
+        'webhook_token' => env('UPTIME_KUMA_WEBHOOK_TOKEN', ''),
+    ],
+
 ];

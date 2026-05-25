@@ -1,5 +1,5 @@
 import React from "react";
-import type { BlogPost } from "../../api/blog";
+import type { BlogPost } from "../../api/content/blog";
 import BlogEditorPanel from "./JenEditorPanel";
 
 type Props = {

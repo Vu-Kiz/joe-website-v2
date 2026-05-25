@@ -178,10 +178,12 @@ class MarketInventoryController extends Controller
         $cargo = null;
         if (!empty($val['cargo'])) {
             $cargo = [
-                'weight_total'     => $val['cargo']['weightcapacity']['total']     ?? null,
-                'weight_remaining' => $val['cargo']['weightcapacity']['remaining'] ?? null,
-                'volume_total'     => $val['cargo']['volumecapacity']['total']     ?? null,
-                'volume_remaining' => $val['cargo']['volumecapacity']['remaining'] ?? null,
+                'weight_total'          => $val['cargo']['weightcapacity']['total']     ?? null,
+                'weight_remaining'      => $val['cargo']['weightcapacity']['remaining'] ?? null,
+                'volume_total'          => $val['cargo']['volumecapacity']['total']     ?? null,
+                'volume_remaining'      => $val['cargo']['volumecapacity']['remaining'] ?? null,
+                'passengers_total'      => $val['cargo']['passengercapacity']['total']     ?? null,
+                'passengers_remaining'  => $val['cargo']['passengercapacity']['remaining'] ?? null,
             ];
         }
 

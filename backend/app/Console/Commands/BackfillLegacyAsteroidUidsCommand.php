@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\SwcSectorSearchRecord;
+use App\Models\Swc\SwcSectorSearchRecord;
 use Illuminate\Console\Command;
 
 class BackfillLegacyAsteroidUidsCommand extends Command

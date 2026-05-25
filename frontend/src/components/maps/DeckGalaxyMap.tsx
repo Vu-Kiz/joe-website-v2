@@ -23,7 +23,58 @@ import type {
   StoredMapSystem,
   StoredSectorSummary,
   StoredSystemDetail,
-} from "../../api/universe";
+} from "../../api/universe/universe";
+import { BTN, BTN_SM, BTN_GHOST_SM, INPUT } from "../../utils/ui";
+
+// ── Map layout ──────────────────────────────────────────────────────────────
+const MAP_VIEWPORT_CLS = "relative min-h-[82vh] max-[767px]:min-h-[65vh] overflow-hidden rounded-[12px] border border-white/[0.08] bg-[#020304] cursor-grab max-[767px]:cursor-auto";
+const MAP_META_CLS = "flex items-center justify-between gap-3 flex-wrap";
+const MAP_STATUS_CLS = "absolute right-[0.85rem] bottom-[0.85rem] z-[2] inline-flex items-center min-h-[32px] p-[0.35rem_0.65rem] rounded-full border border-white/[0.08] bg-[rgba(12,16,20,0.88)]";
+const MAP_HOVER_CLS = "absolute z-[3] grid gap-[0.18rem] min-w-[110px] max-w-[180px] p-[0.45rem_0.6rem] rounded-[10px] border border-[rgba(246,163,0,0.28)] bg-[rgba(12,16,20,0.94)] shadow-[0_10px_24px_rgba(0,0,0,0.28)] pointer-events-none [&_strong]:text-[0.85rem] [&_strong]:text-white/[0.96] [&_span]:text-[0.78rem] [&_span]:text-[rgba(246,163,0,0.92)]";
+
+// ── Legend ───────────────────────────────────────────────────────────────────
+const LEGEND_CLS = "absolute top-[0.85rem] left-[0.85rem] z-[4] grid gap-[0.45rem] max-w-[min(240px,calc(100%-1.7rem))]";
+const LEGEND_TOGGLE_CLS = BTN_SM + " justify-self-start border-[rgba(246,163,0,0.24)] bg-[rgba(12,16,20,0.94)] shadow-[0_12px_28px_rgba(0,0,0,0.3)] backdrop-blur-[2px] hover:bg-[rgba(18,24,30,0.96)]";
+const LEGEND_BODY_CLS = "grid gap-[0.45rem] w-[min(240px,calc(100%-1.7rem))] min-w-[180px] p-[0.7rem_0.8rem] rounded-[12px] border border-[rgba(246,163,0,0.24)] bg-[rgba(12,16,20,0.94)] shadow-[0_12px_28px_rgba(0,0,0,0.3)] backdrop-blur-[2px]";
+const LEGEND_ACTIONS_CLS = "flex justify-end";
+const LEGEND_ACTION_CLS = BTN_SM + " border-[rgba(246,163,0,0.24)]";
+const LEGEND_SECTION_LABEL_CLS = "small text-white/[0.55] mt-[0.15rem]";
+const legendItemCls = (active: boolean) =>
+  "grid [grid-template-columns:22px_minmax(0,1fr)] items-center gap-[0.55rem] w-full p-[0.45rem_0.55rem] border border-white/[0.08] rounded-[10px] bg-[rgba(255,255,255,0.06)] text-inherit text-left cursor-pointer transition-[border-color,background,transform] duration-[150ms] hover:border-[rgba(246,163,0,0.42)] hover:bg-[rgba(246,163,0,0.08)] hover:-translate-y-px" +
+  (active ? " !border-[rgba(246,163,0,0.72)] !bg-[rgba(246,163,0,0.16)] shadow-[inset_0_0_0_1px_rgba(246,163,0,0.18)]" : "");
+const LEGEND_ICON_CLS = "block w-[22px] h-[22px] object-contain";
+
+// ── Controls panel ────────────────────────────────────────────────────────────
+const CONTROLS_PANEL_CLS = "absolute top-[0.85rem] right-[0.85rem] z-[4] grid gap-[0.45rem] w-[min(300px,calc(100%-1.7rem))] justify-items-end";
+const CONTROLS_TOGGLE_CLS = BTN_SM + " justify-self-end border-[rgba(246,163,0,0.24)] bg-[rgba(12,16,20,0.94)] shadow-[0_12px_28px_rgba(0,0,0,0.3)] backdrop-blur-[2px] hover:bg-[rgba(18,24,30,0.96)]";
+const CONTROLS_BODY_CLS = "grid gap-[0.45rem] w-full max-h-[min(72vh,calc(100%-2.4rem))] p-[0.7rem] rounded-[12px] border border-[rgba(246,163,0,0.24)] bg-[rgba(12,16,20,0.94)] shadow-[0_12px_28px_rgba(0,0,0,0.3)] backdrop-blur-[2px] overflow-y-auto";
+
+// ── Selection panel ───────────────────────────────────────────────────────────
+const MAP_SELECTION_CLS = "absolute z-[3] flex flex-col min-w-[220px] max-w-[min(320px,calc(100%-24px))] max-h-[min(calc(100%-24px),72vh)] rounded-[12px] border border-[rgba(246,163,0,0.24)] bg-[rgba(12,16,20,0.94)] shadow-[0_12px_28px_rgba(0,0,0,0.3)] overflow-hidden";
+const SELECTION_HEAD_CLS = "relative flex items-center justify-between gap-3 p-[0.7rem_2.4rem_0.55rem_0.8rem] bg-[rgba(12,16,20,0.98)] cursor-move select-none";
+const SELECTION_BODY_CLS = "grid gap-[0.35rem] flex-[1_1_auto] min-h-0 p-[0_2.4rem_0.7rem_0.8rem] overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:rgba(246,163,0,0.88)_rgba(10,12,14,0.92)]";
+const SELECTION_COPY_CLS = "grid gap-[0.18rem]";
+const SELECTION_LABEL_CLS = "font-bold text-[rgba(246,163,0,0.94)]";
+const SELECTION_HEAD_ACTIONS_CLS = "absolute top-[0.55rem] right-[0.55rem]";
+const SELECTION_CLOSE_CLS = "flex items-center justify-center w-[26px] h-[26px] p-0 border border-[rgba(246,163,0,0.28)] rounded-full bg-[rgba(246,163,0,0.08)] text-white/[0.92] font-inherit text-[0.95rem] leading-none cursor-pointer transition-[border-color,background,transform] duration-[140ms] hover:border-[rgba(246,163,0,0.48)] hover:bg-[rgba(246,163,0,0.16)] hover:-translate-y-px";
+const SELECTION_CLOSE_GLYPH_CLS = "block leading-none -translate-y-px";
+const SELECTION_STATS_CLS = "grid gap-[0.15rem]";
+const SELECTION_STAT_VALUE_CLS = "text-[rgba(246,163,0,0.94)] font-bold";
+const META_CLS = "flex gap-3 flex-wrap";
+const SELECTION_SYSTEM_CLS = "grid gap-[0.35rem]";
+const PILL_CLS = "inline-flex min-h-8 items-center rounded-full border border-[#78b4ff]/30 bg-[#78b4ff]/10 px-3 py-1 text-[0.82rem] font-bold text-[#b9d8ff]";
+
+// ── Intel editor / notes ──────────────────────────────────────────────────────
+const INTEL_EDITOR_CLS = "grid gap-[0.55rem]";
+const INTEL_GRID_CLS = "grid gap-[0.55rem] grid-cols-[repeat(2,minmax(0,1fr))]";
+const INTEL_FIELD_CLS = "grid gap-[0.25rem]";
+const NOTE_TOOLBAR_CLS = "flex items-center gap-[0.45rem] flex-wrap";
+const NOTE_PREVIEW_CLS = "grid gap-[0.35rem] p-[0.6rem_0.7rem] rounded-[10px] border border-white/[0.08] bg-white/[0.03]";
+const NOTE_BODY_CLS = "block leading-[1.55] text-white/[0.82] whitespace-normal [&_p]:m-0 [&_p+p]:mt-[0.45rem]";
+
+// ── Shared field/inline (used inside controls overlay) ────────────────────────
+const CTRL_FIELD_CLS = "flex flex-col gap-2";
+const CTRL_INLINE_TOP_CLS = "flex gap-3 flex-wrap items-start";
 
 type DeckFocusRequest =
   | { kind: "sector"; sectorUid: string; nonce: number; zoom?: number }
@@ -1658,21 +1709,21 @@ new PolygonLayer({
   }, [selectedCell?.searchRecord, selectedCellPlanetoids]);
 
   return (
-    <section className="panel admin-card">
-      <div className="admin-card__header">
-        <h3 className="admin-card__title">Astrogation Chart</h3>
-        <p className="admin-card__desc">
+    <section className="panel flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <h3 className="m-0">Astrogation Chart</h3>
+        <p className="m-0 opacity-[0.85]">
           Navigate sectors, inspect intel flags, and open location records.
         </p>
       </div>
 
-      <div className="members-universe-map__meta">
+      <div className={MAP_META_CLS}>
         <span className="small">Zoom: {Math.max(0.01, Math.pow(2, viewState.zoom)).toFixed(2)}x</span>
       </div>
 
       <div
         ref={viewportRef}
-        className="members-universe-map"
+        className={MAP_VIEWPORT_CLS}
         onMouseLeave={() => { if (!isTouchDevice) scheduleHoverUpdate(null); }}
       >
         <DeckGL
@@ -1781,12 +1832,17 @@ new PolygonLayer({
           }}
         />
 
-        <div className={`members-universe-map__legend${legendOpen ? " is-open" : ""}`}>
+        <div className={LEGEND_CLS} onPointerDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
           <button
-            className="btn btn--small members-universe-map__legend-toggle"
+            className={LEGEND_TOGGLE_CLS}
             type="button"
             onClick={(event) => {
               event.stopPropagation();
+              setLegendOpen((current) => !current);
+            }}
+            onTouchEnd={(event) => {
+              event.stopPropagation();
+              event.preventDefault();
               setLegendOpen((current) => !current);
             }}
           >
@@ -1795,7 +1851,7 @@ new PolygonLayer({
           {legendOpen ? (
             <div
               ref={legendBodyRef}
-              className="members-universe-map__legend-body"
+              className={LEGEND_BODY_CLS}
               style={{
                 maxHeight: legendMaxHeight ? `${legendMaxHeight}px` : undefined,
                 overflowY: legendShouldScroll ? "auto" : "visible",
@@ -1805,10 +1861,10 @@ new PolygonLayer({
               onWheelCapture={(event) => event.stopPropagation()}
             >
               {availableLegendKeys.length > 1 ? (
-                <div className="members-universe-map__legend-actions">
+                <div className={LEGEND_ACTIONS_CLS}>
                   <button
                     type="button"
-                    className="btn btn--small members-universe-map__legend-action"
+                    className={LEGEND_ACTION_CLS}
                     onClick={() =>
                       setLegendFilters((current) => {
                         const nextValue = !hasAnyLegendFilterEnabled;
@@ -1825,19 +1881,19 @@ new PolygonLayer({
               ) : null}
               {legendSections.map((section) => (
                 <React.Fragment key={section.label}>
-                  <div className="members-universe-map__legend-section-label small">{section.label}</div>
+                  <div className={LEGEND_SECTION_LABEL_CLS}>{section.label}</div>
                   {section.items.map((item) => (
                     <button
                       key={item.key}
                       type="button"
-                      className={`members-universe-map__legend-item${legendFilters[item.key] ? " is-active" : ""}`}
+                      className={legendItemCls(legendFilters[item.key])}
                       aria-pressed={legendFilters[item.key]}
                       onClick={() => setLegendFilters((current) => ({ ...current, [item.key]: !current[item.key] }))}
                     >
                       {isImageIcon(item.icon) ? (
-                        <img className="members-universe-map__legend-icon" src={item.icon} alt="" />
+                        <img className={LEGEND_ICON_CLS} src={item.icon} alt="" />
                       ) : (
-                        <span className="members-universe-map__legend-icon">{item.icon}</span>
+                        <span className={LEGEND_ICON_CLS}>{item.icon}</span>
                       )}
                       <span className="small">{item.label}</span>
                     </button>
@@ -1849,12 +1905,17 @@ new PolygonLayer({
         </div>
 
         {(controlsOverlay || canEditCellIntel) ? (
-          <div className={`members-universe-map__controls-panel${controlsOpen ? " is-open" : ""}`}>
+          <div className={CONTROLS_PANEL_CLS} onPointerDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
             <button
-              className="btn btn--small members-universe-map__controls-toggle"
+              className={CONTROLS_TOGGLE_CLS}
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
+                setControlsOpen((current) => !current);
+              }}
+              onTouchEnd={(event) => {
+                event.stopPropagation();
+                event.preventDefault();
                 setControlsOpen((current) => !current);
               }}
             >
@@ -1862,16 +1923,16 @@ new PolygonLayer({
             </button>
             {controlsOpen ? (
               <div
-                className="members-universe-map__controls-body"
+                className={CONTROLS_BODY_CLS}
                 onMouseDown={(event) => event.stopPropagation()}
                 onClick={(event) => event.stopPropagation()}
                 onWheelCapture={(event) => event.stopPropagation()}
               >
                 {controlsOverlay}
                 {canEditCellIntel && (
-                  <div className="members-universe__field">
+                  <div className={CTRL_FIELD_CLS}>
                     <label className="small">Go to System ID</label>
-                    <div className="members-universe__inline members-universe__sector-picker">
+                    <div className={CTRL_INLINE_TOP_CLS}>
                       <SearchSuggestionPicker<StoredMapSystem>
                         placeholder="e.g. 1524"
                         value={sysIdSearch}
@@ -1922,7 +1983,7 @@ new PolygonLayer({
                         }}
                       />
                       <button
-                        className="btn"
+                        className={BTN}
                         type="button"
                         onClick={() => {
                           const query = sysIdSearch.trim();
@@ -1949,11 +2010,11 @@ new PolygonLayer({
           </div>
         ) : null}
 
-        <div className="members-universe-map__stars" />
+        <div className="absolute inset-0 pointer-events-none opacity-[0.55] bg-[radial-gradient(circle_at_12%_18%,rgba(255,255,255,0.22)_0_1px,transparent_1px),radial-gradient(circle_at_74%_24%,rgba(255,255,255,0.18)_0_1px,transparent_1px),radial-gradient(circle_at_28%_72%,rgba(255,255,255,0.18)_0_1px,transparent_1px),radial-gradient(circle_at_88%_68%,rgba(255,255,255,0.16)_0_1px,transparent_1px)] bg-size-[240px_240px,290px_290px,210px_210px,320px_320px]" />
 
         {showPerfDebug ? (
           <div
-            className="members-universe-map__status"
+            className={MAP_STATUS_CLS}
             style={PERF_DEBUG_STYLE}
           >
             <span className="small">Perf Debug</span>
@@ -1967,9 +2028,9 @@ new PolygonLayer({
           </div>
         ) : null}
 
-        {hover ? (
+        {hover && !isTouchDevice ? (
           <div
-            className="members-universe-map__hover"
+            className={MAP_HOVER_CLS}
             style={{
               left: `${Math.min(
                 hover.x + HOVER_OFFSET_PX,
@@ -1989,13 +2050,15 @@ new PolygonLayer({
 
         {selectedCell ? (
           <div
-            className={`members-universe-map__selection${showSelectionFade ? " is-scrollable" : ""}`}
+            className={MAP_SELECTION_CLS + (showSelectionFade ? " is-scrollable" : "")}
             style={selectionPanelPos ? { position: "absolute", left: `${selectionPanelPos.left}px`, top: `${selectionPanelPos.top}px`, maxWidth: "min(320px, calc(100% - 24px))" } : undefined}
+            onPointerDown={(event) => event.stopPropagation()}
+            onTouchStart={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
           >
             <div
-              className="members-universe-map__selection-head"
+              className={SELECTION_HEAD_CLS}
               style={{ cursor: "grab" }}
               onMouseDown={(event) => {
                 event.stopPropagation();
@@ -2011,33 +2074,33 @@ new PolygonLayer({
                 };
               }}
             >
-              <div className="members-universe-map__selection-copy">
+              <div className={SELECTION_COPY_CLS}>
                 <strong>{selectedCell.galx}, {selectedCell.galy}</strong>
                 {selectedCell.sectorUid ? (
-                  <span className="members-universe-map__selection-label">
+                  <span className={SELECTION_LABEL_CLS}>
                     {selectedCell.sectorName ?? `Sector ${uidToDisplayId(selectedCell.sectorUid) ?? selectedCell.sectorUid}`}
                   </span>
                 ) : null}
                 {getPrimaryCellName(selectedCell.systems[0], selectedCell.searchRecord, canViewCellIntel) ? (
-                  <span className="members-universe-map__selection-label">
+                  <span className={SELECTION_LABEL_CLS}>
                     {getPrimaryCellName(selectedCell.systems[0], selectedCell.searchRecord, canViewCellIntel)}
                   </span>
                 ) : null}
               </div>
-              <div className="members-universe-map__selection-head-actions">
+              <div className={SELECTION_HEAD_ACTIONS_CLS}>
                 <button
-                  className="members-universe-map__selection-close"
+                  className={SELECTION_CLOSE_CLS}
                   type="button"
                   onClick={() => { setSelectedCell(null); setHighlightedCell(null); }}
                   aria-label="Clear selected grid cell"
                 >
-                  <span className="members-universe-map__selection-close-glyph" aria-hidden="true">×</span>
+                  <span className={SELECTION_CLOSE_GLYPH_CLS} aria-hidden="true">×</span>
                 </button>
               </div>
             </div>
 
             <div
-              className="members-universe-map__selection-body"
+              className={SELECTION_BODY_CLS}
               ref={selectionBodyRef}
               onWheelCapture={(event) => event.stopPropagation()}
             >
@@ -2045,12 +2108,12 @@ new PolygonLayer({
                 <span className="small">{selectedCell.annotation.label}</span>
               ) : null}
               {selectedCell.searchRecord?.is_system_searched || selectedCell.searchRecord?.has_asteroids ? (
-                <div className="members-universe__meta">
+                <div className={META_CLS}>
                   {selectedCell.searchRecord?.is_system_searched ? (
-                    <span className="admin-badge admin-badge--soft">Searched</span>
+                    <span className={PILL_CLS}>Searched</span>
                   ) : null}
                   {selectedCell.searchRecord?.has_asteroids ? (
-                    <span className="admin-badge admin-badge--soft">Asteroids</span>
+                    <span className={PILL_CLS}>Asteroids</span>
                   ) : null}
                 </div>
               ) : null}
@@ -2069,25 +2132,25 @@ new PolygonLayer({
                 return age ? <span className="small">{age}</span> : null;
               })()}
               {selectedCellIntelPills.length > 0 ? (
-                <div className="members-universe__meta">
+                <div className={META_CLS}>
                   {selectedCellIntelPills.map((pill) => (
-                    <span key={pill} className="admin-badge admin-badge--soft">{pill}</span>
+                    <span key={pill} className={PILL_CLS}>{pill}</span>
                   ))}
                 </div>
               ) : null}
               {selectedCell.systems[0] ? (
-                <div className="members-universe-map__selection-system">
+                <div className={SELECTION_SYSTEM_CLS}>
                   {selectedSystemDetailLoading ? (
                     <span className="small">Loading system stats...</span>
                   ) : selectedSystemSummary ? (
                     <>
-                      <div className="members-universe-map__selection-stats">
+                      <div className={SELECTION_STATS_CLS}>
                         <span className="small">{selectedSystemSummary.controller}</span>
                         {isFullTier && (
                           <>
                             <span className="small">
                               Population:{" "}
-                              <span className="members-universe-map__selection-stat-value">
+                              <span className={SELECTION_STAT_VALUE_CLS}>
                                 {selectedSystemSummary.population.toLocaleString()}
                               </span>
                             </span>
@@ -2097,14 +2160,14 @@ new PolygonLayer({
                           </>
                         )}
                       </div>
-                      <div className="members-universe__meta">
+                      <div className={META_CLS}>
                         {selectedSystemSummary.bodyPills.map(([label, count]) => (
-                          <span key={String(label)} className="admin-badge admin-badge--soft">
+                          <span key={String(label)} className={PILL_CLS}>
                             {label} {count}
                           </span>
                         ))}
-                        <span className="admin-badge admin-badge--soft">Stations {selectedSystemSummary.stations}</span>
-                        <span className="admin-badge admin-badge--soft">Hyperlanes {selectedSystemSummary.hyperlanes}</span>
+                        <span className={PILL_CLS}>Stations {selectedSystemSummary.stations}</span>
+                        <span className={PILL_CLS}>Hyperlanes {selectedSystemSummary.hyperlanes}</span>
                       </div>
                     </>
                   ) : (
@@ -2115,18 +2178,18 @@ new PolygonLayer({
               {canViewCellIntel && selectedCell.annotation?.notes ? (
                 <BBCodeView
                   value={selectedCell.annotation.notes}
-                  className="small members-universe-map__note-body"
+                  className={`small ${NOTE_BODY_CLS}`}
                 />
               ) : null}
               {canEditCellIntel ? (
-                <div className="members-universe-map__intel-editor">
+                <div className={INTEL_EDITOR_CLS}>
                   {isEditingIntel ? (
                     <>
-                      <div className="members-universe-map__intel-grid">
-                        <label className="members-universe-map__intel-field">
+                      <div className={INTEL_GRID_CLS}>
+                        <label className={INTEL_FIELD_CLS}>
                           <span className="small">Planetoids</span>
                           <select
-                            className="input"
+                            className={INPUT}
                             value={intelDraft.planetoids_checked === null ? "" : intelDraft.planetoids_checked ? "yes" : "no"}
                             onChange={(event) => {
                               const value = event.target.value;
@@ -2145,11 +2208,11 @@ new PolygonLayer({
                         </label>
                       </div>
                       {intelDraft.planetoids_checked === true ? (
-                        <div className="members-universe-map__intel-grid">
-                          <label className="members-universe-map__intel-field">
+                        <div className={INTEL_GRID_CLS}>
+                          <label className={INTEL_FIELD_CLS}>
                             <span className="small">Planetoid 1 Size</span>
                             <select
-                              className="input"
+                              className={INPUT}
                               value={intelDraft.planetoid_1_size}
                               onChange={(event) =>
                                 setIntelDraft((current) => ({
@@ -2163,10 +2226,10 @@ new PolygonLayer({
                               <option value="2x2">2x2</option>
                             </select>
                           </label>
-                          <label className="members-universe-map__intel-field">
+                          <label className={INTEL_FIELD_CLS}>
                             <span className="small">Planetoid 2 Size</span>
                             <select
-                              className="input"
+                              className={INPUT}
                               value={intelDraft.planetoid_2_size}
                               onChange={(event) =>
                                 setIntelDraft((current) => ({
@@ -2182,9 +2245,9 @@ new PolygonLayer({
                           </label>
                         </div>
                       ) : null}
-                      <div className="members-universe__inline">
+                      <div className="flex gap-3 flex-wrap items-center">
                         <button
-                          className="btn btn--small btn--ghost"
+                          className={BTN_GHOST_SM}
                           type="button"
                           disabled={!onSaveSearchRecord || savingIntel}
                           onClick={async () => {
@@ -2216,7 +2279,7 @@ new PolygonLayer({
                           {savingIntel ? "Saving..." : "Save Cell"}
                         </button>
                         <button
-                          className="btn btn--small btn--ghost"
+                          className={BTN_GHOST_SM}
                           type="button"
                           disabled={savingIntel}
                           onClick={() => setIsEditingIntel(false)}
@@ -2227,7 +2290,7 @@ new PolygonLayer({
                     </>
                   ) : (
                     <button
-                      className="btn btn--small btn--ghost"
+                      className={BTN_GHOST_SM}
                       type="button"
                       onClick={() => setIsEditingIntel(true)}
                     >
@@ -2237,9 +2300,9 @@ new PolygonLayer({
                 </div>
               ) : null}
               {canViewCellIntel ? (
-                <div className="members-universe__inline">
+                <div className="flex gap-3 flex-wrap items-center">
                   <button
-                    className="btn btn--small"
+                    className={BTN_SM}
                     type="button"
                     disabled={!selectedCell.sectorUid || !onSaveAnnotation}
                     onClick={() => setIsEditingNote((current) => !current)}
@@ -2252,7 +2315,7 @@ new PolygonLayer({
                   </button>
                   {selectedCell.annotation?.notes ? (
                     <button
-                      className="btn btn--small"
+                      className={BTN_SM}
                       type="button"
                       disabled={!selectedCell.sectorUid || !onSaveAnnotation || savingNote}
                       onClick={async () => {
@@ -2282,28 +2345,28 @@ new PolygonLayer({
               ) : null}
               {canViewCellIntel && isEditingNote ? (
                 <>
-                  <div className="members-universe-map__note-toolbar">
-                    <button className="btn btn--tiny" type="button" onClick={() => wrapTextareaSelection(noteTextareaRef.current, noteDraft, setNoteDraft, "[b]", "[/b]")}>B</button>
-                    <button className="btn btn--tiny" type="button" onClick={() => wrapTextareaSelection(noteTextareaRef.current, noteDraft, setNoteDraft, "[i]", "[/i]")}>I</button>
-                    <button className="btn btn--tiny" type="button" onClick={() => wrapTextareaSelection(noteTextareaRef.current, noteDraft, setNoteDraft, "[u]", "[/u]")}>U</button>
+                  <div className={NOTE_TOOLBAR_CLS}>
+                    <button className={BTN_SM} type="button" onClick={() => wrapTextareaSelection(noteTextareaRef.current, noteDraft, setNoteDraft, "[b]", "[/b]")}>B</button>
+                    <button className={BTN_SM} type="button" onClick={() => wrapTextareaSelection(noteTextareaRef.current, noteDraft, setNoteDraft, "[i]", "[/i]")}>I</button>
+                    <button className={BTN_SM} type="button" onClick={() => wrapTextareaSelection(noteTextareaRef.current, noteDraft, setNoteDraft, "[u]", "[/u]")}>U</button>
                   </div>
                   <textarea
                     ref={noteTextareaRef}
-                    className="input"
+                    className={INPUT}
                     rows={4}
                     value={noteDraft}
                     onChange={(event) => setNoteDraft(event.target.value)}
                     placeholder="Add a note for this grid cell"
                   />
                   {noteDraft.trim() ? (
-                    <div className="members-universe-map__note-preview">
+                    <div className={NOTE_PREVIEW_CLS}>
                       <span className="small">Preview</span>
-                      <BBCodeView value={noteDraft} className="small members-universe-map__note-body" />
+                      <BBCodeView value={noteDraft} className={`small ${NOTE_BODY_CLS}`} />
                     </div>
                   ) : null}
-                  <div className="members-universe__inline">
+                  <div className="flex gap-3 flex-wrap items-center">
                     <button
-                      className="btn btn--small"
+                      className={BTN_SM}
                       type="button"
                       disabled={!selectedCell.sectorUid || !onSaveAnnotation || savingNote}
                       onClick={async () => {
@@ -2335,7 +2398,7 @@ new PolygonLayer({
               ) : null}
               {selectedCell.systems[0] ? (
                 <button
-                  className="btn btn--small"
+                  className={BTN_SM}
                   type="button"
                   onClick={() => {
                     const system = selectedCell.systems[0];
@@ -2348,7 +2411,7 @@ new PolygonLayer({
                 </button>
               ) : (
                 <button
-                  className="btn btn--small"
+                  className={BTN_SM}
                   type="button"
                   onClick={() => onLocationSelect?.(selectedCell.galx, selectedCell.galy, selectedCell.sectorUid)}
                 >

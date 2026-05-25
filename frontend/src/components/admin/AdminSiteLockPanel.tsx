@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { getSiteLock, updateSiteLock, type SiteLockMeta } from "../../api/siteLock";
+import { getSiteLock, updateSiteLock, type SiteLockMeta } from "../../api/admin/siteLock";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../utils/ui";
 
 const AdminSiteLockPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -70,10 +71,10 @@ const AdminSiteLockPanel: React.FC = () => {
   };
 
   return (
-    <section className="panel admin-card">
-      <div className="admin-card__header">
-        <h3 className="admin-card__title">Site Lock</h3>
-        <p className="admin-card__desc">
+    <section className="panel flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <h3 className="m-0">Site Lock</h3>
+        <p className="m-0 opacity-[0.85]">
           Lock the whole site for everyone except sysadmins. OAuth login remains
           available so a sysadmin can still sign in and disable the lock.
         </p>
@@ -83,7 +84,7 @@ const AdminSiteLockPanel: React.FC = () => {
         <p className="small">Loading site lock settings…</p>
       ) : (
         <>
-          <div className="admin-card__body">
+          <div className="flex flex-col gap-3">
             <p className="small">
               <strong>Current state:</strong>{" "}
               {meta?.enabled ? "LOCKED" : "UNLOCKED"}
@@ -108,8 +109,8 @@ const AdminSiteLockPanel: React.FC = () => {
               </p>
             )}
 
-            <form onSubmit={handleSave} className="admin-form">
-              <label className="admin-form__check">
+            <form onSubmit={handleSave} className="flex flex-col gap-3">
+              <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={enabled}
@@ -118,19 +119,19 @@ const AdminSiteLockPanel: React.FC = () => {
                 <span>Enable site lock</span>
               </label>
 
-              <label className="admin-form__group">
-                <span className="admin-form__label">Lock message</span>
+              <label className="flex flex-col gap-1.5">
+                <span className="small m-0">Lock message</span>
                 <textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   rows={5}
-                  className="input"
+                  className={INPUT}
                   placeholder="Maintenance / incident message..."
                 />
               </label>
 
-              <div className="admin-form__actions">
-                <button type="submit" className="btn" disabled={saving}>
+              <div className="flex flex-wrap gap-3">
+                <button type="submit" className={BTN} disabled={saving}>
                   {saving ? "Saving…" : "Save"}
                 </button>
               </div>

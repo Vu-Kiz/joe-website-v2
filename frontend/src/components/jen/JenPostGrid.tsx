@@ -1,6 +1,6 @@
 import React from "react";
-import type { BlogPost } from "../../api/blog";
-import type { SwcUser } from "../../api/auth";
+import type { BlogPost } from "../../api/content/blog";
+import type { SwcUser } from "../../api/core/auth";
 import JenPostCard from "./JenPostCard";
 
 type Props = {
@@ -24,13 +24,16 @@ const JenPostGrid: React.FC<Props> = ({
   onCloseOverlay,
   onDelete,
 }) => {
+  const hasOpen = !!overlayOpenId;
+
   return (
-    <div className={"jen-grid" + (overlayOpenId ? " jen-grid--has-open" : "")}>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 items-start">
       {posts.map((post) => (
         <JenPostCard
           key={post.id}
           post={post}
           isOverlayOpen={overlayOpenId === post.id}
+          dimmed={hasOpen && overlayOpenId !== post.id}
           user={user}
           busyDelete={busyDeleteId === post.id}
           manageMode={manageMode}

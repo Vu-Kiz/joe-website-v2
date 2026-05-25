@@ -3,7 +3,7 @@
 namespace App\Support\Swc;
 
 use App\Models\Faction;
-use App\Models\SwcFactionPrivilegeCache;
+use App\Models\Swc\SwcFactionPrivilegeCache;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -41,7 +41,7 @@ class SwcPrivilegeService
             ];
         }
 
-        $accessToken = $this->swcAuthorizationService->getAccessToken($user, \App\Models\SwcAuthorization::CONTEXT_PAYMENTS);
+        $accessToken = $this->swcAuthorizationService->getAccessToken($user, \App\Models\Swc\SwcAuthorization::CONTEXT_PAYMENTS);
 
         if (!$accessToken) {
             return [

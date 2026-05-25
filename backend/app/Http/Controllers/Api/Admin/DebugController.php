@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Faction;
-use App\Models\PaymentItem;
-use App\Models\PaymentTransfer;
-use App\Models\SwcAuthorization;
-use App\Models\SwcSectorSearchRecord;
-use App\Models\SwcSystem;
+use App\Models\Payment\PaymentItem;
+use App\Models\Payment\PaymentTransfer;
+use App\Models\Swc\SwcAuthorization;
+use App\Models\Swc\SwcSectorSearchRecord;
+use App\Models\Swc\SwcSystem;
 use App\Models\User;
 use App\Support\Admin\AdminActionLogger;
 use App\Support\Payments\PaymentVerificationService;

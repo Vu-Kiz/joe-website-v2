@@ -22,18 +22,29 @@ const RmBrowserFactionPicker: React.FC<Props> = ({ selected, onChange, disabled 
   }
 
   return (
-    <div className="rm-browser__faction-picker">
-      {FACTIONS.map(({ uid, label }) => (
-        <label key={uid} className={`rm-browser__faction-chip${selected.includes(uid) ? " is-active" : ""}`}>
-          <input
-            type="checkbox"
-            checked={selected.includes(uid)}
-            onChange={() => toggle(uid)}
-            disabled={disabled}
-          />
-          {label}
-        </label>
-      ))}
+    <div className="flex gap-2 flex-wrap">
+      {FACTIONS.map(({ uid, label }) => {
+        const isActive = selected.includes(uid);
+        return (
+          <label
+            key={uid}
+            className={`flex items-center gap-[6px] px-3 py-[5px] border rounded-[20px] text-[0.8rem] font-medium cursor-pointer transition-[background,border-color] duration-150 select-none ${
+              isActive
+                ? "bg-[rgba(255,193,7,0.15)] border-[rgba(255,193,7,0.5)] text-[#ffc107]"
+                : "border-white/[0.15] opacity-60 hover:opacity-90 hover:border-white/30"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={isActive}
+              onChange={() => toggle(uid)}
+              disabled={disabled}
+              className="hidden"
+            />
+            {label}
+          </label>
+        );
+      })}
     </div>
   );
 };

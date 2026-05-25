@@ -2,24 +2,24 @@
 
 namespace App\Support\Swc;
 
-use App\Models\SwcHyperlane;
-use App\Models\SwcFacilityType;
-use App\Models\SwcCreatureType;
-use App\Models\SwcDroidType;
-use App\Models\SwcItemType;
-use App\Models\SwcMaterialType;
-use App\Models\SwcNpcType;
-use App\Models\SwcPlanet;
-use App\Models\SwcPlanetType;
-use App\Models\SwcRace;
-use App\Models\SwcSector;
-use App\Models\SwcShipType;
-use App\Models\SwcStation;
-use App\Models\SwcStationType;
-use App\Models\SwcTerrainType;
-use App\Models\SwcSystem;
-use App\Models\SwcVehicleType;
-use App\Models\SwcWeaponType;
+use App\Models\Swc\SwcHyperlane;
+use App\Models\Swc\SwcFacilityType;
+use App\Models\Swc\SwcCreatureType;
+use App\Models\Swc\SwcDroidType;
+use App\Models\Swc\SwcItemType;
+use App\Models\Swc\SwcMaterialType;
+use App\Models\Swc\SwcNpcType;
+use App\Models\Swc\SwcPlanet;
+use App\Models\Swc\SwcPlanetType;
+use App\Models\Swc\SwcRace;
+use App\Models\Swc\SwcSector;
+use App\Models\Swc\SwcShipType;
+use App\Models\Swc\SwcStation;
+use App\Models\Swc\SwcStationType;
+use App\Models\Swc\SwcTerrainType;
+use App\Models\Swc\SwcSystem;
+use App\Models\Swc\SwcVehicleType;
+use App\Models\Swc\SwcWeaponType;
 use Illuminate\Database\QueryException;
 
 class UniversePersistenceService

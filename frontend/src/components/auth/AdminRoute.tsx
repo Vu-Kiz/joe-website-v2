@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../../api/auth";
+import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../../api/core/auth";
 import { canAccessAdmin } from "../../auth/permissions";
 import ForbiddenState from "../common/ForbiddenState";
 import NotLoggedInState from "../common/NotLoggedInState";
@@ -48,8 +48,8 @@ const AdminRoute: React.FC<Props> = ({ children }) => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
-            <h1>Admin Control</h1>
+          <main className="board flex flex-col gap-4">
+            <h1 className="h1">Admin Control</h1>
             <p className="small">Checking access…</p>
           </main>
         </div>
@@ -61,7 +61,7 @@ const AdminRoute: React.FC<Props> = ({ children }) => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
+          <main className="board flex flex-col gap-4">
             <NotLoggedInState
               title="Not logged in"
               message="You need to sign in to access the admin control area."
@@ -76,7 +76,7 @@ const AdminRoute: React.FC<Props> = ({ children }) => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
+          <main className="board flex flex-col gap-4">
             <ForbiddenState
               title="403 Forbidden"
               message="You do not have permission to access the admin control area."

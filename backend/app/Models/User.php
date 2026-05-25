@@ -91,13 +91,13 @@ class User extends Authenticatable
 
     public function swcAuthorization()
     {
-        return $this->hasOne(\App\Models\SwcAuthorization::class)
-            ->where('auth_context', \App\Models\SwcAuthorization::CONTEXT_PAYMENTS);
+        return $this->hasOne(\App\Models\Swc\SwcAuthorization::class)
+            ->where('auth_context', \App\Models\Swc\SwcAuthorization::CONTEXT_PAYMENTS);
     }
 
     public function swcAuthorizations()
     {
-        return $this->hasMany(\App\Models\SwcAuthorization::class);
+        return $this->hasMany(\App\Models\Swc\SwcAuthorization::class);
     }
 
     public function swcAccounts()

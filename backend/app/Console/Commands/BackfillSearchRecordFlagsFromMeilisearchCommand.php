@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Models\DroidBrainShip;
-use App\Models\DroidBrainStation;
-use App\Models\SwcSectorSearchRecord;
+use App\Models\DroidBrain\DroidBrainShip;
+use App\Models\DroidBrain\DroidBrainStation;
+use App\Models\Swc\SwcSectorSearchRecord;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Meilisearch\Client as MeilisearchClient;

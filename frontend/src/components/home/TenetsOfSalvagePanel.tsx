@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import BBCodeView from "../bbcode/BBCodeView";
-import { listTenets, type TenetOfSalvage } from "../../api/tenets";
-import { getCgtTime } from "../../api/time";
+import { listTenets, type TenetOfSalvage } from "../../api/content/tenets";
+import { getCgtTime } from "../../api/core/time";
 import tenetsBanner from "../../assets/home/SalvageBanner.png";
-import styles from "../../styles/home.module.sass";
 
 type CgtSeed = {
   year: number;
@@ -99,16 +98,16 @@ const TenetsOfSalvagePanel: React.FC = () => {
         <img src={tenetsBanner} alt="Tenets of Salvage" />
       </div>
 
-      {loading && <p className={styles.small}>Consulting the salvage codex…</p>}
-      {!loading && error && <p className={styles.small}>{error}</p>}
+      {loading && <p className="small">Consulting the salvage codex…</p>}
+      {!loading && error && <p className="small">{error}</p>}
       {!loading && !error && !chosen && (
-        <p className={styles.small}>No tenets have been recorded yet.</p>
+        <p className="small">No tenets have been recorded yet.</p>
       )}
 
       {!loading && !error && chosen && (
-        <div className={styles.tenetsPanel}>
-          <h3 className={styles.tenetsTitle}>{chosen.title}</h3>
-          <BBCodeView value={chosen.body_bbcode} className={styles.tenetsBody} />
+        <div className="flex flex-col gap-3 text-center items-center">
+          <h3 className="m-0 text-[var(--jen-orange)] text-center">{chosen.title}</h3>
+          <BBCodeView value={chosen.body_bbcode} className="text-[0.9rem] leading-[1.2] text-center" />
         </div>
       )}
     </section>

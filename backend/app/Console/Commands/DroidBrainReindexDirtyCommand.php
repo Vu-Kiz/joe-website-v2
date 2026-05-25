@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Jobs\DroidBrainReindexJob;
-use App\Models\DroidBrainIndexStatus;
+use App\Models\DroidBrain\DroidBrainIndexStatus;
 use Illuminate\Console\Command;
 
 class DroidBrainReindexDirtyCommand extends Command

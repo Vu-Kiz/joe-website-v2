@@ -1,5 +1,6 @@
 import React from "react";
-import { getBackendOrigin } from "../../api/auth";
+import { getBackendOrigin } from "../../api/core/auth";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../../utils/ui";
 
 type Props = {
   message: string;
@@ -12,8 +13,8 @@ const SiteLockState: React.FC<Props> = ({ message, isAuthenticated }) => {
   return (
     <div className="site-scale">
       <div className="app app--one">
-        <main className="board admin-board">
-          <h1>Site Locked</h1>
+        <main className="board flex flex-col gap-4">
+          <h1 className="h1">Site Locked</h1>
           <p className="small">{message}</p>
 
           {isAuthenticated && (
@@ -24,14 +25,14 @@ const SiteLockState: React.FC<Props> = ({ message, isAuthenticated }) => {
 
           <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
             {!isAuthenticated && (
-              <a href={oauthUrl} className="btn">
+              <a href={oauthUrl} className={BTN}>
                 Login
               </a>
             )}
 
             <button
               type="button"
-              className="btn"
+              className={BTN}
               onClick={() => window.location.reload()}
             >
               Retry

@@ -122,14 +122,14 @@ const AdminHomePanel: React.FC<Props> = ({ showSystemTools, canSeeLogs }) => {
   ];
 
   return (
-    <div className="admin-grid">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
       {cards
         .filter((card) => !card.hidden)
         .map((card) => (
-          <section key={card.key} className="panel admin-card">
-            <div className="admin-card__header">
-              <h3 className="admin-card__title">{card.title}</h3>
-              <p className="admin-card__desc">{card.description}</p>
+          <section key={card.key} className="panel !mb-0 flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <h3 className="m-0">{card.title}</h3>
+              <p className="m-0 opacity-85">{card.description}</p>
             </div>
           </section>
         ))}

@@ -10,9 +10,10 @@ import {
   deleteWeatherAdvice,
   type WeatherAdjective,
   type WeatherAdviceItem,
-} from "../../api/weather";
+} from "../../api/content/weather";
 import BBCodeEditor from "../bbcode/BBCodeEditor";
 import BBCodeView from "../bbcode/BBCodeView";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../utils/ui";
 
 type OpenSection = "settings" | "adjectives" | "advice" | null;
 type FormMode = "create" | "edit" | null;
@@ -228,9 +229,9 @@ const AdminWeatherPanel: React.FC = () => {
 
   if (loading) {
     return (
-      <section className="panel admin-panel">
-        <div className="admin-panel__header">
-          <h2 style={{ margin: 0 }}>Weather</h2>
+      <section className="panel flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <h2 className="h2" style={{ margin: 0 }}>Weather</h2>
           <p className="small" style={{ margin: 0 }}>Loading weather admin…</p>
         </div>
       </section>
@@ -238,9 +239,9 @@ const AdminWeatherPanel: React.FC = () => {
   }
 
   return (
-    <section className="panel admin-panel">
-      <div className="admin-panel__header">
-        <h2 style={{ margin: 0 }}>Weather</h2>
+    <section className="panel flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <h2 className="h2" style={{ margin: 0 }}>Weather</h2>
         <p className="small" style={{ margin: 0 }}>
           Manage daily temperature generation, adjective bands, and advice pool.
         </p>
@@ -258,19 +259,19 @@ const AdminWeatherPanel: React.FC = () => {
         </p>
       )}
 
-      <div className="admin-weather-stack">
-        <article className="panel admin-weather-card">
-          <div className="admin-weather-card__top">
-            <div className="admin-weather-card__copy">
-              <h3 className="admin-weather-card__title">Daily Range</h3>
-              <div className="small admin-weather-card__meta">
+      <div className="flex flex-col gap-4">
+        <article className="panel flex flex-col gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-4 max-md:items-stretch">
+            <div className="flex flex-col gap-1">
+              <h3 className="m-0">Daily Range</h3>
+              <div className="small opacity-80">
                 Current generation range: {minTemp}° to {maxTemp}°
               </div>
             </div>
 
             <button
               type="button"
-              className={"admin-users-menu-btn" + (openSection === "settings" ? " is-open" : "")}
+              className={`inline-flex h-10 w-10 shrink-0 cursor-pointer flex-col justify-center gap-1 rounded-[10px] border border-white/10 bg-white/[0.03] text-inherit ${openSection === "settings" ? "border-[#f5d546]/35 bg-[#f5d546]/10" : ""}`}
               onClick={() => toggleSection("settings")}
               aria-label={openSection === "settings" ? "Close daily range" : "Open daily range"}
               aria-expanded={openSection === "settings"}
@@ -283,10 +284,10 @@ const AdminWeatherPanel: React.FC = () => {
 
           {openSection === "settings" && (
             <>
-              <div className="admin-weather-section__actions">
+              <div className="flex justify-end">
                 <button
                   type="button"
-                  className="btn btn--small"
+                  className={BTN_SM + " all"}
                   onClick={() => setSettingsFormOpen((v) => !v)}
                 >
                   {settingsFormOpen ? "Close Editor" : "Edit Range"}
@@ -294,22 +295,22 @@ const AdminWeatherPanel: React.FC = () => {
               </div>
 
               {settingsFormOpen && (
-                <form className="admin-weather-form admin-weather-form--boxed" onSubmit={saveSettings}>
+                <form className="flex flex-col gap-3 border-t border-white/10 pt-1" onSubmit={saveSettings}>
                   <input
-                    className="input"
+                    className={INPUT}
                     placeholder="Min temp"
                     value={minTemp}
                     onChange={(e) => setMinTemp(e.target.value)}
                   />
                   <input
-                    className="input"
+                    className={INPUT}
                     placeholder="Max temp"
                     value={maxTemp}
                     onChange={(e) => setMaxTemp(e.target.value)}
                   />
 
-                  <div className="admin-card__actions">
-                    <button className="btn" type="submit">Save Range</button>
+                  <div className="flex flex-wrap gap-3">
+                    <button className={BTN} type="submit">Save Range</button>
                   </div>
                 </form>
               )}
@@ -317,18 +318,18 @@ const AdminWeatherPanel: React.FC = () => {
           )}
         </article>
 
-        <article className="panel admin-weather-card">
-          <div className="admin-weather-card__top">
-            <div className="admin-weather-card__copy">
-              <h3 className="admin-weather-card__title">Hot Adjectives</h3>
-              <div className="small admin-weather-card__meta">
+        <article className="panel flex flex-col gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-4 max-md:items-stretch">
+            <div className="flex flex-col gap-1">
+              <h3 className="m-0">Hot Adjectives</h3>
+              <div className="small opacity-80">
                 {adjectives.length} adjective {adjectives.length === 1 ? "band" : "bands"} configured
               </div>
             </div>
 
             <button
               type="button"
-              className={"admin-users-menu-btn" + (openSection === "adjectives" ? " is-open" : "")}
+              className={`inline-flex h-10 w-10 shrink-0 cursor-pointer flex-col justify-center gap-1 rounded-[10px] border border-white/10 bg-white/[0.03] text-inherit ${openSection === "adjectives" ? "border-[#f5d546]/35 bg-[#f5d546]/10" : ""}`}
               onClick={() => toggleSection("adjectives")}
               aria-label={openSection === "adjectives" ? "Close adjectives" : "Open adjectives"}
               aria-expanded={openSection === "adjectives"}
@@ -341,37 +342,37 @@ const AdminWeatherPanel: React.FC = () => {
 
           {openSection === "adjectives" && (
             <>
-              <div className="admin-weather-section__actions">
+              <div className="flex justify-end">
                 <button
                   type="button"
-                  className="btn btn--small"
+                  className={BTN_SM + " all"}
                   onClick={openAddAdjective}
                 >
                   Add New
                 </button>
               </div>
 
-              <div className="admin-tip-list__items">
+              <div className="flex flex-col gap-3">
                 {adjectives.map((item) => (
-                  <article key={item.id} className="panel admin-tip-card">
-                    <div className="admin-tip-card__copy">
-                      <h4 className="admin-tip-card__title">{item.word}</h4>
-                      <div className="small admin-tip-card__meta">
+                  <article key={item.id} className="panel flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <h4 className="m-0">{item.word}</h4>
+                      <div className="small">
                         {item.min_temp}° to {item.max_temp}°
                       </div>
                     </div>
 
-                    <div className="admin-tip-card__actions">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
-                        className="btn btn--small"
+                        className={BTN_SM + " all"}
                         onClick={() => openEditAdjective(item)}
                       >
                         Edit
                       </button>
                       <button
                         type="button"
-                        className="btn btn--small"
+                        className={BTN_SM + " all"}
                         onClick={async () => {
                           try {
                             await deleteWeatherAdjective(item.id);
@@ -391,31 +392,31 @@ const AdminWeatherPanel: React.FC = () => {
               </div>
 
               {adjectiveFormMode && (
-                <form className="admin-weather-form admin-weather-form--boxed" onSubmit={saveAdj}>
+                <form className="flex flex-col gap-3 border-t border-white/10 pt-1" onSubmit={saveAdj}>
                   <input
-                    className="input"
+                    className={INPUT}
                     placeholder="Word"
                     value={adjWord}
                     onChange={(e) => setAdjWord(e.target.value)}
                   />
                   <input
-                    className="input"
+                    className={INPUT}
                     placeholder="Min temp"
                     value={adjMin}
                     onChange={(e) => setAdjMin(e.target.value)}
                   />
                   <input
-                    className="input"
+                    className={INPUT}
                     placeholder="Max temp"
                     value={adjMax}
                     onChange={(e) => setAdjMax(e.target.value)}
                   />
 
-                  <div className="admin-card__actions">
-                    <button className="btn" type="submit">
+                  <div className="flex flex-wrap gap-3">
+                    <button className={BTN} type="submit">
                       {adjectiveFormMode === "edit" ? "Save Range" : "Add Range"}
                     </button>
-                    <button className="btn btn--small" type="button" onClick={resetAdj}>
+                    <button className={BTN_SM + " all"} type="button" onClick={resetAdj}>
                       Cancel
                     </button>
                   </div>
@@ -425,18 +426,18 @@ const AdminWeatherPanel: React.FC = () => {
           )}
         </article>
 
-        <article className="panel admin-weather-card">
-          <div className="admin-weather-card__top">
-            <div className="admin-weather-card__copy">
-              <h3 className="admin-weather-card__title">Advice Pool</h3>
-              <div className="small admin-weather-card__meta">
+        <article className="panel flex flex-col gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-4 max-md:items-stretch">
+            <div className="flex flex-col gap-1">
+              <h3 className="m-0">Advice Pool</h3>
+              <div className="small opacity-80">
                 {activeAdviceCount} active of {advice.length} total advice entries
               </div>
             </div>
 
             <button
               type="button"
-              className={"admin-users-menu-btn" + (openSection === "advice" ? " is-open" : "")}
+              className={`inline-flex h-10 w-10 shrink-0 cursor-pointer flex-col justify-center gap-1 rounded-[10px] border border-white/10 bg-white/[0.03] text-inherit ${openSection === "advice" ? "border-[#f5d546]/35 bg-[#f5d546]/10" : ""}`}
               onClick={() => toggleSection("advice")}
               aria-label={openSection === "advice" ? "Close advice" : "Open advice"}
               aria-expanded={openSection === "advice"}
@@ -449,39 +450,39 @@ const AdminWeatherPanel: React.FC = () => {
 
           {openSection === "advice" && (
             <>
-              <div className="admin-weather-section__actions">
+              <div className="flex justify-end">
                 <button
                   type="button"
-                  className="btn btn--small"
+                  className={BTN_SM + " all"}
                   onClick={openAddAdvice}
                 >
                   Add New
                 </button>
               </div>
 
-              <div className="admin-tip-list__items">
+              <div className="flex flex-col gap-3">
                 {advice.map((item) => (
-                  <article key={item.id} className="panel admin-tip-card">
-                    <div className="admin-tip-card__copy">
-                      <div className="small admin-tip-card__meta">
+                  <article key={item.id} className="panel flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <div className="small">
                         Weight {item.weight} · {item.is_active ? "Active" : "Inactive"}
                       </div>
-                      <div className="small admin-tip-card__body">
+                      <div className="small m-0">
                         <BBCodeView value={item.advice} className="small" />
                       </div>
                     </div>
 
-                    <div className="admin-tip-card__actions">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
-                        className="btn btn--small"
+                        className={BTN_SM + " all"}
                         onClick={() => openEditAdvice(item)}
                       >
                         Edit
                       </button>
                       <button
                         type="button"
-                        className="btn btn--small"
+                        className={BTN_SM + " all"}
                         onClick={async () => {
                           try {
                             await deleteWeatherAdvice(item.id);
@@ -501,7 +502,7 @@ const AdminWeatherPanel: React.FC = () => {
               </div>
 
               {adviceFormMode && (
-                <form className="admin-weather-form admin-weather-form--boxed" onSubmit={saveAdv}>
+                <form className="flex flex-col gap-3 border-t border-white/10 pt-1" onSubmit={saveAdv}>
                   <div className="field">
                     <label className="field__label">Advice</label>
                     <BBCodeEditor
@@ -513,13 +514,13 @@ const AdminWeatherPanel: React.FC = () => {
                   </div>
 
                   <input
-                    className="input"
+                    className={INPUT}
                     placeholder="Weight"
                     value={advWeight}
                     onChange={(e) => setAdvWeight(e.target.value)}
                   />
 
-                  <label className="admin-users-perm" style={{ maxWidth: "220px" }}>
+                  <label className="inline-flex min-h-10 items-center gap-2 rounded-[10px] border border-white/10 bg-white/[0.02] px-3 py-2" style={{ maxWidth: "220px" }}>
                     <input
                       type="checkbox"
                       checked={advActive}
@@ -528,11 +529,11 @@ const AdminWeatherPanel: React.FC = () => {
                     <span>Active</span>
                   </label>
 
-                  <div className="admin-card__actions">
-                    <button className="btn" type="submit">
+                  <div className="flex flex-wrap gap-3">
+                    <button className={BTN} type="submit">
                       {adviceFormMode === "edit" ? "Save Advice" : "Add Advice"}
                     </button>
-                    <button className="btn btn--small" type="button" onClick={resetAdv}>
+                    <button className={BTN_SM + " all"} type="button" onClick={resetAdv}>
                       Cancel
                     </button>
                   </div>

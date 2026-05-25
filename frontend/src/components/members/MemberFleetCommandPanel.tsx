@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { getFleetRosterMatrix, getMySkills, getSkillPlan, saveSkillPlan, type FleetRosterMatrixRow } from "../../api/fleetCommander";
-import type { SwcAuthorizationStatus } from "../../api/swcAuthorization";
-import type { SwcUser } from "../../api/auth";
+import { getFleetRosterMatrix, getMySkills, getSkillPlan, saveSkillPlan, type FleetRosterMatrixRow } from "../../api/universe/fleetCommander";
+import type { SwcAuthorizationStatus } from "../../api/members/swcAuthorization";
+import type { SwcUser } from "../../api/core/auth";
+import { BTN, INPUT, SELECT_INPUT } from "../../utils/ui";
+import ReportBugButton from "../support/ReportBugButton";
 
 type Props = {
   onBack: () => void;
@@ -357,31 +359,30 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
     }
   }
 
+  const toggleBtnCls = (active: boolean) =>
+    BTN + " border-[rgba(246,163,0,0.3)] bg-[rgba(0,0,0,0.22)] text-[rgba(255,236,184,0.96)]" +
+    (active ? " !border-[rgba(246,163,0,0.62)] bg-[linear-gradient(180deg,rgba(246,163,0,0.24),rgba(246,163,0,0.14))] shadow-[inset_0_0_0_1px_rgba(246,163,0,0.2)]" : "");
+
   return (
     <>
-      <div className="members-tool-back">
-        <button className="btn" type="button" onClick={onBack}>
+      <div className="flex items-center gap-3 mb-4">
+        <button className={BTN} type="button" onClick={onBack}>
           Back to Overview
         </button>
+        <ReportBugButton toolKey="fleet_command" toolLabel="Fleet Command" />
       </div>
 
       <section className="panel">
-        <h2 style={{ marginTop: 0 }}>Biometrics</h2>
+        <div className="flex items-center justify-between gap-4 flex-wrap mb-3">
+          <h2 className="h2 m-0">Biometrics</h2>
+        </div>
 
         {canSeeRoster && (
-          <div className="biometrics-sheet__toggle-row" style={{ marginBottom: "1rem" }}>
-            <button
-              type="button"
-              className={`btn biometrics-sheet__toggle${activeTab === "roster" ? " is-active" : ""}`}
-              onClick={() => setActiveTab("roster")}
-            >
+          <div className="flex flex-wrap gap-[0.45rem] mb-4">
+            <button type="button" className={toggleBtnCls(activeTab === "roster")} onClick={() => setActiveTab("roster")}>
               Roster
             </button>
-            <button
-              type="button"
-              className={`btn biometrics-sheet__toggle${activeTab === "planner" ? " is-active" : ""}`}
-              onClick={() => setActiveTab("planner")}
-            >
+            <button type="button" className={toggleBtnCls(activeTab === "planner")} onClick={() => setActiveTab("planner")}>
               Stat Planner
             </button>
           </div>
@@ -393,9 +394,9 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
               Plan a skill build. Each skill costs 1, 1, 2, 3, 4 points per level (max 5, total 11 to max).
             </p>
 
-            <div className="biometrics-sheet__sort-row" style={{ marginBottom: "1rem" }}>
+            <div className="flex items-center flex-wrap gap-[0.55rem] mb-4">
               <button
-                className="btn btn-secondary"
+                className={BTN}
                 type="button"
                 onClick={loadMembers}
                 disabled={membersLoading}
@@ -405,17 +406,17 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
               <span className="small" style={{ opacity: 0.85 }}>
                 Level increases planned: <strong>{plannerSpent}</strong>
               </span>
-              <button type="button" className="btn btn-secondary" onClick={resetPlanner}>
+              <button type="button" className={BTN} onClick={resetPlanner}>
                 Reset
               </button>
               {serverPlan && !planLoaded ? (
-                <button type="button" className="btn" onClick={handleLoadPlan}>
+                <button type="button" className={BTN} onClick={handleLoadPlan}>
                   Load Plan
                 </button>
               ) : (
                 <button
                   type="button"
-                  className="btn"
+                  className={BTN}
                   onClick={handleSavePlan}
                   disabled={planSaving}
                 >
@@ -427,39 +428,39 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
               )}
             </div>
 
-            <div className="biometrics-sheet__filters-grid biometrics-planner__grid">
+            <div className="grid grid-cols-[repeat(3,1fr)] gap-[0.7rem] mb-[0.85rem] max-[768px]:grid-cols-[repeat(2,1fr)] max-[480px]:grid-cols-1">
               {metricGroups.map((group) => (
-                <div key={group.key} className="biometrics-filter-card">
-                  <p className="small biometrics-filter-card__title">{group.label}</p>
-                  <div className="biometrics-planner__skill-list">
+                <div key={group.key} className="p-[0.7rem_0.8rem] rounded-[10px] border border-white/[0.08] bg-white/[0.025]">
+                  <p className="small m-0 mb-[0.45rem] font-bold tracking-[0.02em] text-[rgba(255,220,138,0.95)]">{group.label}</p>
+                  <div className="flex flex-col gap-[0.1rem]">
                     {group.metrics.map((metric) => {
                       const level = plannerLevels[metric.key];
                       const baseline = plannerBaseline[metric.key];
                       const deltaCost = Math.max(0, skillCost(level) - skillCost(baseline));
                       return (
-                        <div key={metric.key} className="biometrics-planner__skill-row">
-                          <span className="small biometrics-planner__skill-label">{metric.label}</span>
-                          <div className="biometrics-planner__skill-controls">
+                        <div key={metric.key} className="flex items-center gap-[0.5rem] py-[0.2rem]">
+                          <span className="flex-1 min-w-0 text-[0.8rem] opacity-90 whitespace-nowrap overflow-hidden text-ellipsis">{metric.label}</span>
+                          <div className="flex items-center gap-[0.3rem] flex-shrink-0">
                             <button
                               type="button"
-                              className="btn btn-secondary biometrics-planner__step-btn"
+                              className={BTN + " !min-h-[26px] !min-w-[26px] !p-0 leading-none text-base"}
                               onClick={() => setPlannerSkill(metric.key, level - 1)}
                               disabled={level <= baseline}
                               aria-label={`Decrease ${metric.label}`}
                             >
                               −
                             </button>
-                            <span className="small biometrics-planner__skill-val">{level}</span>
+                            <span className="min-w-[1.1rem] text-center font-bold text-sm">{level}</span>
                             <button
                               type="button"
-                              className="btn btn-secondary biometrics-planner__step-btn"
+                              className={BTN + " !min-h-[26px] !min-w-[26px] !p-0 leading-none text-base"}
                               onClick={() => setPlannerSkill(metric.key, level + 1)}
                               disabled={level === 5}
                               aria-label={`Increase ${metric.label}`}
                             >
                               +
                             </button>
-                            <span className="small biometrics-planner__skill-cost">
+                            <span className="min-w-[2.6rem] text-[0.72rem] opacity-65 text-right">
                               {deltaCost > 0 ? `+${deltaCost}` : ""}
                             </span>
                           </div>
@@ -480,21 +481,21 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
             </p>
 
         {!hasSkillsAccess ? (
-          <div className="admin-card" style={{ marginBottom: 12 }}>
+          <div className="flex flex-col gap-4" style={{ marginBottom: 12 }}>
             <p className="small" style={{ margin: 0 }}>
               SWC scope <strong>character_skills</strong> is missing for your account.
             </p>
             <div style={{ marginTop: 10 }}>
-              <button className="btn" type="button" onClick={onRequestSwcResync}>
+              <button className={BTN} type="button" onClick={onRequestSwcResync}>
                 Connect Biometrics Access
               </button>
             </div>
           </div>
         ) : null}
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+        <div className="flex gap-[10px] flex-wrap mb-[10px]">
           <button
-            className="btn btn-secondary"
+            className={BTN}
             type="button"
             onClick={loadMembers}
             disabled={membersLoading}
@@ -503,11 +504,10 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
           </button>
           <input
             type="text"
-            className="input"
+            className={INPUT + " min-w-[260px] flex-[1_1_300px]"}
             placeholder="Filter by member name"
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
-            style={{ minWidth: 260, flex: "1 1 300px" }}
           />
         </div>
 
@@ -516,40 +516,35 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
         ) : null}
 
         {hasMatrix ? (
-          <section className="admin-card biometrics-sheet">
-            <h3 style={{ marginTop: 0 }}>Member Skills</h3>
-            <p className="small biometrics-sheet__subtitle">
+          <section className="flex flex-col gap-4 mb-3">
+            <h3 className="h3" style={{ marginTop: 0 }}>Member Skills</h3>
+            <p className="small m-0 mb-[0.9rem] opacity-[0.88]">
               Expand only the categories you need and keep the sheet compact.
             </p>
 
-            <div className="biometrics-sheet__toggle-row">
+            <div className="flex flex-wrap gap-[0.45rem] mb-[0.8rem]">
               {metricGroups.map((group) => {
                 const open = categoryExpanded[group.key];
                 return (
                   <button
                     key={group.key}
                     type="button"
-                    className={`btn biometrics-sheet__toggle ${open ? "is-active" : ""}`}
+                    className={toggleBtnCls(open)}
                     onClick={() => toggleCategory(group.key)}
                   >
                     {open ? `Hide ${group.label}` : `Show ${group.label}`}
                   </button>
                 );
               })}
-              <button type="button" className="btn btn-secondary" onClick={() => setAllCategories(true)}>
-                Show All
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={() => setAllCategories(false)}>
-                Hide All
-              </button>
+              <button type="button" className={BTN} onClick={() => setAllCategories(true)}>Show All</button>
+              <button type="button" className={BTN} onClick={() => setAllCategories(false)}>Hide All</button>
             </div>
 
-            <div className="biometrics-sheet__sort-row">
+            <div className="flex items-center flex-wrap gap-[0.55rem] mb-[0.95rem]">
               <select
-                className="input"
+                className={SELECT_INPUT + " w-[220px] max-w-full"}
                 value={sortBy}
                 onChange={(event) => setSortBy(event.target.value as SortKey)}
-                style={{ width: 220, maxWidth: "100%" }}
               >
                 <option value="name">Sort: Member</option>
                 {visibleMetrics.map((metric) => (
@@ -557,35 +552,29 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
                 ))}
               </select>
               <select
-                className="input"
+                className={SELECT_INPUT + " w-[120px]"}
                 value={sortDir}
                 onChange={(event) => setSortDir(event.target.value as "asc" | "desc")}
-                style={{ width: 120 }}
               >
                 <option value="desc">Desc</option>
                 <option value="asc">Asc</option>
               </select>
-              <button type="button" className="btn btn-secondary" onClick={clearMetricFilters}>
-                Clear Stat Filters
-              </button>
+              <button type="button" className={BTN} onClick={clearMetricFilters}>Clear Stat Filters</button>
             </div>
 
-            <div className="biometrics-sheet__filters-grid">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-[0.7rem] mb-[0.85rem]">
               {metricGroups.map((group) => {
                 const open = categoryExpanded[group.key];
-                if (!open) {
-                  return null;
-                }
-
+                if (!open) return null;
                 return (
-                  <div key={group.key} className="biometrics-filter-card">
-                    <p className="small biometrics-filter-card__title">{group.label} Filters</p>
-                    <div className="biometrics-filter-card__inputs">
+                  <div key={group.key} className="p-[0.7rem_0.8rem] rounded-[10px] border border-white/[0.08] bg-white/[0.025]">
+                    <p className="small m-0 mb-[0.45rem] font-bold tracking-[0.02em] text-[rgba(255,220,138,0.95)]">{group.label} Filters</p>
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-[0.5rem]">
                       {group.metrics.map((metric) => (
-                        <label key={metric.key} className="small biometrics-filter-card__input-wrap">
-                          <span>{metric.label}</span>
+                        <label key={metric.key} className="grid gap-[0.3rem]">
+                          <span className="opacity-90 text-[0.76rem]">{metric.label}</span>
                           <input
-                            className="input"
+                            className={INPUT + " !min-h-[34px] !border-[rgba(255,255,255,0.15)] !bg-[rgba(0,0,0,0.28)]"}
                             type="number"
                             placeholder="Min"
                             value={metricMins[metric.key] ?? ""}
@@ -600,13 +589,13 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
             </div>
 
             {visibleMetrics.length === 0 ? (
-              <div className="biometrics-sheet__empty">
-                <p className="small" style={{ margin: 0 }}>
+              <div className="p-[0.75rem_0.8rem] rounded-[10px] border border-dashed border-white/[0.18] bg-white/[0.03] mb-[0.85rem]">
+                <p className="small m-0">
                   No stat categories are visible. Use the category buttons above to show filters and columns.
                 </p>
               </div>
             ) : (
-              <div className="biometrics-sheet__table-wrap">
+              <div className="overflow-x-auto p-[0.55rem] rounded-[12px] border border-white/12 bg-[rgba(0,0,0,0.22)] [&_table_thead_tr]:bg-[rgba(246,163,0,0.13)] [&_table_tbody_tr:nth-child(even)]:bg-[rgba(255,255,255,0.018)] [&_table_tbody_tr:hover]:bg-[rgba(246,163,0,0.08)]">
                 <table style={{ width: "100%", borderCollapse: "collapse", minWidth: `${Math.max(700, 280 + (visibleMetrics.length * 140))}px` }}>
                   <thead>
                     <tr>

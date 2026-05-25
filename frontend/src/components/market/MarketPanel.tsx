@@ -1,15 +1,15 @@
 import React, { useCallback, useEffect, useState } from "react";
-import type { FactionPrivilegeCheckResult } from "../../api/factionPrivileges";
-import { getMyFactionPrivileges } from "../../api/factionPrivileges";
-import { ENTITY_TYPES } from "../../api/market";
-import type { SwcAuthorizationStatus } from "../../api/swcAuthorization";
-import "../../styles/_market.sass";
+import type { FactionPrivilegeCheckResult } from "../../api/factions/factionPrivileges";
+import { getMyFactionPrivileges } from "../../api/factions/factionPrivileges";
+import { ENTITY_TYPES } from "../../api/market/market";
+import type { SwcAuthorizationStatus } from "../../api/members/swcAuthorization";
 import { CartProvider, useCart } from "./CartContext";
 import CartSidebar from "./CartSidebar";
 import MarketBrowseTab from "./MarketBrowseTab";
 import MarketMyListingsTab from "./MarketMyListingsTab";
 import MarketMyOrdersTab from "./MarketMyOrdersTab";
 import MarketPostTab from "./MarketPostTab";
+import ReportBugButton from "../support/ReportBugButton";
 
 type MarketTab = "browse" | "my_listings" | "my_orders" | "post";
 
@@ -19,6 +19,13 @@ type Props = {
   focusListingId?: number | null;
   onFocusConsumed?: () => void;
 };
+
+const tabCls = (active: boolean) =>
+  `border rounded-lg text-[0.85rem] px-[0.9rem] py-[0.4rem] cursor-pointer transition-[background,color,border-color] duration-150 ${
+    active
+      ? "bg-white/10 border-white/30 text-white"
+      : "bg-transparent border-white/[0.12] text-white/65 hover:bg-white/[0.06] hover:text-white/90"
+  }`;
 
 const MarketPanel: React.FC<Props> = ({ swcAuth, canManageListings, focusListingId, onFocusConsumed }) => {
   const [tab, setTab] = useState<MarketTab>("browse");
@@ -33,12 +40,10 @@ const MarketPanel: React.FC<Props> = ({ swcAuth, canManageListings, focusListing
       setLoadingPrivs(false);
       return;
     }
-
     setLoadingPrivs(true);
     try {
       const res = await getMyFactionPrivileges("ship", "makeover");
       setFactionPrivs(res.data ?? []);
-
       const results: Record<string, FactionPrivilegeCheckResult[]> = {};
       await Promise.all(
         ENTITY_TYPES.map(async ({ key, privilegeGroup }) => {
@@ -82,6 +87,7 @@ const MarketPanel: React.FC<Props> = ({ swcAuth, canManageListings, focusListing
         manageableFactions={manageableFactions}
         privsByEntityType={privsByEntityType}
         loadingPrivs={loadingPrivs}
+        isLoggedIn={swcAuth !== null}
         focusListingId={focusListingId}
         onFocusConsumed={onFocusConsumed}
       />
@@ -97,6 +103,7 @@ type InnerProps = {
   manageableFactions: FactionPrivilegeCheckResult[];
   privsByEntityType: Record<string, FactionPrivilegeCheckResult[]>;
   loadingPrivs: boolean;
+  isLoggedIn: boolean;
   focusListingId?: number | null;
   onFocusConsumed?: () => void;
 };
@@ -104,26 +111,41 @@ type InnerProps = {
 const MarketPanelInner: React.FC<InnerProps> = ({
   tab, setTab, canPost, canViewMyListings, hasPaymentsAccess, hasPersonalInventoryAccess,
   hasFactionInventoryAccess, manageableFactions, privsByEntityType,
-  loadingPrivs, focusListingId, onFocusConsumed,
+  loadingPrivs, isLoggedIn, focusListingId, onFocusConsumed,
 }) => {
   const { totalItems } = useCart();
   const [cartOpen, setCartOpen] = useState(false);
 
   return (
-    <div className="market-panel">
-      <div className="market-tabs">
-        <button className={`market-tab${tab === "browse" ? " is-active" : ""}`} onClick={() => setTab("browse")} type="button">Browse</button>
-        <button className={`market-tab${tab === "my_orders" ? " is-active" : ""}`} onClick={() => setTab("my_orders")} type="button">My Orders</button>
+    <div className="flex flex-col gap-6 font-tektur">
+      {/* Tab bar */}
+      <div className="flex gap-2 flex-wrap border-b border-white/[0.08] pb-3 items-center">
+        <button className={tabCls(tab === "browse")} onClick={() => setTab("browse")} type="button">Browse</button>
+        <button className={tabCls(tab === "my_orders")} onClick={() => setTab("my_orders")} type="button">My Orders</button>
         {canViewMyListings && (
-          <button className={`market-tab${tab === "my_listings" ? " is-active" : ""}`} onClick={() => setTab("my_listings")} type="button">My Listings</button>
+          <button className={tabCls(tab === "my_listings")} onClick={() => setTab("my_listings")} type="button">My Listings</button>
         )}
         {canPost && (
-          <button className={`market-tab${tab === "post" ? " is-active" : ""}`} onClick={() => setTab("post")} type="button">Post a Listing</button>
+          <button className={tabCls(tab === "post")} onClick={() => setTab("post")} type="button">Post a Listing</button>
         )}
-        <button className="market-cart-btn" type="button" onClick={() => setCartOpen(true)}>
-          Cart{totalItems > 0 && <span className="market-cart-btn__badge">{totalItems}</span>}
+        <button
+          className="flex items-center gap-[0.4rem] ml-auto bg-transparent border border-white/[0.15] rounded-[6px] text-white/[var(--text-muted,0.55)] text-[0.85rem] px-3 py-[0.35rem] cursor-pointer transition-[border-color,color] duration-150 hover:border-white/35 hover:text-white"
+          type="button"
+          onClick={() => setCartOpen(true)}
+        >
+          Cart
+          {totalItems > 0 && (
+            <span className="flex items-center justify-center min-w-[1.2rem] px-[0.3rem] rounded-full bg-[#f5c842] text-black text-[0.7rem] font-bold">
+              {totalItems}
+            </span>
+          )}
         </button>
       </div>
+      {isLoggedIn && (
+        <div>
+          <ReportBugButton toolKey="market" toolLabel="Market" />
+        </div>
+      )}
 
       {tab === "browse" && <MarketBrowseTab hasPaymentsAccess={hasPaymentsAccess} focusListingId={focusListingId} onFocusConsumed={onFocusConsumed} />}
       {tab === "my_orders" && <MarketMyOrdersTab hasPaymentsAccess={hasPaymentsAccess} />}
@@ -140,9 +162,12 @@ const MarketPanelInner: React.FC<InnerProps> = ({
       )}
 
       {cartOpen && (
-        <div className="cart-overlay" onClick={() => setCartOpen(false)}>
-          <div className="cart-backdrop" onClick={() => setCartOpen(false)} />
-          <div className="cart-overlay__panel" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4" onClick={() => setCartOpen(false)}>
+          <div className="absolute inset-0 bg-black/50" onClick={() => setCartOpen(false)} />
+          <div
+            className="relative z-[1201] w-[min(100%,760px)] max-h-[min(86vh,920px)]"
+            onClick={(e) => e.stopPropagation()}
+          >
             <CartSidebar onClose={() => setCartOpen(false)} hasPaymentsAccess={hasPaymentsAccess} />
           </div>
         </div>

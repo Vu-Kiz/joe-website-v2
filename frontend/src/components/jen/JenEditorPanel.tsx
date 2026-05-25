@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { apiFetch, getBackendOrigin } from "../../api/auth";
-import { createBlog, spellcheckBlog, updateBlog, type BlogPost, type JenSpellcheckResult, type SpellcheckMatch } from "../../api/blog";
+import { apiFetch, getBackendOrigin } from "../../api/core/auth";
+import { createBlog, spellcheckBlog, updateBlog, type BlogPost, type JenSpellcheckResult, type SpellcheckMatch } from "../../api/content/blog";
 import BBCodeEditor from "../bbcode/BBCodeEditor";
 import BBCodeView from "../bbcode/BBCodeView";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../utils/ui";
 
 type UploadResponse = {
   ok: boolean;
@@ -23,9 +24,7 @@ const resolveEditorImageUrl = (imageUrl: string | null, imagePath: string | null
 
   if (imageUrl && imageUrl.trim() !== "") {
     const u = imageUrl.trim();
-
     if (/^https?:\/\//i.test(u)) return u;
-
     if (origin) return `${origin}${u.startsWith("/") ? "" : "/"}${u}`;
     return u;
   }
@@ -40,9 +39,7 @@ const resolveEditorImageUrl = (imageUrl: string | null, imagePath: string | null
 };
 
 const describeMatchSnippet = (match: SpellcheckMatch): string | null => {
-  if (!match.context_text) {
-    return null;
-  }
+  if (!match.context_text) return null;
 
   if (
     typeof match.context_offset === "number" &&
@@ -50,13 +47,16 @@ const describeMatchSnippet = (match: SpellcheckMatch): string | null => {
     match.context_length > 0
   ) {
     const snippet = match.context_text.slice(match.context_offset, match.context_offset + match.context_length).trim();
-    if (snippet) {
-      return snippet;
-    }
+    if (snippet) return snippet;
   }
 
   return match.context_text.trim() || null;
 };
+
+const issueBadgeCls = (count: number) =>
+  count > 0
+    ? "inline-flex min-h-8 items-center rounded-full px-3 py-1 text-[0.82rem] font-bold border border-[#ff9c9c]/50 bg-[#ff9c9c]/15 text-[#ffd4d4]"
+    : "inline-flex min-h-8 items-center rounded-full px-3 py-1 text-[0.82rem] font-bold border border-[#78b4ff]/30 bg-[#78b4ff]/10 text-[#b9d8ff]";
 
 const BlogEditorPanel: React.FC<Props> = ({
   mode,
@@ -101,31 +101,20 @@ const BlogEditorPanel: React.FC<Props> = ({
     setSaving(false);
   }, [mode, post]);
 
-  const previewImageUrl = useMemo(() => {
-    return resolveEditorImageUrl(imageUrl, imagePath);
-  }, [imageUrl, imagePath]);
+  const previewImageUrl = useMemo(() => resolveEditorImageUrl(imageUrl, imagePath), [imageUrl, imagePath]);
 
   const previewCgt = useMemo(() => {
-    if (mode === "edit" && post?.cgt_created?.trim()) {
-      return post.cgt_created.trim();
-    }
-
+    if (mode === "edit" && post?.cgt_created?.trim()) return post.cgt_created.trim();
     return "CGT Preview";
   }, [mode, post]);
 
   const previewAuthor = useMemo(() => {
-    if (mode === "edit" && post?.author_handle?.trim()) {
-      return post.author_handle.trim();
-    }
-
+    if (mode === "edit" && post?.author_handle?.trim()) return post.author_handle.trim();
     return "You";
   }, [mode, post]);
 
   const handleUpload = async () => {
-    if (!imageFile) {
-      setError("Choose an image first.");
-      return;
-    }
+    if (!imageFile) { setError("Choose an image first."); return; }
 
     try {
       setUploading(true);
@@ -134,14 +123,8 @@ const BlogEditorPanel: React.FC<Props> = ({
       const formData = new FormData();
       formData.append("file", imageFile);
 
-      const res = await apiFetch<UploadResponse>("/upload?type=jen", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        throw new Error("Upload failed");
-      }
+      const res = await apiFetch<UploadResponse>("/upload?type=jen", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Upload failed");
 
       setImagePath(res.path);
       setImageUrl(res.url);
@@ -156,37 +139,17 @@ const BlogEditorPanel: React.FC<Props> = ({
     e.preventDefault();
     setError(null);
 
-    if (!title.trim()) {
-      setError("Title is required.");
-      return;
-    }
-
-    if (!body.trim()) {
-      setError("Body is required.");
-      return;
-    }
+    if (!title.trim()) { setError("Title is required."); return; }
+    if (!body.trim()) { setError("Body is required."); return; }
 
     try {
       setSaving(true);
 
       if (mode === "create") {
-        await createBlog({
-          title: title.trim(),
-          body,
-          image_path: imagePath,
-          image_url: imageUrl,
-        });
+        await createBlog({ title: title.trim(), body, image_path: imagePath, image_url: imageUrl });
       } else {
-        if (!post?.id) {
-          throw new Error("Missing post id for edit.");
-        }
-
-        await updateBlog(post.id, {
-          title: title.trim(),
-          body,
-          image_path: imagePath,
-          image_url: imageUrl,
-        });
+        if (!post?.id) throw new Error("Missing post id for edit.");
+        await updateBlog(post.id, { title: title.trim(), body, image_path: imagePath, image_url: imageUrl });
       }
 
       await onSaved();
@@ -201,20 +164,12 @@ const BlogEditorPanel: React.FC<Props> = ({
     }
   };
 
-  const handleSpellcheck = async () => {
-    await runSpellcheck(title, body);
-  };
-
   const runSpellcheck = async (nextTitle: string, nextBody: string) => {
     try {
       setSpellchecking(true);
       setError(null);
 
-      const response = await spellcheckBlog({
-        title: nextTitle,
-        body: nextBody,
-        language: "en-US",
-      });
+      const response = await spellcheckBlog({ title: nextTitle, body: nextBody, language: "en-US" });
 
       setSpellcheckResult(response.data);
       setSpellcheckMessage(
@@ -224,8 +179,7 @@ const BlogEditorPanel: React.FC<Props> = ({
       );
       setSpellcheckTone(response.data.total_count > 0 ? "warn" : "ok");
       requestAnimationFrame(() => {
-        const target = document.getElementById("jen-spellcheck-results");
-        target?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        document.getElementById("jen-spellcheck-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       });
     } catch (e: any) {
       setError(e?.message ?? "Spellcheck failed.");
@@ -234,43 +188,37 @@ const BlogEditorPanel: React.FC<Props> = ({
     }
   };
 
+  const handleSpellcheck = async () => runSpellcheck(title, body);
+
   const applySuggestion = (section: "title" | "body", match: SpellcheckMatch, suggestion: string) => {
-    if (!suggestion.trim()) {
-      return;
-    }
+    if (!suggestion.trim()) return;
 
     if (section === "title") {
-      if (typeof match.offset !== "number" || typeof match.length !== "number") {
-        return;
-      }
-
+      if (typeof match.offset !== "number" || typeof match.length !== "number") return;
       const nextTitle = title.slice(0, match.offset) + suggestion + title.slice(match.offset + match.length);
       setTitle(nextTitle);
       void runSpellcheck(nextTitle, body);
       return;
     }
 
-    if (typeof match.raw_offset !== "number" || typeof match.raw_length !== "number") {
-      return;
-    }
-
+    if (typeof match.raw_offset !== "number" || typeof match.raw_length !== "number") return;
     const nextBody = body.slice(0, match.raw_offset) + suggestion + body.slice(match.raw_offset + match.raw_length);
     setBody(nextBody);
     void runSpellcheck(title, nextBody);
   };
 
   return (
-    <div className="jen-editor-layout">
-      <form className="panel jen-poster" onSubmit={handleSubmit}>
-        <div className="jen-header-row">
-          <h2 style={{ margin: 0 }}>
+    <div className="flex flex-col lg:flex-row gap-4 items-start font-tektur">
+      {/* Editor form */}
+      <form className="panel flex flex-col gap-4 flex-1 min-w-0" onSubmit={handleSubmit}>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h2 className="h2 m-0">
             {mode === "create" ? "Create JEN Post" : "Edit JEN Post"}
           </h2>
-
-          <div className="status-panel__actions">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
-              className="btn btn--small"
+              className={BTN_SM}
               onClick={handleSpellcheck}
               disabled={spellchecking || saving || uploading}
             >
@@ -278,7 +226,7 @@ const BlogEditorPanel: React.FC<Props> = ({
             </button>
             <button
               type="button"
-              className="btn btn--small"
+              className={BTN_SM}
               onClick={onCancel}
               disabled={saving || uploading}
             >
@@ -286,23 +234,19 @@ const BlogEditorPanel: React.FC<Props> = ({
             </button>
           </div>
         </div>
-        {spellcheckMessage ? (
-          <p
-            className="small"
-            style={{ color: spellcheckTone === "ok" ? "#7CFFB2" : "#FFD166", marginTop: "-0.35rem" }}
-          >
+
+        {spellcheckMessage && (
+          <p className="small" style={{ color: spellcheckTone === "ok" ? "#7CFFB2" : "#FFD166", marginTop: "-0.35rem" }}>
             {spellcheckMessage}
           </p>
-        ) : null}
+        )}
 
-        <div className="jen-poster__row">
-          <label className="small" htmlFor="editor-title">
-            Title
-          </label>
+        <div className="flex flex-col gap-[0.35rem]">
+          <label className="small" htmlFor="editor-title">Title</label>
           <input
             id="editor-title"
             type="text"
-            className="input"
+            className={INPUT}
             value={title}
             spellCheck
             lang="en"
@@ -313,187 +257,166 @@ const BlogEditorPanel: React.FC<Props> = ({
           />
         </div>
 
-        <div className="jen-poster__row">
+        <div className="flex flex-col gap-[0.35rem]">
           <label className="small">Body (BBCode)</label>
           <BBCodeEditor value={body} onChange={setBody} rows={14} spellCheck lang="en" />
         </div>
 
-        <div className="jen-poster__row">
+        <div className="flex flex-col gap-[0.35rem]">
           <label className="small">Image (optional)</label>
-
-          <div className="jen-poster__file-controls">
+          <div className="flex flex-wrap gap-2 items-center">
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp,image/gif"
               onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
             />
-
             <button
               type="button"
-              className="btn btn--small"
+              className={BTN_SM}
               onClick={handleUpload}
               disabled={!imageFile || uploading}
             >
               {uploading ? "Uploading…" : "Upload image"}
             </button>
-
             {(imagePath || imageUrl) && (
               <button
                 type="button"
-                className="btn btn--small"
-                onClick={() => {
-                  setImageFile(null);
-                  setImagePath(null);
-                  setImageUrl(null);
-                }}
+                className={BTN_SM}
+                onClick={() => { setImageFile(null); setImagePath(null); setImageUrl(null); }}
               >
                 Remove image
               </button>
             )}
           </div>
-
           {previewImageUrl && (
-            <div className="jen-poster__thumb small">
+            <div className="small mt-1">
               <div>Current image:</div>
-              <img
-                src={previewImageUrl}
-                alt="Editor preview"
-                style={{ maxWidth: "180px", marginTop: "0.5rem" }}
-              />
+              <img src={previewImageUrl} alt="Editor preview" style={{ maxWidth: "180px", marginTop: "0.5rem" }} />
             </div>
           )}
         </div>
 
-        <div className="jen-poster__actions">
-          <button type="submit" className="btn" disabled={saving}>
+        <div className="mt-2">
+          <button type="submit" className={BTN} disabled={saving}>
             {saving
-              ? mode === "create"
-                ? "Posting…"
-                : "Saving…"
-              : mode === "create"
-              ? "Create Post"
-              : "Save Changes"}
+              ? mode === "create" ? "Posting…" : "Saving…"
+              : mode === "create" ? "Create Post" : "Save Changes"}
           </button>
         </div>
 
-        {error && (
-          <p className="small" style={{ color: "salmon" }}>
-            {error}
-          </p>
-        )}
+        {error && <p className="small" style={{ color: "salmon" }}>{error}</p>}
 
-        {spellcheckResult ? (
+        {spellcheckResult && (
           <section id="jen-spellcheck-results" className="panel" style={{ padding: "0.85rem" }}>
-            <div className="jen-header-row">
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
               <strong>Spellcheck Results</strong>
-              <span className={`admin-badge admin-badge--soft${spellcheckResult.total_count > 0 ? " admin-badge--warn" : ""}`}>
+              <span className={issueBadgeCls(spellcheckResult.total_count)}>
                 {spellcheckResult.total_count > 0
                   ? `${spellcheckResult.total_count} issue${spellcheckResult.total_count === 1 ? "" : "s"} found`
                   : "No issues found"}
               </span>
             </div>
 
-            <div className="jen-spellcheck__section">
-              <div className="jen-header-row">
+            {/* Title matches */}
+            <div className="mt-[0.85rem]">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <strong className="small">Title</strong>
-                <span className={`admin-badge admin-badge--soft${spellcheckResult.title_matches.length > 0 ? " admin-badge--warn" : ""}`}>
+                <span className={issueBadgeCls(spellcheckResult.title_matches.length)}>
                   {spellcheckResult.title_matches.length} issue{spellcheckResult.title_matches.length === 1 ? "" : "s"}
                 </span>
               </div>
               {spellcheckResult.title_matches.length > 0 ? (
-                <div className="jen-spellcheck__list">
+                <div className="flex flex-col gap-2 mt-2">
                   {spellcheckResult.title_matches.map((match, index) => (
-                    <div key={`title-${index}`} className="jen-spellcheck__item small">
-                      <div className="jen-spellcheck__headline"><strong>{match.short_message ?? match.message}</strong></div>
-                      {describeMatchSnippet(match) ? <div className="jen-spellcheck__context">Problem: {describeMatchSnippet(match)}</div> : null}
-                      {match.replacements.length > 0 ? (
-                        <div className="jen-spellcheck__suggestions">
+                    <div key={`title-${index}`} className="small px-3 py-[0.65rem] rounded-[10px] border border-white/[0.08] bg-black/[0.22]">
+                      <div className="mb-1"><strong>{match.short_message ?? match.message}</strong></div>
+                      {describeMatchSnippet(match) && <div className="text-white/80">Problem: {describeMatchSnippet(match)}</div>}
+                      {match.replacements.length > 0 && (
+                        <div className="flex flex-wrap gap-[0.45rem] mt-[0.55rem]">
                           {match.replacements.map((replacement) => (
                             <button
                               key={`title-${index}-${replacement}`}
                               type="button"
-                              className="btn btn--tiny jen-spellcheck__replace-btn"
+                              className={BTN_SM + " normal-case"}
                               onClick={() => applySuggestion("title", match, replacement)}
                             >
                               {replacement}
                             </button>
                           ))}
                         </div>
-                      ) : null}
+                      )}
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="small" style={{ marginTop: "0.5rem" }}>No title issues.</p>
+                <p className="small mt-2">No title issues.</p>
               )}
             </div>
 
-            <div className="jen-spellcheck__section">
-              <div className="jen-header-row">
+            {/* Body matches */}
+            <div className="mt-[0.85rem]">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <strong className="small">Body</strong>
-                <span className={`admin-badge admin-badge--soft${spellcheckResult.body_matches.length > 0 ? " admin-badge--warn" : ""}`}>
+                <span className={issueBadgeCls(spellcheckResult.body_matches.length)}>
                   {spellcheckResult.body_matches.length} issue{spellcheckResult.body_matches.length === 1 ? "" : "s"}
                 </span>
               </div>
               {spellcheckResult.body_matches.length > 0 ? (
-                <div className="jen-spellcheck__list">
+                <div className="flex flex-col gap-2 mt-2">
                   {spellcheckResult.body_matches.map((match, index) => (
-                    <div key={`body-${index}`} className="jen-spellcheck__item small">
-                      <div className="jen-spellcheck__headline"><strong>{match.short_message ?? match.message}</strong></div>
-                      {describeMatchSnippet(match) ? <div className="jen-spellcheck__context">Problem: {describeMatchSnippet(match)}</div> : null}
-                      {match.replacements.length > 0 ? (
-                        <div className="jen-spellcheck__suggestions">
+                    <div key={`body-${index}`} className="small px-3 py-[0.65rem] rounded-[10px] border border-white/[0.08] bg-black/[0.22]">
+                      <div className="mb-1"><strong>{match.short_message ?? match.message}</strong></div>
+                      {describeMatchSnippet(match) && <div className="text-white/80">Problem: {describeMatchSnippet(match)}</div>}
+                      {match.replacements.length > 0 && (
+                        <div className="flex flex-wrap gap-[0.45rem] mt-[0.55rem]">
                           {match.replacements.map((replacement) => (
                             <button
                               key={`body-${index}-${replacement}`}
                               type="button"
-                              className="btn btn--tiny jen-spellcheck__replace-btn"
+                              className={BTN_SM + " normal-case"}
                               onClick={() => applySuggestion("body", match, replacement)}
                             >
                               {replacement}
                             </button>
                           ))}
                         </div>
-                      ) : null}
+                      )}
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="small" style={{ marginTop: "0.5rem" }}>No body issues.</p>
+                <p className="small mt-2">No body issues.</p>
               )}
             </div>
           </section>
-        ) : null}
+        )}
       </form>
 
-      <aside className="panel jen-editor-preview">
-        <div className="jen-editor-preview__label small">Live Preview</div>
-
-        <article className="panel jen-panel jen-panel--open">
-          <header className="jen-panel__header">
-            <div className="jen-panel__title-block">
-              <h2 className="jen-panel__title">{title.trim() || "Untitled Post"}</h2>
-
-              <div className="jen-panel__meta small">
+      {/* Live preview */}
+      <aside className="panel flex flex-col gap-3 w-full lg:w-[380px] shrink-0">
+        <div className="small opacity-80">Live Preview</div>
+        <article className="panel flex flex-col gap-[0.45rem]">
+          <header className="flex items-start justify-between gap-2">
+            <div className="flex flex-col gap-[0.15rem] min-w-0">
+              <h2 className="m-0 text-[0.95rem] font-semibold text-[#F6A300]">
+                {title.trim() || "Untitled Post"}
+              </h2>
+              <div className="small opacity-80 text-[0.8rem] font-asimovian">
                 <span>{previewAuthor}</span>
                 {" · "}
                 <span>{previewCgt}</span>
               </div>
             </div>
           </header>
-
-          <div className="jen-panel__body">
-            {previewImageUrl && (
-              <div className="jen-panel__body-image">
-                <img src={previewImageUrl} alt={title || "Preview image"} />
-              </div>
-            )}
-
-            <BBCodeView
-              value={body || "[i]Start writing your JEN post...[/i]"}
-              className="jen-panel__body-text small"
-            />
-          </div>
+          {previewImageUrl && (
+            <div className="mt-[0.35rem]">
+              <img src={previewImageUrl} alt={title || "Preview image"} className="block w-full object-contain rounded-[4px]" />
+            </div>
+          )}
+          <BBCodeView
+            value={body || "[i]Start writing your JEN post...[/i]"}
+            className="small text-[0.98rem] leading-[1.65]"
+          />
         </article>
       </aside>
     </div>

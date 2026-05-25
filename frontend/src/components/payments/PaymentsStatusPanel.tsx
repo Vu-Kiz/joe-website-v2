@@ -1,7 +1,27 @@
 import React from "react";
-import { getBackendOrigin, type SwcUser } from "../../api/auth";
-import type { SwcAuthorizationStatus } from "../../api/swcAuthorization";
-import type { PullCreditLogResponse } from "../../api/payments";
+import { getBackendOrigin, type SwcUser } from "../../api/core/auth";
+import type { SwcAuthorizationStatus } from "../../api/members/swcAuthorization";
+import type { PullCreditLogResponse } from "../../api/payments/payments";
+import { BTN } from "../../utils/ui";
+
+const CARD_CLS = "flex flex-col gap-3 p-[0.9rem] rounded-[12px] border border-white/[0.08] bg-white/[0.03]";
+const cardBadgeCls = (variant?: "ok" | "warn") =>
+  "inline-flex items-center min-h-[28px] px-[0.65rem] py-1 rounded-full border font-bold" +
+  (variant === "ok" ? " border-[rgba(107,201,137,0.35)] bg-[rgba(107,201,137,0.12)] text-[#8fe1a8]" :
+   variant === "warn" ? " border-[rgba(255,155,50,0.35)] bg-[rgba(255,155,50,0.12)] text-[#ffbf73]" :
+   " border-[rgba(245,213,70,0.28)] bg-[rgba(245,213,70,0.1)] text-[#f2c46f]");
+const noteCls = (variant?: "warn") =>
+  "m-0 p-[0.65rem_0.8rem] rounded-[10px] border border-white/[0.08] bg-white/[0.025]" +
+  (variant === "warn" ? " !border-[rgba(255,120,120,0.28)] !bg-[rgba(255,120,120,0.08)] !text-[#ffb3b3]" : "");
+const ACTIONS_CLS = "flex gap-2 flex-wrap mt-1";
+const GRID_METRICS_CLS = "grid gap-3 my-4 [grid-template-columns:repeat(auto-fit,minmax(140px,1fr))]";
+const CARD_EYEBROW_CLS = "m-0 opacity-[0.72] uppercase tracking-[0.06em]";
+const SYNC_LIST_CLS = "grid gap-3 mt-3";
+const SYNC_ALERT_CLS = "grid gap-[0.8rem] p-[0.85rem] rounded-[12px] border border-[rgba(255,120,120,0.28)] bg-[linear-gradient(180deg,rgba(60,18,18,0.55),rgba(36,12,12,0.72))] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]";
+const SYNC_ALERT_HEADER_CLS = "flex justify-between items-start gap-3 flex-wrap";
+const SYNC_ALERT_TITLE_BLOCK_CLS = "grid gap-[0.2rem] [&_strong]:text-[#ffb3b3] [&_p]:m-0";
+const SYNC_ALERT_META_CLS = "grid [grid-template-columns:repeat(auto-fit,minmax(160px,1fr))] gap-[0.6rem] [&_p]:m-0 [&_p]:p-[0.55rem_0.65rem] [&_p]:rounded-[10px] [&_p]:bg-[rgba(0,0,0,0.18)] [&_p]:border [&_p]:border-white/[0.06] [&_p]:grid [&_p]:gap-[0.2rem] [&_strong]:text-white/[0.58] [&_strong]:uppercase [&_strong]:tracking-[0.05em] [&_strong]:text-[0.76rem]";
+const SYNC_ALERT_MESSAGE_CLS = "p-[0.7rem_0.8rem] rounded-[10px] border border-[rgba(255,120,120,0.2)] bg-[rgba(0,0,0,0.18)] [&_p]:m-0 [&_p]:text-[#ffd4d4]";
 
 type Props = {
   user?: SwcUser | null;
@@ -84,14 +104,14 @@ const PaymentsStatusPanel: React.FC<Props> = ({
 
   return (
     <div className="panel">
-      <h2>SWC Payment Sync</h2>
+      <h2 className="h2">SWC Payment Sync</h2>
 
-      <p className="small payments-panel__intro">
+      <p className="small mb-4 max-w-[68ch]">
         Keep local payment history aligned with SWC and verify transfers by reference, amount, and recipient.
       </p>
 
       {swcAuth?.connected && (!swcAuth?.has_character_credits_write_access || !swcAuth?.has_faction_credits_write_access) && (
-        <p className="small payments-note payments-note--warn">
+        <p className={"small " + noteCls("warn")}>
           Direct website credit sending needs `character_credits_write` and `faction_credits_write` scopes. Use Resync Chain Code Verification to refresh payment scopes.
         </p>
       )}
@@ -101,14 +121,14 @@ const PaymentsStatusPanel: React.FC<Props> = ({
           <p className="small">
             Link your SWC account before connecting credit log access.
           </p>
-          <button className="btn" type="button" onClick={onLinkSwc}>
+          <button className={BTN} type="button" onClick={onLinkSwc}>
             Link SWC Account
           </button>
         </>
       )}
 
       {!!user?.swc_character_id && !swcAuth?.connected && (
-        <div className="admin-card payments-card">
+        <div className={CARD_CLS}>
           <strong>Access Needed</strong>
           <p className="small">
             Payments access is not connected yet. Connect Chain Code Verification to enable sync and verification.
@@ -117,33 +137,33 @@ const PaymentsStatusPanel: React.FC<Props> = ({
       )}
 
       {lastSyncResult && (
-        <div className="admin-card payments-card">
+        <div className={CARD_CLS}>
           <strong>Latest SWC Sync</strong>
 
           <p className="small">
             {lastSyncResult.message}
           </p>
 
-          <div className="payments-grid payments-grid--metrics">
-            <div className="admin-card payments-card payments-card--metric">
-              <p className="small payments-card__eyebrow">Verified</p>
+          <div className={GRID_METRICS_CLS}>
+            <div className={CARD_CLS}>
+              <p className={"small " + CARD_EYEBROW_CLS}>Verified</p>
               <strong>{lastSyncResult.verified}</strong>
             </div>
-            <div className="admin-card payments-card payments-card--metric">
-              <p className="small payments-card__eyebrow">Already Verified</p>
+            <div className={CARD_CLS}>
+              <p className={"small " + CARD_EYEBROW_CLS}>Already Verified</p>
               <strong>{lastSyncResult.already_verified}</strong>
             </div>
-            <div className="admin-card payments-card payments-card--metric">
-              <p className="small payments-card__eyebrow">Unmatched</p>
+            <div className={CARD_CLS}>
+              <p className={"small " + CARD_EYEBROW_CLS}>Unmatched</p>
               <strong>{lastSyncResult.unmatched}</strong>
             </div>
-            <div className="admin-card payments-card payments-card--metric">
-              <p className="small payments-card__eyebrow">Errors</p>
+            <div className={CARD_CLS}>
+              <p className={"small " + CARD_EYEBROW_CLS}>Errors</p>
               <strong>{lastSyncResult.errors}</strong>
             </div>
           </div>
 
-          <p className="small payments-panel__meta">
+          <p className="small mb-4 opacity-[0.85]">
             Contexts loaded: {lastSyncResult.contexts_loaded} · Transfers processed: {lastSyncResult.processed}
           </p>
 
@@ -152,26 +172,26 @@ const PaymentsStatusPanel: React.FC<Props> = ({
           )}
 
           {lastSyncResult.failures.length > 0 && (
-            <div className="payments-sync-list">
+            <div className={SYNC_LIST_CLS}>
               <strong>Sync Failures</strong>
               {lastSyncResult.failures.map((failure) => (
                 <div
                   key={`${failure.transfer_id}-${failure.reference}-${failure.context}`}
-                  className="payments-sync-alert"
+                  className={SYNC_ALERT_CLS}
                 >
-                  <div className="payments-sync-alert__header">
-                    <div className="payments-sync-alert__title-block">
+                  <div className={SYNC_ALERT_HEADER_CLS}>
+                    <div className={SYNC_ALERT_TITLE_BLOCK_CLS}>
                       <strong>Sync Error</strong>
                       <p className="small">Transfer #{failure.transfer_id}</p>
                     </div>
                     {extractSwcStatus(failure.error) && (
-                      <span className="payments-card__badge is-warn">
+                      <span className={"small " + cardBadgeCls("warn")}>
                         SWC {extractSwcStatus(failure.error)}
                       </span>
                     )}
                   </div>
 
-                  <div className="payments-sync-alert__meta">
+                  <div className={SYNC_ALERT_META_CLS}>
                     <p className="small">
                       <strong>Reference</strong>
                       <span>{failure.reference}</span>
@@ -194,7 +214,7 @@ const PaymentsStatusPanel: React.FC<Props> = ({
                     ) : null}
                   </div>
 
-                  <div className="payments-sync-alert__message">
+                  <div className={SYNC_ALERT_MESSAGE_CLS}>
                     <p className="small">
                       {formatSyncFailure(failure.error)}
                     </p>
@@ -205,13 +225,13 @@ const PaymentsStatusPanel: React.FC<Props> = ({
           )}
 
           {lastSyncResult.matches.length > 0 && (
-            <details className="payments-details">
+            <details className="mt-3 [&_summary]:cursor-pointer">
               <summary className="small">Verified Matches</summary>
-              <div className="payments-sync-list">
+              <div className={SYNC_LIST_CLS}>
                 {lastSyncResult.matches.map((match) => (
                   <div
                     key={`${match.transfer_id}-${match.transaction_id}-${match.context}`}
-                    className="payments-note"
+                    className={noteCls()}
                   >
                     <p className="small">
                       <strong>Transfer:</strong> #{match.transfer_id} · <strong>Ref:</strong> {match.reference}
@@ -233,8 +253,8 @@ const PaymentsStatusPanel: React.FC<Props> = ({
             </details>
           )}
 
-          <div className="payments-actions">
-            <button className="btn" type="button" onClick={onDismissLastSync}>
+          <div className={ACTIONS_CLS}>
+            <button className={BTN} type="button" onClick={onDismissLastSync}>
               Close
             </button>
           </div>
@@ -242,9 +262,9 @@ const PaymentsStatusPanel: React.FC<Props> = ({
       )}
 
       {!!user?.swc_character_id && (
-        <div className="payments-actions">
+        <div className={ACTIONS_CLS}>
           <button
-            className="btn"
+            className={BTN}
             type="button"
             onClick={onPullCreditLog}
             disabled={pullCreditLogLoading}
@@ -252,7 +272,7 @@ const PaymentsStatusPanel: React.FC<Props> = ({
             {pullCreditLogLoading ? "Resyncing..." : "Resync SWC Payments"}
           </button>
 
-          <button className="btn" type="button" onClick={onResyncSwcAccess}>
+          <button className={BTN} type="button" onClick={onResyncSwcAccess}>
             Resync Chain Code Verification
           </button>
         </div>

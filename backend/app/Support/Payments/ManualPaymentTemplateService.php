@@ -2,8 +2,8 @@
 
 namespace App\Support\Payments;
 
-use App\Models\ManualPaymentTemplate;
-use App\Models\PaymentItem;
+use App\Models\Payment\ManualPaymentTemplate;
+use App\Models\Payment\PaymentItem;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 

@@ -2,8 +2,8 @@
 
 namespace App\Support\ToolStore;
 
-use App\Models\ToolSubscription;
-use App\Models\ToolSubscriptionMember;
+use App\Models\ToolStore\ToolSubscription;
+use App\Models\ToolStore\ToolSubscriptionMember;
 use App\Models\User;
 
 class ToolAccessService

@@ -130,7 +130,20 @@ export class OutboxWorker {
       const previousMessageIds = Array.isArray(message.delivery?.message_ids) ? message.delivery!.message_ids : [];
       const sentMessageIds: string[] = [];
 
-      if (action === 'update' && previousMessageIds.length > 0) {
+      if (action === 'delete') {
+        for (const msgId of previousMessageIds) {
+          const existing = await channel.messages.fetch(msgId).catch(() => null);
+          if (existing) {
+            await this.withTimeout(existing.delete(), `Timed out deleting Discord message ${msgId}.`).catch(() => undefined);
+          }
+        }
+        await this.backendApi.markDelivered(message.id, {
+          message_ids: [],
+          guild_id: message.channel.guild_id,
+          channel_id: message.channel.id,
+        });
+        return;
+      } else if (action === 'update' && previousMessageIds.length > 0) {
         for (let index = 0; index < messages.length; index += 1) {
           const content = messages[index];
           const existingId = previousMessageIds[index];

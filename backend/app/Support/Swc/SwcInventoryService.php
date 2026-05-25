@@ -286,7 +286,7 @@ class SwcInventoryService
     {
         return $this->swcAuthorizationService->getAccessToken(
             $user,
-            \App\Models\SwcAuthorization::CONTEXT_MEMBER_TOOLS
+            \App\Models\Swc\SwcAuthorization::CONTEXT_MEMBER_TOOLS
         );
     }
 

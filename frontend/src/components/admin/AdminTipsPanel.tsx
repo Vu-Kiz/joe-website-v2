@@ -5,7 +5,8 @@ import {
   updateLoadingTip,
   deleteLoadingTip,
   type LoadingTipItem,
-} from "../../api/loadingTipsAdmin";
+} from "../../api/admin/loadingTipsAdmin";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../utils/ui";
 
 type Mode = "create" | "edit";
 
@@ -140,9 +141,9 @@ const AdminTipsPanel: React.FC = () => {
 
   if (loading) {
     return (
-      <section className="panel admin-panel">
-        <div className="admin-panel__header">
-          <h2 style={{ margin: 0 }}>Tips</h2>
+      <section className="panel flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <h2 className="h2" style={{ margin: 0 }}>Tips</h2>
           <p className="small" style={{ margin: 0 }}>
             Loading tips…
           </p>
@@ -152,25 +153,25 @@ const AdminTipsPanel: React.FC = () => {
   }
 
   return (
-    <section className="panel admin-panel">
-      <div className="admin-panel__header">
-        <h2 style={{ margin: 0 }}>Tips</h2>
+    <section className="panel flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <h2 className="h2" style={{ margin: 0 }}>Tips</h2>
         <p className="small" style={{ margin: 0 }}>
           Manage loading screen tips.
         </p>
       </div>
 
-      <div className="admin-tips-layout">
-        <form className="panel admin-tip-editor" onSubmit={handleSave}>
-          <div className="admin-tip-editor__header">
-            <h3 style={{ margin: 0 }}>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <form className="panel flex flex-col gap-4" onSubmit={handleSave}>
+          <div className="flex flex-col gap-1.5">
+            <h3 className="h3" style={{ margin: 0 }}>
               {mode === "create" ? "Create Tip" : "Edit Tip"}
             </h3>
 
             {mode === "edit" && (
               <button
                 type="button"
-                className="btn btn--small"
+                className={BTN_SM + " all"}
                 onClick={resetForm}
                 disabled={saving}
               >
@@ -185,15 +186,15 @@ const AdminTipsPanel: React.FC = () => {
             </label>
             <textarea
               id="loading-tip-text"
-              className="input"
+              className={INPUT}
               rows={7}
               value={tipText}
               onChange={(e) => setTipText(e.target.value)}
             />
           </div>
 
-          <div className="admin-tip-editor__actions">
-            <button type="submit" className="btn" disabled={saving}>
+          <div className="flex flex-wrap gap-3">
+            <button type="submit" className={BTN} disabled={saving}>
               {saving ? "Saving…" : mode === "create" ? "Create Tip" : "Save Changes"}
             </button>
           </div>
@@ -211,15 +212,15 @@ const AdminTipsPanel: React.FC = () => {
           )}
         </form>
 
-        <div className="panel admin-tip-list">
-          <div className="admin-tip-list__header">
-            <h3 style={{ margin: 0 }}>Existing Tips</h3>
+        <div className="panel flex flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="h3" style={{ margin: 0 }}>Existing Tips</h3>
           </div>
 
-          <div className="admin-users-toolbar">
+          <div className="flex flex-wrap items-center gap-3">
             <input
               type="text"
-              className="input"
+              className={INPUT}
               placeholder="Search tips"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -231,24 +232,24 @@ const AdminTipsPanel: React.FC = () => {
               No tips found.
             </p>
           ) : (
-            <div className="admin-tip-list__items">
+            <div className="flex flex-col gap-3">
               {filteredTips.map((tip) => (
-                <article key={tip.id} className="panel admin-tip-card">
-                  <div className="admin-tip-card__copy">
-                    <div className="small admin-tip-card__meta">
+                <article key={tip.id} className="panel flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <div className="small">
                       #{tip.id}
                       {tip.created_at
                         ? ` · ${new Date(tip.created_at).toLocaleString()}`
                         : ""}
                     </div>
 
-                    <p className="small admin-tip-card__body">{tip.tip}</p>
+                    <p className="small m-0">{tip.tip}</p>
                   </div>
 
-                  <div className="admin-tip-card__actions">
+                  <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      className="btn btn--small"
+                      className={BTN_SM + " all"}
                       onClick={() => startEdit(tip)}
                     >
                       Edit
@@ -256,7 +257,7 @@ const AdminTipsPanel: React.FC = () => {
 
                     <button
                       type="button"
-                      className="btn btn--small"
+                      className={BTN_SM + " all"}
                       onClick={() => handleDelete(tip)}
                       disabled={busyDeleteId === tip.id}
                     >

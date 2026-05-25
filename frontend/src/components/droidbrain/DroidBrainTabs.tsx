@@ -1,5 +1,6 @@
 import React from "react";
-import type { DroidBrainTab } from "../../api/droidbrain";
+import type { DroidBrainTab } from "../../api/universe/droidbrain";
+import SlideTabNav from "../common/SlideTabNav";
 
 type Props = {
   activeTab: DroidBrainTab;
@@ -7,19 +8,19 @@ type Props = {
   onSelect: (tab: DroidBrainTab) => void;
 };
 
-const DroidBrainTabs: React.FC<Props> = ({ activeTab, tabLabels, onSelect }) => (
-  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-    {Object.entries(tabLabels).map(([key, label]) => (
-      <button
-        key={key}
-        className={`btn ${activeTab === key ? "active" : ""}`}
-        type="button"
-        onClick={() => onSelect(key as DroidBrainTab)}
-      >
-        {label}
-      </button>
-    ))}
-  </div>
-);
+const DroidBrainTabs: React.FC<Props> = ({ activeTab, tabLabels, onSelect }) => {
+  const items = Object.entries(tabLabels).map(([key, label]) => ({
+    key: key as DroidBrainTab,
+    label,
+  }));
+
+  return (
+    <SlideTabNav
+      items={items}
+      activeKey={activeTab}
+      onChange={onSelect}
+    />
+  );
+};
 
 export default DroidBrainTabs;

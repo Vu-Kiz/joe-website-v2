@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
-import { listBlog, deleteBlog, type BlogPost } from "../api/blog";
-import { fetchAuthMe, type SwcUser } from "../api/auth";
+import { listBlog, deleteBlog, type BlogPost } from "../api/content/blog";
+import { fetchAuthMe, type SwcUser } from "../api/core/auth";
 
 import JenHeader from "../components/jen/JenHeader";
 import JenPostGrid from "../components/jen/JenPostGrid";
@@ -16,9 +16,6 @@ import {
   canDeleteBlog,
   canEditBlogPost,
 } from "../auth/permissions";
-
-import "../styles/main.sass";
-import "../styles/_jen.sass";
 
 type OverlayRect = {
   top: number;
@@ -211,7 +208,7 @@ const JenPage: React.FC = () => {
     <img
       src={JENBanner}
       alt="Jawa Entertainment Network"
-      className="jen-board__banner"
+      className="block w-full max-w-[800px] h-auto mx-auto mb-4"
     />
   );
 
@@ -219,7 +216,7 @@ const JenPage: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board jen-board">
+          <main className="board flex flex-col gap-4">
             {banner}
             <p className="small">Loading JEN posts…</p>
           </main>
@@ -232,7 +229,7 @@ const JenPage: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board jen-board">
+          <main className="board flex flex-col gap-4">
             {banner}
             <p className="small" style={{ color: "salmon" }}>
               {error}
@@ -246,7 +243,7 @@ const JenPage: React.FC = () => {
   return (
     <div className="site-scale">
       <div className="app app--one">
-        <main className="board jen-board">
+        <main className="board flex flex-col gap-4">
           <JenHeader canCreate={showCreate} manageMode={manageMode} />
 
           {isCreateMode || isEditMode ? (

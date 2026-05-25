@@ -3,8 +3,8 @@
 namespace App\Support\Discord;
 
 use App\Models\BlogPost;
-use App\Models\DiscordOutboxMessage;
-use App\Models\Job;
+use App\Models\Discord\DiscordOutboxMessage;
+use App\Models\Job\Job;
 use Illuminate\Support\Facades\Config;
 
 class DiscordNotifier
@@ -13,6 +13,7 @@ class DiscordNotifier
     public const KEY_JEN = 'jen';
     public const KEY_CONTACT_REQUESTS = 'contact_requests';
     public const KEY_MARKET_SALE = 'market_sale';
+    public const KEY_SUPPORT_TICKET = 'support_ticket';
 
     public function postJobCreated(Job $job): bool
     {
@@ -20,6 +21,19 @@ class DiscordNotifier
 
         return $this->queueMessage(self::KEY_JOBS, $content, [
             'job_id' => (int) $job->id,
+            'source_type' => 'job',
+            'source_id' => (int) $job->id,
+            'action' => 'create',
+        ]);
+    }
+
+    public function postJobDeleted(Job $job): bool
+    {
+        return $this->queueMessage(self::KEY_JOBS, '', [
+            'job_id' => (int) $job->id,
+            'source_type' => 'job',
+            'source_id' => (int) $job->id,
+            'action' => 'delete',
         ]);
     }
 
@@ -116,6 +130,60 @@ class DiscordNotifier
                 'delivery_type' => 'dm',
                 'target_discord_user_id' => $sellerDiscordUserId,
                 'order_id' => $orderId,
+            ],
+        ]);
+
+        return true;
+    }
+
+    public function notifySupportTicketCreated(string $targetDiscordUserId, int $ticketId, string $toolKey, string $severity, string $title, string $raisedBy): bool
+    {
+        $severityLabel = match ($severity) {
+            'tool_breaking' => '🔴 Tool Breaking',
+            'major_bug'     => '🟠 Major Bug',
+            'minor_bug'     => '🟡 Minor Bug',
+            'visual_ui'     => '🔵 Visual / UI Issue',
+            default         => $severity,
+        };
+
+        $content = implode("\n", [
+            '**New Support Ticket #' . $ticketId . '**',
+            '**Tool:** ' . $toolKey,
+            '**Severity:** ' . $severityLabel,
+            '**Title:** ' . $title,
+            '**Raised by:** ' . $raisedBy,
+        ]);
+
+        DiscordOutboxMessage::create([
+            'notification_key' => self::KEY_SUPPORT_TICKET,
+            'status'           => DiscordOutboxMessage::STATUS_PENDING,
+            'content'          => $content,
+            'meta'             => [
+                'delivery_type'          => 'dm',
+                'target_discord_user_id' => $targetDiscordUserId,
+                'ticket_id'              => $ticketId,
+            ],
+        ]);
+
+        return true;
+    }
+
+    public function notifySupportTicketReply(string $targetDiscordUserId, int $ticketId, string $title, string $repliedBy): bool
+    {
+        $content = implode("\n", [
+            '**Support Ticket Reply #' . $ticketId . '**',
+            '**Title:** ' . $title,
+            '**Replied by:** ' . $repliedBy,
+        ]);
+
+        DiscordOutboxMessage::create([
+            'notification_key' => self::KEY_SUPPORT_TICKET,
+            'status'           => DiscordOutboxMessage::STATUS_PENDING,
+            'content'          => $content,
+            'meta'             => [
+                'delivery_type'          => 'dm',
+                'target_discord_user_id' => $targetDiscordUserId,
+                'ticket_id'              => $ticketId,
             ],
         ]);
 

@@ -6,9 +6,10 @@ import {
   type StoredSectorSummary,
   type StoredMapSystem,
   type StoredMaterialTypeSummary,
-} from "../../api/universe";
+} from "../../api/universe/universe";
 import SearchSuggestionPicker from "../common/SearchSuggestionPicker";
 import RmBrowserFactionPicker from "./RmBrowserFactionPicker";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../../utils/ui";
 
 export type RmBrowserFilters = {
   factions: string[];
@@ -132,9 +133,9 @@ const RmBrowserFilterBar: React.FC<Props> = ({ filters, onChange, onSearch, load
   const canSearch = filters.factions.length > 0;
 
   return (
-    <div className="rm-browser__filter-bar">
-      <div className="rm-browser__filter-row">
-        <label className="small rm-browser__filter-label">Factions</label>
+    <div className="bg-white/[0.04] border border-white/[0.08] rounded-lg p-4 mb-5 flex flex-col gap-[14px]">
+      <div className="flex items-center gap-3 flex-wrap">
+        <label className="small opacity-60 min-w-[52px] shrink-0">Factions</label>
         <RmBrowserFactionPicker
           selected={filters.factions}
           onChange={(factions) => onChange({ ...filters, factions })}
@@ -142,10 +143,10 @@ const RmBrowserFilterBar: React.FC<Props> = ({ filters, onChange, onSearch, load
         />
       </div>
 
-      <div className="rm-browser__filter-row rm-browser__filter-row--fields">
-        <div className="rm-browser__filter-field">
-          <label className="small rm-browser__filter-label">Sector</label>
-          <div className="rm-browser__filter-input-wrap">
+      <div className="flex items-end gap-3 flex-wrap max-[767px]:flex-col max-[767px]:items-stretch">
+        <div className="flex flex-col gap-1 flex-1 min-w-[160px] max-[767px]:min-w-0">
+          <label className="small opacity-60">Sector</label>
+          <div className="relative flex items-center [&>:first-child]:flex-1">
             <SearchSuggestionPicker
               value={sectorQuery}
               onChange={(v) => {
@@ -168,16 +169,16 @@ const RmBrowserFilterBar: React.FC<Props> = ({ filters, onChange, onSearch, load
               )}
             />
             {filters.sectorUid && (
-              <button type="button" className="rm-browser__filter-clear" onClick={clearSector} title="Clear sector">
+              <button type="button" className="absolute right-[6px] top-1/2 -translate-y-1/2 bg-none border-none text-white/40 cursor-pointer text-[1.1rem] leading-none px-1 hover:text-white/80" onClick={clearSector} title="Clear sector">
                 ×
               </button>
             )}
           </div>
         </div>
 
-        <div className="rm-browser__filter-field">
-          <label className="small rm-browser__filter-label">System</label>
-          <div className="rm-browser__filter-input-wrap">
+        <div className="flex flex-col gap-1 flex-1 min-w-[160px] max-[767px]:min-w-0">
+          <label className="small opacity-60">System</label>
+          <div className="relative flex items-center [&>:first-child]:flex-1">
             <SearchSuggestionPicker
               value={systemQuery}
               onChange={(v) => {
@@ -201,16 +202,16 @@ const RmBrowserFilterBar: React.FC<Props> = ({ filters, onChange, onSearch, load
               )}
             />
             {filters.systemUid && (
-              <button type="button" className="rm-browser__filter-clear" onClick={clearSystem} title="Clear system">
+              <button type="button" className="absolute right-[6px] top-1/2 -translate-y-1/2 bg-none border-none text-white/40 cursor-pointer text-[1.1rem] leading-none px-1 hover:text-white/80" onClick={clearSystem} title="Clear system">
                 ×
               </button>
             )}
           </div>
         </div>
 
-        <div className="rm-browser__filter-field">
-          <label className="small rm-browser__filter-label">Type</label>
-          <div className="rm-browser__filter-input-wrap">
+        <div className="flex flex-col gap-1 flex-1 min-w-[160px] max-[767px]:min-w-0">
+          <label className="small opacity-60">Type</label>
+          <div className="relative flex items-center [&>:first-child]:flex-1">
             <SearchSuggestionPicker
               value={typeQuery}
               onChange={(v) => {
@@ -229,7 +230,7 @@ const RmBrowserFilterBar: React.FC<Props> = ({ filters, onChange, onSearch, load
               renderSuggestion={(t) => <strong>{t.name ?? t.uid}</strong>}
             />
             {filters.typeUid && (
-              <button type="button" className="rm-browser__filter-clear" onClick={clearType} title="Clear type">
+              <button type="button" className="absolute right-[6px] top-1/2 -translate-y-1/2 bg-none border-none text-white/40 cursor-pointer text-[1.1rem] leading-none px-1 hover:text-white/80" onClick={clearType} title="Clear type">
                 ×
               </button>
             )}
@@ -238,7 +239,7 @@ const RmBrowserFilterBar: React.FC<Props> = ({ filters, onChange, onSearch, load
 
         <button
           type="button"
-          className="btn rm-browser__search-btn"
+          className={BTN + " self-end shrink-0 whitespace-nowrap max-[767px]:w-full"}
           onClick={onSearch}
           disabled={loading || !canSearch}
         >

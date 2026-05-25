@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT} from "../../../utils/ui";
 
 type Props = {
   sectorIdentifier: string;
@@ -78,36 +79,36 @@ const AdminSystemPullsSection: React.FC<Props> = ({
 }) => {
   return (
     <>
-      <section className="admin-card">
-        <div className="admin-card__header">
-          <h3 className="admin-card__title">Sector Pull</h3>
-          <p className="admin-card__desc">
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <h3 className="m-0">Sector Pull</h3>
+          <p className="m-0 opacity-[0.85]">
             Pull sector data from SWC and optionally save it into the local database.
             This panel is for syncing data, not for displaying the map.
           </p>
         </div>
 
-        <div className="admin-card__actions">
-          <Link to="/sys/debug/universe" className="btn">
+        <div className="flex flex-wrap gap-3">
+          <Link to="/sys/debug/universe" className={BTN}>
             Open Galaxy Explorer
           </Link>
         </div>
 
-        <div className="admin-grid">
-          <div className="admin-card">
+        <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
+          <div className="flex flex-col gap-4">
             <label className="small" htmlFor="admin-sector-identifier">
               Sector
             </label>
             <input
               id="admin-sector-identifier"
-              className="input"
+              className={INPUT}
               value={sectorIdentifier}
               onChange={(event) => setSectorIdentifier(event.target.value)}
               placeholder="Sector UID or name, e.g. Arkanis"
             />
           </div>
 
-          <div className="admin-card">
+          <div className="flex flex-col gap-4">
             <label className="small">
               <input
                 type="checkbox"
@@ -135,32 +136,32 @@ const AdminSystemPullsSection: React.FC<Props> = ({
           </div>
         </div>
 
-        <div className="admin-card__actions">
-          <button className="btn" type="button" onClick={onPullSector} disabled={loading}>
+        <div className="flex flex-wrap gap-3">
+          <button className={BTN} type="button" onClick={onPullSector} disabled={loading}>
             {loading ? "Running..." : "Pull Sector"}
           </button>
         </div>
       </section>
 
-      <section className="admin-card">
-        <div className="admin-card__header">
-          <h3 className="admin-card__title">Background Pull All Info</h3>
-          <p className="admin-card__desc">
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <h3 className="m-0">Background Pull All Info</h3>
+          <p className="m-0 opacity-[0.85]">
             Queue a full galaxy sync that runs in the background. It will pull the sector index,
             hydrate each sector, deep-sync linked systems, and continue automatically after the
             sector-detail rate limit resets.
           </p>
         </div>
 
-        <div className="admin-card__actions">
-          <button className="btn" type="button" onClick={onStartBackgroundSync} disabled={backgroundSyncLoading}>
+        <div className="flex flex-wrap gap-3">
+          <button className={BTN} type="button" onClick={onStartBackgroundSync} disabled={backgroundSyncLoading}>
             {backgroundSyncLoading ? "Queueing..." : "Queue Background Sync"}
           </button>
-          <button className="btn" type="button" onClick={onLoadLatestBackgroundSync}>
+          <button className={BTN} type="button" onClick={onLoadLatestBackgroundSync}>
             Refresh Status
           </button>
           <button
-            className="btn"
+            className={BTN}
             type="button"
             onClick={onCancelBackgroundSync}
             disabled={
@@ -177,61 +178,61 @@ const AdminSystemPullsSection: React.FC<Props> = ({
         {backgroundSyncError ? <p className="small" style={{ color: "salmon" }}>{backgroundSyncError}</p> : null}
 
         {backgroundSyncRun ? (
-          <div className="admin-grid">
-            <div className="admin-card"><h3 className="admin-card__title">Run ID</h3><p className="small">{backgroundSyncRun.id}</p></div>
-            <div className="admin-card"><h3 className="admin-card__title">Status</h3><p className="small">{backgroundSyncRun.status}</p></div>
-            <div className="admin-card"><h3 className="admin-card__title">Sector Progress</h3><p className="small">{(backgroundSyncRun.progress?.sector_cursor ?? 0)} / {(backgroundSyncRun.progress?.sector_total ?? 0)}</p></div>
-            <div className="admin-card"><h3 className="admin-card__title">Sector Details</h3><p className="small">{backgroundLiveStats?.sector_details_synced ?? 0}</p></div>
-            <div className="admin-card"><h3 className="admin-card__title">Deep Systems</h3><p className="small">{backgroundLiveStats?.systems_deep_synced ?? 0}</p></div>
-            <div className="admin-card"><h3 className="admin-card__title">Planets Synced</h3><p className="small">{backgroundLiveStats?.planets_deep_synced ?? backgroundLiveStats?.planets_upserted ?? 0}</p></div>
-            <div className="admin-card"><h3 className="admin-card__title">Stations Synced</h3><p className="small">{backgroundLiveStats?.stations_deep_synced ?? backgroundLiveStats?.stations_upserted ?? 0}</p></div>
-            <div className="admin-card"><h3 className="admin-card__title">Hyperlanes</h3><p className="small">{backgroundLiveStats?.hyperlanes_upserted ?? 0}</p></div>
-            <div className="admin-card"><h3 className="admin-card__title">Destination Systems</h3><p className="small">{backgroundLiveStats?.destination_systems_synced ?? 0}</p></div>
-            <div className="admin-card"><h3 className="admin-card__title">Next Retry</h3><p className="small">{backgroundSyncRun.next_retry_at ?? "N/A"}</p></div>
-            <div className="admin-card"><h3 className="admin-card__title">Updated</h3><p className="small">{backgroundSyncRun.updated_at ?? "N/A"}</p></div>
-            <div className="admin-card"><h3 className="admin-card__title">Heartbeat</h3><p className="small">{heartbeatAgeSeconds === null ? "N/A" : `${heartbeatAgeSeconds}s ago`}</p></div>
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
+            <div className="flex flex-col gap-4"><h3 className="m-0">Run ID</h3><p className="small">{backgroundSyncRun.id}</p></div>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Status</h3><p className="small">{backgroundSyncRun.status}</p></div>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Sector Progress</h3><p className="small">{(backgroundSyncRun.progress?.sector_cursor ?? 0)} / {(backgroundSyncRun.progress?.sector_total ?? 0)}</p></div>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Sector Details</h3><p className="small">{backgroundLiveStats?.sector_details_synced ?? 0}</p></div>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Deep Systems</h3><p className="small">{backgroundLiveStats?.systems_deep_synced ?? 0}</p></div>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Planets Synced</h3><p className="small">{backgroundLiveStats?.planets_deep_synced ?? backgroundLiveStats?.planets_upserted ?? 0}</p></div>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Stations Synced</h3><p className="small">{backgroundLiveStats?.stations_deep_synced ?? backgroundLiveStats?.stations_upserted ?? 0}</p></div>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Hyperlanes</h3><p className="small">{backgroundLiveStats?.hyperlanes_upserted ?? 0}</p></div>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Destination Systems</h3><p className="small">{backgroundLiveStats?.destination_systems_synced ?? 0}</p></div>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Next Retry</h3><p className="small">{backgroundSyncRun.next_retry_at ?? "N/A"}</p></div>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Updated</h3><p className="small">{backgroundSyncRun.updated_at ?? "N/A"}</p></div>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Heartbeat</h3><p className="small">{heartbeatAgeSeconds === null ? "N/A" : `${heartbeatAgeSeconds}s ago`}</p></div>
           </div>
         ) : null}
 
         {backgroundSyncRun?.last_message ? <p className="small" style={{ marginTop: "0.75rem" }}>{backgroundSyncRun.last_message}</p> : null}
 
         {backgroundCurrentSector ? (
-          <div className="admin-grid" style={{ marginTop: "0.75rem" }}>
-            <div className="admin-card"><h3 className="admin-card__title">Current Sector</h3><p className="small">{backgroundCurrentSector.name ?? backgroundCurrentSector.uid ?? backgroundCurrentSector.identifier ?? "Unknown"}</p></div>
-            <div className="admin-card"><h3 className="admin-card__title">Current Position</h3><p className="small">{backgroundCurrentSector.index ?? 0} / {backgroundCurrentSector.total ?? 0}</p></div>
-            <div className="admin-card"><h3 className="admin-card__title">Current Identifier</h3><p className="small">{backgroundCurrentSector.identifier ?? "Unknown"}</p></div>
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]" style={{ marginTop: "0.75rem" }}>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Current Sector</h3><p className="small">{backgroundCurrentSector.name ?? backgroundCurrentSector.uid ?? backgroundCurrentSector.identifier ?? "Unknown"}</p></div>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Current Position</h3><p className="small">{backgroundCurrentSector.index ?? 0} / {backgroundCurrentSector.total ?? 0}</p></div>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Current Identifier</h3><p className="small">{backgroundCurrentSector.identifier ?? "Unknown"}</p></div>
           </div>
         ) : null}
 
         {backgroundLastDetail ? (
-          <div className="admin-grid" style={{ marginTop: "0.75rem" }}>
-            <div className="admin-card"><h3 className="admin-card__title">Last Detail Event</h3><p className="small">{backgroundLastDetail.event ?? "Unknown"}</p></div>
-            <div className="admin-card"><h3 className="admin-card__title">Last Detail Message</h3><p className="small">{backgroundLastDetail.message ?? "Unknown"}</p></div>
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]" style={{ marginTop: "0.75rem" }}>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Last Detail Event</h3><p className="small">{backgroundLastDetail.event ?? "Unknown"}</p></div>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Last Detail Message</h3><p className="small">{backgroundLastDetail.message ?? "Unknown"}</p></div>
           </div>
         ) : null}
 
         {backgroundHeartbeat ? (
-          <div className="admin-grid" style={{ marginTop: "0.75rem" }}>
-            <div className="admin-card"><h3 className="admin-card__title">Live Activity</h3><p className="small">{backgroundHeartbeat.message ?? "Unknown"}</p></div>
-            <div className="admin-card"><h3 className="admin-card__title">Live Status</h3><p className="small">{backgroundHeartbeat.status ?? "Unknown"}</p></div>
-            <div className="admin-card"><h3 className="admin-card__title">Live Update Time</h3><p className="small">{backgroundHeartbeat.updated_at ?? "N/A"}</p></div>
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]" style={{ marginTop: "0.75rem" }}>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Live Activity</h3><p className="small">{backgroundHeartbeat.message ?? "Unknown"}</p></div>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Live Status</h3><p className="small">{backgroundHeartbeat.status ?? "Unknown"}</p></div>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Live Update Time</h3><p className="small">{backgroundHeartbeat.updated_at ?? "N/A"}</p></div>
           </div>
         ) : null}
 
         {backgroundSyncRun?.error_message ? <p className="small" style={{ color: "salmon" }}>{backgroundSyncRun.error_message}</p> : null}
       </section>
 
-      <section className="admin-card">
-        <div className="admin-card__header">
-          <h3 className="admin-card__title">Pull All Sectors</h3>
-          <p className="admin-card__desc">
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <h3 className="m-0">Pull All Sectors</h3>
+          <p className="m-0 opacity-[0.85]">
             Page through the public SWC sector index and seed all sector records into
             the local database, then hydrate each sector with its detail payload.
           </p>
         </div>
 
-        <div className="admin-card__actions">
-          <button className="btn" type="button" onClick={onPullAllSectors} disabled={bulkLoading}>
+        <div className="flex flex-wrap gap-3">
+          <button className={BTN} type="button" onClick={onPullAllSectors} disabled={bulkLoading}>
             {bulkLoading ? "Running..." : "Pull All Sectors"}
           </button>
         </div>
@@ -239,7 +240,7 @@ const AdminSystemPullsSection: React.FC<Props> = ({
         {bulkMessage ? <p className="small">{bulkMessage}</p> : null}
         {bulkError ? <p className="small" style={{ color: "salmon" }}>{bulkError}</p> : null}
         {bulkProgressLines.length > 0 ? (
-          <div className="sysuniverse-stack">
+          <div className="grid gap-3.5">
             {bulkProgressLines.slice(-12).map((line, index) => (
               <p key={`${index}-${line}`} className="small" style={{ margin: 0 }}>
                 {line}
@@ -248,21 +249,21 @@ const AdminSystemPullsSection: React.FC<Props> = ({
           </div>
         ) : null}
         {bulkPersistence ? (
-          <div className="admin-grid">
-            <div className="admin-card"><h3 className="admin-card__title">Sector Records</h3><p className="small">{bulkPersistence.sector_count ?? bulkPersistence.total ?? 0}</p></div>
-            <div className="admin-card"><h3 className="admin-card__title">Pages Pulled</h3><p className="small">{bulkPersistence.pages ?? "Unknown"}</p></div>
-            <div className="admin-card"><h3 className="admin-card__title">Total Listed</h3><p className="small">{bulkPersistence.total ?? "Unknown"}</p></div>
-            <div className="admin-card"><h3 className="admin-card__title">Details Hydrated</h3><p className="small">{bulkPersistence.hydrated_sector_details ?? 0}</p></div>
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
+            <div className="flex flex-col gap-4"><h3 className="m-0">Sector Records</h3><p className="small">{bulkPersistence.sector_count ?? bulkPersistence.total ?? 0}</p></div>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Pages Pulled</h3><p className="small">{bulkPersistence.pages ?? "Unknown"}</p></div>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Total Listed</h3><p className="small">{bulkPersistence.total ?? "Unknown"}</p></div>
+            <div className="flex flex-col gap-4"><h3 className="m-0">Details Hydrated</h3><p className="small">{bulkPersistence.hydrated_sector_details ?? 0}</p></div>
           </div>
         ) : null}
       </section>
 
-      {message ? <section className="admin-card"><h3 className="admin-card__title">Status</h3><p className="small">{message}</p></section> : null}
-      {error ? <section className="admin-card"><h3 className="admin-card__title">Error</h3><p className="small" style={{ color: "salmon" }}>{error}</p></section> : null}
+      {message ? <section className="flex flex-col gap-4"><h3 className="m-0">Status</h3><p className="small">{message}</p></section> : null}
+      {error ? <section className="flex flex-col gap-4"><h3 className="m-0">Error</h3><p className="small" style={{ color: "salmon" }}>{error}</p></section> : null}
       {progressLines.length > 0 ? (
-        <section className="admin-card">
-          <h3 className="admin-card__title">Live Progress</h3>
-          <div className="sysuniverse-stack">
+        <section className="flex flex-col gap-4">
+          <h3 className="m-0">Live Progress</h3>
+          <div className="grid gap-3.5">
             {progressLines.slice(-12).map((line, index) => (
               <p key={`${index}-${line}`} className="small" style={{ margin: 0 }}>
                 {line}
@@ -272,11 +273,11 @@ const AdminSystemPullsSection: React.FC<Props> = ({
         </section>
       ) : null}
       {result?.sector ? (
-        <section className="admin-grid">
-          <div className="admin-card"><h3 className="admin-card__title">Sector</h3><p className="small">{sectorName}</p></div>
-          <div className="admin-card"><h3 className="admin-card__title">Systems Found</h3><p className="small">{systemsPulled}</p></div>
-          <div className="admin-card"><h3 className="admin-card__title">Coordinates Found</h3><p className="small">{coordinatesPulled}</p></div>
-          {persist ? <div className="admin-card"><h3 className="admin-card__title">Records Synced</h3><p className="small">{systemsSynced}</p></div> : null}
+        <section className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
+          <div className="flex flex-col gap-4"><h3 className="m-0">Sector</h3><p className="small">{sectorName}</p></div>
+          <div className="flex flex-col gap-4"><h3 className="m-0">Systems Found</h3><p className="small">{systemsPulled}</p></div>
+          <div className="flex flex-col gap-4"><h3 className="m-0">Coordinates Found</h3><p className="small">{coordinatesPulled}</p></div>
+          {persist ? <div className="flex flex-col gap-4"><h3 className="m-0">Records Synced</h3><p className="small">{systemsSynced}</p></div> : null}
         </section>
       ) : null}
     </>

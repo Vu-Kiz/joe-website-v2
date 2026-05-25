@@ -2,7 +2,7 @@
 
 namespace App\Support\Swc;
 
-use App\Models\SwcAuthorization;
+use App\Models\Swc\SwcAuthorization;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;

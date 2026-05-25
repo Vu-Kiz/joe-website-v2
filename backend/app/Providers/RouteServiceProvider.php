@@ -45,6 +45,41 @@ class RouteServiceProvider extends ServiceProvider
             ];
         });
 
+        RateLimiter::for('payments-send', function (Request $request) {
+            return Limit::perMinute((int) env('RATE_LIMIT_PAYMENTS_SEND', 10))
+                ->by('payments-send:user:' . $request->user()?->id);
+        });
+
+        RateLimiter::for('payments-bulk', function (Request $request) {
+            return Limit::perMinute((int) env('RATE_LIMIT_PAYMENTS_BULK', 5))
+                ->by('payments-bulk:user:' . $request->user()?->id);
+        });
+
+        RateLimiter::for('market-order', function (Request $request) {
+            return Limit::perMinute((int) env('RATE_LIMIT_MARKET_ORDER', 20))
+                ->by('market-order:user:' . $request->user()?->id);
+        });
+
+        RateLimiter::for('market-pay', function (Request $request) {
+            return Limit::perMinute((int) env('RATE_LIMIT_MARKET_PAY', 10))
+                ->by('market-pay:user:' . $request->user()?->id);
+        });
+
+        RateLimiter::for('credit-log-pull', function (Request $request) {
+            return Limit::perMinute((int) env('RATE_LIMIT_CREDIT_LOG_PULL', 3))
+                ->by('credit-log-pull:user:' . $request->user()?->id);
+        });
+
+        RateLimiter::for('import-personal-events', function (Request $request) {
+            return Limit::perMinute((int) env('RATE_LIMIT_IMPORT_PERSONAL_EVENTS', 2))
+                ->by('import-personal-events:user:' . $request->user()?->id);
+        });
+
+        RateLimiter::for('rm-browser', function (Request $request) {
+            return Limit::perMinute((int) env('RATE_LIMIT_RM_BROWSER', 6))
+                ->by('rm-browser:user:' . $request->user()?->id);
+        });
+
         $this->routes(function () {
             Route::middleware('api')
                 ->prefix('api')

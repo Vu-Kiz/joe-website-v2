@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Swc;
 
-use App\Models\SwcMaterialType;
+use App\Models\Swc\SwcMaterialType;
 
 class SwcRmBrowserService
 {

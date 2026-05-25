@@ -1,4 +1,5 @@
 import React from "react";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../../../utils/ui";
 
 type CatalogCardProps = {
   title: string;
@@ -24,14 +25,14 @@ function CatalogCard({
   persistence,
 }: CatalogCardProps) {
   return (
-    <section className="admin-card">
-      <div className="admin-card__header">
-        <h3 className="admin-card__title">{title}</h3>
-        <p className="admin-card__desc">{description}</p>
+    <section className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <h3 className="m-0">{title}</h3>
+        <p className="m-0 opacity-[0.85]">{description}</p>
       </div>
 
-      <div className="admin-card__actions">
-        <button className="btn" type="button" onClick={onClick} disabled={loading}>
+      <div className="flex flex-wrap gap-3">
+        <button className={BTN} type="button" onClick={onClick} disabled={loading}>
           {loading ? "Running..." : buttonLabel}
         </button>
       </div>
@@ -39,7 +40,7 @@ function CatalogCard({
       {message ? <p className="small">{message}</p> : null}
       {error ? <p className="small" style={{ color: "salmon" }}>{error}</p> : null}
       {progressLines.length > 0 ? (
-        <div className="sysuniverse-stack">
+        <div className="grid gap-3.5">
           {progressLines.slice(-8).map((line, index) => (
             <p key={`${title}-${index}`} className="small">
               {line}
@@ -48,11 +49,11 @@ function CatalogCard({
         </div>
       ) : null}
       {persistence ? (
-        <div className="admin-grid">
-          <div className="admin-card"><h3 className="admin-card__title">Type Records</h3><p className="small">{persistence.station_type_count ?? persistence.planet_type_count ?? persistence.ship_type_count ?? persistence.vehicle_type_count ?? persistence.droid_type_count ?? persistence.creature_type_count ?? persistence.npc_type_count ?? persistence.race_count ?? persistence.weapon_type_count ?? persistence.facility_type_count ?? persistence.item_type_count ?? persistence.terrain_type_count ?? persistence.material_type_count ?? persistence.total ?? 0}</p></div>
-          <div className="admin-card"><h3 className="admin-card__title">Pages Pulled</h3><p className="small">{persistence.pages ?? "Unknown"}</p></div>
-          <div className="admin-card"><h3 className="admin-card__title">Total Listed</h3><p className="small">{persistence.total ?? "Unknown"}</p></div>
-          <div className="admin-card"><h3 className="admin-card__title">Details Hydrated</h3><p className="small">{persistence.hydrated_station_types ?? persistence.hydrated_planet_types ?? persistence.hydrated_ship_types ?? persistence.hydrated_vehicle_types ?? persistence.hydrated_droid_types ?? persistence.hydrated_creature_types ?? persistence.hydrated_npc_types ?? persistence.hydrated_races ?? persistence.hydrated_weapon_types ?? persistence.hydrated_facility_types ?? persistence.hydrated_item_types ?? persistence.hydrated_terrain_types ?? persistence.hydrated_material_types ?? 0}</p></div>
+        <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
+          <div className="flex flex-col gap-4"><h3 className="m-0">Type Records</h3><p className="small">{persistence.station_type_count ?? persistence.planet_type_count ?? persistence.ship_type_count ?? persistence.vehicle_type_count ?? persistence.droid_type_count ?? persistence.creature_type_count ?? persistence.npc_type_count ?? persistence.race_count ?? persistence.weapon_type_count ?? persistence.facility_type_count ?? persistence.item_type_count ?? persistence.terrain_type_count ?? persistence.material_type_count ?? persistence.total ?? 0}</p></div>
+          <div className="flex flex-col gap-4"><h3 className="m-0">Pages Pulled</h3><p className="small">{persistence.pages ?? "Unknown"}</p></div>
+          <div className="flex flex-col gap-4"><h3 className="m-0">Total Listed</h3><p className="small">{persistence.total ?? "Unknown"}</p></div>
+          <div className="flex flex-col gap-4"><h3 className="m-0">Details Hydrated</h3><p className="small">{persistence.hydrated_station_types ?? persistence.hydrated_planet_types ?? persistence.hydrated_ship_types ?? persistence.hydrated_vehicle_types ?? persistence.hydrated_droid_types ?? persistence.hydrated_creature_types ?? persistence.hydrated_npc_types ?? persistence.hydrated_races ?? persistence.hydrated_weapon_types ?? persistence.hydrated_facility_types ?? persistence.hydrated_item_types ?? persistence.hydrated_terrain_types ?? persistence.hydrated_material_types ?? 0}</p></div>
         </div>
       ) : null}
     </section>

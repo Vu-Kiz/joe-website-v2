@@ -39,7 +39,7 @@ export type OutboxClaimMessage = {
   meta?: {
     source_type?: string;
     source_id?: number;
-    action?: 'create' | 'update';
+    action?: 'create' | 'update' | 'delete';
     messages?: string[];
     [key: string]: unknown;
   } | null;

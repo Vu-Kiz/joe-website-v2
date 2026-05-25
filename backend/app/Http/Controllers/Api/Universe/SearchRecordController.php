@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Api\Universe;
 
 use App\Http\Controllers\Controller;
 use App\Models\SubscriberCellRecord;
-use App\Models\SwcAuthorization;
-use App\Models\SwcMemberImportLog;
-use App\Models\SwcSector;
-use App\Models\SwcSectorSearchRecord;
-use App\Models\SwcSystem;
+use App\Models\Swc\SwcAuthorization;
+use App\Models\Swc\SwcMemberImportLog;
+use App\Models\Swc\SwcSector;
+use App\Models\Swc\SwcSectorSearchRecord;
+use App\Models\Swc\SwcSystem;
 use App\Models\User;
 use App\Support\Admin\AdminActionLogger;
 use App\Support\Swc\SwcAuthorizationService;

@@ -2,9 +2,9 @@
 
 namespace App\Support\Payments;
 
-use App\Models\Job;
-use App\Models\JobAssignment;
-use App\Models\PaymentItem;
+use App\Models\Job\Job;
+use App\Models\Job\JobAssignment;
+use App\Models\Payment\PaymentItem;
 
 class PaymentItemService
 {

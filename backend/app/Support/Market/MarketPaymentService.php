@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Support\Market;
 
 use App\Models\Faction;
-use App\Models\MarketListing;
-use App\Models\MarketOrder;
-use App\Models\PaymentTransfer;
+use App\Models\Market\MarketListing;
+use App\Models\Market\MarketOrder;
+use App\Models\Payment\PaymentTransfer;
 use App\Models\User;
 
 class MarketPaymentService

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { getEntityDetail } from "../../api/market";
-import type { EntityDetail } from "../../api/market";
+import { getEntityDetail } from "../../api/market/market";
+import type { EntityDetail } from "../../api/market/market";
+import { BTN } from "../../utils/ui";
 
 type Props = {
   entityType: string;
@@ -41,18 +42,10 @@ function LocationBlock({ loc }: { loc: EntityDetail["location"] }) {
       {loc.docked && loc.container && (
         <span className="small">Docked in <strong>{loc.container.name}</strong> ({loc.container.type})</span>
       )}
-      {loc.sector && (
-        <span className="small muted">Sector: {loc.sector}</span>
-      )}
-      {loc.system && (
-        <span className="small muted">System: {loc.system}</span>
-      )}
-      {loc.galx != null && loc.galy != null && (
-        <span className="small muted">Galaxy: ({loc.galx}, {loc.galy})</span>
-      )}
-      {loc.sysx != null && loc.sysy != null && (
-        <span className="small muted">Position: ({loc.sysx}, {loc.sysy})</span>
-      )}
+      {loc.sector && <span className="small muted">Sector: {loc.sector}</span>}
+      {loc.system && <span className="small muted">System: {loc.system}</span>}
+      {loc.galx != null && loc.galy != null && <span className="small muted">Galaxy: ({loc.galx}, {loc.galy})</span>}
+      {loc.sysx != null && loc.sysy != null && <span className="small muted">Position: ({loc.sysx}, {loc.sysy})</span>}
     </div>
   );
 }
@@ -68,62 +61,63 @@ const EntityDetailPopup: React.FC<Props> = ({
   onSelect,
   selectLabel = "Select",
 }) => {
-  const [loading, setLoading] = useState(!snapshot);
+  const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<EntityDetail | null>(snapshot ?? null);
   const [raw, setRaw] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (snapshot) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
     getEntityDetail(entityType, entityUid)
       .then((res) => {
-        if (!cancelled) {
-          setDetail(res.data);
-          setRaw(res.raw);
-        }
+        if (!cancelled) { setDetail(res.data); setRaw(res.raw); }
       })
       .catch((e) => {
         if (!cancelled) setError(e?.message ?? "Failed to load entity details.");
       })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [entityType, entityUid]);
 
   return (
-    <div className="entity-popup-backdrop" onClick={onClose}>
-      <div className="entity-popup" onClick={(e) => e.stopPropagation()}>
-        <button className="entity-popup__close" type="button" onClick={onClose} aria-label="Close">✕</button>
+    <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/65" onClick={onClose}>
+      <div
+        className="relative flex flex-col gap-4 w-[calc(100vw-2rem)] max-w-[480px] max-h-[90vh] overflow-y-auto p-5 rounded-[12px] border border-white/[0.12] bg-[#1a1c22] shadow-[0_24px_64px_rgba(0,0,0,0.6)] max-[480px]:w-[calc(100vw-1rem)] max-[480px]:p-[0.85rem]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          className="absolute right-3 top-3 bg-white/[0.06] hover:bg-white/10 hover:text-white/90 border-0 rounded-[6px] text-white/50 text-[0.85rem] px-2 py-1 cursor-pointer"
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+        >✕</button>
 
-        <div className="entity-popup__header">
+        <div className="flex items-start gap-4 pr-8">
           {(overrideImageUrl ?? detail?.image_url) && (
-            <div className="entity-popup__image-wrap">
+            <div className="shrink-0 w-20 h-20 rounded-[8px] border border-white/[0.08] bg-white/[0.04] overflow-hidden">
               <img
-                className="entity-popup__image"
+                className="w-full h-full object-contain"
                 src={overrideImageUrl ?? detail?.image_url ?? ""}
                 alt={detail?.type_name ?? entityType}
                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
               />
             </div>
           )}
-          <div className="entity-popup__title-block">
-            <p className="entity-popup__name">{detail?.name ?? entityName}</p>
+          <div className="flex flex-col gap-[0.2rem] min-w-0">
+            <p className="m-0 text-[1rem] font-semibold leading-[1.3] break-words">{detail?.name ?? entityName}</p>
             {detail?.type_name && <p className="small muted" style={{ margin: 0 }}>{detail.type_name}</p>}
             <p className="small muted" style={{ margin: 0, fontFamily: "monospace" }}>{entityUid}</p>
             {detail?.wrecked && <p className="small" style={{ margin: 0, color: "#f87171" }}>⚠ Wrecked</p>}
           </div>
         </div>
 
-        {loading && <p className="market-empty" style={{ margin: "0.5rem 0" }}>Loading details…</p>}
+        {loading && <p className="small opacity-60" style={{ margin: "0.5rem 0" }}>Loading details…</p>}
         {error && <p className="small" style={{ color: "#f87171", margin: "0.5rem 0" }}>{error}</p>}
 
         {!loading && detail && (
-          <div className="entity-popup__body">
-            {/* Hull / shield / ionic */}
+          <div className="flex flex-col gap-3 border-t border-white/[0.07] pt-3">
             {detail.hull != null && detail.max_hull != null && (
               <StatBar label="Hull" value={detail.hull} max={detail.max_hull} color={hullColor(detail.hull, detail.max_hull)} />
             )}
@@ -133,26 +127,18 @@ const EntityDetailPopup: React.FC<Props> = ({
             {detail.ionic != null && detail.max_ionic != null && detail.max_ionic > 0 && (
               <StatBar label="Ionic" value={detail.ionic} max={detail.max_ionic} color="#a78bfa" />
             )}
-
-            {/* Location */}
-            <div className="entity-popup__row" style={{ alignItems: "flex-start" }}>
+            <div className="flex items-baseline gap-2 justify-between" style={{ alignItems: "flex-start" }}>
               <span className="small muted" style={{ flexShrink: 0 }}>Location</span>
-              <div style={{ textAlign: "right" }}>
-                <LocationBlock loc={detail.location} />
-              </div>
+              <div style={{ textAlign: "right" }}><LocationBlock loc={detail.location} /></div>
             </div>
-
-            {/* Owner */}
             {detail.owner && !hideOwner && (
-              <div className="entity-popup__row">
+              <div className="flex items-baseline gap-2 justify-between">
                 <span className="small muted">Owner</span>
                 <span className="small">{detail.owner.name}</span>
               </div>
             )}
-
-            {/* Cargo */}
             {detail.cargo && (detail.cargo.weight_total ?? 0) > 0 && (
-              <div className="entity-popup__row">
+              <div className="flex items-baseline gap-2 justify-between">
                 <span className="small muted">Cargo</span>
                 <span className="small">
                   {detail.cargo.weight_remaining?.toLocaleString()} / {detail.cargo.weight_total?.toLocaleString()} T
@@ -174,10 +160,8 @@ const EntityDetailPopup: React.FC<Props> = ({
         )}
 
         {onSelect && (
-          <div className="entity-popup__footer">
-            <button className="btn" type="button" onClick={() => { onSelect(); onClose(); }}>
-              {selectLabel}
-            </button>
+          <div className="border-t border-white/[0.07] pt-3">
+            <button className={BTN} type="button" onClick={() => { onSelect(); onClose(); }}>{selectLabel}</button>
           </div>
         )}
       </div>

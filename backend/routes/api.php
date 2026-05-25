@@ -8,13 +8,13 @@ use App\Http\Controllers\Api\Market\MarketEntityTypeSearchController;
 use App\Http\Controllers\Api\Market\MarketInventoryController;
 use App\Http\Controllers\Api\Market\MarketListingController;
 use App\Http\Controllers\Api\Market\MarketOrderController;
-use App\Http\Controllers\Api\HealthController;
-use App\Http\Controllers\Api\MetaController;
-use App\Http\Controllers\Api\JobsController;
-use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\Job\JobsController;
+use App\Http\Controllers\Api\Job\JobPayRateController;
+use App\Http\Controllers\Api\Job\JobPayClaimController;
+use App\Http\Controllers\Api\Payment\PaymentController;
 use App\Http\Controllers\Api\LoadingTipController;
-use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\BlogController;
+use App\Http\Controllers\Api\Auth\AuthController;
+use App\Http\Controllers\Api\Blog\BlogController;
 use App\Http\Controllers\Api\Universe\UniverseController;
 use App\Http\Controllers\Api\Universe\CellAnnotationController;
 use App\Http\Controllers\Api\Universe\SearchRecordController;
@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\Admin\WeatherController;
 use App\Http\Controllers\Api\Admin\ActionLogController;
 use App\Http\Controllers\Api\Admin\MemberAccessLogController;
 use App\Http\Controllers\Api\Admin\MemberChangelogAdminController;
+use App\Http\Controllers\Api\Admin\AdminNavPreferenceController;
 use App\Http\Controllers\Api\Admin\SiteLockController;
 use App\Http\Controllers\Api\Admin\EntityStatsController;
 use App\Http\Controllers\Api\Admin\DiscordBotAdminController;
@@ -39,25 +40,32 @@ use App\Http\Controllers\Api\Admin\WorkerHealthController;
 use App\Http\Controllers\Api\Admin\DroidBrainUploadAuditController;
 use App\Http\Controllers\Api\Admin\ToolStoreAdminController;
 use App\Http\Controllers\Api\SiteLockStatusController;
-use App\Http\Controllers\Api\SwcAuthorizationController;
+use App\Http\Controllers\Api\Member\SwcAuthorizationController;
 use App\Http\Controllers\Api\TenetOfSalvageController;
 use App\Http\Controllers\Api\Admin\TenetOfSalvageController as AdminTenetOfSalvageController;
 use App\Http\Controllers\Api\Admin\DebugController;
-use App\Http\Controllers\Api\FactionController;
-use App\Http\Controllers\Api\FactionPrivilegeController;
-use App\Http\Controllers\Api\ManualPaymentTemplateController;
+use App\Http\Controllers\Api\Faction\FactionController;
+use App\Http\Controllers\Api\Faction\FactionPrivilegeController;
+use App\Http\Controllers\Api\Payment\ManualPaymentTemplateController;
 use App\Http\Controllers\Api\DroidBrainController;
-use App\Http\Controllers\Api\DiscordBotController;
-use App\Http\Controllers\Api\MemberToolAccessController;
-use App\Http\Controllers\Api\MemberChangelogController;
+use App\Http\Controllers\Api\Discord\DiscordBotController;
+use App\Http\Controllers\Api\Member\MemberToolAccessController;
+use App\Http\Controllers\Api\Member\MemberChangelogController;
 use App\Http\Controllers\Api\ContactRequestController;
 use App\Http\Controllers\Api\Admin\ContactRequestSettingsController;
 use App\Http\Controllers\Api\Extension\HelperAuthController;
 use App\Http\Controllers\Api\Extension\HelperSettingsController;
-use App\Http\Controllers\Api\RmBrowserController;
-use App\Http\Controllers\Api\SkillsToolController;
+use App\Http\Controllers\Api\Member\RmBrowserController;
+use App\Http\Controllers\Api\Member\SkillsToolController;
 use App\Http\Controllers\Api\ToolStoreController;
-use App\Http\Controllers\Api\FactionConsoleController;
+use App\Http\Controllers\Api\Faction\FactionConsoleController;
+use App\Http\Controllers\Api\Support\SupportTicketController;
+use App\Http\Controllers\Api\Admin\SupportTicketAdminController;
+use App\Http\Controllers\Api\Swc\SwcStatusController;
+
+// SWC status (public — no auth)
+Route::get('/swc-status', [SwcStatusController::class, 'status']);
+Route::post('/webhooks/uptime-kuma', [SwcStatusController::class, 'webhook'])->middleware('throttle:60,1');
 
 // Tools store (catalog is public; subscribe requires auth)
 Route::get('/tools/store/catalog', [ToolStoreController::class, 'catalog']);
@@ -71,11 +79,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/faction-console/{subscriptionId}', [FactionConsoleController::class, 'show']);
     Route::post('/faction-console/{subscriptionId}/members/{userId}', [FactionConsoleController::class, 'grant']);
     Route::delete('/faction-console/{subscriptionId}/members/{userId}', [FactionConsoleController::class, 'revoke']);
+
+    // Support tickets — JOE members + active subscribers only (gated in controller)
+    Route::get('/support-tickets', [SupportTicketController::class, 'index']);
+    Route::post('/support-tickets', [SupportTicketController::class, 'store'])->middleware('throttle:10,1');
+    Route::get('/support-tickets/{supportTicket}', [SupportTicketController::class, 'show']);
+    Route::post('/support-tickets/{supportTicket}/reply', [SupportTicketController::class, 'reply'])->middleware('throttle:20,1');
 });
 
 // Public utility
-Route::get('/health', [HealthController::class, 'index']);
-Route::get('/meta', [MetaController::class, 'index']);
 Route::get('/loading-tip', [LoadingTipController::class, 'index']);
 Route::get('/time', [TimeController::class, 'show']);
 Route::post('/contact-requests', [ContactRequestController::class, 'store'])->middleware('throttle:5,1');
@@ -138,6 +150,17 @@ Route::middleware(['auth:sanctum', 'require_any:is_admin'])->prefix('admin')->gr
     Route::post('/member-changelog/generate-from-readme', [MemberChangelogAdminController::class, 'generateFromReadme']);
     Route::get('/member-changelog/export', [MemberChangelogAdminController::class, 'export']);
     Route::post('/member-changelog/import', [MemberChangelogAdminController::class, 'import']);
+    Route::get('/nav-preferences', [AdminNavPreferenceController::class, 'show']);
+    Route::put('/nav-preferences/recents', [AdminNavPreferenceController::class, 'updateRecents']);
+    Route::put('/nav-preferences/favorites', [AdminNavPreferenceController::class, 'updateFavorites']);
+
+    // Support tickets admin
+    Route::get('/support-tickets', [SupportTicketAdminController::class, 'index']);
+    Route::get('/support-tickets/{supportTicket}', [SupportTicketAdminController::class, 'show']);
+    Route::post('/support-tickets/{supportTicket}/reply', [SupportTicketAdminController::class, 'reply']);
+    Route::patch('/support-tickets/{supportTicket}/status', [SupportTicketAdminController::class, 'updateStatus']);
+    Route::get('/support-tickets-settings', [SupportTicketAdminController::class, 'getSettings']);
+    Route::post('/support-tickets-settings', [SupportTicketAdminController::class, 'updateSettings']);
 });
 
 // Jobs
@@ -157,6 +180,24 @@ Route::prefix('jobs')->group(function () {
     });
 });
 
+// Job Pay Rates (catalog visible to all members; admin manages)
+Route::get('/job-pay-rates', [JobPayRateController::class, 'index']);
+Route::middleware(['auth:sanctum', 'require_any:is_admin,is_sysadmin'])->group(function () {
+    Route::post('/job-pay-rates', [JobPayRateController::class, 'store']);
+    Route::put('/job-pay-rates/{jobPayRate}', [JobPayRateController::class, 'update']);
+    Route::delete('/job-pay-rates/{jobPayRate}', [JobPayRateController::class, 'destroy']);
+});
+
+// Job Pay Claims
+Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
+    Route::get('/job-pay-claims', [JobPayClaimController::class, 'index']);
+    Route::post('/job-pay-claims', [JobPayClaimController::class, 'store']);
+});
+Route::middleware(['auth:sanctum', 'require_any:is_admin,is_sysadmin'])->group(function () {
+    Route::post('/job-pay-claims/{jobPayClaim}/approve', [JobPayClaimController::class, 'approve']);
+    Route::post('/job-pay-claims/{jobPayClaim}/reject', [JobPayClaimController::class, 'reject']);
+});
+
 Route::middleware(['auth:sanctum', 'member_tool_access'])->prefix('job-assignments')->group(function () {
     Route::post('/{id}/complete', [JobsController::class, 'completeAssignment']);
     Route::post('/{id}/bonus', [JobsController::class, 'setAssignmentBonus']);
@@ -164,20 +205,20 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->prefix('job-assignmen
 
 Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
     Route::get('/member/changelog', [MemberChangelogController::class, 'index']);
-    Route::get('/payments', [\App\Http\Controllers\Api\PaymentController::class, 'index']);
-    Route::get('/payments/pending-count', [\App\Http\Controllers\Api\PaymentController::class, 'pendingCount']);
-    Route::get('/payments/owed-to-me', [\App\Http\Controllers\Api\PaymentController::class, 'owedToMe']);
-    Route::get('/payment-transfers', [\App\Http\Controllers\Api\PaymentController::class, 'transfers']);
-    Route::get('/payment-transfers/unverified-support', [\App\Http\Controllers\Api\PaymentController::class, 'unverifiedSupportQueue']);
-    Route::post('/payments/build-single', [\App\Http\Controllers\Api\PaymentController::class, 'buildSingle']);
-    Route::post('/payments/send-single', [\App\Http\Controllers\Api\PaymentController::class, 'sendSingle']);
-    Route::post('/payments/send-bulk', [\App\Http\Controllers\Api\PaymentController::class, 'sendBulk']);
-    Route::post('/payments/build-bulk', [\App\Http\Controllers\Api\PaymentController::class, 'buildBulk']);
-    Route::post('/payments/pull-credit-log', [\App\Http\Controllers\Api\PaymentController::class, 'pullCreditLog']);
-    Route::get('/payments/droidbrain-settings', [\App\Http\Controllers\Api\PaymentController::class, 'droidBrainSettings']);
-    Route::put('/payments/droidbrain-settings', [\App\Http\Controllers\Api\PaymentController::class, 'updateDroidBrainSettings']);
-    Route::post('/payment-transfers/{paymentTransfer}/verify', [\App\Http\Controllers\Api\PaymentController::class, 'verify']);
-    Route::post('/payment-transfers/{paymentTransfer}/manual-verify', [\App\Http\Controllers\Api\PaymentController::class, 'manualVerify']);
+    Route::get('/payments', [\App\Http\Controllers\Api\Payment\PaymentController::class, 'index']);
+    Route::get('/payments/pending-count', [\App\Http\Controllers\Api\Payment\PaymentController::class, 'pendingCount']);
+    Route::get('/payments/owed-to-me', [\App\Http\Controllers\Api\Payment\PaymentController::class, 'owedToMe']);
+    Route::get('/payment-transfers', [\App\Http\Controllers\Api\Payment\PaymentController::class, 'transfers']);
+    Route::get('/payment-transfers/unverified-support', [\App\Http\Controllers\Api\Payment\PaymentController::class, 'unverifiedSupportQueue']);
+    Route::post('/payments/build-single', [\App\Http\Controllers\Api\Payment\PaymentController::class, 'buildSingle']);
+    Route::post('/payments/send-single', [\App\Http\Controllers\Api\Payment\PaymentController::class, 'sendSingle'])->middleware('throttle:payments-send');
+    Route::post('/payments/send-bulk', [\App\Http\Controllers\Api\Payment\PaymentController::class, 'sendBulk'])->middleware('throttle:payments-bulk');
+    Route::post('/payments/build-bulk', [\App\Http\Controllers\Api\Payment\PaymentController::class, 'buildBulk']);
+    Route::post('/payments/pull-credit-log', [\App\Http\Controllers\Api\Payment\PaymentController::class, 'pullCreditLog'])->middleware('throttle:credit-log-pull');
+    Route::get('/payments/droidbrain-settings', [\App\Http\Controllers\Api\Payment\PaymentController::class, 'droidBrainSettings']);
+    Route::put('/payments/droidbrain-settings', [\App\Http\Controllers\Api\Payment\PaymentController::class, 'updateDroidBrainSettings']);
+    Route::post('/payment-transfers/{paymentTransfer}/verify', [\App\Http\Controllers\Api\Payment\PaymentController::class, 'verify']);
+    Route::post('/payment-transfers/{paymentTransfer}/manual-verify', [\App\Http\Controllers\Api\Payment\PaymentController::class, 'manualVerify']);
     // Member-only universe (JOE data: scan records, annotations, archive)
     Route::get('/universe/search-records', [UniverseController::class, 'searchRecords']);
     Route::get('/universe/sectors/{sector}', [UniverseController::class, 'sector']);
@@ -254,7 +295,7 @@ Route::middleware(['auth:sanctum', 'public_tool_access'])->group(function () {
     Route::get('/universe/systems/{system}', [UniverseController::class, 'system']);
     Route::get('/universe/subscriber-cell-records', [SubscriberCellRecordController::class, 'index']);
     Route::post('/universe/subscriber-cell-records', [SubscriberCellRecordController::class, 'store']);
-    Route::post('/universe/search-records/import-personal-events', [SearchRecordController::class, 'importPersonalEvents']);
+    Route::post('/universe/search-records/import-personal-events', [SearchRecordController::class, 'importPersonalEvents'])->middleware('throttle:import-personal-events');
     Route::get('/universe/search-records/import-logs', [SearchRecordController::class, 'importLogs']);
     Route::delete('/universe/search-records/import-logs', [SearchRecordController::class, 'clearImportLogs']);
     Route::get('/universe/hyper-planner', [UniverseController::class, 'hyperPlanner']);
@@ -431,8 +472,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/market/listings', [MarketListingController::class, 'index']);
     Route::get('/market/faction-store', [FactionStoreController::class, 'index']);
     Route::get('/market/orders/mine', [MarketOrderController::class, 'myOrders']);
-    Route::post('/market/listings/{marketListing}/orders', [MarketOrderController::class, 'store']);
-    Route::post('/market/orders/{marketOrder}/pay', [MarketOrderController::class, 'pay']);
+    Route::post('/market/listings/{marketListing}/orders', [MarketOrderController::class, 'store'])->middleware('throttle:market-order');
+    Route::post('/market/orders/{marketOrder}/pay', [MarketOrderController::class, 'pay'])->middleware('throttle:market-pay');
     Route::post('/market/orders/{marketOrder}/cancel', [MarketOrderController::class, 'cancel']);
     Route::post('/market/orders/{marketOrder}/dispute', [MarketOrderController::class, 'dispute']);
 });
@@ -471,7 +512,7 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
 });
 
 Route::middleware(['auth:sanctum', 'require_any:can_access_rm_browser,is_admin,is_sysadmin'])->group(function () {
-    Route::get('/rm-browser/materials', [RmBrowserController::class, 'search']);
+    Route::get('/rm-browser/materials', [RmBrowserController::class, 'search'])->middleware('throttle:rm-browser');
 });
 
 Route::middleware(['auth:sanctum', 'require_any:is_joe_member,can_access_fleet_commander,is_admin,is_sysadmin'])->group(function () {

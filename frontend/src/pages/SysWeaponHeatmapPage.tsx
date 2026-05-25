@@ -1,13 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../api/auth";
+import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../api/core/auth";
 import { canAccessSysadmin } from "../auth/permissions";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import WeaponHeatmapTool from "../components/tools/weaponHeatmap/WeaponHeatmapTool";
-import "../styles/main.sass";
-import "../styles/_admin.sass";
-import "../styles/_weaponheatmap.sass";
 
 const SysWeaponHeatmapPage: React.FC = () => {
   const [viewer, setViewer] = useState<SwcUser | null>(null);
@@ -52,7 +49,7 @@ const SysWeaponHeatmapPage: React.FC = () => {
 
   if (pageLoading) {
     return (
-      <main className="board admin-board">
+      <main className="board flex flex-col gap-4">
         <p className="small">Checking sysadmin access…</p>
       </main>
     );
@@ -60,7 +57,7 @@ const SysWeaponHeatmapPage: React.FC = () => {
 
   if (pageError) {
     return (
-      <main className="board admin-board">
+      <main className="board flex flex-col gap-4">
         <p className="small">{pageError}</p>
       </main>
     );
@@ -75,8 +72,8 @@ const SysWeaponHeatmapPage: React.FC = () => {
   }
 
   return (
-    <main className="board admin-board weapon-heatmap-page">
-      <div className="weapon-heatmap-page__header">
+    <main className="board grid gap-4">
+      <div className="flex justify-between gap-4">
         <div>
           <p className="small">
             <Link to="/sys/debug">Back to Sys Debug</Link>

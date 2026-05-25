@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { searchRmMaterials, type RmMaterial } from "../../api/rmBrowser";
+import { searchRmMaterials, type RmMaterial } from "../../api/universe/rmBrowser";
 import RmBrowserFilterBar, { type RmBrowserFilters } from "./RmBrowserFilterBar";
 import RmBrowserResultsTable from "./RmBrowserResultsTable";
 
 import type { SortKey, SortDir } from "./RmBrowserResultsTable";
+import ReportBugButton from "../support/ReportBugButton";
 
 const DEFAULT_FILTERS: RmBrowserFilters = {
   factions: ["1376", "1791", "1796"],
@@ -68,15 +69,18 @@ const RmBrowserPanel: React.FC = () => {
   }
 
   return (
-    <div className="rm-browser">
-      <div className="rm-browser__header">
-        <h1 className="rm-browser__title">RM Browser</h1>
-        <p className="small rm-browser__subtitle">
+    <div className="max-w-[1200px] mx-auto p-4 max-[767px]:px-2 max-[767px]:py-3">
+      <div className="mb-5">
+        <h1 className="text-[1.4rem] font-semibold m-0">RM Browser</h1>
+        <p className="small opacity-70 m-0">
           Browse raw materials across JOE, GARRY, and RAID faction inventories.
           {hasSearched && materials.length > 0 && (
             <> &mdash; <strong>{materials.length.toLocaleString()}</strong> results</>
           )}
         </p>
+        <div className="mt-2">
+          <ReportBugButton toolKey="rm_browser" toolLabel="RM Browser" />
+        </div>
       </div>
 
       <RmBrowserFilterBar
@@ -103,7 +107,7 @@ const RmBrowserPanel: React.FC = () => {
       )}
 
       {!hasSearched && !loading && (
-        <p className="rm-browser__status">Select factions and apply filters, then hit Search.</p>
+        <p className="text-center opacity-50 py-8 text-[0.85rem]">Select factions and apply filters, then hit Search.</p>
       )}
     </div>
   );

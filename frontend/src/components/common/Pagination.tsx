@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { INPUT } from '../../utils/ui';
 
 type Props = {
   page: number;
@@ -9,6 +10,12 @@ type Props = {
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
 };
+
+const paginationButtonBaseClass =
+  "inline-flex min-h-[34px] items-center justify-center rounded-[10px] border px-[0.8rem] py-2 text-[0.88rem] font-bold leading-none no-underline transition-[border-color,background,transform,box-shadow] duration-150 ease-out hover:enabled:-translate-y-px hover:enabled:border-[#f5d546]/[0.28] hover:enabled:bg-[#f5d546]/[0.07] disabled:cursor-not-allowed disabled:opacity-[0.55]";
+const paginationButtonSoftClass = "border-white/10 bg-white/[0.025] text-white/90";
+const paginationButtonPrimaryClass =
+  "border-[#f5d546]/35 bg-[#f5d546]/10 text-[#f2c46f] shadow-[inset_0_0_0_1px_rgba(245,213,70,0.08)] hover:enabled:border-[#f5d546]/45 hover:enabled:bg-[#f5d546]/15";
 
 const Pagination: React.FC<Props> = ({
   page,
@@ -42,20 +49,20 @@ const Pagination: React.FC<Props> = ({
   }, [safePage, totalPages]);
 
   return (
-    <div className="ui-pagination">
-      <div className="ui-pagination__meta">
+    <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <p className="small">
           Showing {startItem}-{endItem} of {totalItems}
         </p>
 
         {showPageSize && (
-          <div className="ui-pagination__size">
+          <div className="flex items-center gap-2">
             <label className="small" htmlFor="pagination-page-size">
               Rows
             </label>
             <select
               id="pagination-page-size"
-              className="input"
+              className={INPUT + " min-w-[120px] w-auto"}
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
             >
@@ -69,10 +76,10 @@ const Pagination: React.FC<Props> = ({
         )}
       </div>
 
-      <div className="ui-pagination__controls">
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          className="ui-btn ui-btn--soft ui-btn--small"
+          className={`${paginationButtonBaseClass} ${paginationButtonSoftClass}`}
           onClick={() => onPageChange(1)}
           disabled={safePage <= 1}
         >
@@ -81,20 +88,20 @@ const Pagination: React.FC<Props> = ({
 
         <button
           type="button"
-          className="ui-btn ui-btn--soft ui-btn--small"
+          className={`${paginationButtonBaseClass} ${paginationButtonSoftClass}`}
           onClick={() => onPageChange(safePage - 1)}
           disabled={safePage <= 1}
         >
           Prev
         </button>
 
-        <div className="ui-pagination__pages">
+        <div className="flex flex-wrap items-center gap-[0.35rem]">
           {pages.map((value) => (
             <button
               key={value}
               type="button"
-              className={`ui-btn ui-btn--small ${
-                value === safePage ? "ui-btn--primary" : "ui-btn--soft"
+              className={`${paginationButtonBaseClass} ${
+                value === safePage ? paginationButtonPrimaryClass : paginationButtonSoftClass
               }`}
               onClick={() => onPageChange(value)}
             >
@@ -105,7 +112,7 @@ const Pagination: React.FC<Props> = ({
 
         <button
           type="button"
-          className="ui-btn ui-btn--soft ui-btn--small"
+          className={`${paginationButtonBaseClass} ${paginationButtonSoftClass}`}
           onClick={() => onPageChange(safePage + 1)}
           disabled={safePage >= totalPages}
         >
@@ -114,7 +121,7 @@ const Pagination: React.FC<Props> = ({
 
         <button
           type="button"
-          className="ui-btn ui-btn--soft ui-btn--small"
+          className={`${paginationButtonBaseClass} ${paginationButtonSoftClass}`}
           onClick={() => onPageChange(totalPages)}
           disabled={safePage >= totalPages}
         >

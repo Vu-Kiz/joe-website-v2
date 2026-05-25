@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Models\ToolSubscription;
-use App\Models\ToolSubscriptionPlan;
+use App\Models\ToolStore\ToolSubscription;
+use App\Models\ToolStore\ToolSubscriptionPlan;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Console\Command;

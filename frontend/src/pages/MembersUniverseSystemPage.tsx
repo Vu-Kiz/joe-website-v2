@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Navigate, useLocation, useParams } from "react-router-dom";
-import { fetchAuthMe, subscribeToAuthStateChange } from "../api/auth";
+import { fetchAuthMe, subscribeToAuthStateChange } from "../api/core/auth";
 import { canAccessDroidBrainFull, canAccessMembers, canAccessPublicTools } from "../auth/permissions";
 import ForbiddenState from "../components/common/ForbiddenState";
-import { getStoredSystem, type StoredSystemDetail } from "../api/universe";
+import { getStoredSystem, type StoredSystemDetail } from "../api/universe/universe";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import UniverseDetailHero from "../components/common/UniverseDetailHero";
 import UniverseDetailImmersive from "../components/common/UniverseDetailImmersive";
@@ -20,10 +20,31 @@ import ShipIconSat from "../assets/map/ships/Sat.png";
 import ShipIconSuper from "../assets/map/ships/Super.png";
 import ShipIconVette from "../assets/map/ships/Vette.png";
 import ShipIconWreck from "../assets/map/ships/Wreck.png";
-import "../styles/main.sass";
-import "../styles/_admin.sass";
-import "../styles/_membersuniverse.sass";
-import "../styles/_sysuniverse.sass";
+import { BTN } from "../utils/ui";
+
+const layerToggleCls = (active: boolean) =>
+  "inline-flex min-h-10 items-center justify-center rounded-[12px] border px-[0.95rem] py-[0.65rem] font-bold leading-none no-underline transition-[border-color,background,transform,box-shadow] duration-150 ease-out cursor-pointer" +
+  (active
+    ? " border-[rgba(246,163,0,0.6)] bg-[rgba(246,163,0,0.12)] text-white/[0.96]"
+    : " border-white/[0.14] bg-transparent text-white/[0.72] hover:border-white/[0.24] hover:bg-white/[0.04]");
+const gridCellCls = (hasContent: boolean, isActive: boolean) =>
+  "relative flex items-center justify-center w-[78px] h-[78px] min-w-[78px] min-h-[78px] p-0 rounded-none border border-solid border-white/[0.08] bg-transparent text-left pointer-events-auto overflow-hidden transition-[border-color,background,box-shadow] duration-[140ms] ease hover:border-white/[0.16] hover:bg-white/[0.03] hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]" +
+  (hasContent ? " has-content" : "") +
+  (isActive ? " !border-[rgba(246,163,0,0.68)] !bg-[rgba(246,163,0,0.08)] !shadow-[inset_0_0_0_1px_rgba(246,163,0,0.2)]" : "");
+const GRID_CELL_BODY_CLS = "relative flex items-center justify-center w-full h-full z-[1]";
+const GRID_CELL_THUMB_CLS = "w-[90%] h-[90%] max-w-[70px] max-h-[70px] rounded-full object-cover opacity-[0.96]";
+const GRID_CELL_STATION_CLS = "absolute right-[6px] top-[6px] w-[34px] h-[34px] rounded-[4px] object-cover opacity-[0.72] z-[2]";
+const GRID_CELL_DOT_CLS = "absolute right-[10px] top-[10px] w-[16px] h-[16px] rounded-full bg-[rgba(246,163,0,0.72)] z-[2]";
+const GRID_CELL_SHIP_CLS = "absolute left-0 bottom-0 w-[39px] h-[39px] object-contain object-left-bottom opacity-100 z-[3] drop-shadow-[0_0_4px_rgba(0,0,0,0.65)] pointer-events-none";
+const GRID_HOVER_CLS = "absolute z-[3] grid gap-[0.18rem] min-w-[120px] max-w-[200px] p-[0.55rem_0.75rem] rounded-[12px] border border-[rgba(246,163,0,0.45)] bg-[rgba(14,14,14,0.96)] shadow-[0_14px_32px_rgba(0,0,0,0.34)] pointer-events-none [&_strong]:text-[0.8rem] [&_strong]:text-white/[0.96]";
+const GRID_HOVER_GROUP_CLS = "grid gap-[0.15rem]";
+const GRID_HOVER_LABEL_CLS = "text-[rgba(246,163,0,0.98)] font-bold tracking-[0]";
+const SELECTION_HEAD_CLS = "grid gap-[0.2rem] [&_strong]:text-[1.15rem] [&_strong]:text-white/[0.96]";
+const SELECTION_LABEL_CLS = "text-[rgba(246,163,0,0.95)] text-[0.74rem] font-bold tracking-[0.06em] uppercase";
+const CELL_GROUP_CLS = "grid gap-2";
+const CELL_CHIP_GRID_CLS = "grid [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))] gap-[0.6rem]";
+const CELL_CHIP_CLS = "grid [grid-template-columns:auto_1fr] gap-[0.7rem] items-center p-3 rounded-[10px] border border-white/[0.08] bg-white/[0.04] [&_strong]:block [&_strong]:mb-[0.2rem]";
+const SHIP_ICON_CLS = "w-[28px] h-[28px] object-contain opacity-[0.9]";
 
 const SYSTEM_GRID_SIZE = 20;
 const SYSTEM_CELL_SIZE = 78;
@@ -347,8 +368,8 @@ const MembersUniverseSystemPage: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
-            <h1>System Detail</h1>
+          <main className="board flex flex-col gap-4">
+            <h1 className="h1">System Detail</h1>
             <p className="small">Loading stored system data…</p>
           </main>
         </div>
@@ -360,7 +381,7 @@ const MembersUniverseSystemPage: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
+          <main className="board flex flex-col gap-4">
             <NotLoggedInState
               title="Not logged in"
               message="You need to sign in to access member tools."
@@ -375,7 +396,7 @@ const MembersUniverseSystemPage: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
+          <main className="board flex flex-col gap-4">
             <ForbiddenState
               title="403 Forbidden"
               message="You do not have permission to access member tools."
@@ -389,7 +410,7 @@ const MembersUniverseSystemPage: React.FC = () => {
   return (
     <div className="site-scale">
       <div className="app app--one">
-        <main className="board admin-board members-universe-system-page">
+        <main className="board flex flex-col gap-4">
           <UniverseDetailHero
             eyebrow="Astrogation System"
             title={
@@ -421,11 +442,11 @@ const MembersUniverseSystemPage: React.FC = () => {
           <UniverseDetailImmersive
             title="In-System View"
             toolbar={
-              <div className="sysuniverse-toolbar">
-                <div className="sysuniverse-toolbar__actions">
+              <div className="flex justify-between gap-2 items-center flex-wrap">
+                <div className="flex gap-2 items-center flex-wrap">
                   {canSeeDroidBrainShips && (detail?.ships.length ?? 0) > 0 ? (
                     <button
-                      className={`btn members-universe-system__layer-toggle ${showDroidBrainShips ? "is-active" : ""}`}
+                      className={layerToggleCls(showDroidBrainShips)}
                       type="button"
                       onClick={() => setShowDroidBrainShips((value) => !value)}
                     >
@@ -433,7 +454,7 @@ const MembersUniverseSystemPage: React.FC = () => {
                     </button>
                   ) : null}
                   <span className="small">Zoom: {systemZoom.toFixed(2)}x</span>
-                  <button className="btn" type="button" onClick={resetSystemViewport}>
+                  <button className={BTN} type="button" onClick={resetSystemViewport}>
                     Reset View
                   </button>
                 </div>
@@ -443,7 +464,7 @@ const MembersUniverseSystemPage: React.FC = () => {
             viewport={
               <div
                 ref={systemViewportRef}
-                className={`sysuniverse-map-viewport sysuniverse-map-viewport--system ${isDraggingSystem ? "is-dragging" : ""}`}
+                className={`relative overflow-hidden rounded-[10px] border border-white/10 bg-[radial-gradient(circle_at_50%_38%,rgba(20,26,38,0.52),transparent_42%),linear-gradient(180deg,rgba(4,6,10,0.98),rgba(9,11,16,0.98))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04),0_28px_72px_rgba(0,0,0,0.32)] w-[min(100%,82vh,980px)] aspect-square mx-auto max-[860px]:w-full ${isDraggingSystem ? "cursor-grabbing" : "cursor-grab"}`}
                 style={{ overscrollBehavior: "contain", touchAction: "none" }}
                 onMouseDown={handleSystemMouseDown}
                 onMouseMove={(event) => {
@@ -460,7 +481,7 @@ const MembersUniverseSystemPage: React.FC = () => {
               >
                 <div className="sysuniverse-map-viewport__stars" />
                 <div
-                  className="sysuniverse-map-canvas"
+                  className="grid gap-0 origin-top-left w-max p-4 select-none"
                   style={{
                     transform: `translate(${systemOffset.x}px, ${systemOffset.y}px) scale(${systemZoom})`,
                   }}
@@ -468,7 +489,7 @@ const MembersUniverseSystemPage: React.FC = () => {
                   {mapCells.map((row, rowIndex) => (
                     <div
                       key={`member-sys-row-${rowIndex}`}
-                      className="sysuniverse-grid-row"
+                      className="grid gap-0"
                       style={{ gridTemplateColumns: `repeat(${row.length}, 78px)` }}
                     >
                       {row.map((cell) => {
@@ -480,7 +501,7 @@ const MembersUniverseSystemPage: React.FC = () => {
                         return (
                           <button
                             key={`member-sys-cell-${cell.x}-${cell.y}`}
-                            className={`btn members-universe-system__grid-cell ${occupancy > 0 ? "has-content" : ""} ${isSelected ? "is-active" : ""}`}
+                            className={gridCellCls(occupancy > 0, isSelected)}
                             type="button"
                             onClick={() => setSelectedSystemCell({ x: cell.x, y: cell.y })}
                             onMouseEnter={(event) => {
@@ -521,14 +542,14 @@ const MembersUniverseSystemPage: React.FC = () => {
                               borderWidth: `${Math.max(1, 1.15 / Math.max(systemZoom, SYSTEM_MIN_ZOOM))}px`,
                             }}
                           >
-                            <div className="members-universe-system__grid-cell-body">
+                            <div className={GRID_CELL_BODY_CLS}>
                               {cell.planets.slice(0, 1).map((planet) =>
                                 bestPlanetImage(planet) ? (
                                   <img
                                     key={`member-planet-preview-${planet.uid ?? planet.name}`}
                                     src={bestPlanetImage(planet) ?? ""}
                                     alt={planet.name ?? planet.uid ?? "Planet"}
-                                    className="members-universe-system__grid-cell-thumb"
+                                    className={GRID_CELL_THUMB_CLS}
                                   />
                                 ) : null
                               )}
@@ -537,18 +558,18 @@ const MembersUniverseSystemPage: React.FC = () => {
                                     key={`member-station-preview-${station.uid ?? station.name}`}
                                     src={bestStationImage(station) ?? ""}
                                     alt={stationTypeName(station)}
-                                    className="members-universe-system__grid-cell-station-icon"
+                                    className={GRID_CELL_STATION_CLS}
                                   />
                                 ) : null}
                               {station && !bestStationImage(station) ? (
-                                <span className="members-universe-system__grid-cell-dot" />
+                                <span className={GRID_CELL_DOT_CLS} />
                               ) : null}
                               {showDroidBrainShips && cell.ships[0] ? (
                                 <img
                                   key={`member-ship-preview-${cell.ships[0].uid ?? cell.ships[0].name}`}
                                   src={resolveShipMapIcon(cell.ships[0])}
                                   alt={cell.ships[0].class_name ?? cell.ships[0].type_name ?? cell.ships[0].name ?? "Ship"}
-                                  className="members-universe-system__grid-cell-ship-icon"
+                                  className={GRID_CELL_SHIP_CLS}
                                 />
                               ) : null}
                             </div>
@@ -560,7 +581,7 @@ const MembersUniverseSystemPage: React.FC = () => {
                 </div>
                 {hoveredSystemCell ? (
                   <div
-                    className="members-universe-system__grid-hover"
+                    className={GRID_HOVER_CLS}
                     style={{
                       left: hoveredSystemCell.left,
                       top: hoveredSystemCell.top,
@@ -571,8 +592,8 @@ const MembersUniverseSystemPage: React.FC = () => {
                       {hoveredSystemCell.x}, {hoveredSystemCell.y}
                     </strong>
                     {hoveredSystemCell.planets.length > 0 ? (
-                      <div className="members-universe-system__grid-hover-group">
-                        <span className="small members-universe-system__grid-hover-label">Planet</span>
+                      <div className={GRID_HOVER_GROUP_CLS}>
+                        <span className={`small ${GRID_HOVER_LABEL_CLS}`}>Planet</span>
                         {hoveredSystemCell.planets.slice(0, 3).map((planet, index) => (
                           <span key={`${planet.uid ?? planet.name ?? index}`} className="small">
                             {planet.name ?? formatSwcDisplayId(planet.uid) ?? `Planet ${index + 1}`}
@@ -581,8 +602,8 @@ const MembersUniverseSystemPage: React.FC = () => {
                       </div>
                     ) : null}
                     {hoveredSystemCell.stations.length > 0 ? (
-                      <div className="members-universe-system__grid-hover-group">
-                        <span className="small members-universe-system__grid-hover-label">Station</span>
+                      <div className={GRID_HOVER_GROUP_CLS}>
+                        <span className={`small ${GRID_HOVER_LABEL_CLS}`}>Station</span>
                         {hoveredSystemCell.stations.slice(0, 3).map((station, index) => (
                           <span key={`${station.uid ?? station.name ?? index}`} className="small">
                             {station.name ?? formatSwcDisplayId(station.uid) ?? `Station ${index + 1}`}
@@ -593,8 +614,8 @@ const MembersUniverseSystemPage: React.FC = () => {
                       </div>
                     ) : null}
                     {hoveredSystemCell.ships.length > 0 ? (
-                      <div className="members-universe-system__grid-hover-group">
-                        <span className="small members-universe-system__grid-hover-label">Ship</span>
+                      <div className={GRID_HOVER_GROUP_CLS}>
+                        <span className={`small ${GRID_HOVER_LABEL_CLS}`}>Ship</span>
                         {hoveredSystemCell.ships.slice(0, 3).map((ship, index) => (
                           <span key={`${ship.uid ?? ship.name ?? index}`} className="small">
                             {ship.name ?? formatSwcDisplayId(ship.uid) ?? `Ship ${index + 1}`}
@@ -612,33 +633,33 @@ const MembersUniverseSystemPage: React.FC = () => {
             }
             selection={
               <>
-                <div className="members-universe-system__selection-head">
-                  <span className="members-universe-system__selection-label">Selected Location</span>
+                <div className={SELECTION_HEAD_CLS}>
+                  <span className={SELECTION_LABEL_CLS}>Selected Location</span>
                   <strong>
                     {selectedCellData ? `${selectedCellData.x}, ${selectedCellData.y}` : "None"}
                   </strong>
                 </div>
 
                 {!selectedCellData ? (
-                  <p className="small sysuniverse-copy-reset">
+                  <p className="small m-0">
                     Click a coordinate on the system chart to inspect what is registered there.
                   </p>
                 ) : null}
 
                 {selectedCellData?.planets.length ? (
-                  <div className="members-universe-system__cell-group">
+                  <div className={CELL_GROUP_CLS}>
                     <span className="small">Planets</span>
-                    <div className="members-universe-system__cell-chip-grid">
+                    <div className={CELL_CHIP_GRID_CLS}>
                       {selectedCellData.planets.map((planet, index) => (
                         <div
                           key={`${planet.uid ?? planet.name ?? index}`}
-                          className="members-universe-system__cell-chip"
+                          className={CELL_CHIP_CLS}
                         >
                           {bestPlanetImage(planet) ? (
                             <img
                               src={bestPlanetImage(planet) ?? ""}
                               alt={planet.name ?? planet.uid ?? "Planet"}
-                              className="sysuniverse-planet-preview__thumb"
+                              className="w-9 h-9 rounded-full object-cover border border-white/15"
                             />
                           ) : null}
                           <div>
@@ -652,19 +673,19 @@ const MembersUniverseSystemPage: React.FC = () => {
                 ) : null}
 
                 {selectedCellData?.stations.length ? (
-                  <div className="members-universe-system__cell-group">
+                  <div className={CELL_GROUP_CLS}>
                     <span className="small">Stations</span>
-                    <div className="members-universe-system__cell-chip-grid">
+                    <div className={CELL_CHIP_GRID_CLS}>
                       {selectedCellData.stations.slice(0, 1).map((station, index) => (
                         <div
                           key={`${station.uid ?? station.name ?? index}`}
-                          className="members-universe-system__cell-chip"
+                          className={CELL_CHIP_CLS}
                         >
                           {bestStationImage(station) ? (
                             <img
                               src={bestStationImage(station) ?? ""}
                               alt={stationTypeName(station)}
-                              className="members-universe-system__selection-ship-icon"
+                              className={SHIP_ICON_CLS}
                             />
                           ) : null}
                           <div>
@@ -680,18 +701,18 @@ const MembersUniverseSystemPage: React.FC = () => {
                 ) : null}
 
                 {showDroidBrainShips && selectedCellData?.ships.length ? (
-                  <div className="members-universe-system__cell-group">
+                  <div className={CELL_GROUP_CLS}>
                     <span className="small">DroidBrain Ships</span>
-                    <div className="members-universe-system__cell-chip-grid">
+                    <div className={CELL_CHIP_GRID_CLS}>
                       {selectedCellData.ships.map((ship, index) => (
                         <div
                           key={`${ship.uid ?? ship.name ?? index}`}
-                          className="members-universe-system__cell-chip"
+                          className={CELL_CHIP_CLS}
                         >
                           <img
                             src={resolveShipMapIcon(ship)}
                             alt={ship.class_name ?? ship.type_name ?? ship.name ?? "Ship"}
-                            className="members-universe-system__selection-ship-icon"
+                            className={SHIP_ICON_CLS}
                           />
                           <div>
                             <strong>{ship.name ?? formatSwcDisplayId(ship.uid) ?? `Ship ${index + 1}`}</strong>
@@ -710,7 +731,7 @@ const MembersUniverseSystemPage: React.FC = () => {
                 selectedCellData.planets.length === 0 &&
                 selectedCellData.stations.length === 0 &&
                 selectedCellData.ships.length === 0 ? (
-                  <p className="small sysuniverse-copy-reset">Nothing is registered at this coordinate.</p>
+                  <p className="small m-0">Nothing is registered at this coordinate.</p>
                 ) : null}
               </>
             }

@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Faction;
-use App\Models\SwcSectorSearchRecord;
-use App\Models\ToolSubscription;
-use App\Models\ToolSubscriptionMember;
+use App\Models\Swc\SwcSectorSearchRecord;
+use App\Models\ToolStore\ToolSubscription;
+use App\Models\ToolStore\ToolSubscriptionMember;
 use App\Models\User;
 use App\Support\Admin\AdminActionLogger;
 use App\Support\Swc\SwcAuthorizationService;

@@ -1,5 +1,20 @@
 import React, { useEffect, useMemo, useState } from "react";
-import type { PaymentTransfer } from "../../api/payments";
+import type { PaymentTransfer } from "../../api/payments/payments";
+import { BTN, INPUT, SELECT_INPUT } from "../../utils/ui";
+
+const CARD_CLS = "flex flex-col gap-3 p-[0.9rem] rounded-[12px] border border-white/[0.08] bg-white/[0.03]";
+const CARD_HEADER_SPLIT_CLS = "flex flex-row justify-between items-start gap-3 flex-wrap";
+const CARD_TITLE_BLOCK_CLS = "flex flex-col gap-1";
+const CARD_EYEBROW_CLS = "m-0 opacity-[0.72] uppercase tracking-[0.06em]";
+const CARD_STATUS_CLS = "capitalize";
+const META_LIST_CLS = "grid gap-[0.35rem] [&_p]:m-0";
+const noteCls = () =>
+  "m-0 p-[0.65rem_0.8rem] rounded-[10px] border border-white/[0.08] bg-white/[0.025]";
+const TOOLBAR_CLS = "flex gap-3 flex-wrap items-end mb-4";
+const FIELD_CLS = "grid gap-[0.4rem]";
+const FIELD_COMPACT_CLS = FIELD_CLS + " w-[min(100%,420px)]";
+const PAGINATION_CLS = "flex gap-3 items-center justify-start flex-wrap mt-4";
+const PAGINATION_LABEL_CLS = "m-0 min-w-[88px]";
 
 type Props = {
   allowSwcVerify?: boolean;
@@ -132,15 +147,15 @@ const PaymentHistoryPanel: React.FC<Props> = ({
 
   return (
     <div className="panel">
-      <h2>{title}</h2>
+      <h2 className="h2">{title}</h2>
 
-      {intro && <p className="small payments-panel__intro">{intro}</p>}
+      {intro && <p className="small mb-4 max-w-[68ch]">{intro}</p>}
 
-      <div className="payments-toolbar">
-        <label className="small payments-field payments-field--compact">
+      <div className={TOOLBAR_CLS}>
+        <label className={"small " + FIELD_COMPACT_CLS}>
           <strong>Search</strong>
           <input
-            className="input"
+            className={INPUT + " rounded-full pl-4"}
             type="search"
             placeholder="Search recipient, reference, method, or communication"
             value={query}
@@ -148,9 +163,9 @@ const PaymentHistoryPanel: React.FC<Props> = ({
           />
         </label>
 
-        <label className="small payments-field payments-field--compact">
+        <label className={"small " + FIELD_COMPACT_CLS}>
           <strong>Filter By</strong>
-          <select className="input" value={filterBy} onChange={(e) => setFilterBy(e.target.value)}>
+          <select className={SELECT_INPUT} value={filterBy} onChange={(e) => setFilterBy(e.target.value)}>
             <option value="all">Everything</option>
             <option value="recipient">Recipient</option>
             <option value="status">Status</option>
@@ -159,9 +174,9 @@ const PaymentHistoryPanel: React.FC<Props> = ({
         </label>
 
         {filterBy !== "all" && (
-          <label className="small payments-field payments-field--compact">
+          <label className={"small " + FIELD_COMPACT_CLS}>
             <strong>Value</strong>
-            <select className="input" value={filterValue} onChange={(e) => setFilterValue(e.target.value)}>
+            <select className={SELECT_INPUT} value={filterValue} onChange={(e) => setFilterValue(e.target.value)}>
               <option value="all">All {filterBy}s</option>
               {activeFilterOptions.map((option) => (
                 <option key={option} value={option}>
@@ -173,10 +188,10 @@ const PaymentHistoryPanel: React.FC<Props> = ({
         )}
 
         {(query || filterBy !== "all" || filterValue !== "all") && (
-          <label className="small payments-field payments-field--compact">
+          <label className={"small " + FIELD_COMPACT_CLS}>
             <strong>Quick Reset</strong>
             <button
-              className="btn"
+              className={BTN}
               type="button"
               onClick={() => {
                 setQuery("");
@@ -191,7 +206,7 @@ const PaymentHistoryPanel: React.FC<Props> = ({
       </div>
 
       {transfers.length > 0 && (
-        <p className="small payments-panel__meta">
+        <p className="small mb-4 opacity-[0.85]">
           Showing {pagedTransfers.length} of {filteredTransfers.length} transfer{filteredTransfers.length === 1 ? "" : "s"}.
         </p>
       )}
@@ -205,81 +220,81 @@ const PaymentHistoryPanel: React.FC<Props> = ({
       )}
 
       {pagedTransfers.map((transfer) => (
-        <div key={transfer.id} className="admin-card payments-card payments-card--history">
+        <div key={transfer.id} className={CARD_CLS}>
           {(() => {
             const manualVerificationNote = getManualVerificationNote(transfer);
 
             return (
               <>
-          <div className="payments-card__header payments-card__header--split">
-            <div className="payments-card__title-block">
-              <p className="small payments-card__eyebrow">Recipient</p>
-              <strong>{transfer.payee_handle ?? transfer.payee_label ?? "Unknown"}</strong>
-            </div>
-            <strong className="payments-card__status" style={{ color: statusTone(transfer.status) }}>
-              {transfer.status}
-            </strong>
-          </div>
+                <div className={CARD_HEADER_SPLIT_CLS}>
+                  <div className={CARD_TITLE_BLOCK_CLS}>
+                    <p className={"small " + CARD_EYEBROW_CLS}>Recipient</p>
+                    <strong>{transfer.payee_handle ?? transfer.payee_label ?? "Unknown"}</strong>
+                  </div>
+                  <strong className={CARD_STATUS_CLS} style={{ color: statusTone(transfer.status) }}>
+                    {transfer.status}
+                  </strong>
+                </div>
 
-          <div className="payments-meta-list">
-            {showPayer && (
-              <p className="small">
-                <strong>Payer:</strong> {transfer.payer_label ?? "Unknown"}
-              </p>
-            )}
-            <p className="small">
-              <strong>Ref:</strong> {transfer.reference}
-            </p>
-            <p className="small">
-              <strong>Total:</strong> {transfer.total_amount.toLocaleString()}
-            </p>
-            <p className="small">
-              <strong>Method:</strong> {transfer.payment_method}
-            </p>
-            {manualVerificationNote ? (
-              <p className="small">
-                <strong>Admin note:</strong> {manualVerificationNote}
-              </p>
-            ) : (
-              <p className="small">
-                <strong>SWC sync:</strong> {transfer.verified_transaction_id ? "Verified" : "Awaiting verification"}
-              </p>
-            )}
-          </div>
+                <div className={META_LIST_CLS}>
+                  {showPayer && (
+                    <p className="small">
+                      <strong>Payer:</strong> {transfer.payer_label ?? "Unknown"}
+                    </p>
+                  )}
+                  <p className="small">
+                    <strong>Ref:</strong> {transfer.reference}
+                  </p>
+                  <p className="small">
+                    <strong>Total:</strong> {transfer.total_amount.toLocaleString()}
+                  </p>
+                  <p className="small">
+                    <strong>Method:</strong> {transfer.payment_method}
+                  </p>
+                  {manualVerificationNote ? (
+                    <p className="small">
+                      <strong>Admin note:</strong> {manualVerificationNote}
+                    </p>
+                  ) : (
+                    <p className="small">
+                      <strong>SWC sync:</strong> {transfer.verified_transaction_id ? "Verified" : "Awaiting verification"}
+                    </p>
+                  )}
+                </div>
 
-          {transfer.communication && (
-            <p className="small payments-note">Communication: {transfer.communication}</p>
-          )}
+                {transfer.communication && (
+                  <p className={"small " + noteCls()}>Communication: {transfer.communication}</p>
+                )}
 
-          {transfer.verified_transaction_id && (
-            <p className="small payments-note">
-              Verified SWC transaction: {transfer.verified_transaction_id}
-            </p>
-          )}
+                {transfer.verified_transaction_id && (
+                  <p className={"small " + noteCls()}>
+                    Verified SWC transaction: {transfer.verified_transaction_id}
+                  </p>
+                )}
 
-          {transfer.status !== "verified" && transfer.status !== "paid" && (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {allowSwcVerify && (
-                <button
-                  className="btn"
-                  type="button"
-                  onClick={() => onVerifyTransfer(transfer.id)}
-                >
-                  Verify via SWC Sync
-                </button>
-              )}
+                {transfer.status !== "verified" && transfer.status !== "paid" && (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {allowSwcVerify && (
+                      <button
+                        className={BTN}
+                        type="button"
+                        onClick={() => onVerifyTransfer(transfer.id)}
+                      >
+                        Verify via SWC Sync
+                      </button>
+                    )}
 
-              {canManualVerify && (
-                <button
-                  className="btn"
-                  type="button"
-                  onClick={() => onManualVerifyTransfer(transfer)}
-                >
-                  Mark Verified Manually
-                </button>
-              )}
-            </div>
-          )}
+                    {canManualVerify && (
+                      <button
+                        className={BTN}
+                        type="button"
+                        onClick={() => onManualVerifyTransfer(transfer)}
+                      >
+                        Mark Verified Manually
+                      </button>
+                    )}
+                  </div>
+                )}
               </>
             );
           })()}
@@ -287,14 +302,14 @@ const PaymentHistoryPanel: React.FC<Props> = ({
       ))}
 
       {filteredTransfers.length > pageSize && (
-        <div className="payments-pagination">
-          <button className="btn" type="button" onClick={() => setPage((curr) => Math.max(1, curr - 1))} disabled={page === 1}>
+        <div className={PAGINATION_CLS}>
+          <button className={BTN} type="button" onClick={() => setPage((curr) => Math.max(1, curr - 1))} disabled={page === 1}>
             Previous
           </button>
-          <p className="small payments-pagination__label">
+          <p className={"small " + PAGINATION_LABEL_CLS}>
             Page {page} of {totalPages}
           </p>
-          <button className="btn" type="button" onClick={() => setPage((curr) => Math.min(totalPages, curr + 1))} disabled={page === totalPages}>
+          <button className={BTN} type="button" onClick={() => setPage((curr) => Math.min(totalPages, curr + 1))} disabled={page === totalPages}>
             Next
           </button>
         </div>

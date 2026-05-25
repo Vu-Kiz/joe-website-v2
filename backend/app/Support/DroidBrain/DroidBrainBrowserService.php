@@ -2,13 +2,13 @@
 
 namespace App\Support\DroidBrain;
 
-use App\Models\SwcShipType;
-use App\Models\SwcPlanet;
-use App\Models\SwcPlanetType;
-use App\Models\SwcRace;
-use App\Models\SwcStationType;
-use App\Models\SwcSystem;
-use App\Models\SwcVehicleType;
+use App\Models\Swc\SwcShipType;
+use App\Models\Swc\SwcPlanet;
+use App\Models\Swc\SwcPlanetType;
+use App\Models\Swc\SwcRace;
+use App\Models\Swc\SwcStationType;
+use App\Models\Swc\SwcSystem;
+use App\Models\Swc\SwcVehicleType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;

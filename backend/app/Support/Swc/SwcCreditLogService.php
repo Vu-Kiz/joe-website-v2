@@ -233,7 +233,7 @@ class SwcCreditLogService
 
     protected function requestCreditLogPage(User $user, string $url, int $itemCount, ?int $startIndex = null): array
     {
-        $accessToken = $this->swcAuthorizationService->getAccessToken($user, \App\Models\SwcAuthorization::CONTEXT_PAYMENTS);
+        $accessToken = $this->swcAuthorizationService->getAccessToken($user, \App\Models\Swc\SwcAuthorization::CONTEXT_PAYMENTS);
 
         if (!$accessToken) {
             throw new RuntimeException('Missing SWC OAuth access token.');

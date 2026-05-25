@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../api/auth";
-import { getDebugCombatSettings } from "../api/sysDebug";
+import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../api/core/auth";
+import { getDebugCombatSettings } from "../api/admin/sysDebug";
 import {
   getStoredShipType,
   getStoredShipTypes,
@@ -9,13 +9,10 @@ import {
   type StoredShipTypeDetail,
   type StoredShipTypeSummary,
   type StoredWeaponTypeDetail,
-} from "../api/universe";
+} from "../api/universe/universe";
 import { canAccessSysadmin } from "../auth/permissions";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
-import "../styles/main.sass";
-import "../styles/_admin.sass";
-import "../styles/_weaponheatmap.sass";
 
 type HeatmapBoardMode = "auto" | "space" | "ground";
 type GridPoint = { x: number; y: number };
@@ -802,7 +799,7 @@ const SysShipHeatmapPage: React.FC = () => {
 
   if (pageLoading) {
     return (
-      <main className="board admin-board">
+      <main className="board flex flex-col gap-4">
         <p className="small">Checking sysadmin access…</p>
       </main>
     );
@@ -810,7 +807,7 @@ const SysShipHeatmapPage: React.FC = () => {
 
   if (pageError) {
     return (
-      <main className="board admin-board">
+      <main className="board flex flex-col gap-4">
         <p className="small">{pageError}</p>
       </main>
     );
@@ -824,24 +821,30 @@ const SysShipHeatmapPage: React.FC = () => {
     return <ForbiddenState title="Sysadmin Access Required" message="This ship heatmap is limited to sysadmins." />;
   }
 
+  const modeBtnCls = (active: boolean) =>
+    `inline-flex items-center justify-center min-h-[34px] px-3 py-1.5 text-[0.88rem] rounded-[10px] border cursor-pointer transition-[border-color,background] duration-150 ${active ? "border-[rgba(246,163,0,0.55)] bg-[rgba(246,163,0,0.14)] text-[#f2c46f]" : "border-white/10 bg-white/[0.025] text-white/90 hover:border-[rgba(246,163,0,0.3)] hover:bg-[rgba(246,163,0,0.08)]"}`;
+  const statCls = "grid gap-[0.25rem] p-[0.8rem] border border-white/[0.08] rounded-[12px] bg-white/[0.025]";
+  const tileCls = (active: boolean) =>
+    `grid gap-[0.15rem] w-full p-[0.75rem_0.8rem] text-left border rounded-[10px] bg-white/[0.025] text-inherit cursor-pointer transition-[border-color,background] duration-150 hover:border-[rgba(246,163,0,0.3)] hover:bg-[rgba(246,163,0,0.08)] ${active ? "border-[rgba(246,163,0,0.55)] bg-[rgba(246,163,0,0.14)]" : "border-white/[0.08]"}`;
+
   return (
-    <main className="board admin-board weapon-heatmap-page">
-      <div className="weapon-heatmap-page__header">
+    <main className="board grid gap-4">
+      <div className="flex justify-between gap-4">
         <div>
           <p className="small">
             <Link to="/sys/debug">Back to Sys Debug</Link>
           </p>
-          <h1>Ship Heatmap</h1>
+          <h1 className="h1">Ship Heatmap</h1>
           <p className="small">
             First-pass multi-weapon ship sandbox. It combines linked weapons with the current range/drop-off model and surfaces space-combat tracking and maneuver numbers so we can plug the rest of the formula in next.
           </p>
         </div>
       </div>
 
-      <div className="weapon-heatmap-page__layout">
-        <section className="panel weapon-heatmap-page__sidebar">
-          <div className="weapon-heatmap-page__section-head">
-            <h3>Ship Picker</h3>
+      <div className="grid grid-cols-[minmax(220px,260px)_minmax(0,1fr)_minmax(220px,260px)] gap-[0.8rem] items-start max-[1280px]:grid-cols-[minmax(200px,240px)_minmax(0,1fr)_minmax(200px,240px)] max-[1100px]:grid-cols-1">
+        <section className="panel grid gap-[0.55rem] self-start content-start sticky top-3 !p-[0.8rem] min-w-0 max-[1100px]:static">
+          <div className="flex justify-between items-start gap-3 [&_h3]:m-0 [&_h4]:m-0 [&_p]:m-0 [&_h3]:text-[0.95rem]">
+            <h3 className="h3">Ship Picker</h3>
           </div>
 
           <label className="small" htmlFor="ship-heatmap-query">
@@ -849,49 +852,39 @@ const SysShipHeatmapPage: React.FC = () => {
           </label>
           <input
             id="ship-heatmap-query"
-            className="admin-input"
+            className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search by name, class, or UID"
           />
 
-          <div className="weapon-heatmap-page__mode-picker">
+          <div className="grid gap-[0.22rem]">
             <span className="small">Grid</span>
-            <div className="weapon-heatmap-page__mode-buttons">
-              <button type="button" className={`weapon-heatmap-page__mode-button${boardMode === "space" ? " is-active" : ""}`} onClick={() => setBoardMode("space")}>
-                Space 20x20
-              </button>
-              <button type="button" className={`weapon-heatmap-page__mode-button${boardMode === "ground" ? " is-active" : ""}`} onClick={() => setBoardMode("ground")}>
-                Ground 21x21
-              </button>
-              <button type="button" className={`weapon-heatmap-page__mode-button${boardMode === "auto" ? " is-active" : ""}`} onClick={() => setBoardMode("auto")}>
-                Auto
-              </button>
+            <div className="flex flex-wrap gap-1">
+              <button type="button" className={modeBtnCls(boardMode === "space")} onClick={() => setBoardMode("space")}>Space 20x20</button>
+              <button type="button" className={modeBtnCls(boardMode === "ground")} onClick={() => setBoardMode("ground")}>Ground 21x21</button>
+              <button type="button" className={modeBtnCls(boardMode === "auto")} onClick={() => setBoardMode("auto")}>Auto</button>
             </div>
           </div>
 
-          <div className="weapon-heatmap-page__mode-picker">
+          <div className="grid gap-[0.22rem]">
             <span className="small">Click Mode</span>
-            <div className="weapon-heatmap-page__mode-buttons">
-              <button type="button" className={`weapon-heatmap-page__mode-button${selectionMode === "origin" ? " is-active" : ""}`} onClick={() => setSelectionMode("origin")}>
-                Set Weapon Grid
-              </button>
-              <button type="button" className={`weapon-heatmap-page__mode-button${selectionMode === "target" ? " is-active" : ""}`} onClick={() => setSelectionMode("target")}>
-                Set Target Grid
-              </button>
+            <div className="flex flex-wrap gap-1">
+              <button type="button" className={modeBtnCls(selectionMode === "origin")} onClick={() => setSelectionMode("origin")}>Set Weapon Grid</button>
+              <button type="button" className={modeBtnCls(selectionMode === "target")} onClick={() => setSelectionMode("target")}>Set Target Grid</button>
             </div>
           </div>
 
-          <div className="weapon-heatmap-page__mode-picker">
+          <div className="grid gap-[0.22rem]">
             <span className="small">Attacker / Target</span>
             <label className="small" htmlFor="ship-heatmap-combat-skill">Combat Skill</label>
-            <input id="ship-heatmap-combat-skill" className="admin-input" type="number" min={0} max={10} step={1} value={combatSkill} onChange={(event) => setCombatSkill(Math.max(0, Math.min(10, Number(event.target.value) || 0)))} />
+            <input id="ship-heatmap-combat-skill" className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit" type="number" min={0} max={10} step={1} value={combatSkill} onChange={(event) => setCombatSkill(Math.max(0, Math.min(10, Number(event.target.value) || 0)))} />
             <label className="small" htmlFor="ship-heatmap-attacker-piloting-skill">Attacker Piloting Skill</label>
-            <input id="ship-heatmap-attacker-piloting-skill" className="admin-input" type="number" min={0} max={10} step={1} value={attackerPilotingSkill} onChange={(event) => setAttackerPilotingSkill(Math.max(0, Math.min(10, Number(event.target.value) || 0)))} />
+            <input id="ship-heatmap-attacker-piloting-skill" className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit" type="number" min={0} max={10} step={1} value={attackerPilotingSkill} onChange={(event) => setAttackerPilotingSkill(Math.max(0, Math.min(10, Number(event.target.value) || 0)))} />
             <label className="small" htmlFor="ship-heatmap-target-ship">Target Ship</label>
             <select
               id="ship-heatmap-target-ship"
-              className="admin-input"
+              className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit"
               value={targetShipUid ?? ""}
               onChange={(event) => setTargetShipUid(event.target.value || null)}
             >
@@ -902,18 +895,18 @@ const SysShipHeatmapPage: React.FC = () => {
               ))}
             </select>
             <label className="small" htmlFor="ship-heatmap-piloting-skill">Target Piloting Skill</label>
-            <input id="ship-heatmap-piloting-skill" className="admin-input" type="number" min={0} max={10} step={1} value={targetPilotingSkill} onChange={(event) => setTargetPilotingSkill(Math.max(0, Math.min(10, Number(event.target.value) || 0)))} />
+            <input id="ship-heatmap-piloting-skill" className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit" type="number" min={0} max={10} step={1} value={targetPilotingSkill} onChange={(event) => setTargetPilotingSkill(Math.max(0, Math.min(10, Number(event.target.value) || 0)))} />
           </div>
 
           {shipsLoading ? <p className="small">Loading stored ships…</p> : null}
           {shipsError ? <p className="small">{shipsError}</p> : null}
 
-          <div className="weapon-heatmap-page__weapon-list">
+          <div className="grid gap-[0.4rem] max-h-[220px] overflow-auto pr-[0.15rem]">
             {filteredShips.map((ship) => (
               <button
                 key={ship.uid}
                 type="button"
-                className={`weapon-heatmap-page__weapon-button${selectedShipUid === ship.uid ? " is-active" : ""}`}
+                className={tileCls(selectedShipUid === ship.uid)}
                 onClick={() => setSelectedShipUid(ship.uid)}
               >
                 <strong>{ship.name ?? ship.uid}</strong>
@@ -923,30 +916,30 @@ const SysShipHeatmapPage: React.FC = () => {
           </div>
         </section>
 
-        <section className="panel weapon-heatmap-page__main">
+        <section className="panel grid gap-4 content-start">
           {selectedShip ? (
             <>
-              <div className="weapon-heatmap-page__section-head">
+              <div className="flex justify-between items-start gap-3 [&_h3]:m-0 [&_h4]:m-0 [&_p]:m-0 [&_h3]:text-[0.95rem]">
                 <div>
-                  <h3>{selectedShip.name ?? selectedShip.uid}</h3>
+                  <h3 className="h3">{selectedShip.name ?? selectedShip.uid}</h3>
                   <p className="small">{selectedShip.class_name ?? "Unknown class"}</p>
                 </div>
               </div>
 
-              <div className="weapon-heatmap-page__legend">
-                <div className="weapon-heatmap-page__section-head">
+              <div className="grid gap-[0.45rem]">
+                <div className="flex justify-between items-start gap-3 [&_h3]:m-0 [&_h4]:m-0 [&_p]:m-0 [&_h3]:text-[0.95rem]">
                   <h4>Linked Weapons</h4>
                   <span className="small">
                     {focusedWeapon ? "Showing selected weapon heatmap" : "Pick a weapon"}
                   </span>
                 </div>
                 {shipDetailLoading || resolvedWeaponsLoading || targetShipDetailLoading ? <p className="small">Resolving ship data…</p> : null}
-                <div className="ship-heatmap-page__weapon-picker">
+                <div className="grid grid-cols-2 gap-[0.65rem] max-[820px]:grid-cols-1">
                   {resolvedWeapons.map((entry) => (
                     <button
                       key={entry.key}
                       type="button"
-                      className={`ship-heatmap-page__weapon-tile${focusedWeapon?.key === entry.key ? " is-active" : ""}`}
+                      className={tileCls(focusedWeapon?.key === entry.key)}
                       onClick={() => setFocusedWeaponKey(entry.key)}
                     >
                       <strong>{entry.name ?? entry.uid ?? entry.weapon.uid}</strong>
@@ -961,44 +954,45 @@ const SysShipHeatmapPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="weapon-heatmap-page__stats">
-                <article className="weapon-heatmap-page__stat"><span className="small">Linked Weapons</span><strong>{formatNumber(resolvedWeapons.length, 0)}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Selected Weapon</span><strong>{focusedWeapon?.name ?? focusedWeapon?.uid ?? "Unknown"}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Attacks / Round</span><strong>{formatNumber(totalAttackCount, 0)}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Heatmap Range</span><strong>{formatNumber(selectedMaxRange, 0)}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Grid Mode</span><strong>{boardMode === "space" ? "Space 20x20" : boardMode === "ground" ? "Ground 21x21" : "Auto"}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Weapon Grid</span><strong>{`${activeOrigin.x}, ${activeOrigin.y}`}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Target Grid</span><strong>{`${activeTarget.x}, ${activeTarget.y}`}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Target Ship</span><strong>{targetShipDetail?.name ?? targetShipUid ?? "Unknown"}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Attacker Length</span><strong>{formatNumber(selectedShipDetail?.length, 0)}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Target Length</span><strong>{formatNumber(targetShipDetail?.length, 0)}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Attacker Class</span><strong>{selectedShipDetail?.class_name ?? "Unknown"}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Target Class</span><strong>{targetShipDetail?.class_name ?? "Unknown"}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Target Armor</span><strong>{formatNumber(targetShipDetail?.armour, 0)}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Length Modifier</span><strong>{`${formatNumber(lengthModifier * 100, 0)}%`}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Base Attacker Maneuver</span><strong>{formatNumber(selectedShipDetail?.manoeuvrability, 2)}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Actual Attacker Maneuver</span><strong>{formatNumber(actualAttackerManeuverability, 2)}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Base Target Maneuver</span><strong>{formatNumber(targetShipDetail?.manoeuvrability, 2)}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Actual Target Maneuver</span><strong>{formatNumber(actualTargetManeuverability, 2)}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Maneuver Modifier</span><strong>{`${formatNumber(maneuverComparisonModifier * 100, 0)}%`}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Ship Class Modifier</span><strong>{`${formatNumber(focusedShipClassModifier * 100, 0)}%`}</strong></article>
-                <article className="weapon-heatmap-page__stat"><span className="small">Target Hit Chance</span><strong>{selectedTargetCell ? `${formatNumber(selectedTargetCell.combinedHitChance * 100, 0)}%` : "Unknown"}</strong></article>
+              <div className="grid grid-cols-4 gap-[0.7rem] max-[980px]:grid-cols-2 max-[560px]:grid-cols-1">
+                <article className={statCls}><span className="small">Linked Weapons</span><strong>{formatNumber(resolvedWeapons.length, 0)}</strong></article>
+                <article className={statCls}><span className="small">Selected Weapon</span><strong>{focusedWeapon?.name ?? focusedWeapon?.uid ?? "Unknown"}</strong></article>
+                <article className={statCls}><span className="small">Attacks / Round</span><strong>{formatNumber(totalAttackCount, 0)}</strong></article>
+                <article className={statCls}><span className="small">Heatmap Range</span><strong>{formatNumber(selectedMaxRange, 0)}</strong></article>
+                <article className={statCls}><span className="small">Grid Mode</span><strong>{boardMode === "space" ? "Space 20x20" : boardMode === "ground" ? "Ground 21x21" : "Auto"}</strong></article>
+                <article className={statCls}><span className="small">Weapon Grid</span><strong>{`${activeOrigin.x}, ${activeOrigin.y}`}</strong></article>
+                <article className={statCls}><span className="small">Target Grid</span><strong>{`${activeTarget.x}, ${activeTarget.y}`}</strong></article>
+                <article className={statCls}><span className="small">Target Ship</span><strong>{targetShipDetail?.name ?? targetShipUid ?? "Unknown"}</strong></article>
+                <article className={statCls}><span className="small">Attacker Length</span><strong>{formatNumber(selectedShipDetail?.length, 0)}</strong></article>
+                <article className={statCls}><span className="small">Target Length</span><strong>{formatNumber(targetShipDetail?.length, 0)}</strong></article>
+                <article className={statCls}><span className="small">Attacker Class</span><strong>{selectedShipDetail?.class_name ?? "Unknown"}</strong></article>
+                <article className={statCls}><span className="small">Target Class</span><strong>{targetShipDetail?.class_name ?? "Unknown"}</strong></article>
+                <article className={statCls}><span className="small">Target Armor</span><strong>{formatNumber(targetShipDetail?.armour, 0)}</strong></article>
+                <article className={statCls}><span className="small">Length Modifier</span><strong>{`${formatNumber(lengthModifier * 100, 0)}%`}</strong></article>
+                <article className={statCls}><span className="small">Base Attacker Maneuver</span><strong>{formatNumber(selectedShipDetail?.manoeuvrability, 2)}</strong></article>
+                <article className={statCls}><span className="small">Actual Attacker Maneuver</span><strong>{formatNumber(actualAttackerManeuverability, 2)}</strong></article>
+                <article className={statCls}><span className="small">Base Target Maneuver</span><strong>{formatNumber(targetShipDetail?.manoeuvrability, 2)}</strong></article>
+                <article className={statCls}><span className="small">Actual Target Maneuver</span><strong>{formatNumber(actualTargetManeuverability, 2)}</strong></article>
+                <article className={statCls}><span className="small">Maneuver Modifier</span><strong>{`${formatNumber(maneuverComparisonModifier * 100, 0)}%`}</strong></article>
+                <article className={statCls}><span className="small">Ship Class Modifier</span><strong>{`${formatNumber(focusedShipClassModifier * 100, 0)}%`}</strong></article>
+                <article className={statCls}><span className="small">Target Hit Chance</span><strong>{selectedTargetCell ? `${formatNumber(selectedTargetCell.combinedHitChance * 100, 0)}%` : "Unknown"}</strong></article>
               </div>
 
-              <div className="weapon-heatmap-page__viz">
+              <div className="grid gap-3 items-start justify-items-center">
                 <div
-                  className="weapon-heatmap-page__grid"
+                  className="relative grid gap-[2px] w-[min(100%,760px)] justify-self-center p-[0.65rem] border border-white/[0.08] rounded-[14px] bg-[rgba(0,0,0,0.22)]"
                   style={{ gridTemplateColumns: `repeat(${gridColumns || 1}, minmax(0, 1fr))` }}
                 >
                   {heatCells.map((cell) => {
                     const isOrigin = cell.x === activeOrigin.x && cell.y === activeOrigin.y;
                     const isTarget = cell.x === activeTarget.x && cell.y === activeTarget.y;
+                    const originAndTarget = isOrigin && isTarget;
 
                     return (
                       <button
                         key={`${cell.x}:${cell.y}`}
                         type="button"
-                        className={`weapon-heatmap-page__cell${isOrigin ? " is-origin" : ""}${isTarget ? " is-target" : ""}`}
+                        className={`relative overflow-hidden aspect-square border rounded-[4px] text-white/[0.88] grid place-items-center text-[0.62rem] p-0 appearance-none cursor-pointer transition-[transform,border-color] duration-100 hover:scale-[1.03] hover:border-[rgba(246,163,0,0.55)] focus-visible:scale-[1.03] focus-visible:border-[rgba(246,163,0,0.55)] focus-visible:outline-none min-[32px] [&_span]:pointer-events-none ${originAndTarget ? "border-white/[0.65] shadow-[inset_0_0_0_1px_rgba(246,163,0,0.55),0_0_0_1px_rgba(255,255,255,0.45)]" : isOrigin ? "border-white/[0.06] bg-white/[0.03] shadow-[inset_0_0_0_1px_rgba(246,163,0,0.55)]" : isTarget ? "border-white/[0.65] bg-white/[0.03]" : "border-white/[0.06] bg-white/[0.03]"}`}
                         style={{ background: heatColor(cell.combinedHitChance) }}
                         onMouseEnter={() => setHoveredCell(cell)}
                         onFocus={() => setHoveredCell(cell)}
@@ -1012,19 +1006,19 @@ const SysShipHeatmapPage: React.FC = () => {
                         }}
                       >
                         <span>{cell.combinedHitChance > 0 ? formatNumber(cell.combinedHitChance * 100, 0) : ""}</span>
-                        {isOrigin ? <i className="weapon-heatmap-page__marker weapon-heatmap-page__marker--origin" aria-hidden="true" /> : null}
-                        {isTarget ? <i className="weapon-heatmap-page__marker weapon-heatmap-page__marker--target" aria-hidden="true" /> : null}
+                        {isOrigin ? <i className="absolute pointer-events-none left-[0.24rem] bottom-[0.24rem] w-2 h-2 rounded-full bg-[rgba(246,163,0,0.95)] shadow-[0_0_10px_rgba(246,163,0,0.45)]" aria-hidden="true" /> : null}
+                        {isTarget ? <i className="absolute pointer-events-none right-[0.24rem] top-[0.24rem] w-2 h-2 rounded-full bg-[rgba(232,67,67,0.95)] shadow-[0_0_10px_rgba(232,67,67,0.45)]" aria-hidden="true" /> : null}
                       </button>
                     );
                   })}
                 </div>
 
-                <aside className="weapon-heatmap-page__inspector">
-                  <div className="weapon-heatmap-page__section-head">
+                <aside className="grid gap-3 w-full max-w-[760px]">
+                  <div className="flex justify-between items-start gap-3 [&_h3]:m-0 [&_h4]:m-0 [&_p]:m-0 [&_h3]:text-[0.95rem]">
                     <h4>Cell Inspector</h4>
                     <button
                       type="button"
-                      className="weapon-heatmap-page__reset-origin"
+                      className="text-[0.82rem] text-white/60 hover:text-white/90 cursor-pointer bg-transparent border-0 p-0"
                       onClick={() => {
                         setSelectedOrigin(defaultOrigin);
                         setSelectedTarget(defaultOrigin);
@@ -1036,7 +1030,7 @@ const SysShipHeatmapPage: React.FC = () => {
                   </div>
 
                   {hoveredCell ? (
-                    <div className="weapon-heatmap-page__inspector-list">
+                    <div className="grid gap-2">
                       <div><span className="small">Cell</span><strong>{hoveredCell.x}, {hoveredCell.y}</strong></div>
                       <div><span className="small">Distance</span><strong>{formatNumber(hoveredCell.distance, 2)}</strong></div>
                       <div><span className="small">Hit Chance</span><strong>{formatNumber(hoveredCell.combinedHitChance * 100, 0)}%</strong></div>

@@ -3,7 +3,7 @@
 namespace App\Support\Payments;
 
 use App\Models\Faction;
-use App\Models\PaymentTransfer;
+use App\Models\Payment\PaymentTransfer;
 use App\Models\User;
 use App\Support\Swc\SwcCreditLogService;
 use Illuminate\Support\Facades\DB;

@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import BBCodeView from "./BBCodeView";
+import { BTN_SM, INPUT} from "../../utils/ui";
 
 type ToolbarMode = "full" | "basic";
 
@@ -36,38 +37,25 @@ const BBCodeEditor: React.FC<Props> = ({
   const wrapSelection = (openTag: string, closeTag: string) => {
     const el = textareaRef.current;
     if (!el) return;
-
     const start = el.selectionStart ?? 0;
     const end = el.selectionEnd ?? 0;
     const selected = value.slice(start, end);
-
-    const next =
-      value.slice(0, start) +
-      openTag +
-      selected +
-      closeTag +
-      value.slice(end);
-
+    const next = value.slice(0, start) + openTag + selected + closeTag + value.slice(end);
     onChange(next);
-
     requestAnimationFrame(() => {
       el.focus();
       const cursorStart = start + openTag.length;
-      const cursorEnd = cursorStart + selected.length;
-      el.setSelectionRange(cursorStart, cursorEnd);
+      el.setSelectionRange(cursorStart, cursorStart + selected.length);
     });
   };
 
   const insertText = (text: string) => {
     const el = textareaRef.current;
     if (!el) return;
-
     const start = el.selectionStart ?? 0;
     const end = el.selectionEnd ?? 0;
-
     const next = value.slice(0, start) + text + value.slice(end);
     onChange(next);
-
     requestAnimationFrame(() => {
       el.focus();
       const pos = start + text.length;
@@ -75,62 +63,47 @@ const BBCodeEditor: React.FC<Props> = ({
     });
   };
 
-  const insertLineWrapped = (
-    openTag: string,
-    closeTag: string,
-    placeholder = ""
-  ) => {
+  const insertLineWrapped = (openTag: string, closeTag: string, placeholder = "") => {
     const el = textareaRef.current;
     if (!el) return;
-
     const start = el.selectionStart ?? 0;
     const end = el.selectionEnd ?? 0;
     const selected = value.slice(start, end) || placeholder;
-
     const block = `${openTag}${selected}${closeTag}`;
     const next = value.slice(0, start) + block + value.slice(end);
-
     onChange(next);
-
     requestAnimationFrame(() => {
       el.focus();
       const selStart = start + openTag.length;
-      const selEnd = selStart + selected.length;
-      el.setSelectionRange(selStart, selEnd);
+      el.setSelectionRange(selStart, selStart + selected.length);
     });
   };
 
   const normalizeHex = (input: string): string | null => {
     const raw = input.trim();
     if (!raw) return null;
-
     const withHash = raw.startsWith("#") ? raw : `#${raw}`;
-    if (
-      /^#[0-9a-fA-F]{6}$/.test(withHash) ||
-      /^#[0-9a-fA-F]{3}$/.test(withHash)
-    ) {
+    if (/^#[0-9a-fA-F]{6}$/.test(withHash) || /^#[0-9a-fA-F]{3}$/.test(withHash)) {
       return withHash.toLowerCase();
     }
-
     return null;
   };
 
   const applyColor = () => {
     const hex = normalizeHex(colorValue);
     if (!hex) return;
-
     wrapSelection(`[color=${hex}]`, "[/color]");
     setShowColorTools(false);
   };
 
-  const applySize = () => {
-    wrapSelection(`[size=${sizeValue}]`, "[/size]");
-  };
+  const applySize = () => wrapSelection(`[size=${sizeValue}]`, "[/size]");
+
+  const tinyCls = BTN_SM;
 
   const textarea = (
     <textarea
       ref={textareaRef}
-      className="input bbcode-editor__textarea"
+      className={INPUT + " min-h-[260px] resize-y leading-[1.5] py-[0.85rem]"}
       rows={rows}
       value={value}
       spellCheck={spellCheck}
@@ -142,243 +115,99 @@ const BBCodeEditor: React.FC<Props> = ({
   );
 
   return (
-    <div className="bbcode-editor">
-      <div className="bbcode-toolbar">
-        <button
-          type="button"
-          className="btn btn--tiny bbcode-btn bbcode-btn--bold"
-          title="Bold [b][/b]"
-          onClick={() => wrapSelection("[b]", "[/b]")}
-        >
-          B
-        </button>
-
-        <button
-          type="button"
-          className="btn btn--tiny bbcode-btn bbcode-btn--italic"
-          title="Italic [i][/i]"
-          onClick={() => wrapSelection("[i]", "[/i]")}
-        >
-          I
-        </button>
-
-        <button
-          type="button"
-          className="btn btn--tiny bbcode-btn bbcode-btn--underline"
-          title="Underline [u][/u]"
-          onClick={() => wrapSelection("[u]", "[/u]")}
-        >
-          U
-        </button>
+    <div className="flex flex-col gap-3 font-tektur">
+      {/* Toolbar */}
+      <div className="flex flex-wrap gap-[0.4rem] items-center">
+        <button type="button" className={`${tinyCls} font-bold`} title="Bold [b][/b]" onClick={() => wrapSelection("[b]", "[/b]")}>B</button>
+        <button type="button" className={`${tinyCls} italic`} title="Italic [i][/i]" onClick={() => wrapSelection("[i]", "[/i]")}>I</button>
+        <button type="button" className={`${tinyCls} underline`} title="Underline [u][/u]" onClick={() => wrapSelection("[u]", "[/u]")}>U</button>
 
         {!isBasic && (
-          <button
-            type="button"
-            className="btn btn--tiny bbcode-btn bbcode-btn--strike"
-            title="Strikethrough [s][/s]"
-            onClick={() => wrapSelection("[s]", "[/s]")}
-          >
-            S
-          </button>
+          <button type="button" className={`${tinyCls} line-through`} title="Strikethrough [s][/s]" onClick={() => wrapSelection("[s]", "[/s]")}>S</button>
         )}
-
         {!isBasic && (
-          <button
-            type="button"
-            className="btn btn--tiny"
-            title="Quote [quote][/quote]"
-            onClick={() => insertLineWrapped("[quote]", "[/quote]", "Quoted text")}
-          >
-            “Quote”
-          </button>
+          <button type="button" className={tinyCls} title="Quote [quote][/quote]" onClick={() => insertLineWrapped("[quote]", "[/quote]", "Quoted text")}>"Quote"</button>
         )}
-
         {!isBasic && (
-          <button
-            type="button"
-            className="btn btn--tiny"
-            title="Code block [code][/code]"
-            onClick={() => insertLineWrapped("[code]", "[/code]", "code here")}
-          >
-            {"</>"}
-          </button>
+          <button type="button" className={tinyCls} title="Code block [code][/code]" onClick={() => insertLineWrapped("[code]", "[/code]", "code here")}>{"</>"}</button>
         )}
-
         {!isBasic && (
-          <button
-            type="button"
-            className="btn btn--tiny"
-            title="Spoiler [spoiler][/spoiler]"
-            onClick={() => insertLineWrapped("[spoiler]", "[/spoiler]", "spoiler")}
-          >
-            Spoiler
-          </button>
+          <button type="button" className={tinyCls} title="Spoiler [spoiler][/spoiler]" onClick={() => insertLineWrapped("[spoiler]", "[/spoiler]", "spoiler")}>Spoiler</button>
         )}
-
         {!isBasic && (
-          <button
-            type="button"
-            className="btn btn--tiny bbcode-btn bbcode-btn--center"
-            title="Center [center][/center]"
-            onClick={() => insertLineWrapped("[center]", "[/center]", "centered text")}
-          >
-            Center
-          </button>
+          <button type="button" className={`${tinyCls} text-center`} title="Center [center][/center]" onClick={() => insertLineWrapped("[center]", "[/center]", "centered text")}>Center</button>
         )}
-
         {!isBasic && (
-          <button
-            type="button"
-            className="btn btn--tiny"
-            title="Horizontal rule [hr]"
-            onClick={() => insertText("[hr]\n")}
-          >
-            ―
-          </button>
+          <button type="button" className={tinyCls} title="Horizontal rule [hr]" onClick={() => insertText("[hr]\n")}>―</button>
         )}
-
         {!isBasic && (
-          <button
-            type="button"
-            className="btn btn--tiny bbcode-btn bbcode-btn--link"
-            title="Link [url=...][/url]"
-            onClick={() =>
-              insertLineWrapped("[url=https://example.com]", "[/url]", "link text")
-            }
-          >
-            Link
-          </button>
+          <button type="button" className={`${tinyCls} underline`} title="Link [url=...][/url]" onClick={() => insertLineWrapped("[url=https://example.com]", "[/url]", "link text")}>Link</button>
         )}
-
         {!isBasic && (
-          <button
-            type="button"
-            className="btn btn--tiny"
-            title="Image [img][/img]"
-            onClick={() =>
-              insertLineWrapped("[img]", "[/img]", "https://example.com/image.png")
-            }
-          >
-            Img
-          </button>
+          <button type="button" className={tinyCls} title="Image [img][/img]" onClick={() => insertLineWrapped("[img]", "[/img]", "https://example.com/image.png")}>Img</button>
         )}
 
         <button
           type="button"
-          className="btn btn--tiny bbcode-btn bbcode-btn--color"
+          className={`${tinyCls} inline-flex items-center gap-[0.35rem]`}
           title="Colour [color=#xxxxxx][/color]"
           onClick={() => setShowColorTools((v) => !v)}
         >
           <span
-            className="bbcode-btn__color-dot"
+            className="w-[10px] h-[10px] rounded-full inline-block border border-white/40"
             style={{ backgroundColor: normalizeHex(colorValue) ?? "#ff8800" }}
           />
           Colour
         </button>
 
-        <div className="bbcode-size-picker">
-          <label className="small" htmlFor="bbcode-size-select">
-            Size
-          </label>
+        <div className="inline-flex items-center gap-[0.35rem] flex-wrap">
+          <label className="small" htmlFor="bbcode-size-select">Size</label>
           <select
             id="bbcode-size-select"
-            className="input bbcode-size-picker__select"
+            className={INPUT + " w-auto min-w-[90px] py-1 px-[0.4rem] min-h-0"}
             value={sizeValue}
             onChange={(e) => setSizeValue(e.target.value)}
             title="Text size [size=x][/size]"
           >
             {SIZE_OPTIONS.map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
+              <option key={size} value={size}>{size}</option>
             ))}
           </select>
-
-          <button
-            type="button"
-            className="btn btn--tiny"
-            onClick={applySize}
-            title={`Apply size [size=${sizeValue}]`}
-          >
-            Apply Size
-          </button>
+          <button type="button" className={tinyCls} onClick={applySize} title={`Apply size [size=${sizeValue}]`}>Apply Size</button>
         </div>
 
-        <button
-          type="button"
-          className="btn btn--tiny"
-          title="Show BBCode help"
-          onClick={() => setShowHelp((v) => !v)}
-        >
-          Help
-        </button>
+        <button type="button" className={tinyCls} title="Show BBCode help" onClick={() => setShowHelp((v) => !v)}>Help</button>
       </div>
 
+      {/* Colour tools */}
       {showColorTools && (
-        <div className="bbcode-color-tools panel">
-          <div className="bbcode-color-tools__row">
+        <div className="panel flex flex-col gap-3 p-3">
+          <div className="flex flex-col gap-1">
             <label className="small">Pick colour</label>
-            <input
-              type="color"
-              value={normalizeHex(colorValue) ?? "#ff8800"}
-              onChange={(e) => setColorValue(e.target.value)}
-            />
+            <input type="color" value={normalizeHex(colorValue) ?? "#ff8800"} onChange={(e) => setColorValue(e.target.value)} />
           </div>
-
-          <div className="bbcode-color-tools__row">
-            <label className="small" htmlFor="bbcode-color-hex">
-              Hex
-            </label>
-            <input
-              id="bbcode-color-hex"
-              type="text"
-              className="input"
-              value={colorValue}
-              onChange={(e) => setColorValue(e.target.value)}
-              placeholder="#ff8800"
-            />
+          <div className="flex flex-col gap-1">
+            <label className="small" htmlFor="bbcode-color-hex">Hex</label>
+            <input id="bbcode-color-hex" type="text" className={INPUT} value={colorValue} onChange={(e) => setColorValue(e.target.value)} placeholder="#ff8800" />
           </div>
-
-          <div className="bbcode-color-tools__actions">
-            <button
-              type="button"
-              className="btn btn--tiny"
-              onClick={applyColor}
-              disabled={!normalizeHex(colorValue)}
-            >
-              Apply Colour
-            </button>
-
-            <button
-              type="button"
-              className="btn btn--tiny"
-              onClick={() => setShowColorTools(false)}
-            >
-              Cancel
-            </button>
+          <div className="flex gap-2 flex-wrap">
+            <button type="button" className={tinyCls} onClick={applyColor} disabled={!normalizeHex(colorValue)}>Apply Colour</button>
+            <button type="button" className={tinyCls} onClick={() => setShowColorTools(false)}>Cancel</button>
           </div>
-
           <div className="small">
-            Wraps selected text as:{" "}
-            <code>[color={normalizeHex(colorValue) ?? "#xxxxxx"}]...[/color]</code>
+            Wraps selected text as: <code>[color={normalizeHex(colorValue) ?? "#xxxxxx"}]...[/color]</code>
           </div>
         </div>
       )}
 
+      {/* Help */}
       {showHelp && (
-        <div className="bbcode-help panel small">
+        <div className="panel small flex flex-col gap-[0.35rem] p-3">
           <div><strong>Supported BBCode</strong></div>
-
           {isBasic ? (
             <>
-              <div>
-                <code>[b]bold[/b]</code> <code>[i]italic[/i]</code>{" "}
-                <code>[u]underline[/u]</code>
-              </div>
-              <div>
-                <code>[color=#ff8800]colour[/color]</code>{" "}
-                <code>[size=18px]size[/size]</code>
-              </div>
+              <div><code>[b]bold[/b]</code> <code>[i]italic[/i]</code> <code>[u]underline[/u]</code></div>
+              <div><code>[color=#ff8800]colour[/color]</code> <code>[size=18px]size[/size]</code></div>
             </>
           ) : (
             <>
@@ -395,10 +224,8 @@ const BBCodeEditor: React.FC<Props> = ({
       {textarea}
 
       {showPreview && (
-        <div className="bbcode-editor__preview panel">
-          <div className="small" style={{ marginBottom: "0.5rem", opacity: 0.8 }}>
-            Preview
-          </div>
+        <div className="panel p-3">
+          <div className="small mb-2 opacity-80">Preview</div>
           <BBCodeView value={value} className="small" />
         </div>
       )}

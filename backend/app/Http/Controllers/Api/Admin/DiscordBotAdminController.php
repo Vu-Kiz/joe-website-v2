@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\DiscordBotGuild;
-use App\Models\DiscordChannelConfig;
+use App\Models\Discord\DiscordBotGuild;
+use App\Models\Discord\DiscordChannelConfig;
 use App\Support\Contact\ContactRequestSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Config;

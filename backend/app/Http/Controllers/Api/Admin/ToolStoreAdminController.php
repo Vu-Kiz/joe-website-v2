@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Faction;
-use App\Models\ToolSubscription;
-use App\Models\ToolSubscriptionFactionDeal;
-use App\Models\ToolSubscriptionMember;
-use App\Models\ToolSubscriptionPlan;
-use App\Models\ToolSubscriptionPlanSeatTier;
+use App\Models\ToolStore\ToolSubscription;
+use App\Models\ToolStore\ToolSubscriptionFactionDeal;
+use App\Models\ToolStore\ToolSubscriptionMember;
+use App\Models\ToolStore\ToolSubscriptionPlan;
+use App\Models\ToolStore\ToolSubscriptionPlanSeatTier;
 use App\Models\User;
 use App\Support\Admin\AdminActionLogger;
 use Carbon\Carbon;

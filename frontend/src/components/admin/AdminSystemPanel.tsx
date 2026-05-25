@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { ensureCsrfCookie, getApiBaseUrl, getXsrfToken } from "../../api/auth";
-import { getStoredSystem, type StoredSystemDetail } from "../../api/universe";
+import { ensureCsrfCookie, getApiBaseUrl, getXsrfToken } from "../../api/core/auth";
+import { getStoredSystem, type StoredSystemDetail } from "../../api/universe/universe";
 import AdminSystemPullsSection from "./system/AdminSystemPullsSection";
 import AdminSystemCatalogsSection from "./system/AdminSystemCatalogsSection";
 import AdminSystemRefreshSection from "./system/AdminSystemRefreshSection";
+import { BTN } from "../../utils/ui";
 
 type AdminSystemSection = "pulls" | "catalogs" | "refresh";
 
@@ -1416,33 +1417,33 @@ const AdminSystemPanel: React.FC = () => {
   }
 
   return (
-    <section className="panel admin-panel">
-      <div className="admin-panel__header">
-        <h2 style={{ margin: 0 }}>System</h2>
+    <section className="panel flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <h2 className="h2" style={{ margin: 0 }}>System</h2>
         <p className="small" style={{ margin: 0 }}>
           Sysadmin-only galaxy sync tools.
         </p>
       </div>
 
-      <div className="admin-panel__body">
-        <div className="admin-entity-stats__subnav">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            className={`btn admin-entity-stats__subnav-btn${activeSection === "pulls" ? " is-active" : ""}`}
+            className={BTN + " flex flex-wrap gap-2 " + (activeSection === "pulls" ? " border-[#f5d546]/45 bg-[#f5d546]/10 shadow-[inset_0_0_0_1px_rgba(245,213,70,0.2)]" : " border-white/10 bg-white/[0.02]")}
             onClick={() => setActiveSection("pulls")}
           >
             Pulls
           </button>
           <button
             type="button"
-            className={`btn admin-entity-stats__subnav-btn${activeSection === "catalogs" ? " is-active" : ""}`}
+            className={BTN + " flex flex-wrap gap-2 " + (activeSection === "catalogs" ? " border-[#f5d546]/45 bg-[#f5d546]/10 shadow-[inset_0_0_0_1px_rgba(245,213,70,0.2)]" : " border-white/10 bg-white/[0.02]")}
             onClick={() => setActiveSection("catalogs")}
           >
             Catalogs
           </button>
           <button
             type="button"
-            className={`btn admin-entity-stats__subnav-btn${activeSection === "refresh" ? " is-active" : ""}`}
+            className={BTN + " flex flex-wrap gap-2 " + (activeSection === "refresh" ? " border-[#f5d546]/45 bg-[#f5d546]/10 shadow-[inset_0_0_0_1px_rgba(245,213,70,0.2)]" : " border-white/10 bg-white/[0.02]")}
             onClick={() => setActiveSection("refresh")}
           >
             Refresh

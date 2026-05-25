@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import SlideTabNav from "../common/SlideTabNav";
 import {
   getStoredCreatureType,
   getStoredCreatureTypes,
@@ -27,11 +28,13 @@ import {
   getStoredWeaponType,
   getStoredWeaponTypes,
   type EntityStatsKind,
-} from "../../api/universe";
+} from "../../api/universe/universe";
 import HamburgerToggle from "../common/HamburgerToggle";
-import { formatTimestampAsCgt, getCgtTime, type CgtResponse } from "../../api/time";
+import { formatTimestampAsCgt, getCgtTime, type CgtResponse } from "../../api/core/time";
 import isdDirectionImage from "../../assets/swc/isd.png";
 import { resolveWeaponArcWindow, normalizeDegrees } from "../tools/weaponHeatmap/weaponHeatmapMath";
+import { BTN, INPUT } from "../../utils/ui";
+import ReportBugButton from "../support/ReportBugButton";
 
 type EntityRecordSummary = {
   uid: string;
@@ -346,7 +349,7 @@ function renderCollectionItems(
   }
 ) {
   return (
-    <div className="members-entity-stats__chip-list">
+    <div className={CHIP_LIST_CLS}>
       {items.map((item, index) => {
         const primary =
           (typeof item.name === "string" && item.name) ||
@@ -386,7 +389,7 @@ function renderCollectionItems(
               <img
                 src={imageUrl}
                 alt={typeof item.name === "string" ? item.name : primary}
-                className="members-entity-stats__collection-image"
+                className={COLLECTION_IMG_CLS}
               />
             ) : null}
             <strong>{primary}</strong>
@@ -399,7 +402,7 @@ function renderCollectionItems(
             <button
               key={itemKey}
               type="button"
-              className={`members-entity-stats__collection-card members-entity-stats__collection-card--interactive${options.activeKey === itemKey ? " is-active" : ""}`}
+              className={collectionCardCls(true, options.activeKey === itemKey)}
               onClick={() => options.onSelect?.(item)}
             >
               {content}
@@ -408,7 +411,7 @@ function renderCollectionItems(
         }
 
         return (
-          <article key={itemKey} className="members-entity-stats__collection-card">
+          <article key={itemKey} className={collectionCardCls(false)}>
             {content}
           </article>
         );
@@ -587,6 +590,73 @@ function getArcSweepDegrees(
   };
 }
 
+// ─── Class string constants ───────────────────────────────────────────────────
+const CHIP_LIST_CLS = "flex flex-wrap gap-[0.6rem]";
+const COLLECTION_IMG_CLS = "w-full max-w-[96px] max-h-[96px] object-contain rounded-[8px] bg-white/[0.04]";
+const COLLECTION_CARD_BASE = "grid gap-[0.2rem] min-w-[180px] p-[0.75rem_0.85rem] border border-white/[0.08] rounded-[10px] bg-[rgba(255,255,255,0.025)] [&_p]:m-0";
+const collectionCardCls = (interactive: boolean, active?: boolean) =>
+  COLLECTION_CARD_BASE +
+  (interactive
+    ? " text-inherit text-left cursor-pointer transition-[border-color,background,transform] duration-[140ms] hover:border-[rgba(246,163,0,0.26)] hover:bg-[rgba(246,163,0,0.08)] hover:-translate-y-px" +
+      (active ? " !border-[rgba(246,163,0,0.44)] !bg-[rgba(246,163,0,0.12)]" : "")
+    : "");
+
+const LIST_TABLE_CLS = "grid";
+const LIST_ROW_CLS = "grid grid-cols-[minmax(0,1fr)_auto] gap-4 items-center px-4 py-[0.8rem] border-t border-t-white/[0.06] first:border-t-0";
+const LIST_LABEL_CLS = "text-white/[0.72]";
+const LIST_VALUE_CLS = "text-right";
+const LIST_BUTTON_BASE = "block w-full p-[0.8rem_1rem] border-0 border-t border-t-white/[0.06] bg-transparent text-inherit text-left cursor-pointer transition-[background,border-color] duration-[140ms] first:border-t-0 hover:bg-[rgba(246,163,0,0.08)]";
+const listButtonCls = (active: boolean) => LIST_BUTTON_BASE + (active ? " bg-[rgba(246,163,0,0.12)]" : "");
+const LIST_BUTTON_COPY_CLS = "grid gap-[0.25rem]";
+
+const WEAPON_ARC_LINE_CLS = "grid grid-cols-[minmax(0,1fr)_auto] [grid-template-areas:'name_icon'_'meta_icon'] items-center gap-x-[0.7rem] gap-y-[0.08rem] w-full";
+const WEAPON_ARC_NAME_CLS = "[grid-area:name] text-white/[0.88] font-bold block";
+const WEAPON_ARC_META_CLS = "[grid-area:meta] text-white/[0.68] block";
+const WEAPON_ARC_COPY_CLS = "grid gap-[0.08rem] min-w-0";
+
+const SKILL_GROUPS_CLS = "grid gap-[0.85rem]";
+const SKILL_GROUP_CLS = "grid gap-[0.5rem] [&_h4]:m-0";
+
+const SECTION_HEADING_CLS = "flex flex-wrap justify-between items-center gap-3";
+const LONG_TEXT_CLS = "whitespace-pre-wrap break-words p-[0.9rem] rounded-[10px] bg-[rgba(0,0,0,0.22)] border border-white/[0.06]";
+const LONG_TEXT_HTML_CLS = "whitespace-normal break-words p-[0.9rem] rounded-[10px] bg-[rgba(0,0,0,0.22)] border border-white/[0.06] [&_p]:m-0 [&_p:last-child]:mb-0 [&_a]:text-[rgba(246,163,0,0.95)]";
+const JSON_CLS = "m-0 whitespace-pre-wrap break-words p-[0.9rem] rounded-[10px] bg-[rgba(0,0,0,0.22)] border border-white/[0.06]";
+const RAW_ENTRY_CLS = "grid gap-[0.75rem] py-[0.9rem] border-t border-t-white/[0.08] [&_summary]:cursor-pointer [&_summary]:font-bold";
+
+const UNIVERSE_FIELD_CLS = "flex flex-col gap-2";
+const ENTITY_TOOLBAR_CLS = "grid [grid-template-columns:minmax(0,320px)_minmax(0,1fr)] gap-4 max-[960px]:[grid-template-columns:1fr]";
+const COMPARE_TOOLBAR_CLS = "grid grid-cols-[repeat(2,minmax(0,1fr))] items-end gap-3 max-[960px]:grid-cols-1";
+const COMPARE_TOGGLE_CLS = "inline-flex items-center gap-[0.4rem]";
+const ENTITY_LAYOUT_CLS = "grid [grid-template-columns:minmax(240px,320px)_minmax(0,1fr)] gap-4 items-start max-[960px]:grid-cols-1";
+const SIDEBAR_CLS = "grid gap-[0.85rem] p-4 border border-white/[0.08] rounded-[14px] bg-white/[0.03]";
+const SIDEBAR_HEADER_CLS = "flex items-baseline gap-2";
+const ENTITY_LIST_CLS = "grid gap-[0.55rem] max-h-[70vh] overflow-y-auto pr-[0.2rem]";
+const itemCls = (active: boolean) =>
+  "grid gap-[0.18rem] p-[0.8rem] border border-white/[0.08] rounded-[10px] bg-white/[0.03] text-inherit text-left cursor-pointer transition-[border-color,background,transform] duration-[140ms] hover:border-[rgba(246,163,0,0.26)] hover:bg-[rgba(246,163,0,0.08)] hover:-translate-y-px" +
+  (active ? " !border-[rgba(246,163,0,0.44)] !bg-[rgba(246,163,0,0.12)]" : "");
+const DETAIL_CLS = "grid gap-4 min-w-0 p-4 border border-white/[0.08] rounded-[14px] bg-white/[0.03]";
+const COMPARE_VIEW_CLS = "grid gap-4";
+const COMPARE_HERO_CLS = "grid grid-cols-[repeat(2,minmax(0,1fr))] gap-[0.85rem] max-[960px]:grid-cols-1";
+const COMPARE_CARD_CLS = "grid gap-[0.35rem] p-[0.9rem] border border-white/[0.08] rounded-[10px] bg-[rgba(255,255,255,0.025)] [&_h3]:m-0 [&_p]:m-0";
+const COMPARE_GRID_CLS = "grid [grid-template-columns:minmax(140px,0.9fr)_minmax(0,1fr)_minmax(0,1fr)] border border-white/[0.08] rounded-[12px] overflow-hidden max-[960px]:[grid-template-columns:minmax(120px,0.85fr)_minmax(0,1fr)_minmax(0,1fr)]";
+const COMPARE_HEAD_CLS = "p-[0.8rem] bg-white/[0.06] border-b border-b-white/[0.08] font-bold";
+const compareCellCls = (isDifferent: boolean, isLabel?: boolean) =>
+  "p-[0.8rem] border-t border-t-white/[0.06] bg-white/[0.02] break-words" +
+  (isDifferent ? " !bg-[rgba(246,163,0,0.10)]" : "") +
+  (isLabel ? " font-bold" : "");
+const HERO_CLS = "grid [grid-template-columns:auto_minmax(0,1fr)] gap-4 items-start max-[960px]:grid-cols-1";
+const HERO_IMAGE_CLS = "w-[140px] h-[140px] max-w-full rounded-[12px] bg-white/[0.04] object-contain";
+const HERO_COPY_CLS = "grid gap-[0.35rem] [&_h3]:m-0 [&_p]:m-0";
+const GROUPED_SECTIONS_CLS = "grid [grid-template-columns:repeat(4,minmax(0,1fr))] gap-[0.8rem] items-start max-[960px]:[grid-template-columns:repeat(2,minmax(0,1fr))] max-[640px]:grid-cols-1";
+const groupPanelCls = (isActive: boolean, hasOpen: boolean) =>
+  "relative grid gap-3 p-[0.9rem_1rem] w-full border border-white/[0.08] rounded-[12px] bg-[rgba(255,255,255,0.025)] self-start text-inherit text-left cursor-pointer transition-[opacity,border-color,background] duration-[200ms] hover:border-[rgba(246,163,0,0.26)] hover:bg-[rgba(246,163,0,0.08)]" +
+  (isActive ? " z-[2]" : "") +
+  (hasOpen && !isActive ? " opacity-[0.45]" : "");
+const GROUP_PANEL_HEADER_CLS = "flex items-start justify-between gap-3";
+const GROUP_PANEL_COPY_CLS = "grid min-w-0 [&_h4]:m-0 [&_h4]:text-[rgba(246,163,0,0.95)]";
+const ENTITY_SECTION_CLS = "grid gap-3 [&_h4]:m-0";
+// ─────────────────────────────────────────────────────────────────────────────
+
 const ArcIndicator: React.FC<{
   arcName: string | null;
   arcFrom: number | null;
@@ -619,25 +689,20 @@ const ArcIndicator: React.FC<{
   }, [arc]);
 
   return (
-    <span className="members-entity-stats__arc-indicator" aria-hidden="true">
-      <svg viewBox="0 0 56 56" className="members-entity-stats__arc-indicator-ring">
-        <circle cx="28" cy="28" r={radius} className="members-entity-stats__arc-indicator-track" />
+    <span className="w-10 h-10 relative inline-grid place-items-center flex-shrink-0" aria-hidden="true">
+      <svg viewBox="0 0 56 56" className="w-10 h-10">
+        <circle cx="28" cy="28" r={radius} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth={4} />
         {arc && arc.sweep >= 360 ? (
-          <circle
-            cx="28"
-            cy="28"
-            r={radius}
-            className="members-entity-stats__arc-indicator-arc"
-          />
+          <circle cx="28" cy="28" r={radius} fill="none" stroke="rgba(246,163,0,0.95)" strokeWidth={4} strokeLinecap="round" />
         ) : null}
         {arcPath ? (
-          <path d={arcPath} className="members-entity-stats__arc-indicator-arc" />
+          <path d={arcPath} fill="none" stroke="rgba(246,163,0,0.95)" strokeWidth={4} strokeLinecap="round" />
         ) : null}
       </svg>
       <img
         src={isdDirectionImage}
         alt=""
-        className="members-entity-stats__arc-indicator-ship"
+        className="absolute w-5 h-5 object-contain rotate-180 drop-shadow-[0_0_8px_rgba(0,0,0,0.28)]"
       />
     </span>
   );
@@ -664,7 +729,7 @@ function renderWeaponSelectionList(
   );
 
   return (
-    <div className="members-entity-stats__list-table">
+    <div className={LIST_TABLE_CLS}>
       {groupedItems.map(([groupKey, groupItems], index) => {
         const representativeItem = groupItems[0] ?? {};
         const isActive = groupItems.some((item) => buildWeaponCollectionKey(item) === activeKey);
@@ -682,27 +747,27 @@ function renderWeaponSelectionList(
           <button
             key={groupKey || `weapon-group-${index}`}
             type="button"
-            className={`members-entity-stats__list-button${isActive ? " is-active" : ""}`}
+            className={listButtonCls(isActive)}
             onClick={() => onSelect?.(representativeItem)}
           >
-            <span className="members-entity-stats__list-button-copy">
+            <span className={LIST_BUTTON_COPY_CLS}>
               <strong>{name}</strong>
               {primarySummary ? <span className="small">{primarySummary}</span> : null}
               {groupItems.map((item, itemIndex) => {
                 const arcDisplay = getWeaponArcDisplay(item);
 
                 return arcDisplay.arcLabel || arcDisplay.meta ? (
-                  <span key={`${groupKey}-arc-${itemIndex}`} className="members-entity-stats__weapon-arc-line">
+                  <span key={`${groupKey}-arc-${itemIndex}`} className={WEAPON_ARC_LINE_CLS}>
                     <ArcIndicator
                       arcName={arcDisplay.arcName}
                       arcFrom={arcDisplay.arcFrom}
                       arcTo={arcDisplay.arcTo}
                     />
-                    <span className="members-entity-stats__weapon-arc-name small">
+                    <span className={WEAPON_ARC_NAME_CLS + " small"}>
                       {arcDisplay.arcLabel}
                     </span>
                     {arcDisplay.meta ? (
-                      <span className="members-entity-stats__weapon-arc-meta small">
+                      <span className={WEAPON_ARC_META_CLS + " small"}>
                         {arcDisplay.meta}
                       </span>
                     ) : null}
@@ -719,7 +784,7 @@ function renderWeaponSelectionList(
 
 function renderCollectionListRows(items: Array<Record<string, unknown>>) {
   return (
-    <div className="members-entity-stats__list-table">
+    <div className={LIST_TABLE_CLS}>
       {items.map((item, index) => {
         const primary =
           (typeof item.name === "string" && item.name) ||
@@ -748,9 +813,9 @@ function renderCollectionListRows(items: Array<Record<string, unknown>>) {
           .join(" · ");
 
         return (
-          <div key={`${primary}-${index}`} className="members-entity-stats__list-row">
-            <span className="members-entity-stats__list-label small">{primary}</span>
-            <strong className="members-entity-stats__list-value">{extras || "Recorded"}</strong>
+          <div key={`${primary}-${index}`} className={LIST_ROW_CLS}>
+            <span className={LIST_LABEL_CLS + " small"}>{primary}</span>
+            <strong className={LIST_VALUE_CLS}>{extras || "Recorded"}</strong>
           </div>
         );
       })}
@@ -760,7 +825,7 @@ function renderCollectionListRows(items: Array<Record<string, unknown>>) {
 
 function renderSkills(skills: Record<string, unknown>) {
   return (
-    <div className="members-entity-stats__skill-groups">
+    <div className={SKILL_GROUPS_CLS}>
       {Object.entries(skills).map(([groupName, groupValue]) => {
         if (!groupValue || typeof groupValue !== "object") {
           return null;
@@ -790,13 +855,13 @@ function renderSkills(skills: Record<string, unknown>) {
         }
 
         return (
-          <section key={groupName} className="members-entity-stats__skill-group">
+          <section key={groupName} className={SKILL_GROUP_CLS}>
             <h4>{formatLabel(groupName)}</h4>
-            <div className="members-entity-stats__list-table">
+            <div className={LIST_TABLE_CLS}>
               {visibleSkills.map(([skillName, skillValue]) => (
-                <div key={skillName} className="members-entity-stats__list-row">
-                  <span className="members-entity-stats__list-label small">{formatLabel(skillName)}</span>
-                  <strong className="members-entity-stats__list-value">{formatScalar(skillValue)}</strong>
+                <div key={skillName} className={LIST_ROW_CLS}>
+                  <span className={LIST_LABEL_CLS + " small"}>{formatLabel(skillName)}</span>
+                  <strong className={LIST_VALUE_CLS}>{formatScalar(skillValue)}</strong>
                 </div>
               ))}
             </div>
@@ -1180,16 +1245,16 @@ const EntityStatsGroupOverlay: React.FC<{
   };
 
   return (
-    <div className={"members-entity-stats__overlay" + (entered && !closing ? " is-open" : "")}>
+    <div className={"fixed inset-0 z-[1000] pointer-events-none" + (entered && !closing ? " pointer-events-auto" : "")}>
       <button
         type="button"
-        className="members-entity-stats__overlay-backdrop"
+        className={"absolute inset-0 border-0 p-0 m-0 bg-black/[0.45] transition-opacity duration-[280ms] ease-[ease] cursor-pointer" + (entered && !closing ? " opacity-100" : " opacity-0")}
         aria-label="Close stats section"
         onClick={handleClose}
       />
 
       <article
-        className="panel members-entity-stats__overlay-panel"
+        className="panel fixed m-0 overflow-hidden [transform:translateZ(0)] transition-[top,left,width,height,box-shadow] duration-[280ms] shadow-[0_18px_42px_rgba(0,0,0,0.42)] z-[1001] flex flex-col"
         style={{
           top: `${currentRect.top}px`,
           left: `${currentRect.left}px`,
@@ -1197,9 +1262,9 @@ const EntityStatsGroupOverlay: React.FC<{
           height: `${currentRect.height}px`,
         }}
         >
-        <header className="members-entity-stats__overlay-header">
-          <div className="members-entity-stats__overlay-title-block">
-            <h3 className="members-entity-stats__overlay-title">{section.title}</h3>
+        <header className="flex items-start justify-between gap-3 pb-[0.65rem] border-b border-b-white/[0.2]">
+          <div className="grid gap-[0.3rem] min-w-0">
+            <h3 className="m-0 text-[rgba(246,163,0,0.95)]">{section.title}</h3>
           </div>
 
           <HamburgerToggle
@@ -1209,7 +1274,7 @@ const EntityStatsGroupOverlay: React.FC<{
           />
         </header>
 
-        <div className="members-entity-stats__overlay-body">
+        <div className="overflow-auto mt-[0.8rem] pr-[0.25rem]">
           {section.title === "Weapons" && linkedWeapons.length > 0 ? (
             <>
               {renderWeaponSelectionList(
@@ -1220,11 +1285,11 @@ const EntityStatsGroupOverlay: React.FC<{
               {linkedWeaponLoading ? (
                 <p className="small">Loading weapon stats…</p>
               ) : selectedLinkedWeaponDetail ? (
-                <div className="members-entity-stats__list-table">
+                <div className={LIST_TABLE_CLS}>
                   {buildWeaponStatEntries(selectedLinkedWeaponDetail).map(([label, value]) => (
-                    <div key={label} className="members-entity-stats__list-row">
-                      <span className="members-entity-stats__list-label small">{label}</span>
-                      <strong className="members-entity-stats__list-value">{formatScalar(value)}</strong>
+                    <div key={label} className={LIST_ROW_CLS}>
+                      <span className={LIST_LABEL_CLS + " small"}>{label}</span>
+                      <strong className={LIST_VALUE_CLS}>{formatScalar(value)}</strong>
                     </div>
                   ))}
                 </div>
@@ -1234,11 +1299,11 @@ const EntityStatsGroupOverlay: React.FC<{
           {section.title === "Description" && typeof (detail as Record<string, unknown>)?.description === "string" ? (
             looksLikeHtml((detail as Record<string, unknown>).description as string) ? (
               <div
-                className="members-entity-stats__long-text members-entity-stats__long-text--html"
+                className={LONG_TEXT_HTML_CLS}
                 dangerouslySetInnerHTML={{ __html: (detail as Record<string, unknown>).description as string }}
               />
             ) : (
-              <div className="members-entity-stats__long-text">
+              <div className={LONG_TEXT_CLS}>
                 {(detail as Record<string, unknown>).description as string}
               </div>
             )
@@ -1248,10 +1313,10 @@ const EntityStatsGroupOverlay: React.FC<{
               {(detail as Record<string, unknown>)?.material_probability_percent !== null &&
               (detail as Record<string, unknown>)?.material_probability_percent !== undefined &&
               (detail as Record<string, unknown>)?.material_probability_percent !== "" ? (
-                <div className="members-entity-stats__list-table">
-                  <div className="members-entity-stats__list-row">
-                    <span className="members-entity-stats__list-label small">Probability</span>
-                    <strong className="members-entity-stats__list-value">
+                <div className={LIST_TABLE_CLS}>
+                  <div className={LIST_ROW_CLS}>
+                    <span className={LIST_LABEL_CLS + " small"}>Probability</span>
+                    <strong className={LIST_VALUE_CLS}>
                       {formatScalar((detail as Record<string, unknown>).material_probability_percent)}%
                     </strong>
                   </div>
@@ -1280,25 +1345,25 @@ const EntityStatsGroupOverlay: React.FC<{
           {section.title === "Defenses" &&
           Array.isArray((detail as Record<string, unknown>)?.shield_arcs) ? (
             <>
-              <div className="members-entity-stats__section-heading">
+              <div className={SECTION_HEADING_CLS}>
                 <h4>Shield Arcs</h4>
                 <span className="small">Directional deflector segments</span>
               </div>
-              <div className="members-entity-stats__list-table">
+              <div className={LIST_TABLE_CLS}>
                 {((detail as Record<string, unknown>).shield_arcs as Array<Record<string, unknown>>).map((item, index) => {
                   const shieldArc = getShieldArcDisplay(item);
 
                   return (
                     <div
                       key={`shield-arc-${index}-${shieldArc.arcLabel}`}
-                      className="members-entity-stats__list-row members-entity-stats__list-row--shield-arc"
+                      className={LIST_ROW_CLS}
                     >
-                      <span className="members-entity-stats__weapon-arc-copy">
-                        <span className="members-entity-stats__weapon-arc-name small">
+                      <span className={WEAPON_ARC_COPY_CLS}>
+                        <span className={WEAPON_ARC_NAME_CLS + " small"}>
                           {shieldArc.arcLabel}
                         </span>
                         {shieldArc.meta ? (
-                          <span className="members-entity-stats__weapon-arc-meta small">
+                          <span className={WEAPON_ARC_META_CLS + " small"}>
                             {shieldArc.meta}
                           </span>
                         ) : null}
@@ -1327,11 +1392,11 @@ const EntityStatsGroupOverlay: React.FC<{
           !Array.isArray((detail as Record<string, unknown>).skills) ? (
             renderSkills((detail as Record<string, unknown>).skills as Record<string, unknown>)
           ) : null}
-          <div className="members-entity-stats__list-table">
+          <div className={LIST_TABLE_CLS}>
             {section.entries.map(([label, value]) => (
-              <div key={`${section.title}-${label}`} className="members-entity-stats__list-row">
-                <span className="members-entity-stats__list-label small">{label}</span>
-                <strong className="members-entity-stats__list-value">{value || "None"}</strong>
+              <div key={`${section.title}-${label}`} className={LIST_ROW_CLS}>
+                <span className={LIST_LABEL_CLS + " small"}>{label}</span>
+                <strong className={LIST_VALUE_CLS}>{value || "None"}</strong>
               </div>
             ))}
           </div>
@@ -2028,50 +2093,44 @@ const MemberEntityStatsPanel: React.FC = () => {
   }
 
   return (
-    <section className="panel admin-panel members-entity-stats">
-      <div className="admin-panel__header">
-        <h2>Entity Stats</h2>
+    <section className="panel flex flex-col gap-4 members-entity-stats">
+      <div className="flex flex-col gap-1.5">
+        <h2 className="h2">Entity Stats</h2>
         <p className="small">
           Browse the stored SWC catalogs in a member-friendly view without digging through raw JSON.
         </p>
+        <ReportBugButton toolKey="entity_stats" toolLabel="Entity Stats" />
       </div>
 
-      <div className="members-entity-stats__tabs">
-        {kindOptions.map((option) => (
-          <button
-            key={option.key}
-            type="button"
-            className={`btn${kind === option.key ? " admin-nav__btn--active" : ""}`}
-            onClick={() => {
-              setKind(option.key);
-              setSearch("");
-              setError(null);
-              setSelectedId(null);
-              setSelectedSourceKind(option.key === "item" || option.key === "weapon" ? option.key : null);
-              setDetail(null);
-            }}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+      <SlideTabNav
+        items={kindOptions}
+        activeKey={kind}
+        onChange={(key) => {
+          setKind(key);
+          setSearch("");
+          setError(null);
+          setSelectedId(null);
+          setSelectedSourceKind(key === "item" || key === "weapon" ? key : null);
+          setDetail(null);
+        }}
+      />
 
-      <div className="members-entity-stats__toolbar">
-        <label className="members-universe__field">
+      <div className={ENTITY_TOOLBAR_CLS}>
+        <label className={UNIVERSE_FIELD_CLS}>
           <span className="small">Search {kindOptions.find((option) => option.key === kind)?.label ?? "Catalog"}</span>
           <input
-            className="input"
+            className={INPUT}
             type="text"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Name, UID, or class"
           />
         </label>
-        <div className="members-entity-stats__compare-toolbar">
-          <label className="members-universe__field">
+        <div className={COMPARE_TOOLBAR_CLS}>
+          <label className={UNIVERSE_FIELD_CLS}>
             <span className="small">Compare A</span>
             <input
-              className="input"
+              className={INPUT}
               type="text"
               list={`members-entity-compare-a-${kind}`}
               value={compareQueries[0]}
@@ -2084,10 +2143,10 @@ const MemberEntityStatsPanel: React.FC = () => {
               ))}
             </datalist>
           </label>
-          <label className="members-universe__field">
+          <label className={UNIVERSE_FIELD_CLS}>
             <span className="small">Compare B</span>
             <input
-              className="input"
+              className={INPUT}
               type="text"
               list={`members-entity-compare-b-${kind}`}
               value={compareQueries[1]}
@@ -2102,7 +2161,7 @@ const MemberEntityStatsPanel: React.FC = () => {
           </label>
           <span className="small">Compare: {compareCount}/2 selected</span>
           {compareCount === 2 ? (
-            <label className="members-entity-stats__compare-toggle">
+            <label className={COMPARE_TOGGLE_CLS}>
               <input
                 type="checkbox"
                 checked={showDifferencesOnly}
@@ -2114,7 +2173,7 @@ const MemberEntityStatsPanel: React.FC = () => {
           {compareCount > 0 ? (
             <button
               type="button"
-              className="btn"
+              className={BTN}
               onClick={() => {
                 setCompareIds([null, null]);
                 setCompareQueries(["", ""]);
@@ -2134,9 +2193,9 @@ const MemberEntityStatsPanel: React.FC = () => {
         </p>
       ) : null}
 
-      <div className="members-entity-stats__layout">
-        <aside className="members-entity-stats__sidebar">
-          <div className="members-entity-stats__sidebar-header">
+      <div className={ENTITY_LAYOUT_CLS}>
+        <aside className={SIDEBAR_CLS}>
+          <div className={SIDEBAR_HEADER_CLS}>
             <strong>{filteredItems.length}</strong>
             <span className="small">records</span>
           </div>
@@ -2146,12 +2205,12 @@ const MemberEntityStatsPanel: React.FC = () => {
           ) : filteredItems.length === 0 ? (
             <p className="small">No matching records found.</p>
           ) : (
-            <div className="members-entity-stats__list">
+            <div className={ENTITY_LIST_CLS}>
               {filteredItems.map((item) => (
                 <button
                   key={item.key}
                   type="button"
-                  className={`members-entity-stats__item${item.key === selectedId ? " is-active" : ""}`}
+                  className={itemCls(item.key === selectedId)}
                   onClick={() => {
                     setSelectedId(item.key);
                     setSelectedSourceKind(item.primaryRecord.sourceKind);
@@ -2171,16 +2230,16 @@ const MemberEntityStatsPanel: React.FC = () => {
           )}
         </aside>
 
-        <section className="members-entity-stats__detail">
+        <section className={DETAIL_CLS}>
           {compareCount === 2 ? (
             compareLoading ? (
               <p className="small">Loading compare view…</p>
             ) : compareItems.length === 2 ? (
-              <section className="members-entity-stats__compare-view">
-                <div className="members-entity-stats__compare-hero">
+              <section className={COMPARE_VIEW_CLS}>
+                <div className={COMPARE_HERO_CLS}>
                   {compareItems.map((item) => (
-                    <article key={item.key} className="members-entity-stats__compare-card">
-                      <h3>{item.name ?? item.primaryRecord.uid}</h3>
+                    <article key={item.key} className={COMPARE_CARD_CLS}>
+                      <h3 className="h3">{item.name ?? item.primaryRecord.uid}</h3>
                       <p className="small">ID: {formatSwcDisplayId(item.primaryRecord.uid)}</p>
                       {item.className ? <p className="small">Class: {item.className}</p> : null}
                       {item.lastPulledAt ? (
@@ -2193,24 +2252,24 @@ const MemberEntityStatsPanel: React.FC = () => {
                 </div>
 
                 {compareRows.length > 0 ? (
-                  <div className="members-entity-stats__compare-grid">
-                    <div className="members-entity-stats__compare-head small">Field</div>
-                    <div className="members-entity-stats__compare-head small">
+                  <div className={COMPARE_GRID_CLS}>
+                    <div className={COMPARE_HEAD_CLS + " small"}>Field</div>
+                    <div className={COMPARE_HEAD_CLS + " small"}>
                       {compareItems[0].name ?? formatSwcDisplayId(compareItems[0].primaryRecord.uid)}
                     </div>
-                    <div className="members-entity-stats__compare-head small">
+                    <div className={COMPARE_HEAD_CLS + " small"}>
                       {compareItems[1].name ?? formatSwcDisplayId(compareItems[1].primaryRecord.uid)}
                     </div>
 
                     {compareRows.map((row) => (
                       <React.Fragment key={row.key}>
-                        <div className={`members-entity-stats__compare-cell members-entity-stats__compare-cell--label${row.isDifferent ? " is-different" : ""}`}>
+                        <div className={compareCellCls(row.isDifferent, true)}>
                           {row.label}
                         </div>
-                        <div className={`members-entity-stats__compare-cell${row.isDifferent ? " is-different" : ""}`}>
+                        <div className={compareCellCls(row.isDifferent)}>
                           {row.leftDisplay}
                         </div>
-                        <div className={`members-entity-stats__compare-cell${row.isDifferent ? " is-different" : ""}`}>
+                        <div className={compareCellCls(row.isDifferent)}>
                           {row.rightDisplay}
                         </div>
                       </React.Fragment>
@@ -2221,56 +2280,56 @@ const MemberEntityStatsPanel: React.FC = () => {
                 )}
 
                 {compareWeaponRows.length > 0 ? (
-                  <section className="members-entity-stats__section">
+                  <section className={ENTITY_SECTION_CLS}>
                     <h4>Weapon Differences</h4>
-                    <div className="members-entity-stats__compare-grid">
-                      <div className="members-entity-stats__compare-head small">Weapon</div>
-                      <div className="members-entity-stats__compare-head small">
+                    <div className={COMPARE_GRID_CLS}>
+                      <div className={COMPARE_HEAD_CLS + " small"}>Weapon</div>
+                      <div className={COMPARE_HEAD_CLS + " small"}>
                         {compareItems[0].name ?? formatSwcDisplayId(compareItems[0].primaryRecord.uid)}
                       </div>
-                      <div className="members-entity-stats__compare-head small">
+                      <div className={COMPARE_HEAD_CLS + " small"}>
                         {compareItems[1].name ?? formatSwcDisplayId(compareItems[1].primaryRecord.uid)}
                       </div>
 
                       {compareWeaponRows.map((row) => (
                         <React.Fragment key={row.key}>
-                          <div className={`members-entity-stats__compare-cell members-entity-stats__compare-cell--label${row.isDifferent ? " is-different" : ""}`}>
+                          <div className={compareCellCls(row.isDifferent, true)}>
                             {row.label}
                           </div>
-                          <div className={`members-entity-stats__compare-cell${row.isDifferent ? " is-different" : ""}`}>
+                          <div className={compareCellCls(row.isDifferent)}>
                             {row.leftId ? <strong>{row.leftId}</strong> : <strong>—</strong>}
                             {row.leftSummaries.map((summary, index) => (
-                              <div key={`${row.key}-left-${index}`} className="members-entity-stats__weapon-arc-line">
+                              <div key={`${row.key}-left-${index}`} className={WEAPON_ARC_LINE_CLS}>
                                 <ArcIndicator
                                   arcName={summary.arcName}
                                   arcFrom={summary.arcFrom}
                                   arcTo={summary.arcTo}
                                 />
-                                <span className="members-entity-stats__weapon-arc-name small">
+                                <span className={WEAPON_ARC_NAME_CLS + " small"}>
                                   {summary.arcLabel}
                                 </span>
                                 {summary.meta ? (
-                                  <span className="members-entity-stats__weapon-arc-meta small">
+                                  <span className={WEAPON_ARC_META_CLS + " small"}>
                                     {summary.meta}
                                   </span>
                                 ) : null}
                               </div>
                             ))}
                           </div>
-                          <div className={`members-entity-stats__compare-cell${row.isDifferent ? " is-different" : ""}`}>
+                          <div className={compareCellCls(row.isDifferent)}>
                             {row.rightId ? <strong>{row.rightId}</strong> : <strong>—</strong>}
                             {row.rightSummaries.map((summary, index) => (
-                              <div key={`${row.key}-right-${index}`} className="members-entity-stats__weapon-arc-line">
+                              <div key={`${row.key}-right-${index}`} className={WEAPON_ARC_LINE_CLS}>
                                 <ArcIndicator
                                   arcName={summary.arcName}
                                   arcFrom={summary.arcFrom}
                                   arcTo={summary.arcTo}
                                 />
-                                <span className="members-entity-stats__weapon-arc-name small">
+                                <span className={WEAPON_ARC_NAME_CLS + " small"}>
                                   {summary.arcLabel}
                                 </span>
                                 {summary.meta ? (
-                                  <span className="members-entity-stats__weapon-arc-meta small">
+                                  <span className={WEAPON_ARC_META_CLS + " small"}>
                                     {summary.meta}
                                   </span>
                                 ) : null}
@@ -2284,35 +2343,35 @@ const MemberEntityStatsPanel: React.FC = () => {
                 ) : null}
 
                 {compareShieldArcRows.length > 0 ? (
-                  <section className="members-entity-stats__section">
+                  <section className={ENTITY_SECTION_CLS}>
                     <h4>Shield Arc Differences</h4>
-                    <div className="members-entity-stats__compare-grid">
-                      <div className="members-entity-stats__compare-head small">Arc</div>
-                      <div className="members-entity-stats__compare-head small">
+                    <div className={COMPARE_GRID_CLS}>
+                      <div className={COMPARE_HEAD_CLS + " small"}>Arc</div>
+                      <div className={COMPARE_HEAD_CLS + " small"}>
                         {compareItems[0].name ?? formatSwcDisplayId(compareItems[0].primaryRecord.uid)}
                       </div>
-                      <div className="members-entity-stats__compare-head small">
+                      <div className={COMPARE_HEAD_CLS + " small"}>
                         {compareItems[1].name ?? formatSwcDisplayId(compareItems[1].primaryRecord.uid)}
                       </div>
 
                       {compareShieldArcRows.map((row) => (
                         <React.Fragment key={row.key}>
-                          <div className={`members-entity-stats__compare-cell members-entity-stats__compare-cell--label${row.isDifferent ? " is-different" : ""}`}>
+                          <div className={compareCellCls(row.isDifferent, true)}>
                             {row.label}
                           </div>
-                          <div className={`members-entity-stats__compare-cell${row.isDifferent ? " is-different" : ""}`}>
+                          <div className={compareCellCls(row.isDifferent)}>
                             {row.leftSummary ? (
-                              <div className="members-entity-stats__weapon-arc-line">
+                              <div className={WEAPON_ARC_LINE_CLS}>
                                 <ArcIndicator
                                   arcName={row.leftSummary.arcName}
                                   arcFrom={row.leftSummary.arcFrom}
                                   arcTo={row.leftSummary.arcTo}
                                 />
-                                <span className="members-entity-stats__weapon-arc-name small">
+                                <span className={WEAPON_ARC_NAME_CLS + " small"}>
                                   {row.leftSummary.arcLabel}
                                 </span>
                                 {row.leftSummary.meta ? (
-                                  <span className="members-entity-stats__weapon-arc-meta small">
+                                  <span className={WEAPON_ARC_META_CLS + " small"}>
                                     {row.leftSummary.meta}
                                   </span>
                                 ) : null}
@@ -2321,19 +2380,19 @@ const MemberEntityStatsPanel: React.FC = () => {
                               <strong>—</strong>
                             )}
                           </div>
-                          <div className={`members-entity-stats__compare-cell${row.isDifferent ? " is-different" : ""}`}>
+                          <div className={compareCellCls(row.isDifferent)}>
                             {row.rightSummary ? (
-                              <div className="members-entity-stats__weapon-arc-line">
+                              <div className={WEAPON_ARC_LINE_CLS}>
                                 <ArcIndicator
                                   arcName={row.rightSummary.arcName}
                                   arcFrom={row.rightSummary.arcFrom}
                                   arcTo={row.rightSummary.arcTo}
                                 />
-                                <span className="members-entity-stats__weapon-arc-name small">
+                                <span className={WEAPON_ARC_NAME_CLS + " small"}>
                                   {row.rightSummary.arcLabel}
                                 </span>
                                 {row.rightSummary.meta ? (
-                                  <span className="members-entity-stats__weapon-arc-meta small">
+                                  <span className={WEAPON_ARC_META_CLS + " small"}>
                                     {row.rightSummary.meta}
                                   </span>
                                 ) : null}
@@ -2357,17 +2416,17 @@ const MemberEntityStatsPanel: React.FC = () => {
             <p className="small">Select a record to view its stats.</p>
           ) : (
             <>
-              <div className="members-entity-stats__hero">
+              <div className={HERO_CLS}>
                 {heroImageUrl ? (
                   <img
                     src={heroImageUrl}
                     alt={selectedSummary.name ?? selectedSummary.primaryRecord.uid}
-                    className="members-entity-stats__image"
+                    className={HERO_IMAGE_CLS}
                   />
                 ) : null}
 
-                <div className="members-entity-stats__hero-copy">
-                  <h3>{selectedSummary.name ?? selectedSummary.primaryRecord.uid}</h3>
+                <div className={HERO_COPY_CLS}>
+                  <h3 className="h3">{selectedSummary.name ?? selectedSummary.primaryRecord.uid}</h3>
                   <p className="small">
                     ID: {formatSwcDisplayId(
                       getBrowseRecordForKind(
@@ -2389,7 +2448,7 @@ const MemberEntityStatsPanel: React.FC = () => {
                 </div>
               </div>
               {groupedDetailSections.length > 0 ? (
-                <div className={"members-entity-stats__grouped-sections" + (openGroupedSection ? " members-entity-stats__grouped-sections--has-open" : "")}>
+                <div className={GROUPED_SECTIONS_CLS}>
                   {groupedDetailSections.map((section) => (
                     <button
                       key={section.title}
@@ -2397,10 +2456,7 @@ const MemberEntityStatsPanel: React.FC = () => {
                       ref={(element) => {
                         groupedSectionCardRefs.current[section.title] = element;
                       }}
-                      className={
-                        "members-entity-stats__group-panel" +
-                        (openGroupedSectionTitle === section.title ? " is-active" : "")
-                      }
+                      className={groupPanelCls(openGroupedSectionTitle === section.title, !!openGroupedSection)}
                       onClick={() => {
                         if (openGroupedSectionTitle === section.title) {
                           setOpenGroupedSectionTitle(null);
@@ -2423,8 +2479,8 @@ const MemberEntityStatsPanel: React.FC = () => {
                         setOpenGroupedSectionTitle(section.title);
                       }}
                     >
-                      <div className="members-entity-stats__group-panel-header">
-                        <div className="members-entity-stats__group-panel-copy">
+                      <div className={GROUP_PANEL_HEADER_CLS}>
+                        <div className={GROUP_PANEL_COPY_CLS}>
                           <h4>{section.title}</h4>
                         </div>
                       </div>
@@ -2434,7 +2490,7 @@ const MemberEntityStatsPanel: React.FC = () => {
               ) : null}
 
               {detailEntries.expanded.map(([key, value]) => (
-                <details key={key} className="members-entity-stats__raw">
+                <details key={key} className={RAW_ENTRY_CLS}>
                   <summary>{formatLabel(key)}</summary>
                   {key === "skills" && value && typeof value === "object" && !Array.isArray(value) ? (
                     renderSkills(value as Record<string, unknown>)
@@ -2443,14 +2499,14 @@ const MemberEntityStatsPanel: React.FC = () => {
                   ) : typeof value === "string" ? (
                     looksLikeHtml(value) ? (
                       <div
-                        className="members-entity-stats__long-text members-entity-stats__long-text--html"
+                        className={LONG_TEXT_HTML_CLS}
                         dangerouslySetInnerHTML={{ __html: value }}
                       />
                     ) : (
-                      <div className="members-entity-stats__long-text">{value}</div>
+                      <div className={LONG_TEXT_CLS}>{value}</div>
                     )
                   ) : (
-                    <pre className="members-entity-stats__json">{JSON.stringify(value, null, 2)}</pre>
+                    <pre className={JSON_CLS}>{JSON.stringify(value, null, 2)}</pre>
                   )}
                 </details>
               ))}

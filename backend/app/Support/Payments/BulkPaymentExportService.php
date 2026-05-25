@@ -2,7 +2,7 @@
 
 namespace App\Support\Payments;
 
-use App\Models\PaymentTransfer;
+use App\Models\Payment\PaymentTransfer;
 use Illuminate\Support\Collection;
 
 class BulkPaymentExportService

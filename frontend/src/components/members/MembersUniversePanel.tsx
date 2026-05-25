@@ -14,11 +14,11 @@ import {
   type StoredMapSystem,
   type StoredSectorSummary,
   type StoredSystemDetail,
-} from "../../api/universe";
-import { getApiBaseUrl, getBackendOrigin } from "../../api/auth";
-import type { SwcUser } from "../../api/auth";
+} from "../../api/universe/universe";
+import { getApiBaseUrl, getBackendOrigin } from "../../api/core/auth";
+import type { SwcUser } from "../../api/core/auth";
 import { canAccessAdmin, canAccessDroidBrain, canViewAsteroidIntel, canViewScanWindow, getToolAccessTier } from "../../auth/permissions";
-import { uploadDroidBrainFile, type DroidBrainUploadResult } from "../../api/droidbrain";
+import { uploadDroidBrainFile, type DroidBrainUploadResult } from "../../api/universe/droidbrain";
 import {
   getSwcAuthorizationStatus,
   getSwcImportLogs,
@@ -28,11 +28,34 @@ import {
   type ImportLogEntry,
   type SwcAuthorizationStatus,
   type SwcPersonalEventsImportResponse,
-} from "../../api/swcAuthorization";
+} from "../../api/members/swcAuthorization";
 import SpinnerLoadingCard from "../common/SpinnerLoadingCard";
 import SearchSuggestionPicker from "../common/SearchSuggestionPicker";
 import DroidBrainUploadPanel from "../droidbrain/DroidBrainUploadPanel";
-import "../../styles/_membersuniverse.sass";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM, INPUT } from "../../utils/ui";
+
+const CTRL_OVERLAY_CLS = "grid gap-4";
+const CTRL_SECTION_CLS = "grid gap-[0.7rem] pt-[0.1rem] [&+&]:pt-4 [&+&]:border-t [&+&]:border-t-white/[0.08]";
+const TOP_COPY_CLS = "grid gap-[0.2rem]";
+const TOP_CONTROLS_CLS = "flex justify-start items-center gap-[0.65rem] flex-wrap";
+const IMPORT_LOG_CLS = "grid gap-[0.3rem]";
+const IMPORT_LOG_ENTRY_CLS = "grid gap-[0.2rem]";
+const IMPORT_LOG_HEADER_CLS = "flex items-baseline justify-between gap-2 bg-transparent border-none p-[0.3rem_0] cursor-pointer text-inherit text-left w-full border-b border-b-white/[0.06] hover:text-[rgba(246,163,0,0.9)]";
+const IMPORT_LOG_COUNTS_CLS = "flex gap-[0.4rem] flex-shrink-0";
+const IMPORT_LOG_NEW_CLS = "text-[rgb(100,220,120)]";
+const IMPORT_LOG_UPDATED_CLS = "text-[rgba(246,163,0,0.9)]";
+const IMPORT_LOG_AREAS_CLS = "list-none p-[0.3rem_0_0.3rem_0.5rem] m-0 grid gap-[0.2rem] max-h-[180px] overflow-y-auto";
+const IMPORT_LOG_ACTION_CLS = "inline-block w-4 font-bold text-[rgba(246,163,0,0.9)]";
+const IMPORT_LOG_COORDS_CLS = "opacity-50 ml-[0.2rem]";
+const IMPORT_LOG_ASTEROID_CLS = "text-[rgb(100,200,255)] ml-[0.2rem]";
+const FIELD_CLS = "flex flex-col gap-2";
+const INLINE_CLS = "flex gap-3 flex-wrap items-center";
+const INLINE_TOP_CLS = INLINE_CLS + " items-start";
+const TYPEAHEAD_CLS = "relative flex-[1_1_240px] min-w-[240px] max-[767px]:min-w-0 max-[767px]:w-full";
+const TYPEAHEAD_LIST_CLS = "absolute top-[calc(100%+0.35rem)] left-0 right-0 z-[8] grid gap-[0.35rem] max-h-[260px] overflow-y-auto p-[0.45rem] rounded-[12px] border border-[rgba(246,163,0,0.18)] bg-[rgba(18,21,24,0.98)] shadow-[0_16px_40px_rgba(0,0,0,0.34)]";
+const typeaheadOptionCls = (active: boolean) =>
+  "grid gap-[0.15rem] p-[0.7rem_0.8rem] border border-white/[0.06] rounded-[10px] bg-white/[0.03] text-inherit text-left cursor-pointer transition-[border-color,background,transform] duration-[140ms] [&_strong]:leading-[1.2] [&_strong]:text-[#f2c46f] hover:border-[rgba(246,163,0,0.26)] hover:bg-[rgba(246,163,0,0.08)] hover:-translate-y-px" +
+  (active ? " !border-[rgba(246,163,0,0.4)] !bg-[rgba(246,163,0,0.12)]" : "");
 
 const DeckGalaxyMap = lazy(() => import("../maps/DeckGalaxyMap"));
 const SHOW_PERF_QUERY = "map_perf";
@@ -1003,16 +1026,16 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
   ]);
 
   const controlsOverlay = (
-    <div className="members-universe__controllers-overlay">
-      <section className="members-universe__controller-section">
-        <div className="members-universe__top-actions-copy">
+    <div className={CTRL_OVERLAY_CLS}>
+      <section className={CTRL_SECTION_CLS}>
+        <div className={TOP_COPY_CLS}>
           <p className="small" style={{ margin: 0 }}>
             Astrogation Access: {swcAuth?.has_personal_events_access ? "Yes" : "No"}
           </p>
         </div>
-        <div className="members-universe__top-actions-controls">
+        <div className={TOP_CONTROLS_CLS}>
           <button
-            className="btn"
+            className={BTN}
             type="button"
             onClick={handleImportPersonalEvents}
             disabled={eventsImportLoading}
@@ -1026,11 +1049,11 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
           </p>
         ) : null}
         {eventsImportError ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <div className="flex flex-col gap-[6px]">
             <p className="small" style={{ color: "salmon", margin: 0 }}>
               {eventsImportError}
             </p>
-            <button className="btn btn--small" type="button" onClick={handleResyncSwcAccess}>
+            <button className={BTN_SM} type="button" onClick={handleResyncSwcAccess}>
               Grant Astrogation Access
             </button>
           </div>
@@ -1043,12 +1066,12 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
       </section>
 
       {importLogs.length > 0 ? (
-        <section className="members-universe__controller-section">
-          <div className="members-universe__top-actions-copy">
-            <h4 className="admin-card__title">Upload History</h4>
+        <section className={CTRL_SECTION_CLS}>
+          <div className={TOP_COPY_CLS}>
+            <h4 className="m-0">Upload History</h4>
             <button
               type="button"
-              className="btn btn--ghost btn--sm"
+              className={BTN_GHOST_SM}
               onClick={async () => {
                 await clearSwcImportLogs();
                 setImportLogs([]);
@@ -1057,35 +1080,35 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
               Clear history
             </button>
           </div>
-          <div className="members-universe__import-log">
+          <div className={IMPORT_LOG_CLS}>
             {importLogsLoading ? (
               <p className="small" style={{ margin: 0 }}>Loading…</p>
             ) : importLogs.map((log) => (
-              <div key={log.id} className="members-universe__import-log-entry">
+              <div key={log.id} className={IMPORT_LOG_ENTRY_CLS}>
                 <button
                   type="button"
-                  className="members-universe__import-log-header"
+                  className={IMPORT_LOG_HEADER_CLS}
                   onClick={() => setExpandedLogId(expandedLogId === log.id ? null : log.id)}
                 >
                   <span className="small">
                     {new Date(log.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
                   </span>
-                  <span className="small members-universe__import-log-counts">
-                    {log.created > 0 ? <span className="members-universe__import-log-new">+{log.created} new</span> : null}
-                    {log.updated > 0 ? <span className="members-universe__import-log-updated">{log.updated} updated</span> : null}
+                  <span className={`small ${IMPORT_LOG_COUNTS_CLS}`}>
+                    {log.created > 0 ? <span className={IMPORT_LOG_NEW_CLS}>+{log.created} new</span> : null}
+                    {log.updated > 0 ? <span className={IMPORT_LOG_UPDATED_CLS}>{log.updated} updated</span> : null}
                     {log.created === 0 && log.updated === 0 ? <span>{log.unchanged} unchanged</span> : null}
                   </span>
                 </button>
                 {expandedLogId === log.id && log.areas.length > 0 ? (
-                  <ul className="members-universe__import-log-areas">
+                  <ul className={IMPORT_LOG_AREAS_CLS}>
                     {log.areas.map((area, i) => (
                       <li key={i} className="small">
-                        <span className={`members-universe__import-log-action members-universe__import-log-action--${area.action}`}>
+                        <span className={IMPORT_LOG_ACTION_CLS}>
                           {area.action === "created" ? "+" : "~"}
                         </span>
                         {area.square_name ?? `(${area.galx}, ${area.galy})`}
-                        <span className="members-universe__import-log-coords"> ({area.galx}, {area.galy})</span>
-                        {area.has_asteroids ? <span className="members-universe__import-log-asteroid"> ★</span> : null}
+                        <span className={IMPORT_LOG_COORDS_CLS}> ({area.galx}, {area.galy})</span>
+                        {area.has_asteroids ? <span className={IMPORT_LOG_ASTEROID_CLS}> ★</span> : null}
                       </li>
                     ))}
                   </ul>
@@ -1097,18 +1120,18 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
       ) : null}
 
       {viewer?.is_admin ? (
-        <section className="members-universe__controller-section">
-          <div className="members-universe__top-actions-copy">
-            <h4 className="admin-card__title">Subscriber Scout Data</h4>
+        <section className={CTRL_SECTION_CLS}>
+          <div className={TOP_COPY_CLS}>
+            <h4 className="m-0">Subscriber Scout Data</h4>
             <p className="small" style={{ margin: 0 }}>
               {subscriberOverlayActive
                 ? "Subscriber cell records are merged into the map. Click to remove them."
                 : "Merge all subscriber-uploaded cell records into the map view."}
             </p>
           </div>
-          <div className="members-universe__top-actions-controls">
+          <div className={TOP_CONTROLS_CLS}>
             <button
-              className={`btn${subscriberOverlayActive ? " btn--ghost" : ""}`}
+              className={(subscriberOverlayActive ? BTN_GHOST : BTN)}
               type="button"
               onClick={handleToggleSubscriberOverlay}
               disabled={subscriberOverlayLoading}
@@ -1124,7 +1147,7 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
       ) : null}
 
       {canAccessDroidBrain(viewer) ? (
-        <section className="members-universe__controller-section">
+        <section className={CTRL_SECTION_CLS}>
           <DroidBrainUploadPanel
             compact
             uploading={droidbrainUploading}
@@ -1160,20 +1183,20 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
         </section>
       ) : null}
 
-      <section className="members-universe__controller-section">
-        <div className="members-universe__top-actions-copy">
-          <h4 className="admin-card__title">Navigation</h4>
+      <section className={CTRL_SECTION_CLS}>
+        <div className={TOP_COPY_CLS}>
+          <h4 className="m-0">Navigation</h4>
           <p className="small" style={{ margin: 0 }}>
             Plot a course straight to a sector, system, or star chart coordinate.
           </p>
         </div>
 
-        <div className="members-universe__controls">
-          <div className="members-universe__field">
+        <div className="grid gap-[0.85rem]">
+          <div className={FIELD_CLS}>
             <label className="small" htmlFor="deck-universe-sector">
               Sector
             </label>
-            <div className="members-universe__inline members-universe__sector-picker">
+            <div className={INLINE_TOP_CLS}>
               <SearchSuggestionPicker
                 id="deck-universe-sector"
                 value={sectorQuery}
@@ -1193,44 +1216,44 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
                   </>
                 )}
               />
-              <button className="btn" type="button" onClick={handleGoToSector}>
+              <button className={BTN} type="button" onClick={handleGoToSector}>
                 Go to Sector
               </button>
             </div>
           </div>
 
-          <div className="members-universe__field">
+          <div className={FIELD_CLS}>
             <label className="small">Star Chart Coordinates</label>
-            <div className="members-universe__inline">
+            <div className={INLINE_CLS}>
               <input
-                className="input"
+                className={INPUT}
                 inputMode="numeric"
                 value={locationX}
                 onChange={(event) => setLocationX(event.target.value)}
                 placeholder="galx"
               />
               <input
-                className="input"
+                className={INPUT}
                 inputMode="numeric"
                 value={locationY}
                 onChange={(event) => setLocationY(event.target.value)}
                 placeholder="galy"
               />
-              <button className="btn" type="button" onClick={handleGoToCoordinates}>
+              <button className={BTN} type="button" onClick={handleGoToCoordinates}>
                 Go to Coordinates
               </button>
             </div>
           </div>
 
-          <div className="members-universe__field">
+          <div className={FIELD_CLS}>
             <label className="small" htmlFor="deck-universe-system">
               System
             </label>
-            <div className="members-universe__inline members-universe__sector-picker">
-              <div className="members-universe__typeahead">
+            <div className={INLINE_TOP_CLS}>
+              <div className={TYPEAHEAD_CLS}>
                 <input
                   id="deck-universe-system"
-                  className="input"
+                  className={INPUT}
                   value={systemQuery}
                   onChange={(event) => {
                     setSystemQuery(event.target.value);
@@ -1254,16 +1277,14 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
                   autoComplete="off"
                 />
                 {showSystemMatches && filteredSystems.length ? (
-                  <div className="members-universe__typeahead-list">
+                  <div className={TYPEAHEAD_LIST_CLS}>
                     {filteredSystems.map((system: StoredMapSystem) => {
                       const systemKey = system.identifier ?? system.uid ?? "";
                       return (
                         <button
                           key={systemKey}
                           type="button"
-                          className={`members-universe__typeahead-option${
-                            systemKey === selectedSystemIdentifier ? " is-active" : ""
-                          }`}
+                          className={typeaheadOptionCls(systemKey === selectedSystemIdentifier)}
                           onMouseDown={(event) => {
                             event.preventDefault();
                             commitSystemSelection(system);
@@ -1279,7 +1300,7 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
                   </div>
                 ) : null}
               </div>
-              <button className="btn" type="button" onClick={handleGoToSystem}>
+              <button className={BTN} type="button" onClick={handleGoToSystem}>
                 Go to System
               </button>
             </div>
@@ -1297,14 +1318,14 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
 
   if (loading) {
     return (
-      <section className="panel admin-panel">
-        <div className="admin-panel__header">
-          <h2 style={{ margin: 0 }}>Astrogation</h2>
+      <section className="panel flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <h2 className="h2" style={{ margin: 0 }}>Astrogation</h2>
           <p className="small" style={{ margin: 0 }}>
             Preparing navigation charts…
           </p>
         </div>
-        <div className="admin-panel__body">
+        <div className="flex flex-col gap-4">
           <SpinnerLoadingCard
             compact
             title="Preparing Astrogation Chart"
@@ -1317,11 +1338,11 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
 
   if (error && sectors.length === 0) {
     return (
-      <section className="panel admin-panel">
-        <div className="admin-panel__header">
-          <h2 style={{ margin: 0 }}>Astrogation</h2>
+      <section className="panel flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <h2 className="h2" style={{ margin: 0 }}>Astrogation</h2>
         </div>
-        <div className="admin-panel__body">
+        <div className="flex flex-col gap-4">
           <p className="small" style={{ color: "salmon", margin: 0 }}>
             {error}
           </p>
@@ -1331,8 +1352,8 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
   }
 
   return (
-    <div className="members-universe">
-      <div style={{ position: "relative" }}>
+    <div>
+      <div className="relative">
         <Suspense
           fallback={
             <SpinnerLoadingCard
@@ -1365,18 +1386,7 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
           />
         </Suspense>
         {showPerfDebug ? (
-          <div
-            className="members-universe-map__status"
-            style={{
-              left: "0.85rem",
-              right: "auto",
-              top: "0.85rem",
-              bottom: "auto",
-              zIndex: 5,
-              display: "grid",
-              gap: "0.2rem",
-            }}
-          >
+          <div className="absolute left-[0.85rem] top-[0.85rem] z-[5] grid gap-[0.2rem] inline-flex items-center min-h-[32px] p-[0.35rem_0.65rem] rounded-full border border-white/[0.08] bg-[rgba(12,16,20,0.88)]">
             <span className="small"><strong>Perf Debug Enabled</strong></span>
             <span className="small">Renderer: {perfDebugStats.renderer}</span>
             <span className="small">Sectors Loaded: {perfDebugStats.sectorsLoaded}</span>
@@ -1387,19 +1397,7 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
           </div>
         ) : null}
         {globalMapDataLoading ? (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              zIndex: 4,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "1rem",
-              background: "rgba(2,3,4,0.72)",
-              backdropFilter: "blur(2px)",
-            }}
-          >
+          <div className="absolute inset-0 z-[4] flex items-center justify-center p-4 bg-[rgba(2,3,4,0.72)] backdrop-blur-[2px]">
             <SpinnerLoadingCard
               compact
               title="Building Galaxy View"

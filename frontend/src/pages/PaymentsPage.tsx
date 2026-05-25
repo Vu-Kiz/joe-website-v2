@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../api/auth";
+import { fetchAuthMe, subscribeToAuthStateChange, type SwcUser } from "../api/core/auth";
 import {
   getDroidBrainPaymentSettings,
   getPaymentTransfers,
@@ -14,7 +14,7 @@ import {
   verifyPaymentTransfer,
   type PaymentItem,
   type PaymentTransfer,
-} from "../api/payments";
+} from "../api/payments/payments";
 import {
   createManualPaymentTemplate,
   deleteManualPaymentTemplate,
@@ -25,12 +25,12 @@ import {
   type ManualPaymentTemplate,
   type ManualPaymentTemplateFormPayload,
   type ManualPaymentTemplateOptionsResponse,
-} from "../api/manualPayments";
+} from "../api/payments/manualPayments";
 import {
   getMyFactionPrivileges,
   type FactionPrivilegeCheckResult,
-} from "../api/factionPrivileges";
-import { logMemberToolOpen } from "../api/memberTools";
+} from "../api/factions/factionPrivileges";
+import { logMemberToolOpen } from "../api/members/memberTools";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import PaymentsNav from "../components/payments/PaymentsNav";
@@ -41,9 +41,8 @@ import PaymentsTemplatesPanel from "../components/payments/PaymentsTemplatesPane
 import DroidBrainPaymentsPanel from "../components/payments/DroidBrainPaymentsPanel";
 import type { PaymentGroup, PaymentsActionState, PaymentsView } from "../components/payments/types";
 import { canAccessPayments } from "../auth/permissions";
+import { BTN, BTN_SM, BTN_GHOST } from "../utils/ui";
 
-import "../styles/main.sass";
-import "../styles/_admin.sass";
 
 const privilegeGroup = "finance";
 const privilegeName = "send_credits";
@@ -618,8 +617,8 @@ const PaymentsPage: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
-            <h1>Payments</h1>
+          <main className="board flex flex-col gap-4">
+            <h1 className="h1">Payments</h1>
             <p className="small">Loading payments…</p>
           </main>
         </div>
@@ -631,8 +630,8 @@ const PaymentsPage: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
-            <h1>Payments</h1>
+          <main className="board flex flex-col gap-4">
+            <h1 className="h1">Payments</h1>
             <p className="small" style={{ color: "salmon" }}>
               {error}
             </p>
@@ -646,7 +645,7 @@ const PaymentsPage: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
+          <main className="board flex flex-col gap-4">
             <NotLoggedInState
               title="Not logged in"
               message="You need to sign in to access payments."
@@ -661,7 +660,7 @@ const PaymentsPage: React.FC = () => {
     return (
       <div className="site-scale">
         <div className="app app--one">
-          <main className="board admin-board">
+          <main className="board flex flex-col gap-4">
             <ForbiddenState
               title="403 Forbidden"
               message="You do not have permission to access payments."
@@ -675,10 +674,10 @@ const PaymentsPage: React.FC = () => {
   return (
     <div className="site-scale">
       <div className="app app--one">
-        <main className="board admin-board">
-          <h1>Payments</h1>
-          <div className="members-tool-back">
-            <button className="btn" type="button" onClick={() => navigate("/tools")}>
+        <main className="board flex flex-col gap-4">
+          <h1 className="h1">Payments</h1>
+          <div className="flex justify-start mb-4">
+            <button className={BTN} type="button" onClick={() => navigate("/tools")}>
               Back to Overview
             </button>
           </div>
@@ -695,7 +694,7 @@ const PaymentsPage: React.FC = () => {
                 </p>
               )}
 
-              <button className="btn" type="button" onClick={clearActionState}>
+              <button className={BTN} type="button" onClick={clearActionState}>
                 Clear
               </button>
             </div>
@@ -742,7 +741,7 @@ const PaymentsPage: React.FC = () => {
                 <>
                   {supportTransfersError ? (
                     <div className="panel">
-                      <h2>Unverified Support Queue</h2>
+                      <h2 className="h2">Unverified Support Queue</h2>
                       <p className="small" style={{ color: "salmon" }}>
                         Support queue is temporarily unavailable: {supportTransfersError}
                       </p>

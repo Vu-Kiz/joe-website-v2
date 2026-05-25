@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import SlideTabNav, { type TabItem } from "../common/SlideTabNav";
 import {
   getArchiveFactions,
   getArchivePlanet,
@@ -14,7 +15,9 @@ import {
   type StoredSectorDetail,
   type StoredSectorSummary,
   type StoredSystemDetail,
-} from "../../api/universe";
+} from "../../api/universe/universe";
+import { BTN, BTN_SM, INPUT } from "../../utils/ui";
+import ReportBugButton from "../support/ReportBugButton";
 
 type ArchiveTab = "sectors" | "systems" | "planets" | "factions" | "system_ids";
 
@@ -301,46 +304,68 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
     system_ids: systemsByNumber.length,
   }[activeTab];
 
+  const hasSelection =
+    (activeTab === "sectors" && !!selectedSector) ||
+    ((activeTab === "systems" || activeTab === "system_ids") && !!selectedSystem) ||
+    (activeTab === "planets" && !!selectedPlanet) ||
+    (activeTab === "factions" && !!selectedFaction);
+
+  const clearSelection = () => {
+    setSelectedSector(null);
+    setSelectedSectorKey(null);
+    setSelectedSystem(null);
+    setSelectedSystemKey(null);
+    setSelectedPlanet(null);
+    setSelectedPlanetKey(null);
+    setSelectedFaction(null);
+    setSelectedFactionKey(null);
+  };
+
+  const archiveItemCls = (active: boolean) =>
+    "grid gap-1 text-left text-inherit border rounded-[14px] p-[12px_14px] cursor-pointer transition-[border-color,background,transform] duration-200 hover:border-[rgba(255,176,0,0.6)] hover:bg-[rgba(255,176,0,0.11)] hover:-translate-y-px " +
+    (active
+      ? "border-[rgba(255,176,0,0.92)] bg-[rgba(255,176,0,0.14)] shadow-[inset_0_0_0_1px_rgba(255,176,0,0.2)]"
+      : "border-[rgba(255,176,0,0.28)] bg-[rgba(255,176,0,0.06)]");
+
   return (
     <>
-      <div className="members-tool-back">
-        <button className="btn" type="button" onClick={onBack}>
+      <div className="flex items-center gap-3 mb-4">
+        <button className={BTN} type="button" onClick={onBack}>
           Back to Overview
         </button>
+        <ReportBugButton toolKey="galactic_archive" toolLabel="Galactic Archive" />
       </div>
 
-      <div className="panel members-archive">
-        <div className="members-archive__head">
+      <div className="panel grid gap-4">
+        <div className="grid gap-3">
           <div>
-            <h2 className="h2" style={{ marginTop: 0, marginBottom: 6 }}>Galactic Archive</h2>
+            <div className="flex items-center justify-between gap-4 flex-wrap mb-1">
+              <h2 className="h2 m-0">Galactic Archive</h2>
+            </div>
             <p className="small" style={{ margin: 0 }}>
               Browse pulled SWC reference data for sectors, systems, planets, and factions inside the members SPA.
             </p>
           </div>
-          <div className="members-entity-stats__tabs">
-            {(Object.entries(tabLabels) as [ArchiveTab, string][])
-              .filter(([key]) => key !== "system_ids" || isAdmin)
-              .map(([key, label]) => (
-                <button
-                  key={key}
-                  type="button"
-                  className={`btn btn--small${activeTab === key ? " active" : ""}`}
-                  onClick={() => {
-                    setActiveTab(key);
-                    setQuery("");
-                    setError(null);
-                    setShowIdGaps(false);
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
+          <div className="overflow-x-auto -mx-1 px-1">
+            <SlideTabNav
+              items={(Object.entries(tabLabels) as [ArchiveTab, string][])
+                .filter(([key]) => key !== "system_ids" || isAdmin)
+                .map(([key, label]): TabItem<ArchiveTab> => ({ key, label }))}
+              activeKey={activeTab}
+              onChange={(key) => {
+                setActiveTab(key);
+                setQuery("");
+                setError(null);
+                setShowIdGaps(false);
+                clearSelection();
+              }}
+            />
           </div>
         </div>
 
-        <div className="members-archive__toolbar">
+        <div className="flex gap-3 items-center flex-wrap">
           <input
-            className="input"
+            className={INPUT + " rounded-full pl-4 min-w-[min(100%,320px)]"}
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -349,7 +374,7 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
           {activeTab === "system_ids" && (
             <button
               type="button"
-              className={`btn btn--small${showIdGaps ? " active" : ""}`}
+              className={showIdGaps ? BTN_SM + " border-[rgba(245,213,70,0.7)] bg-[rgba(245,213,70,0.18)] text-white" : BTN_SM}
               onClick={() => { setShowIdGaps((v) => !v); setQuery(""); }}
             >
               {showIdGaps ? "Show Systems" : "Show Gaps"}
@@ -362,14 +387,14 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
 
         {error ? <p className="small" style={{ color: "salmon" }}>{error}</p> : null}
 
-        <div className="members-archive__layout">
-          <div className="members-archive__list">
+        <div className="grid grid-cols-[minmax(260px,340px)_minmax(0,1fr)] gap-4 max-[768px]:grid-cols-1">
+          <div className={`grid gap-2.5 max-h-[70vh] overflow-y-auto pr-1 max-[768px]:max-h-none ${hasSelection ? "max-[768px]:hidden" : ""}`}>
             {activeTab === "sectors" &&
               filteredSectors.map((sector) => (
                 <button
                   key={sector.uid}
                   type="button"
-                  className={`members-archive__item${selectedSectorKey === sector.uid ? " is-active" : ""}`}
+                  className={archiveItemCls(selectedSectorKey === sector.uid)}
                   onClick={() => void handleSelectSector(sector)}
                 >
                   <strong>{sector.name ?? sector.uid}</strong>
@@ -384,7 +409,7 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
                   <button
                     key={key}
                     type="button"
-                    className={`members-archive__item${selectedSystemKey === key ? " is-active" : ""}`}
+                    className={archiveItemCls(selectedSystemKey === key)}
                     onClick={() => void handleSelectSystem(system)}
                   >
                     <strong>{system.name ?? key}</strong>
@@ -400,7 +425,7 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
                   <button
                     key={key}
                     type="button"
-                    className={`members-archive__item${selectedPlanetKey === key ? " is-active" : ""}`}
+                    className={archiveItemCls(selectedPlanetKey === key)}
                     onClick={() => void handleSelectPlanet(planet)}
                   >
                     <strong>{planet.name ?? key}</strong>
@@ -424,7 +449,7 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
                   <button
                     key={key}
                     type="button"
-                    className={`members-archive__item${selectedSystemKey === (system.identifier ?? system.uid ?? system.name ?? "system") ? " is-active" : ""}`}
+                    className={archiveItemCls(selectedSystemKey === (system.identifier ?? system.uid ?? system.name ?? "system"))}
                     onClick={() => void handleSelectSystem(system)}
                   >
                     <strong>#{numericId}{system.name ? ` — ${system.name}` : ""}</strong>
@@ -435,7 +460,7 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
 
             {activeTab === "system_ids" && showIdGaps &&
               idGaps.map((gap) => (
-                <div key={`${gap.start}-${gap.end}`} className="members-archive__item">
+                <div key={`${gap.start}-${gap.end}`} className={archiveItemCls(false)}>
                   {gap.start === gap.end
                     ? <strong>#{gap.start}</strong>
                     : <strong>#{gap.start} — #{gap.end}</strong>
@@ -451,7 +476,7 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
                 <button
                   key={faction.owner_uid ?? String(faction.id)}
                   type="button"
-                  className={`members-archive__item${selectedFactionKey === (faction.owner_uid ?? (faction.swc_uid != null ? `20:${faction.swc_uid}` : String(faction.id))) ? " is-active" : ""}`}
+                  className={archiveItemCls(selectedFactionKey === (faction.owner_uid ?? (faction.swc_uid != null ? `20:${faction.swc_uid}` : String(faction.id))))}
                   onClick={() => handleSelectFaction(faction)}
                 >
                   <strong>{faction.name ?? `Faction ${faction.id}`}</strong>
@@ -462,23 +487,32 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
               ))}
           </div>
 
-          <div className="members-archive__detail">
+          <div className={`grid gap-4 content-start min-h-70 ${!hasSelection ? "max-[768px]:hidden" : ""}`}>
+            {hasSelection && (
+              <button
+                type="button"
+                className={BTN_SM + " justify-self-start hidden max-[768px]:flex"}
+                onClick={clearSelection}
+              >
+                ← Back to list
+              </button>
+            )}
             {activeTab === "sectors" && selectedSector && (
               <>
-                <h3 className="members-entity-stats__section-heading">{selectedSector.sector.name ?? selectedSector.sector.uid}</h3>
-                <div className="members-entity-stats__stats-grid">
-                  <div className="members-entity-stats__stat"><span>UID</span><strong>{formatSwcId(selectedSector.sector.uid)}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Owner</span><strong>{selectedSector.sector.owner_name ?? "Unknown"}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Population</span><strong>{formatNumber(selectedSector.sector.population)}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Known Systems</span><strong>{formatNumber(selectedSector.sector.known_systems)}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Grid Cells</span><strong>{formatNumber(selectedSector.coordinates.length)}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Last Pulled</span><strong>{formatTimestamp(sectors.find((row) => row.uid === selectedSector.sector.uid)?.last_pulled_at ?? null)}</strong></div>
+                <h3 className="m-0 text-[rgba(246,163,0,0.95)]">{selectedSector.sector.name ?? selectedSector.sector.uid}</h3>
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>UID</span><strong>{formatSwcId(selectedSector.sector.uid)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Owner</span><strong>{selectedSector.sector.owner_name ?? "Unknown"}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Population</span><strong>{formatNumber(selectedSector.sector.population)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Known Systems</span><strong>{formatNumber(selectedSector.sector.known_systems)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Grid Cells</span><strong>{formatNumber(selectedSector.coordinates.length)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Last Pulled</span><strong>{formatTimestamp(sectors.find((row) => row.uid === selectedSector.sector.uid)?.last_pulled_at ?? null)}</strong></div>
                 </div>
-                <div className="members-entity-stats__section">
-                  <h4 className="members-entity-stats__section-heading">Systems</h4>
-                  <div className="members-entity-stats__chip-list">
+                <div className="grid gap-3 [&_h4]:m-0">
+                  <h4>Systems</h4>
+                  <div className="flex flex-wrap gap-[0.6rem]">
                     {selectedSector.systems.slice(0, 40).map((system) => (
-                      <span key={system.uid ?? system.identifier ?? system.name} className="members-entity-stats__chip">
+                      <span key={system.uid ?? system.identifier ?? system.name} className="inline-flex py-[0.45rem] px-[0.65rem] rounded-full border border-white/8 bg-white/[0.04]">
                         {system.name ?? system.identifier ?? system.uid}
                       </span>
                     ))}
@@ -489,30 +523,30 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
 
             {(activeTab === "systems" || activeTab === "system_ids") && selectedSystem && (
               <>
-                <h3 className="members-entity-stats__section-heading">{selectedSystem.system.name ?? selectedSystem.identifier}</h3>
-                <div className="members-entity-stats__stats-grid">
-                  <div className="members-entity-stats__stat"><span>UID</span><strong>{formatSwcId(selectedSystem.system.uid)}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Identifier</span><strong>{selectedSystem.system.identifier ?? "Unknown"}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Sector</span><strong>{selectedSystem.system.sector_name ?? "Unknown"}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Owner</span><strong>{selectedSystem.system.owner_name ?? "Unknown"}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Galaxy</span><strong>{selectedSystem.system.galx}, {selectedSystem.system.galy}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Last Pulled</span><strong>{formatTimestamp(selectedSystem.system.last_pulled_at)}</strong></div>
+                <h3 className="m-0 text-[rgba(246,163,0,0.95)]">{selectedSystem.system.name ?? selectedSystem.identifier}</h3>
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>UID</span><strong>{formatSwcId(selectedSystem.system.uid)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Identifier</span><strong>{selectedSystem.system.identifier ?? "Unknown"}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Sector</span><strong>{selectedSystem.system.sector_name ?? "Unknown"}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Owner</span><strong>{selectedSystem.system.owner_name ?? "Unknown"}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Galaxy</span><strong>{selectedSystem.system.galx}, {selectedSystem.system.galy}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Last Pulled</span><strong>{formatTimestamp(selectedSystem.system.last_pulled_at)}</strong></div>
                 </div>
-                <div className="members-entity-stats__section">
-                  <h4 className="members-entity-stats__section-heading">Planets</h4>
-                  <div className="members-entity-stats__chip-list">
+                <div className="grid gap-3 [&_h4]:m-0">
+                  <h4>Planets</h4>
+                  <div className="flex flex-wrap gap-[0.6rem]">
                     {selectedSystem.planets.map((planet) => (
-                      <span key={planet.uid ?? planet.identifier ?? planet.name} className="members-entity-stats__chip">
+                      <span key={planet.uid ?? planet.identifier ?? planet.name} className="inline-flex py-[0.45rem] px-[0.65rem] rounded-full border border-white/8 bg-white/[0.04]">
                         {planet.name ?? planet.identifier ?? planet.uid}
                       </span>
                     ))}
                   </div>
                 </div>
-                <div className="members-entity-stats__section">
-                  <h4 className="members-entity-stats__section-heading">Hyperlanes</h4>
-                  <div className="members-entity-stats__chip-list">
+                <div className="grid gap-3 [&_h4]:m-0">
+                  <h4>Hyperlanes</h4>
+                  <div className="flex flex-wrap gap-[0.6rem]">
                     {selectedSystem.hyperlanes.map((lane) => (
-                      <span key={lane.uid ?? lane.name} className="members-entity-stats__chip">
+                      <span key={lane.uid ?? lane.name} className="inline-flex py-[0.45rem] px-[0.65rem] rounded-full border border-white/8 bg-white/[0.04]">
                         {lane.destination_name ?? lane.name ?? lane.uid}
                       </span>
                     ))}
@@ -523,31 +557,31 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
 
             {activeTab === "planets" && selectedPlanet && (
               <>
-                <h3 className="members-entity-stats__section-heading">{selectedPlanet.name ?? selectedPlanet.identifier ?? selectedPlanet.uid}</h3>
-                <div className="members-entity-stats__stats-grid">
-                  <div className="members-entity-stats__stat"><span>UID</span><strong>{formatSwcId(selectedPlanet.uid)}</strong></div>
-                  <div className="members-entity-stats__stat"><span>System</span><strong>{selectedPlanet.system_name ?? "Unknown"}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Sector</span><strong>{selectedPlanet.sector_name ?? "Unknown"}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Owner</span><strong>{selectedPlanet.owner_name ?? "Unknown"}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Type</span><strong>{selectedPlanet.planet_type_name ?? "Unknown"}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Population</span><strong>{formatNumber(selectedPlanet.population)}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Population Change</span><strong>{formatPopulationChange(selectedPlanet.population, selectedPlanet.previous_population) ?? "Unknown"}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Size</span><strong>{formatNumber(selectedPlanet.size)}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Galaxy</span><strong>{selectedPlanet.galx}, {selectedPlanet.galy}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Previous Recorded</span><strong>{formatTimestamp(selectedPlanet.previous_population_recorded_at)}</strong></div>
+                <h3 className="m-0 text-[rgba(246,163,0,0.95)]">{selectedPlanet.name ?? selectedPlanet.identifier ?? selectedPlanet.uid}</h3>
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>UID</span><strong>{formatSwcId(selectedPlanet.uid)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>System</span><strong>{selectedPlanet.system_name ?? "Unknown"}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Sector</span><strong>{selectedPlanet.sector_name ?? "Unknown"}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Owner</span><strong>{selectedPlanet.owner_name ?? "Unknown"}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Type</span><strong>{selectedPlanet.planet_type_name ?? "Unknown"}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Population</span><strong>{formatNumber(selectedPlanet.population)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Population Change</span><strong>{formatPopulationChange(selectedPlanet.population, selectedPlanet.previous_population) ?? "Unknown"}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Size</span><strong>{formatNumber(selectedPlanet.size)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Galaxy</span><strong>{selectedPlanet.galx}, {selectedPlanet.galy}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Previous Recorded</span><strong>{formatTimestamp(selectedPlanet.previous_population_recorded_at)}</strong></div>
                 </div>
               </>
             )}
 
             {activeTab === "factions" && selectedFaction && (
               <>
-                <h3 className="members-entity-stats__section-heading">{selectedFaction.name ?? `Faction ${selectedFaction.id}`}</h3>
-                <div className="members-entity-stats__stats-grid">
-                  <div className="members-entity-stats__stat"><span>Population</span><strong>{formatNumber(selectedFaction.population)}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Population Change</span><strong>{selectedFaction.population_change === null ? "Unknown" : formatPopulationChange(selectedFaction.population_change, 0) ?? "Unknown"}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Systems Owned</span><strong>{selectedFaction.systems_owned.toLocaleString()}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Planets Owned</span><strong>{selectedFaction.planets_owned.toLocaleString()}</strong></div>
-                  <div className="members-entity-stats__stat"><span>Stations Owned</span><strong>{selectedFaction.stations_owned.toLocaleString()}</strong></div>
+                <h3 className="m-0 text-[rgba(246,163,0,0.95)]">{selectedFaction.name ?? `Faction ${selectedFaction.id}`}</h3>
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Population</span><strong>{formatNumber(selectedFaction.population)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Population Change</span><strong>{selectedFaction.population_change === null ? "Unknown" : formatPopulationChange(selectedFaction.population_change, 0) ?? "Unknown"}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Systems Owned</span><strong>{selectedFaction.systems_owned.toLocaleString()}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Planets Owned</span><strong>{selectedFaction.planets_owned.toLocaleString()}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Stations Owned</span><strong>{selectedFaction.stations_owned.toLocaleString()}</strong></div>
                 </div>
               </>
             )}

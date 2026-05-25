@@ -1,14 +1,16 @@
 import React, { useRef } from "react";
 import { Link } from "react-router-dom";
-import type { BlogPost } from "../../api/blog";
-import type { SwcUser } from "../../api/auth";
-import { getBackendOrigin } from "../../api/auth";
+import type { BlogPost } from "../../api/content/blog";
+import type { SwcUser } from "../../api/core/auth";
+import { getBackendOrigin } from "../../api/core/auth";
 import { canDeleteBlog, canEditBlogPost } from "../../auth/permissions";
 import HamburgerToggle from "../common/HamburgerToggle";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../../utils/ui";
 
 type Props = {
   post: BlogPost;
   isOverlayOpen: boolean;
+  dimmed: boolean;
   user: SwcUser | null;
   busyDelete: boolean;
   manageMode: boolean;
@@ -22,9 +24,7 @@ const resolveImageUrl = (post: BlogPost): string | null => {
 
   if (post.image_url && post.image_url.trim() !== "") {
     const u = post.image_url.trim();
-
     if (/^https?:\/\//i.test(u)) return u;
-
     if (origin) return `${origin}${u.startsWith("/") ? "" : "/"}${u}`;
     return u;
   }
@@ -41,6 +41,7 @@ const resolveImageUrl = (post: BlogPost): string | null => {
 const JenPostCard: React.FC<Props> = ({
   post,
   isOverlayOpen,
+  dimmed,
   user,
   busyDelete,
   manageMode,
@@ -56,69 +57,48 @@ const JenPostCard: React.FC<Props> = ({
   const showDelete = manageMode && canDeleteBlog(user);
 
   const handleHamburgerClick = () => {
-    if (isOverlayOpen) {
-      onCloseOverlay();
-      return;
-    }
-
-    if (cardRef.current) {
-      onOpenFromCard(post, cardRef.current);
-    }
+    if (isOverlayOpen) { onCloseOverlay(); return; }
+    if (cardRef.current) onOpenFromCard(post, cardRef.current);
   };
 
   return (
     <article
       ref={cardRef}
       data-post-id={post.id}
-      className={"panel jen-panel" + (isOverlayOpen ? " jen-panel--active" : "")}
+      className={[
+        "panel flex flex-col gap-[0.45rem] relative transition-opacity duration-200",
+        dimmed ? "opacity-45" : "opacity-100",
+        isOverlayOpen ? "z-[2]" : "",
+      ].filter(Boolean).join(" ")}
     >
-      <header className="jen-panel__header">
-        <div className="jen-panel__title-block">
-          <h2 className="jen-panel__title">{post.title}</h2>
-
-          <div className="jen-panel__meta small">
+      <header className="flex items-start justify-between gap-2">
+        <div className="flex flex-col gap-[0.15rem] min-w-0">
+          <h2 className="m-0 text-[0.95rem] font-semibold text-[#F6A300]">{post.title}</h2>
+          <div className="small opacity-80 text-[0.8rem] font-asimovian">
             <span>{post.author_handle ?? "Unknown"}</span>
             {" · "}
             <span>{cgt}</span>
           </div>
         </div>
 
-        <div className="jen-panel__actions">
+        <div className="flex items-center gap-[0.4rem] shrink-0">
           {showEdit && (
-            <Link
-              className="btn btn--tiny"
-              to={`/jen?edit=${post.id}&manage=1`}
-              onClick={(e) => e.stopPropagation()}
-            >
+            <Link className={BTN_SM} to={`/jen?edit=${post.id}&manage=1`} onClick={(e) => e.stopPropagation()}>
               Edit
             </Link>
           )}
-
           {showDelete && (
-            <button
-              type="button"
-              className="btn btn--tiny"
-              disabled={busyDelete}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(post);
-              }}
-            >
+            <button type="button" className={BTN_SM} disabled={busyDelete} onClick={(e) => { e.stopPropagation(); onDelete(post); }}>
               {busyDelete ? "Deleting…" : "Delete"}
             </button>
           )}
-
-          <HamburgerToggle
-            open={isOverlayOpen}
-            onClick={handleHamburgerClick}
-            ariaLabel={isOverlayOpen ? "Close post" : "Open post"}
-          />
+          <HamburgerToggle open={isOverlayOpen} onClick={handleHamburgerClick} ariaLabel={isOverlayOpen ? "Close post" : "Open post"} />
         </div>
       </header>
 
       {imgSrc && (
-        <div className="jen-panel__thumb">
-          <img src={imgSrc} alt={post.title} />
+        <div className="mt-[0.35rem]">
+          <img src={imgSrc} alt={post.title} className="block w-full h-full object-contain rounded-[4px]" />
         </div>
       )}
     </article>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getLoadingTip } from "../api/loadingTips";
+import { getLoadingTip } from "../api/content/loadingTips";
 import ProgressLoadingCard from "../components/common/ProgressLoadingCard";
 
 const LoadingScreen: React.FC = () => {

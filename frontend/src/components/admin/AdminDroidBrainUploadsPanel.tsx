@@ -2,8 +2,13 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   listAdminDroidBrainUploads,
   type AdminDroidBrainUploadItem,
-} from "../../api/adminDroidBrainUploads";
+} from "../../api/admin/adminDroidBrainUploads";
 import Pagination from "../common/Pagination";
+import { INPUT } from '../../utils/ui';
+
+const uiButtonSmallBaseClass =
+  "inline-flex min-h-[34px] items-center justify-center rounded-[10px] border px-[0.8rem] py-2 text-[0.88rem] font-bold leading-none no-underline transition-[border-color,background,transform,box-shadow] duration-150 ease-out hover:enabled:-translate-y-px hover:enabled:border-[#f5d546]/[0.28] hover:enabled:bg-[#f5d546]/[0.07] disabled:cursor-not-allowed disabled:opacity-[0.55]";
+const uiButtonSoftClass = "border-white/10 bg-white/[0.025] text-white/90";
 
 function formatDateTime(value: string | null | undefined): string {
   if (!value) {
@@ -126,24 +131,24 @@ const AdminDroidBrainUploadsPanel: React.FC = () => {
   }
 
   return (
-    <section className="admin-panel">
-      <header className="admin-panel__header">
-        <h2>DroidBrain Upload Audit</h2>
+    <section className="flex flex-col gap-4">
+      <header className="flex flex-col gap-1.5">
+        <h2 className="h2">DroidBrain Upload Audit</h2>
         <p className="small">
           Sysadmin-only upload history for DroidBrain files with summary import results.
         </p>
       </header>
 
-      <div className="admin-panel__body">
-        <div className="admin-users-toolbar admin-action-log__toolbar">
-          <div className="admin-action-log__filters">
-            <div className="admin-action-log__filter">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-3 flex flex-col items-stretch gap-2.5">
+          <div className="grid w-full gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
+            <div className="flex flex-col gap-1">
               <label className="small" htmlFor="droidbrain-audit-user-filter">
                 User
               </label>
               <input
                 id="droidbrain-audit-user-filter"
-                className="input"
+                className={INPUT}
                 list="droidbrain-audit-user-options"
                 placeholder="Handle / SWC / Discord"
                 value={userFilter}
@@ -156,51 +161,51 @@ const AdminDroidBrainUploadsPanel: React.FC = () => {
               </datalist>
             </div>
 
-            <div className="admin-action-log__filter">
+            <div className="flex flex-col gap-1">
               <label className="small" htmlFor="droidbrain-audit-query-filter">
                 Search
               </label>
               <input
                 id="droidbrain-audit-query-filter"
-                className="input"
+                className={INPUT}
                 placeholder="Filename / payload / status"
                 value={queryFilter}
                 onChange={(event) => setQueryFilter(event.target.value)}
               />
             </div>
 
-            <div className="admin-action-log__filter">
+            <div className="flex flex-col gap-1">
               <label className="small" htmlFor="droidbrain-audit-date-from">
                 Date From
               </label>
               <input
                 id="droidbrain-audit-date-from"
                 type="date"
-                className="input"
+                className={INPUT}
                 value={dateFromFilter}
                 onChange={(event) => setDateFromFilter(event.target.value)}
               />
             </div>
 
-            <div className="admin-action-log__filter">
+            <div className="flex flex-col gap-1">
               <label className="small" htmlFor="droidbrain-audit-date-to">
                 Date To
               </label>
               <input
                 id="droidbrain-audit-date-to"
                 type="date"
-                className="input"
+                className={INPUT}
                 value={dateToFilter}
                 onChange={(event) => setDateToFilter(event.target.value)}
               />
             </div>
           </div>
 
-          <div className="admin-action-log__meta">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="small">Showing {totalItems} matching uploads</p>
             <button
               type="button"
-              className="ui-btn ui-btn--soft ui-btn--small"
+              className={`${uiButtonSmallBaseClass} ${uiButtonSoftClass}`}
               onClick={clearFilters}
               disabled={!userFilter && !queryFilter && !dateFromFilter && !dateToFilter}
             >
@@ -218,8 +223,8 @@ const AdminDroidBrainUploadsPanel: React.FC = () => {
         ) : rows.length === 0 ? (
           <p className="small">No uploads found for those filters.</p>
         ) : (
-          <div className="admin-action-log-table">
-            <div className="admin-action-log-table__head admin-droidbrain-audit-table__head">
+          <div className="flex flex-col overflow-hidden rounded-[14px] border border-white/10 bg-white/[0.02] max-[1180px]:overflow-x-auto">
+            <div className="grid border-b border-white/10 bg-white/[0.04] [grid-template-columns:190px_170px_120px_110px_minmax(320px,1fr)_130px_96px]">
               <div>Uploaded</div>
               <div>User</div>
               <div>Payload</div>
@@ -229,35 +234,35 @@ const AdminDroidBrainUploadsPanel: React.FC = () => {
               <div>Actions</div>
             </div>
 
-            <div className="admin-action-log-table__body admin-droidbrain-audit-table__body">
+            <div className="flex min-w-[980px] flex-col">
               {rows.map((row) => {
                 const expanded = expandedIds.includes(row.id);
 
                 return (
-                  <div key={row.id} className="admin-action-log-table__group">
-                    <div className="admin-action-log-table__row admin-droidbrain-audit-table__row">
-                      <div className="admin-action-log-table__cell admin-action-log-table__when">
+                  <div key={row.id} className="flex flex-col border-t border-white/5 first:border-t-0">
+                    <div className="grid min-h-14 items-start [grid-template-columns:190px_170px_120px_110px_minmax(320px,1fr)_130px_96px] hover:bg-white/[0.025]">
+                      <div className="min-w-0 overflow-wrap-anywhere px-3.5 py-2.5 text-[0.82rem] leading-[1.3] text-white/70">
                         {formatDateTime(row.created_at)}
                       </div>
-                      <div className="admin-action-log-table__cell">
+                      <div className="min-w-0 overflow-wrap-anywhere px-3.5 py-2.5 text-[0.92rem] leading-[1.3]">
                         <strong>{formatUploader(row)}</strong>
                       </div>
-                      <div className="admin-action-log-table__cell">
+                      <div className="min-w-0 overflow-wrap-anywhere px-3.5 py-2.5 text-[0.92rem] leading-[1.3]">
                         {row.payload_type ?? "unknown"}
                       </div>
-                      <div className="admin-action-log-table__cell">
+                      <div className="min-w-0 overflow-wrap-anywhere px-3.5 py-2.5 text-[0.92rem] leading-[1.3]">
                         <strong>{row.change_status}</strong>
                       </div>
-                      <div className="admin-action-log-table__cell admin-action-log-table__summary">
+                      <div className="min-w-0 overflow-wrap-anywhere px-3.5 py-2.5 text-[0.92rem] leading-[1.3] whitespace-normal break-words font-semibold">
                         New {row.new_entities_count} · Updated {row.modified_entities_count} · Unchanged {row.unchanged_entities_count} · Total {row.total_entities_count}
                       </div>
-                      <div className="admin-action-log-table__cell">
+                      <div className="min-w-0 overflow-wrap-anywhere px-3.5 py-2.5 text-[0.92rem] leading-[1.3]">
                         {row.queue_status ?? "n/a"}
                       </div>
-                      <div className="admin-action-log-table__cell admin-action-log-table__actions">
+                      <div className="min-w-0 overflow-wrap-anywhere px-3.5 py-2.5 text-[0.92rem] leading-[1.3] flex items-start justify-end">
                         <button
                           type="button"
-                          className="ui-btn ui-btn--soft ui-btn--small"
+                          className={`${uiButtonSmallBaseClass} ${uiButtonSoftClass}`}
                           onClick={() => toggleExpanded(row.id)}
                         >
                           {expanded ? "Hide" : "View"}
@@ -266,7 +271,7 @@ const AdminDroidBrainUploadsPanel: React.FC = () => {
                     </div>
 
                     {expanded ? (
-                      <div className="admin-action-log-table__details">
+                      <div className="flex flex-col gap-2.5 border-t border-white/5 bg-black/15 px-4 pb-4 pt-3">
                         <p className="small">
                           <strong>File:</strong> #{row.id} · {row.file_name}
                         </p>
@@ -313,4 +318,3 @@ const AdminDroidBrainUploadsPanel: React.FC = () => {
 };
 
 export default AdminDroidBrainUploadsPanel;
-

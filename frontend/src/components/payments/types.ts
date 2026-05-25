@@ -1,4 +1,4 @@
-import type { PaymentItem } from "../../api/payments";
+import type { PaymentItem } from "../../api/payments/payments";
 
 export type PaymentsView = "pending" | "owed" | "history" | "templates" | "droidbrain";
 

@@ -1,19 +1,20 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { fetchAuthMe, getBackendOrigin, subscribeToAuthStateChange, type SwcUser } from "../api/auth";
+import { fetchAuthMe, getBackendOrigin, subscribeToAuthStateChange, type SwcUser } from "../api/core/auth";
 import {
   completeAssignment,
   completeJob,
   createJob,
+  deleteJob,
   getJobs,
   joinJob,
   setAssignmentBonus,
   setJobBonus,
   takeJob,
   type Job,
-} from "../api/jobs";
-import { getPayments } from "../api/payments";
-import { getMyPayableFactions, type PayableFaction } from "../api/factions";
+} from "../api/jobs/jobs";
+import { getPayments } from "../api/payments/payments";
+import { getMyPayableFactions, type PayableFaction } from "../api/factions/factions";
 import { canAccessAdmin, canAccessCombatCalculator, canAccessFleetCommander, canAccessIntel, canAccessMembers, canAccessPayments, canAccessPublicTools, canAccessRmBrowser, canAccessSysadmin, canAccessWreckingHelperExtension, getToolAccessTier } from "../auth/permissions";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
@@ -22,6 +23,8 @@ import MyPostedJobsPanel from "../components/members/jobs/MyPostedJobsPanel";
 import MyTakenJobsPanel from "../components/members/jobs/MyTakenJobsPanel";
 import CreateJobPanel from "../components/members/jobs/CreateJobPanel";
 import JobsSubnav from "../components/members/jobs/JobsSubnav";
+import PayClaimsPanel from "../components/members/jobs/PayClaimsPanel";
+import { getJobPayClaims } from "../api/jobs/jobPayRates";
 import MemberEntityStatsPanel from "../components/members/MemberEntityStatsPanel";
 import HyperPlannerPanel from "../components/members/HyperPlannerPanel";
 import MemberGalacticArchivePanel from "../components/members/MemberGalacticArchivePanel";
@@ -50,17 +53,17 @@ import jobBoardIcon from "../assets/members/JobBoardIcon.png";
 import paymentIcon from "../assets/members/PaymentIcon.png";
 import statsIcon from "../assets/members/StatsIcon.png";
 import wreckerIcon from "../assets/members/WreckerIcon.png";
+import rmIcon from "../assets/members/RMicon.png";
 import {
   getSwcAuthorizationStatus,
   type SwcAuthorizationStatus,
-} from "../api/swcAuthorization";
-import { logMemberToolOpen, type MemberToolArea } from "../api/memberTools";
-import "../styles/main.sass";
-import "../styles/_admin.sass";
-import "../styles/_membersuniverse.sass";
+} from "../api/members/swcAuthorization";
+import { logMemberToolOpen, type MemberToolArea } from "../api/members/memberTools";
+import { BTN, BTN_SM, BTN_GHOST, BTN_GHOST_SM } from "../utils/ui";
+import ReportBugButton from "../components/support/ReportBugButton";
 
 type MembersView = "overview" | "jobs" | "universe" | "stats" | "hyperplanner" | "biometrics" | "archive" | "shipHeatmap" | "weaponHeatmap" | "wreckingHelper" | "changelog" | "rmBrowser";
-type JobsView = "open" | "posted" | "taken" | "create";
+type JobsView = "open" | "posted" | "taken" | "create" | "payClaims";
 type MembersToolCard = {
   key: string;
   title: string;
@@ -111,6 +114,7 @@ const MembersPage: React.FC = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [payableFactions, setPayableFactions] = useState<PayableFaction[]>([]);
   const [hasPendingPayments, setHasPendingPayments] = useState(false);
+  const [hasPendingClaims, setHasPendingClaims] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authRefreshNonce, setAuthRefreshNonce] = useState(0);
   const [toolkitPrivPreviewOpen, setToolkitPrivPreviewOpen] = useState(false);
@@ -122,7 +126,7 @@ const MembersPage: React.FC = () => {
       : requestedMembersView ?? (location.state?.membersView === "universe" ? "universe" : "overview")
   );
   const [jobsView, setJobsView] = useState<JobsView>(
-    requestedJobsView === "posted" || requestedJobsView === "taken" || requestedJobsView === "create"
+    requestedJobsView === "posted" || requestedJobsView === "taken" || requestedJobsView === "create" || requestedJobsView === "payClaims"
       ? requestedJobsView
       : "open"
   );
@@ -203,7 +207,7 @@ const MembersPage: React.FC = () => {
   }, [requestedJobId]);
 
   useEffect(() => {
-    if (requestedJobsView === "posted" || requestedJobsView === "taken" || requestedJobsView === "create") {
+    if (requestedJobsView === "posted" || requestedJobsView === "taken" || requestedJobsView === "create" || requestedJobsView === "payClaims") {
       setJobsView(requestedJobsView);
       return;
     }
@@ -231,11 +235,7 @@ const MembersPage: React.FC = () => {
 
       if (membersView === "jobs") {
         nextParams.set("jobs_view", jobsView);
-        if (selectedJobId) {
-          nextParams.set("job_id", String(selectedJobId));
-        } else {
-          nextParams.delete("job_id");
-        }
+        nextParams.delete("job_id");
       } else {
         nextParams.delete("jobs_view");
         nextParams.delete("job_id");
@@ -342,6 +342,7 @@ const MembersPage: React.FC = () => {
           setSwcAuth(null);
           setPayableFactions([]);
           setHasPendingPayments(false);
+          setHasPendingClaims(false);
           setError(null);
           return;
         }
@@ -351,15 +352,17 @@ const MembersPage: React.FC = () => {
           setSwcAuth(null);
           setPayableFactions([]);
           setHasPendingPayments(false);
+          setHasPendingClaims(false);
           setError(null);
           return;
         }
 
-        const [jobsRes, swcAuthRes, payableFactionsRes, paymentsRes] = await Promise.all([
+        const [jobsRes, swcAuthRes, payableFactionsRes, paymentsRes, pendingClaimsRes] = await Promise.all([
           canSeeMemberTools ? getJobs() : Promise.resolve({ data: [] }),
           (canSeeMemberTools || canSeePublicToolsNow) ? getSwcAuthorizationStatus() : Promise.resolve({ data: null }),
           canSeeMemberTools ? getMyPayableFactions() : Promise.resolve({ data: [] }),
           canAccessPayments(currentUser) ? getPayments() : Promise.resolve({ data: [] }),
+          (currentUser?.is_admin || currentUser?.is_sysadmin) ? getJobPayClaims({ status: 'pending' }) : Promise.resolve({ data: [] }),
         ]);
 
         if (cancelled) return;
@@ -368,6 +371,7 @@ const MembersPage: React.FC = () => {
         setSwcAuth(swcAuthRes?.data ?? null);
         setPayableFactions(payableFactionsRes?.data ?? []);
         setHasPendingPayments((paymentsRes?.data?.length ?? 0) > 0);
+        setHasPendingClaims((pendingClaimsRes?.data?.length ?? 0) > 0);
         setError(null);
       } catch (e: any) {
         if (!cancelled) {
@@ -377,6 +381,7 @@ const MembersPage: React.FC = () => {
           setJobs([]);
           setPayableFactions([]);
           setHasPendingPayments(false);
+          setHasPendingClaims(false);
         }
       } finally {
         if (!cancelled) {
@@ -395,7 +400,7 @@ const MembersPage: React.FC = () => {
     setJobs(res.data);
   }
 
-  const isLoggedIn = !!user;
+const isLoggedIn = !!user;
   const canSeePublicTools = canAccessPublicTools(user);
   const toolAccessTier = getToolAccessTier(user);
   const canSeeMembers = canAccessMembers(user) || canAccessIntel(user) || canAccessWreckingHelperExtension(user) || canAccessFleetCommander(user) || canSeePublicTools;
@@ -516,7 +521,7 @@ const MembersPage: React.FC = () => {
               description: (
                 <>
                   Reconnect Chain Code Verification if Astrogation or Payments times out. Status:{" "}
-                  <span className="members-tool-card__count">
+                  <span className="font-extrabold text-amber-300">
                     {swcAuth?.member_tools_connected ? "Connected" : "Not connected"}
                   </span>
                   .
@@ -535,7 +540,7 @@ const MembersPage: React.FC = () => {
               description: (
                 <>
                   Open pending payments, payment history, and manual templates. Status:{" "}
-                  <span className="members-tool-card__count">{hasPendingPayments ? "Pending items" : "Clear"}</span>.
+                  <span className="font-extrabold text-amber-300">{hasPendingPayments ? "Pending items" : "Clear"}</span>.
                 </>
               ),
               actionLabel: "Open Payments",
@@ -595,8 +600,11 @@ const MembersPage: React.FC = () => {
               description: (
                 <>
                   Browse jobs, track your work, and create new requests. Open jobs:{" "}
-                  <span className="members-tool-card__count">{openJobs.length}</span>. Taken jobs:{" "}
-                  <span className="members-tool-card__count">{myTakenJobs.length}</span>.
+                  <span className="font-extrabold text-amber-300">{openJobs.length}</span>. Taken jobs:{" "}
+                  <span className="font-extrabold text-amber-300">{myTakenJobs.length}</span>.
+                  {hasPendingClaims && (
+                    <> Pay claims: <span className="font-extrabold text-amber-300">Pending</span>.</>
+                  )}
                 </>
               ),
               actionLabel: "Open Jobs",
@@ -707,6 +715,7 @@ const MembersPage: React.FC = () => {
       showGalacticArchiveCard,
       showRmBrowserCard,
       hasPendingPayments,
+      hasPendingClaims,
       myTakenJobs.length,
       navigate,
       openJobs.length,
@@ -760,10 +769,15 @@ const MembersPage: React.FC = () => {
     await refreshJobs();
   }
 
+  async function onDeleteJob(jobId: number) {
+    await deleteJob(jobId);
+    await refreshJobs();
+  }
+
   if (loading) {
     return (
-      <main className="board admin-board members-page-shell">
-        <h1>Tool Kit</h1>
+      <main className="board flex flex-col gap-4">
+        <h1 className="h1">Tool Kit</h1>
         <p className="small">Loading tool kit…</p>
       </main>
     );
@@ -771,8 +785,8 @@ const MembersPage: React.FC = () => {
 
   if (error) {
     return (
-      <main className="board admin-board members-page-shell">
-        <h1>Tool Kit</h1>
+      <main className="board flex flex-col gap-4">
+        <h1 className="h1">Tool Kit</h1>
         <p className="small" style={{ color: "salmon" }}>
           {error}
         </p>
@@ -782,7 +796,7 @@ const MembersPage: React.FC = () => {
 
   if (!isLoggedIn) {
     return (
-      <main className="board admin-board members-page-shell">
+      <main className="board flex flex-col gap-4">
         <NotLoggedInState
           title="Not logged in"
           message="You need to sign in to access tools."
@@ -793,7 +807,7 @@ const MembersPage: React.FC = () => {
 
   if (!canSeeMembers) {
     return (
-      <main className="board admin-board members-page-shell">
+      <main className="board flex flex-col gap-4">
         <ForbiddenState
           title="403 Forbidden"
           message="You do not have permission to access tools."
@@ -803,26 +817,26 @@ const MembersPage: React.FC = () => {
   }
 
   return (
-    <main className="board admin-board members-page-shell">
-      <h1>Tool Kit</h1>
+    <main className="board flex flex-col gap-4 space-y-4">
+      <h1 className="h1">Tool Kit</h1>
       {membersView === "overview" ? (
         <p className="small">Tools live here. Pick a tool card to jump straight in.</p>
       ) : null}
 
       {membersView === "overview" && (
-        <>
+        <section className="space-y-4">
           {canSeeToolkitPrivilegePreview ? (
-            <section className="panel members-toolkit-priv-preview">
-              <div className="members-toolkit-priv-preview__head">
+            <section className="panel !mb-4 space-y-3 pb-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 className="members-toolkit-priv-preview__title">Privilege Preview</h2>
-                  <p className="small members-toolkit-priv-preview__copy">
+                  <h2 className="m-0 text-base">Privilege Preview</h2>
+                  <p className="small m-0 opacity-85">
                     Sysadmin-only toolkit access simulator. Hidden by default.
                   </p>
                 </div>
                 <button
                   type="button"
-                  className="btn btn--small members-toolkit-priv-preview__toggle"
+                  className={BTN_SM + " inline-flex items-center gap-2"}
                   onClick={() => setToolkitPrivPreviewOpen((open) => !open)}
                 >
                   <span>{toolkitPrivPreviewOpen ? "Hide" : "Open"}</span>
@@ -850,9 +864,12 @@ const MembersPage: React.FC = () => {
             </section>
           ) : null}
 
-          <section className="members-tool-grid">
+          <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {memberTools.map((tool) => (
-              <article key={tool.key} className={`members-tool-card${tool.key === "wreckingHelper" ? " members-tool-card--desktop-only" : ""}`}>
+              <article
+                key={tool.key}
+                className={`flex h-full flex-col gap-3 rounded-xl border border-white/12 bg-white/5 p-4 ${tool.key === "wreckingHelper" ? "hidden md:flex" : ""}`}
+              >
                 <img
                   src={
                     tool.key === "universe"
@@ -881,6 +898,8 @@ const MembersPage: React.FC = () => {
                         ? droidBrainIcon
                       : tool.key === "swc-access"
                         ? chainCodeIcon
+                      : tool.key === "rmBrowser"
+                        ? rmIcon
                         : jawaLogo
                   }
                   alt={
@@ -910,16 +929,18 @@ const MembersPage: React.FC = () => {
                         ? "DroidBrain"
                       : tool.key === "swc-access"
                         ? "Chain Code Verification"
+                      : tool.key === "rmBrowser"
+                        ? "RM Browser"
                         : "JOE placeholder logo"
                   }
-                  className={`members-tool-card__logo${tool.key === "payments" && hasPendingPayments ? " members-tool-card__logo--alert" : ""}`}
+                  className={`h-[84px] w-[84px] object-contain ${(tool.key === "payments" && hasPendingPayments) || (tool.key === "jobs" && hasPendingClaims) ? "animate-members-alert-pulse" : ""}`}
                 />
-                <div className="members-tool-card__body">
-                  <h2 className="members-tool-card__title">{tool.title}</h2>
-                  <p className="small members-tool-card__copy">{tool.description}</p>
+                <div className="grid gap-2">
+                  <h2 className="m-0 text-base">{tool.title}</h2>
+                  <p className="small m-0">{tool.description}</p>
                 </div>
                 <button
-                  className="btn"
+                  className={BTN + " mt-auto"}
                   type="button"
                   onClick={tool.onClick}
                 >
@@ -928,88 +949,16 @@ const MembersPage: React.FC = () => {
               </article>
             ))}
           </section>
-        </>
+        </section>
       )}
 
       {membersView === "jobs" && (
         <>
-          <div className="members-tool-back">
-            <button className="btn" type="button" onClick={() => setMembersView("overview")}>
+          <div className="flex mb-4">
+            <button className={BTN} type="button" onClick={() => setMembersView("overview")}>
               Back to Overview
             </button>
           </div>
-
-          {selectedJobId && (
-            <div className="panel" style={{ marginBottom: 12 }}>
-              {selectedJob ? (
-                <>
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 12,
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <div>
-                      <h2 style={{ marginTop: 0, marginBottom: 6 }}>{selectedJob.title}</h2>
-                      <p className="small" style={{ margin: 0 }}>
-                        Job #{selectedJob.id} · Status: {selectedJob.status} · Mode: {selectedJob.job_mode}
-                      </p>
-                    </div>
-                    <button className="btn btn-secondary" type="button" onClick={clearSelectedJob}>
-                      Close Details
-                    </button>
-                  </div>
-
-                  <p className="small" style={{ marginTop: 12 }}>
-                    {selectedJob.description ?? "No description"}
-                  </p>
-
-                  <div
-                    style={{
-                      display: "grid",
-                      gap: 12,
-                      gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                    }}
-                  >
-                    <div className="admin-card">
-                      <p className="small" style={{ margin: 0 }}>
-                        Reward: {selectedJob.reward_amount.toLocaleString()}
-                      </p>
-                      <p className="small" style={{ margin: "6px 0 0" }}>
-                        Pay type: {selectedJob.pay_type}
-                      </p>
-                      <p className="small" style={{ margin: "6px 0 0" }}>
-                        Payer: {selectedJob.payer_label ?? "-"}
-                      </p>
-                    </div>
-
-                    <div className="admin-card">
-                      <p className="small" style={{ margin: 0 }}>
-                        Posted by: {selectedJob.created_by_handle}
-                      </p>
-                      <p className="small" style={{ margin: "6px 0 0" }}>
-                        Assigned to: {selectedJob.assigned_to_handle ?? "-"}
-                      </p>
-                      {selectedJob.bonus_amount > 0 && (
-                        <p className="small" style={{ margin: "6px 0 0" }}>
-                          Bonus: {selectedJob.bonus_amount.toLocaleString()}
-                          {selectedJob.bonus_reward ? ` · ${selectedJob.bonus_reward}` : ""}
-                          {!selectedJob.bonus_reward && selectedJob.bonus_note ? ` · ${selectedJob.bonus_note}` : ""}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <p className="small" style={{ margin: 0 }}>
-                  That job could not be found.
-                </p>
-              )}
-            </div>
-          )}
 
           <JobsSubnav activeView={jobsView} onChange={setJobsView} />
 
@@ -1018,7 +967,12 @@ const MembersPage: React.FC = () => {
               jobs={openJobs}
               onTake={onTake}
               onJoin={onJoin}
-              onViewDetails={(jobId) => openJobDetails(jobId, "open")}
+              initialJobId={requestedJobId > 0 ? requestedJobId : null}
+              onInitialJobConsumed={() => {
+                const next = new URLSearchParams(searchParams.toString());
+                next.delete("job_id");
+                navigate({ pathname: "/tools", search: next.toString() ? `?${next}` : "" }, { replace: true });
+              }}
             />
           )}
 
@@ -1027,6 +981,7 @@ const MembersPage: React.FC = () => {
               jobs={myPostedJobs}
               onSetJobBonus={onSetJobBonus}
               onSetAssignmentBonus={onSetAssignmentBonus}
+              onDeleteJob={onDeleteJob}
             />
           )}
 
@@ -1046,15 +1001,20 @@ const MembersPage: React.FC = () => {
               payableFactions={payableFactions}
             />
           )}
+
+          {jobsView === "payClaims" && (
+            <PayClaimsPanel isAdmin={!!(user?.is_admin || user?.is_sysadmin)} />
+          )}
         </>
       )}
 
       {(membersView === "universe" || mountUniversePanel) && (
         <section style={{ display: membersView === "universe" ? "block" : "none" }}>
-          <div className="members-tool-back">
-            <button className="btn" type="button" onClick={() => setMembersView("overview")}>
+          <div className="flex items-center gap-3 mb-4">
+            <button className={BTN} type="button" onClick={() => setMembersView("overview")}>
               Back to Overview
             </button>
+            <ReportBugButton toolKey="astrogation" toolLabel="Astrogation" />
           </div>
           {!mountUniversePanel ? (
             <section className="panel">
@@ -1102,8 +1062,8 @@ const MembersPage: React.FC = () => {
 
       {membersView === "shipHeatmap" && canSeeCombatCalculator && (
         <>
-          <div className="members-tool-back">
-            <button className="btn" type="button" onClick={() => setMembersView("overview")}>
+          <div className="flex mb-4">
+            <button className={BTN} type="button" onClick={() => setMembersView("overview")}>
               Back to Overview
             </button>
           </div>
@@ -1113,8 +1073,8 @@ const MembersPage: React.FC = () => {
 
       {membersView === "weaponHeatmap" && (canSeeMemberOnlyTools || canSeePublicTools) && (
         <>
-          <div className="members-tool-back">
-            <button className="btn" type="button" onClick={() => setMembersView("overview")}>
+          <div className="flex mb-4">
+            <button className={BTN} type="button" onClick={() => setMembersView("overview")}>
               Back to Overview
             </button>
           </div>
@@ -1124,8 +1084,8 @@ const MembersPage: React.FC = () => {
 
       {membersView === "stats" && (canSeeMemberOnlyTools || canSeePublicTools) && (
         <>
-          <div className="members-tool-back">
-            <button className="btn" type="button" onClick={() => setMembersView("overview")}>
+          <div className="flex mb-4">
+            <button className={BTN} type="button" onClick={() => setMembersView("overview")}>
               Back to Overview
             </button>
           </div>
@@ -1143,8 +1103,8 @@ const MembersPage: React.FC = () => {
 
       {membersView === "rmBrowser" && canSeeRmBrowser && (
         <>
-          <div className="members-tool-back">
-            <button className="btn" type="button" onClick={() => setMembersView("overview")}>
+          <div className="flex mb-4">
+            <button className={BTN} type="button" onClick={() => setMembersView("overview")}>
               Back to Overview
             </button>
           </div>

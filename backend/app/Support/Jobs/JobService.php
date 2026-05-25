@@ -2,8 +2,8 @@
 
 namespace App\Support\Jobs;
 
-use App\Models\Job;
-use App\Models\JobAssignment;
+use App\Models\Job\Job;
+use App\Models\Job\JobAssignment;
 use App\Models\Faction;
 use App\Models\User;
 use App\Support\Discord\DiscordNotifier;
