@@ -1,3 +1,6 @@
+/* ─── Layer order (must be first — sets cascade priority: utilities wins) ── */
+@layer theme, base, components, utilities;
+
 /* ─── Fonts ──────────────────────────────────────────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Oxanium:wght@200;400;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Datatype:wght@100..900&display=swap');
