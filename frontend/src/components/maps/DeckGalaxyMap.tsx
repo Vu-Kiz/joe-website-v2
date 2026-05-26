@@ -247,6 +247,8 @@ type IntelDraft = {
   planetoids_checked: boolean | null;
   planetoid_1_size: "" | "1x1" | "2x2";
   planetoid_2_size: "" | "1x1" | "2x2";
+  has_ships: boolean | null;
+  has_stations: boolean | null;
 };
 
 function formatSwcDisplayId(value: string | null | undefined): string | null {
@@ -664,6 +666,8 @@ const DeckGalaxyMap: React.FC<DeckGalaxyMapProps> = ({
     planetoids_checked: null,
     planetoid_1_size: "",
     planetoid_2_size: "",
+    has_ships: null,
+    has_stations: null,
   });
   const [isEditingIntel, setIsEditingIntel] = useState(false);
   const [savingIntel, setSavingIntel] = useState(false);
@@ -1524,7 +1528,7 @@ new PolygonLayer({
       });
       const intelFlagKeys = isFullTier
         ? ["ships", "stations", "notes"]
-        : [];
+        : ["ships", "stations", "notes"]; // subscribers see their own ships/stations/notes
       sections.push({
         label: "Intel Flags",
         items: LEGEND_ITEMS.filter((item) => intelFlagKeys.includes(item.key)),
@@ -1598,6 +1602,8 @@ new PolygonLayer({
       planetoids_checked: selectedCell?.searchRecord?.planetoids_checked ?? null,
       planetoid_1_size: selectedCell?.searchRecord?.planetoid_1_size ?? "",
       planetoid_2_size: selectedCell?.searchRecord?.planetoid_2_size ?? "",
+      has_ships: selectedCell?.searchRecord?.has_ships ?? null,
+      has_stations: selectedCell?.searchRecord?.has_stations ?? null,
     });
     setIsEditingNote(false);
     setIsEditingIntel(false);
@@ -2245,6 +2251,44 @@ new PolygonLayer({
                           </label>
                         </div>
                       ) : null}
+                      <div className={INTEL_GRID_CLS}>
+                        <label className={INTEL_FIELD_CLS}>
+                          <span className="small">Ships</span>
+                          <select
+                            className={INPUT}
+                            value={intelDraft.has_ships === null ? "" : intelDraft.has_ships ? "yes" : "no"}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              setIntelDraft((current) => ({
+                                ...current,
+                                has_ships: value === "" ? null : value === "yes",
+                              }));
+                            }}
+                          >
+                            <option value="">Unknown</option>
+                            <option value="yes">Ships present</option>
+                            <option value="no">No ships</option>
+                          </select>
+                        </label>
+                        <label className={INTEL_FIELD_CLS}>
+                          <span className="small">Stations</span>
+                          <select
+                            className={INPUT}
+                            value={intelDraft.has_stations === null ? "" : intelDraft.has_stations ? "yes" : "no"}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              setIntelDraft((current) => ({
+                                ...current,
+                                has_stations: value === "" ? null : value === "yes",
+                              }));
+                            }}
+                          >
+                            <option value="">Unknown</option>
+                            <option value="yes">Stations present</option>
+                            <option value="no">No stations</option>
+                          </select>
+                        </label>
+                      </div>
                       <div className="flex gap-3 flex-wrap items-center">
                         <button
                           className={BTN_GHOST_SM}
@@ -2266,6 +2310,8 @@ new PolygonLayer({
                                 planetoids_checked: intelDraft.planetoids_checked,
                                 planetoid_1_size: intelDraft.planetoid_1_size || null,
                                 planetoid_2_size: intelDraft.planetoid_2_size || null,
+                                has_ships: intelDraft.has_ships,
+                                has_stations: intelDraft.has_stations,
                               });
                               setSelectedCell((current) =>
                                 current ? { ...current, searchRecord: saved } : current

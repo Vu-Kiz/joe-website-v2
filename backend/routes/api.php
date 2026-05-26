@@ -222,11 +222,9 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
     Route::put('/payments/droidbrain-settings', [\App\Http\Controllers\Api\Payment\PaymentController::class, 'updateDroidBrainSettings']);
     Route::post('/payment-transfers/{paymentTransfer}/verify', [\App\Http\Controllers\Api\Payment\PaymentController::class, 'verify']);
     Route::post('/payment-transfers/{paymentTransfer}/manual-verify', [\App\Http\Controllers\Api\Payment\PaymentController::class, 'manualVerify']);
-    // Member-only universe (JOE data: scan records, annotations, archive)
+    // Member-only universe (JOE data: scan records, archive)
     Route::get('/universe/search-records', [UniverseController::class, 'searchRecords']);
     Route::get('/universe/sectors/{sector}', [UniverseController::class, 'sector']);
-    Route::get('/universe/cell-annotations', [CellAnnotationController::class, 'index']);
-    Route::post('/universe/cell-annotations', [CellAnnotationController::class, 'upsert']);
     Route::get('/universe/archive/planets', [UniverseController::class, 'archivePlanets']);
     Route::get('/universe/archive/planets/{planet}', [UniverseController::class, 'archivePlanet']);
     Route::get('/universe/archive/factions', [UniverseController::class, 'archiveFactions']);
@@ -298,6 +296,9 @@ Route::middleware(['auth:sanctum', 'public_tool_access'])->group(function () {
     Route::get('/universe/systems/{system}', [UniverseController::class, 'system']);
     Route::get('/universe/subscriber-cell-records', [SubscriberCellRecordController::class, 'index']);
     Route::post('/universe/subscriber-cell-records', [SubscriberCellRecordController::class, 'store']);
+    // Cell annotations — JOE members see/edit shared notes; subscribers see/edit only their own scoped notes
+    Route::get('/universe/cell-annotations', [CellAnnotationController::class, 'index']);
+    Route::post('/universe/cell-annotations', [CellAnnotationController::class, 'upsert']);
     Route::post('/universe/search-records/import-personal-events', [SearchRecordController::class, 'importPersonalEvents'])->middleware('throttle:import-personal-events');
     Route::get('/universe/search-records/import-logs', [SearchRecordController::class, 'importLogs']);
     Route::delete('/universe/search-records/import-logs', [SearchRecordController::class, 'clearImportLogs']);

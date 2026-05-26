@@ -27,20 +27,13 @@ class DroidBrainUploadAuditController extends Controller
         $dateFrom = isset($validated['date_from']) ? trim((string) $validated['date_from']) : '';
         $dateTo = isset($validated['date_to']) ? trim((string) $validated['date_to']) : '';
 
-        $latestQueuePerFile = DB::table('droidbrain_upload_queue_items as queue')
-            ->select('queue.result_file_id', DB::raw('MAX(queue.id) as queue_item_id'))
-            ->whereNotNull('queue.result_file_id')
-            ->groupBy('queue.result_file_id');
-
-        $query = DB::table('droidbrain_files as file')
-            ->leftJoin('droidbrain_uploaders as uploader', 'uploader.id', '=', 'file.uploader_id')
-            ->leftJoin('users as user', 'user.id', '=', 'uploader.user_id')
-            ->leftJoinSub($latestQueuePerFile, 'latest_queue', function ($join) {
-                $join->on('latest_queue.result_file_id', '=', 'file.id');
-            })
-            ->leftJoin('droidbrain_upload_queue_items as queue_item', 'queue_item.id', '=', 'latest_queue.queue_item_id')
-            ->orderByDesc('file.created_at')
-            ->orderByDesc('file.id');
+        // Start from the queue so pending/stuck uploads appear even before a file record is created.
+        $query = DB::table('droidbrain_upload_queue_items as queue_item')
+            ->leftJoin('droidbrain_files as file', 'file.id', '=', 'queue_item.result_file_id')
+            ->leftJoin('users as user', 'user.id', '=', 'queue_item.user_id')
+            ->leftJoin('droidbrain_uploaders as uploader', 'uploader.user_id', '=', 'queue_item.user_id')
+            ->orderByDesc('queue_item.created_at')
+            ->orderByDesc('queue_item.id');
 
         if ($userNeedle !== '') {
             $query->where(function ($sub) use ($userNeedle) {
@@ -57,25 +50,32 @@ class DroidBrainUploadAuditController extends Controller
         if ($queryNeedle !== '') {
             $query->where(function ($sub) use ($queryNeedle) {
                 $needle = '%' . $queryNeedle . '%';
-                $sub->where('file.file_name', 'like', $needle)
+                $sub->where('queue_item.file_name', 'like', $needle)
                     ->orWhere('file.payload_type', 'like', $needle)
                     ->orWhere('file.change_status', 'like', $needle)
+                    ->orWhere('queue_item.status', 'like', $needle)
                     ->orWhere('file.uploader_handle', 'like', $needle);
             });
         }
 
         if ($dateFrom !== '') {
-            $query->whereDate('file.created_at', '>=', $dateFrom);
+            $query->whereDate('queue_item.created_at', '>=', $dateFrom);
         }
 
         if ($dateTo !== '') {
-            $query->whereDate('file.created_at', '<=', $dateTo);
+            $query->whereDate('queue_item.created_at', '<=', $dateTo);
         }
 
         $paginator = $query->paginate(
             $perPage,
             [
-                'file.id',
+                'queue_item.id as queue_item_id',
+                'queue_item.file_name as queue_file_name',
+                'queue_item.status as queue_status',
+                'queue_item.error_message as queue_error_message',
+                'queue_item.processed_at as queue_processed_at',
+                'queue_item.created_at as queue_created_at',
+                'file.id as file_id',
                 'file.file_name',
                 'file.payload_type',
                 'file.snapshot_unix',
@@ -85,7 +85,6 @@ class DroidBrainUploadAuditController extends Controller
                 'file.new_entities_count',
                 'file.modified_entities_count',
                 'file.unchanged_entities_count',
-                'file.created_at',
                 'file.updated_at',
                 'uploader.user_id as uploader_user_id',
                 'uploader.handle as uploader_record_handle',
@@ -93,10 +92,6 @@ class DroidBrainUploadAuditController extends Controller
                 'user.swc_handle as uploader_user_swc_handle',
                 'user.discord_global_name as uploader_user_discord_global_name',
                 'user.discord_username as uploader_user_discord_username',
-                'queue_item.id as queue_item_id',
-                'queue_item.status as queue_status',
-                'queue_item.error_message as queue_error_message',
-                'queue_item.processed_at as queue_processed_at',
             ],
             'page',
             $page
@@ -106,17 +101,18 @@ class DroidBrainUploadAuditController extends Controller
             $newCount = (int) ($row->new_entities_count ?? 0);
             $modifiedCount = (int) ($row->modified_entities_count ?? 0);
             $unchangedCount = (int) ($row->unchanged_entities_count ?? 0);
+            $hasFile = !empty($row->file_id);
 
             return [
-                'id' => (int) $row->id,
-                'queue_item_id' => $row->queue_item_id ? (int) $row->queue_item_id : null,
+                'id' => (int) $row->queue_item_id,
+                'queue_item_id' => (int) $row->queue_item_id,
                 'queue_status' => $row->queue_status ? (string) $row->queue_status : null,
                 'queue_error_message' => $row->queue_error_message ? trim((string) $row->queue_error_message) : null,
                 'queue_processed_at' => $row->queue_processed_at ? (string) $row->queue_processed_at : null,
-                'file_name' => (string) $row->file_name,
+                'file_name' => $hasFile ? (string) $row->file_name : (string) $row->queue_file_name,
                 'payload_type' => $row->payload_type ? (string) $row->payload_type : null,
                 'snapshot_unix' => $row->snapshot_unix ? (int) $row->snapshot_unix : null,
-                'change_status' => (string) $row->change_status,
+                'change_status' => $hasFile ? (string) $row->change_status : $row->queue_status ?? 'pending',
                 'new_entities_count' => $newCount,
                 'modified_entities_count' => $modifiedCount,
                 'unchanged_entities_count' => $unchangedCount,
@@ -129,19 +125,22 @@ class DroidBrainUploadAuditController extends Controller
                 'uploader_user_swc_handle' => $row->uploader_user_swc_handle ? (string) $row->uploader_user_swc_handle : null,
                 'uploader_user_discord_global_name' => $row->uploader_user_discord_global_name ? (string) $row->uploader_user_discord_global_name : null,
                 'uploader_user_discord_username' => $row->uploader_user_discord_username ? (string) $row->uploader_user_discord_username : null,
-                'created_at' => $row->created_at ? (string) $row->created_at : null,
+                'created_at' => $row->queue_created_at ? (string) $row->queue_created_at : null,
                 'updated_at' => $row->updated_at ? (string) $row->updated_at : null,
             ];
         })->values();
 
-        $uploaderOptions = DB::table('droidbrain_files')
-            ->select('uploader_handle')
-            ->whereNotNull('uploader_handle')
-            ->whereRaw("TRIM(uploader_handle) <> ''")
-            ->groupBy('uploader_handle')
-            ->orderBy('uploader_handle')
+        $uploaderOptions = DB::table('users')
+            ->whereNotNull('swc_handle')
+            ->whereRaw("TRIM(swc_handle) <> ''")
+            ->whereExists(function ($sub) {
+                $sub->select(DB::raw(1))
+                    ->from('droidbrain_upload_queue_items')
+                    ->whereColumn('droidbrain_upload_queue_items.user_id', 'users.id');
+            })
+            ->orderBy('swc_handle')
             ->limit(250)
-            ->pluck('uploader_handle')
+            ->pluck('swc_handle')
             ->map(fn ($value) => (string) $value)
             ->values();
 

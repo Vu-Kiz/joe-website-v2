@@ -61,13 +61,6 @@ class CellAnnotationController extends Controller
         $hasSectorUid = !empty($data['sector_uid']);
         $hasBounds = isset($data['min_galx'], $data['max_galx'], $data['min_galy'], $data['max_galy']);
 
-        if (!$hasSectorUid && !$hasBounds) {
-            return response()->json([
-                'ok' => true,
-                'data' => [],
-            ]);
-        }
-
         $bounds = $hasBounds
             ? [
                 'min_galx' => min((int) $data['min_galx'], (int) $data['max_galx']),
@@ -77,7 +70,8 @@ class CellAnnotationController extends Controller
             ]
             : null;
 
-        // Subscriber queries are owner-scoped — skip the shared cache
+        // Subscriber queries are owner-scoped and support a no-filter "fetch all" for init load.
+        // JOE member queries always require a bounds/sector filter (large dataset).
         if ($isSubscriber) {
             $owner = $this->resolveOwner($request);
             $annotations = SwcSectorCellAnnotation::query()
@@ -93,10 +87,16 @@ class CellAnnotationController extends Controller
             return response()->json(['ok' => true, 'data' => $annotations]);
         }
 
+        // JOE member path — require at least a bounds or sector filter to avoid unbounded scans.
+        if (!$hasSectorUid && !$hasBounds) {
+            return response()->json(['ok' => true, 'data' => []]);
+        }
+
         $cacheKey = $this->buildIndexCacheKey($data, $bounds);
         $annotations = Cache::remember($cacheKey, self::INDEX_CACHE_TTL_SECONDS, function () use ($hasSectorUid, $data, $bounds) {
             return SwcSectorCellAnnotation::query()
                 ->whereNull('owner_user_id')
+                ->whereNull('owner_faction_id')
                 ->when($hasSectorUid, function ($query) use ($data) {
                     $query->where('sector_uid', (string) $data['sector_uid']);
                 })

@@ -7,6 +7,7 @@ import {
   adminGetAllSubscriberCellRecords,
   getStoredMapSystems,
   saveStoredCellAnnotation,
+  getStoredCellAnnotations,
   getStoredSectors,
   getStoredSystem,
   type SectorCellAnnotation,
@@ -577,9 +578,10 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
     }
   }, [globalMapDataLoaded, globalMapDataLoading]);
 
-  // After snapshot loads, merge in subscriber's own cell records
+  // After snapshot loads, merge in subscriber's own cell records and annotations
   useEffect(() => {
     if (!globalMapDataLoaded || !isPublicTier) return;
+
     void getSubscriberCellRecords().then((res) => {
       if (res.data?.length) {
         subscriberRecordsRef.current = res.data;
@@ -588,6 +590,18 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
           for (const r of res.data) byKey.set(`${r.galx},${r.galy}`, r);
           return Array.from(byKey.values());
         });
+      }
+    }).catch(() => {});
+
+    // Load subscriber's own notes (scoped to their user/faction on the backend)
+    void getStoredCellAnnotations({}).then((res) => {
+      if (res.data?.length) {
+        const bySector = res.data.reduce<Record<string, typeof res.data>>((acc, ann) => {
+          const key = ann.sector_uid ?? "";
+          acc[key] = (acc[key] ?? []).concat(ann);
+          return acc;
+        }, {});
+        setAnnotationCacheBySector((current) => ({ ...current, ...bySector }));
       }
     }).catch(() => {});
   }, [globalMapDataLoaded, isPublicTier]);
@@ -1369,7 +1383,7 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
             annotations={mapAnnotations}
             canViewCellIntel={canSeeAsteroidIntel || isPublicTier}
             canViewScanWindow={canSeeScanWindow}
-            canEditCellIntel={canAccessAdmin(viewer)}
+            canEditCellIntel={canAccessAdmin(viewer) || isPublicTier}
             canViewSystemIds={canAccessAdmin(viewer)}
             isFullTier={!isPublicTier && getToolAccessTier(viewer) === "full"}
             activeSectorUid={selectedSectorUid || undefined}
@@ -1379,7 +1393,7 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
             onSelectSector={setSelectedSectorUid}
             onSystemSelect={handleMapSystemSelect}
             onLocationSelect={handleMapLocationSelect}
-            onSaveAnnotation={!isPublicTier ? handleSaveMapAnnotation : undefined}
+            onSaveAnnotation={handleSaveMapAnnotation}
             onSaveSearchRecord={handleSaveSearchRecord}
             loadSystemDetail={loadSystemDetailForMap}
             controlsOverlay={controlsOverlay}

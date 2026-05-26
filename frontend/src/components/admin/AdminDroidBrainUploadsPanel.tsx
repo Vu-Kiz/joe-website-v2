@@ -223,18 +223,19 @@ const AdminDroidBrainUploadsPanel: React.FC = () => {
         ) : rows.length === 0 ? (
           <p className="small">No uploads found for those filters.</p>
         ) : (
-          <div className="flex flex-col overflow-hidden rounded-[14px] border border-white/10 bg-white/[0.02] max-[1180px]:overflow-x-auto">
-            <div className="grid border-b border-white/10 bg-white/[0.04] [grid-template-columns:190px_170px_120px_110px_minmax(320px,1fr)_130px_96px]">
-              <div>Uploaded</div>
-              <div>User</div>
-              <div>Payload</div>
-              <div>Status</div>
-              <div>Summary</div>
-              <div>Queue</div>
-              <div>Actions</div>
+          <div className="overflow-x-auto rounded-[14px] border border-white/10 bg-white/[0.02]">
+            <div className="min-w-[1080px]">
+            <div className="grid border-b border-white/10 bg-white/[0.04] [grid-template-columns:190px_170px_120px_110px_minmax(320px,1fr)_130px_96px] px-0">
+              <div className="px-3.5 py-2.5 text-[0.78rem] uppercase tracking-wide opacity-60">Uploaded</div>
+              <div className="px-3.5 py-2.5 text-[0.78rem] uppercase tracking-wide opacity-60">User</div>
+              <div className="px-3.5 py-2.5 text-[0.78rem] uppercase tracking-wide opacity-60">Payload</div>
+              <div className="px-3.5 py-2.5 text-[0.78rem] uppercase tracking-wide opacity-60">Status</div>
+              <div className="px-3.5 py-2.5 text-[0.78rem] uppercase tracking-wide opacity-60">Summary</div>
+              <div className="px-3.5 py-2.5 text-[0.78rem] uppercase tracking-wide opacity-60">Queue</div>
+              <div className="px-3.5 py-2.5 text-[0.78rem] uppercase tracking-wide opacity-60">Actions</div>
             </div>
 
-            <div className="flex min-w-[980px] flex-col">
+            <div className="flex flex-col">
               {rows.map((row) => {
                 const expanded = expandedIds.includes(row.id);
 
@@ -299,6 +300,7 @@ const AdminDroidBrainUploadsPanel: React.FC = () => {
                 );
               })}
             </div>
+            </div>{/* end min-w wrapper */}
           </div>
         )}
 
