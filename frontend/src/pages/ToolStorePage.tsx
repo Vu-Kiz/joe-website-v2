@@ -9,7 +9,7 @@ import {
   type PublicTool,
   type StoreSubscription,
 } from "../api/market/toolStore";
-import { getMyPayableFactions, type PayableFaction } from "../api/factions/factions";
+import { getMyFactions, type PayableFaction } from "../api/factions/factions";
 import { BTN, BTN_SM, INPUT} from "../utils/ui";
 
 function formatCredits(n: number): string {
@@ -354,7 +354,7 @@ const ToolStorePage: React.FC = () => {
       setHasPaymentsAccess(catalogRes.data.has_payments_access);
 
       if (me) {
-        const factionsRes = await getMyPayableFactions().catch(() => ({ data: [] }));
+        const factionsRes = await getMyFactions().catch(() => ({ data: [] }));
         setFactions(factionsRes.data);
       }
     } catch (err: unknown) {

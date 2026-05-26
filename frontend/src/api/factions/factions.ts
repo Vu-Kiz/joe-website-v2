@@ -12,3 +12,10 @@ export async function getMyPayableFactions() {
     "/factions/mine/payable"
   );
 }
+
+/** Returns all factions the current user is a member of (for use as subscription payer). */
+export async function getMyFactions() {
+  return apiFetch<{ ok: true; data: PayableFaction[] }>(
+    "/factions/mine"
+  );
+}

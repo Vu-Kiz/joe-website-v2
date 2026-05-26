@@ -36,6 +36,7 @@ export type AdminManageableUser = {
   can_manage_blog: boolean;
   can_manage_tips: boolean;
   can_manage_eotm: boolean;
+  factions: { id: number; name: string; abbreviation: string | null }[];
 };
 
 export type ListAdminUsersResponse = {

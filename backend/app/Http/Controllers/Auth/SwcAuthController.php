@@ -967,10 +967,24 @@ class SwcAuthController extends Controller
             throw new \RuntimeException('Could not determine SWC character id.');
         }
 
+        // Find the canonical user for this SWC character.
+        // Priority 1: a user already has this swc_character_id (returning user).
+        // Priority 2: the current session user has no swc_character_id yet — merge
+        //             rather than create a duplicate (handles the case where a user
+        //             signed up via Discord first, then granted SWC OAuth access).
         $existingUser = User::query()->where('swc_character_id', $numericCharacterId)->first();
+
+        if (!$existingUser) {
+            $sessionUser = Auth::user();
+            if ($sessionUser && !$sessionUser->swc_character_id) {
+                $existingUser = $sessionUser;
+            }
+        }
+
         $lockFlags = $existingUser && $existingUser->lock_joe_flags;
 
         $updateData = [
+            'swc_character_id' => $numericCharacterId,
             'swc_handle' => $charName,
             'swc_avatar_url' => $avatar !== '' ? $avatar : null,
         ];
@@ -978,10 +992,12 @@ class SwcAuthController extends Controller
             $updateData['is_joe_member'] = $this->isJoeMemberInProfile($profile);
         }
 
-        $user = User::updateOrCreate(
-            ['swc_character_id' => $numericCharacterId],
-            $updateData
-        );
+        if ($existingUser) {
+            $existingUser->forceFill($updateData)->save();
+            $user = $existingUser->fresh();
+        } else {
+            $user = User::create($updateData);
+        }
 
         $this->swcFactionSyncService->syncForUser($user, $profile);
 

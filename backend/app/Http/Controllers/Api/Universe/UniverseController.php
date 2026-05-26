@@ -1019,8 +1019,9 @@ class UniverseController extends Controller
             $stationsCount = $canViewAsteroidIntel
                 ? (clone $searchRecordBaseQuery)->where('has_stations', true)->count()
                 : 0;
-            $notesCount = $canViewAsteroidIntel
+            $notesCount = ($canViewAsteroidIntel && $isFullTier)
                 ? SwcSectorCellAnnotation::query()
+                    ->whereNull('owner_user_id')
                     ->whereRaw("TRIM(COALESCE(notes, '')) <> ''")
                     ->count()
                 : 0;
@@ -1035,7 +1036,7 @@ class UniverseController extends Controller
                     ['name' => 'systems', 'count' => $systemsCount, 'available' => true],
                     ['name' => 'asteroids', 'count' => $asteroidsCount, 'available' => $canViewAsteroidIntel],
                     ['name' => 'scans', 'count' => $scansCount, 'available' => ($canViewAsteroidIntel || $canViewScanWindow || (bool) $joeMemberId)],
-                    ['name' => 'notes', 'count' => $notesCount, 'available' => $canViewAsteroidIntel],
+                    ['name' => 'notes', 'count' => $notesCount, 'available' => $canViewAsteroidIntel && $isFullTier],
                     ['name' => 'ships', 'count' => $shipsCount, 'available' => $canViewAsteroidIntel],
                     ['name' => 'stations', 'count' => $stationsCount, 'available' => $canViewAsteroidIntel],
                 ],
@@ -1145,7 +1146,8 @@ class UniverseController extends Controller
             }
 
             if ($layer === 'notes') {
-                if (!$canViewAsteroidIntel) {
+                // Notes are JOE-member-only — subscribers must never see shared notes.
+                if (!$canViewAsteroidIntel || !$isFullTier) {
                     return [];
                 }
 

@@ -102,6 +102,7 @@ class UserController extends Controller
             : collect();
 
         $users = User::query()
+            ->with(['factions:id,name,abbreviation'])
             ->orderByRaw('COALESCE(swc_handle, "") asc')
             ->get([
                 'id',
@@ -159,6 +160,11 @@ class UserController extends Controller
                     'can_manage_blog'  => (bool) $user->can_manage_blog,
                     'can_manage_tips'  => (bool) $user->can_manage_tips,
                     'can_manage_eotm'  => (bool) $user->can_manage_eotm,
+                    'factions'         => $user->factions->map(fn ($f) => [
+                        'id'           => $f->id,
+                        'name'         => $f->name,
+                        'abbreviation' => $f->abbreviation,
+                    ])->values(),
                     'active_subscription' => $isSysadmin && $activeSubscriptions->has($user->id)
                         ? [
                             'id'                 => $activeSubscriptions[$user->id]->id,

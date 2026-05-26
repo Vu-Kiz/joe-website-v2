@@ -1522,9 +1522,9 @@ new PolygonLayer({
         label: "Planetoids",
         items: LEGEND_ITEMS.filter((item) => item.key.startsWith("asteroid_")),
       });
-      const intelFlagKeys = (isFullTier || canViewSystemIds)
+      const intelFlagKeys = isFullTier
         ? ["ships", "stations", "notes"]
-        : ["notes"];
+        : [];
       sections.push({
         label: "Intel Flags",
         items: LEGEND_ITEMS.filter((item) => intelFlagKeys.includes(item.key)),

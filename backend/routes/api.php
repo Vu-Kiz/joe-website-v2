@@ -74,6 +74,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/tools/store/subscribe/quote', [ToolStoreController::class, 'subscribeQuote']);
     Route::post('/tools/store/subscribe/send', [ToolStoreController::class, 'subscribeSend'])->middleware('throttle:10,1');
 
+    // Factions — accessible to all authenticated users (needed for tool store faction subscription)
+    Route::get('/factions/mine', [FactionController::class, 'mine']);
+
     // Faction console — managed by whoever activated the faction subscription
     Route::get('/faction-console', [FactionConsoleController::class, 'index']);
     Route::get('/faction-console/{subscriptionId}', [FactionConsoleController::class, 'show']);
@@ -498,7 +501,6 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
     Route::get('/market/entity-types/search', [MarketEntityTypeSearchController::class, 'search']);
     Route::post('/market/custom-image/upload', [MarketCustomImageController::class, 'upload']);
 
-    Route::get('/factions/mine', [FactionController::class, 'mine']);
     Route::get('/factions/mine/payable', [FactionController::class, 'minePayable']);
     Route::get('/manual-payment-templates', [ManualPaymentTemplateController::class, 'index']);
     Route::get('/manual-payment-templates/options', [ManualPaymentTemplateController::class, 'options']);

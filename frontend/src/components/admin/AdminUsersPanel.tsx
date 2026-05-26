@@ -22,6 +22,7 @@ type EditableUserState = {
   discordIdentity: string;
   swcCharacterId: string;
   avatarUrl: string;
+  factions: { id: number; name: string; abbreviation: string | null }[];
   scanWindowTopLeftGalx: string;
   scanWindowTopLeftGaly: string;
   scanWindowBottomRightGalx: string;
@@ -56,6 +57,7 @@ function mapUser(user: AdminManageableUser): EditableUserState {
     swcCharacterId:
       user.swc_character_id != null ? String(user.swc_character_id) : "",
     avatarUrl: user.swc_avatar_url ?? "",
+    factions: user.factions ?? [],
     scanWindowTopLeftGalx:
       user.scan_window_top_left_galx != null ? String(user.scan_window_top_left_galx) : "",
     scanWindowTopLeftGaly:
@@ -727,6 +729,20 @@ const AdminUsersPanel: React.FC = () => {
                       </div>
 
                     </div>
+
+                    {user.factions.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[0.75rem] uppercase tracking-wide opacity-40 shrink-0">Factions</span>
+                        {user.factions.map((f) => (
+                          <span
+                            key={f.id}
+                            className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-0.5 text-[0.78rem] text-white/70"
+                          >
+                            {f.abbreviation ?? f.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
 
                     <div className="flex flex-wrap justify-end gap-2">
                       {isSysadmin && user.activeSub && (
