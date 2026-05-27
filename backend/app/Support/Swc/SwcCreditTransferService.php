@@ -149,10 +149,15 @@ class SwcCreditTransferService
             throw new RuntimeException('SWC did not accept this transfer: ' . $failureReason);
         }
 
+        $transactionId = $this->extractTransactionId($jsonPayload);
+        if ($transactionId === null) {
+            throw new RuntimeException('SWC transfer appeared to succeed but returned no transaction ID. Credits may not have been sent.');
+        }
+
         return [
             'status' => (int) $response->status(),
             'auth_mode' => (string) ($attempt['mode'] ?? 'oauth'),
-            'transaction_id' => $this->extractTransactionId($jsonPayload),
+            'transaction_id' => $transactionId,
             'response' => $jsonPayload,
         ];
     }
@@ -225,10 +230,15 @@ class SwcCreditTransferService
             throw new RuntimeException('SWC did not accept this faction transfer: ' . $failureReason);
         }
 
+        $transactionId = $this->extractTransactionId($jsonPayload);
+        if ($transactionId === null) {
+            throw new RuntimeException('SWC faction transfer appeared to succeed but returned no transaction ID. Credits may not have been sent.');
+        }
+
         return [
             'status' => (int) $response->status(),
             'auth_mode' => (string) ($attempt['mode'] ?? 'oauth'),
-            'transaction_id' => $this->extractTransactionId($jsonPayload),
+            'transaction_id' => $transactionId,
             'response' => $jsonPayload,
         ];
     }
@@ -335,11 +345,16 @@ class SwcCreditTransferService
             }
         }
 
-        if ($sawOutcome && !$sawSuccess) {
+        if ($sawSuccess) {
+            return null;
+        }
+
+        if ($sawOutcome) {
             return 'transfer result was not successful';
         }
 
-        return null;
+        // No recognisable outcome field found — treat as failure rather than assuming success.
+        return 'SWC response contained no recognisable success confirmation';
     }
 
     protected function extractFailureMessage(array $node): ?string

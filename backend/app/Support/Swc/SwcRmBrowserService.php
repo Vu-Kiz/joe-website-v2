@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Support\Swc;
 
-use App\Models\Swc\SwcMaterialType;
 
 class SwcRmBrowserService
 {
@@ -36,11 +35,7 @@ class SwcRmBrowserService
         string $factionLabel,
         array $filters = []
     ): array {
-        // Resolve type_uid to the SWC type name for the name filter
-        if (!empty($filters['type_uid'])) {
-            $materialType = SwcMaterialType::where('uid', $filters['type_uid'])->first();
-            $filters['name'] = $materialType?->name;
-        }
+        // type_uid is passed directly to the SWC type filter — no name lookup needed.
 
         $ownerUid = '20:' . $factionSwcUid;
         $allEntities = [];
@@ -128,10 +123,9 @@ class SwcRmBrowserService
             $filterIndex++;
         }
 
-        if (!empty($filters['name'])) {
-            $encoded = str_replace('%20', '+', rawurlencode((string) $filters['name']));
-            $parts[] = 'filter_type[]=name';
-            $parts[] = 'filter_value[]=' . $encoded;
+        if (!empty($filters['type_uid'])) {
+            $parts[] = 'filter_type[]=type';
+            $parts[] = 'filter_value[]=' . rawurlencode((string) $filters['type_uid']);
             $parts[] = 'filter_inclusion[]=includes';
         }
 
