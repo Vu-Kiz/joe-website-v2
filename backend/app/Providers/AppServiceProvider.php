@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\Swc\SwcSectorSearchRecord;
+use App\Observers\SwcSectorSearchRecordObserver;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +21,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        SwcSectorSearchRecord::observe(SwcSectorSearchRecordObserver::class);
+
+        app()->terminating(function () {
+            SwcSectorSearchRecordObserver::flushIfPending();
+        });
     }
 }

@@ -366,6 +366,9 @@ class AstrogationImportService
                 'legacy_recorded_at' => $nextLegacyRecordedAt,
                 'legacy_player'      => $importActorHandle,
                 'legacy_handle'      => $importActorHandle,
+                'rescan_due_at'      => $nextLegacyRecordedAt
+                    ? $nextLegacyRecordedAt->copy()->addMonthsNoOverflow(6)
+                    : null,
             ];
 
             if ($record) {
@@ -379,7 +382,8 @@ class AstrogationImportService
                     !$record->is_system_searched ||
                     $record->legacy_player !== $payload['legacy_player'] ||
                     $record->legacy_handle !== $payload['legacy_handle'] ||
-                    (($record->legacy_recorded_at?->toIso8601String()) !== ($payload['legacy_recorded_at']?->toIso8601String()));
+                    (($record->legacy_recorded_at?->toIso8601String()) !== ($payload['legacy_recorded_at']?->toIso8601String())) ||
+                    $record->rescan_due_at?->toIso8601String() !== $payload['rescan_due_at']?->toIso8601String();
 
                 if (!$isChanged) {
                     $unchanged += 1;

@@ -42,7 +42,7 @@ class UniverseController extends Controller
     {
     }
 
-    private const SEARCH_RECORDS_CACHE_TTL_SECONDS = 120;
+    private const SEARCH_RECORDS_CACHE_TTL_SECONDS = 30;
     private const SEARCH_RECORDS_CACHE_VERSION_KEY = 'universe:search-records:version';
     private const CELL_ANNOTATIONS_CACHE_VERSION_KEY = 'universe:cell-annotations:version';
 
