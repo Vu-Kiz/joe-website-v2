@@ -215,9 +215,9 @@ class SwcAuthorizationService
                 SwcAuthorization::CONTEXT_EVENTS,
             ]),
             SwcAuthorization::CONTEXT_PAYMENTS => $this->firstForContexts($user, [
-                SwcAuthorization::CONTEXT_MEMBER_TOOLS,
-                SwcAuthorization::CONTEXT_PUBLIC_TOOLS,
                 SwcAuthorization::CONTEXT_PAYMENTS,
+                SwcAuthorization::CONTEXT_PUBLIC_TOOLS,
+                SwcAuthorization::CONTEXT_MEMBER_TOOLS,
             ]),
             SwcAuthorization::CONTEXT_MEMBER_TOOLS => $this->forUser($user, SwcAuthorization::CONTEXT_MEMBER_TOOLS),
             default => $this->forUser($user, $context),
@@ -424,8 +424,8 @@ class SwcAuthorizationService
                 SwcAuthorization::CONTEXT_EVENTS,
             ]),
             SwcAuthorization::CONTEXT_PAYMENTS => $this->firstForContexts($user, [
-                SwcAuthorization::CONTEXT_MEMBER_TOOLS,
                 SwcAuthorization::CONTEXT_PAYMENTS,
+                SwcAuthorization::CONTEXT_MEMBER_TOOLS,
             ]),
             SwcAuthorization::CONTEXT_MEMBER_TOOLS => $this->forUser($user, SwcAuthorization::CONTEXT_MEMBER_TOOLS),
             default => $this->forUser($user, $context),

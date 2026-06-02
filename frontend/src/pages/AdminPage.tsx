@@ -17,6 +17,7 @@ import AdminWeatherPanel from "../components/admin/AdminWeatherPanel";
 import AdminActionLogPanel from "../components/admin/AdminActionLogPanel";
 import AdminMemberAccessLogPanel from "../components/admin/AdminMemberAccessLogPanel";
 import AdminDroidBrainUploadsPanel from "../components/admin/AdminDroidBrainUploadsPanel";
+import AdminAstrogationUploadsPanel from "../components/admin/AdminAstrogationUploadsPanel";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
 import AdminSiteLockPanel from "../components/admin/AdminSiteLockPanel";
@@ -203,6 +204,7 @@ const AdminPage: React.FC = () => {
               {activeView === "entityStats" && showSystemTools && <AdminEntityStatsPanel user={user} />}
               {activeView === "memberChangelog" && <AdminMemberChangelogPanel />}
               {activeView === "droidbrainUploads" && showSystemTools && <AdminDroidBrainUploadsPanel />}
+              {activeView === "astrogationUploads" && showSystemTools && <AdminAstrogationUploadsPanel />}
               {activeView === "siteLock" && showSystemTools && <AdminSiteLockPanel />}
               {activeView === "toolStore" && showSystemTools && <AdminToolStorePanel />}
               {activeView === "jobPayRates" && <AdminJobPayRatesPanel />}

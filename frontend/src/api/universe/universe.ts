@@ -1249,6 +1249,46 @@ export function populateAdminMaterialIcons() {
   );
 }
 
+export async function downloadEntityStatsCsv(entityType: EntityStatsKind) {
+  const response = await fetch(
+    `${getApiBaseUrl()}/universe/entity-stats/${encodeURIComponent(entityType)}/export.csv`,
+    {
+      method: "GET",
+      credentials: "include",
+      headers: {
+        Accept: "text/csv",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+
+    let json: any = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      // leave as raw text
+    }
+
+    throw new Error(
+      json?.message ||
+        json?.error ||
+        (text && !text.startsWith("<!DOCTYPE") ? text : null) ||
+        `Failed to export CSV (${response.status}).`
+    );
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const filenameMatch = disposition.match(/filename="?([^"]+)"?/i);
+
+  return {
+    blob,
+    filename: filenameMatch?.[1] ?? `${entityType}-entity-stats.csv`,
+  };
+}
+
 export async function downloadAdminEntityStatsCsv(entityType: EntityStatsKind) {
   const response = await fetch(
     `${getApiBaseUrl()}/admin/entity-stats/${encodeURIComponent(entityType)}/export.csv`,

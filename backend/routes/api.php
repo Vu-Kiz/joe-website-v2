@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\Universe\UniverseController;
 use App\Http\Controllers\Api\Universe\CellAnnotationController;
 use App\Http\Controllers\Api\Universe\SearchRecordController;
 use App\Http\Controllers\Api\Universe\SubscriberCellRecordController;
+use App\Http\Controllers\Api\Universe\UniverseEntityStatsController;
 use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\TimeController;
 use App\Http\Controllers\Api\Admin\UserController;
@@ -29,6 +30,7 @@ use App\Http\Controllers\Api\Admin\EmployeeSpotlightController as AdminEmployeeS
 use App\Http\Controllers\Api\TatooineWeatherController;
 use App\Http\Controllers\Api\Admin\WeatherController;
 use App\Http\Controllers\Api\Admin\ActionLogController;
+use App\Http\Controllers\Api\Admin\AstrogationUploadLogController;
 use App\Http\Controllers\Api\Admin\MemberAccessLogController;
 use App\Http\Controllers\Api\Admin\MemberChangelogAdminController;
 use App\Http\Controllers\Api\Admin\AdminNavPreferenceController;
@@ -333,6 +335,7 @@ Route::middleware(['auth:sanctum', 'public_tool_access'])->group(function () {
     Route::get('/universe/terrain-types/{terrainType}', [UniverseController::class, 'terrainType']);
     Route::get('/universe/material-types', [UniverseController::class, 'materialTypes']);
     Route::get('/universe/material-types/{materialType}', [UniverseController::class, 'materialType']);
+    Route::get('/universe/entity-stats/{entityType}/export.csv', [UniverseEntityStatsController::class, 'exportCsv']);
 });
 
 // Loading tip management: can_manage_tips OR is_admin OR sysadmin override
@@ -375,6 +378,8 @@ Route::get('/site-lock-status', [SiteLockStatusController::class, 'show']);
 
 Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('admin')->group(function () {
     Route::get('/member-access-logs', [MemberAccessLogController::class, 'index']);
+    Route::get('/astrogation-upload-logs', [AstrogationUploadLogController::class, 'index']);
+    Route::post('/astrogation-upload-logs/pull-for-user', [AstrogationUploadLogController::class, 'pullForUser']);
     Route::get('/droidbrain-uploads', [DroidBrainUploadAuditController::class, 'index']);
     Route::get('/discord-bot', [DiscordBotAdminController::class, 'show']);
     Route::post('/discord-bot/contact-recipient', [ContactRequestSettingsController::class, 'update']);

@@ -17,10 +17,12 @@ class SwcMemberImportLog extends Model
         'unchanged',
         'skipped',
         'areas',
+        'reward_breakdown',
     ];
 
     protected $casts = [
-        'areas' => 'array',
+        'areas'            => 'array',
+        'reward_breakdown' => 'array',
     ];
 
     public function user(): BelongsTo

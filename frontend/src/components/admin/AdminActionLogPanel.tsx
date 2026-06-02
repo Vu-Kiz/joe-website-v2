@@ -37,11 +37,15 @@ function formatLabel(value: string | null | undefined): string {
     .join(" ");
 }
 
+const FETCH_LIMIT_OPTIONS = [100, 250, 500];
+
 const AdminActionLogPanel: React.FC = () => {
   const [logs, setLogs] = useState<AdminActionLogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<number[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [fetchLimit, setFetchLimit] = useState(100);
 
   const [actorHandleFilter, setActorHandleFilter] = useState("");
   const [areaFilter, setAreaFilter] = useState("");
@@ -57,7 +61,7 @@ const AdminActionLogPanel: React.FC = () => {
     (async () => {
       try {
         setLoading(true);
-        const response = await listAdminActionLogs();
+        const response = await listAdminActionLogs({ limit: fetchLimit });
 
         if (cancelled) return;
 
@@ -78,7 +82,7 @@ const AdminActionLogPanel: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshKey, fetchLimit]);
 
   function toggleExpanded(id: number) {
     setExpandedIds((current) =>
@@ -258,22 +262,45 @@ const AdminActionLogPanel: React.FC = () => {
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="small">
-              Showing {filteredLogs.length} filtered entries
+              Showing {filteredLogs.length} of {logs.length} loaded entries
             </p>
 
-            <button
-              type="button"
-              className={`${uiButtonSmallBaseClass} ${uiButtonSoftClass}`}
-              onClick={clearFilters}
-              disabled={
-                !actorHandleFilter &&
-                !areaFilter &&
-                !actionFilter &&
-                !targetTypeFilter
-              }
-            >
-              Clear filters
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <label className="small shrink-0" htmlFor="action-log-fetch-limit">Load</label>
+                <select
+                  id="action-log-fetch-limit"
+                  className={INPUT}
+                  value={fetchLimit}
+                  onChange={(e) => { setFetchLimit(Number(e.target.value)); setPage(1); }}
+                >
+                  {FETCH_LIMIT_OPTIONS.map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                className={`${uiButtonSmallBaseClass} ${uiButtonSoftClass}`}
+                onClick={clearFilters}
+                disabled={
+                  !actorHandleFilter &&
+                  !areaFilter &&
+                  !actionFilter &&
+                  !targetTypeFilter
+                }
+              >
+                Clear filters
+              </button>
+              <button
+                type="button"
+                className={`${uiButtonSmallBaseClass} ${uiButtonPrimaryClass}`}
+                onClick={() => setRefreshKey((k) => k + 1)}
+                disabled={loading}
+              >
+                {loading ? "Loading…" : "Refresh"}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -287,8 +314,8 @@ const AdminActionLogPanel: React.FC = () => {
           <p className="small">No action log entries found.</p>
         ) : (
           <>
-            <div className="flex flex-col overflow-hidden rounded-[14px] border border-white/10 bg-white/[0.02] max-[1180px]:overflow-x-auto">
-              <div className="grid border-b border-white/10 bg-white/[0.04] [grid-template-columns:170px_130px_110px_130px_minmax(320px,1fr)_150px_96px]">
+            <div className="flex flex-col overflow-x-auto rounded-[14px] border border-white/10 bg-white/[0.02]">
+              <div className="grid min-w-[980px] border-b border-white/10 bg-white/[0.04] [grid-template-columns:170px_130px_110px_130px_minmax(320px,1fr)_150px_96px]">
                 <div>When</div>
                 <div>Actor</div>
                 <div>Area</div>

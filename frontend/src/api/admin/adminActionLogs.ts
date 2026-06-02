@@ -21,8 +21,14 @@ export type ListAdminActionLogsResponse = {
   logs: AdminActionLogItem[];
 };
 
-export async function listAdminActionLogs(): Promise<ListAdminActionLogsResponse> {
-  return apiFetch<ListAdminActionLogsResponse>("/admin/action-logs", {
-    method: "GET",
-  });
+export async function listAdminActionLogs(params?: {
+  limit?: number;
+}): Promise<ListAdminActionLogsResponse> {
+  const query = new URLSearchParams();
+  if (params?.limit != null) query.set("limit", String(params.limit));
+  const qs = query.toString();
+  return apiFetch<ListAdminActionLogsResponse>(
+    `/admin/action-logs${qs ? `?${qs}` : ""}`,
+    { method: "GET" }
+  );
 }

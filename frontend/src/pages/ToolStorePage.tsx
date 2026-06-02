@@ -46,6 +46,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({ plan, user, factions, o
   const [seatCount, setSeatCount] = useState<number>(1);
   const [modal, setModal] = useState<ModalState | null>(null);
   const [quoting, setQuoting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   async function handleQuote() {
     if (!user) return;
@@ -74,6 +75,8 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({ plan, user, factions, o
   }
 
   async function handleConfirm() {
+    if (confirming) return;
+    setConfirming(true);
     setModal({ stage: "sending" });
     try {
       const res = await sendSubscription({
@@ -85,6 +88,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({ plan, user, factions, o
       setModal({ stage: "success", periodEnd: res.data.subscription.current_period_end });
       onSuccess();
     } catch (err: unknown) {
+      setConfirming(false);
       setModal({ stage: "error", message: err instanceof Error ? err.message : "Payment failed." });
     }
   }
@@ -189,7 +193,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({ plan, user, factions, o
                 className={BTN}
                 type="button"
                 onClick={handleConfirm}
-                disabled={!modal.payeeConfigured}
+                disabled={!modal.payeeConfigured || confirming}
               >
                 Confirm &amp; pay {formatCredits(modal.price)}
               </button>

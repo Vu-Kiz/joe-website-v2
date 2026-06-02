@@ -27,6 +27,7 @@ import {
   getStoredVehicleTypes,
   getStoredWeaponType,
   getStoredWeaponTypes,
+  downloadEntityStatsCsv,
   type EntityStatsKind,
 } from "../../api/universe/universe";
 import HamburgerToggle from "../common/HamburgerToggle";
@@ -1406,6 +1407,7 @@ const EntityStatsGroupOverlay: React.FC<{
   );
 };
 
+
 const MemberEntityStatsPanel: React.FC = () => {
   const [kind, setKind] = useState<EntityStatsKind>("ship");
   const [items, setItems] = useState<EntityBrowseItem[]>([]);
@@ -1418,6 +1420,7 @@ const MemberEntityStatsPanel: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [linkedWeaponLoading, setLinkedWeaponLoading] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
   const [compareIds, setCompareIds] = useState<CompareSelectionState>([null, null]);
   const [compareQueries, setCompareQueries] = useState<CompareQueryState>(["", ""]);
   const [compareDetails, setCompareDetails] = useState<CompareDetailState>({});
@@ -2052,6 +2055,25 @@ const MemberEntityStatsPanel: React.FC = () => {
   );
   const compareCount = compareIds.filter((id): id is string => !!id).length;
 
+  async function onExportCsv() {
+    setExportingCsv(true);
+    try {
+      const { blob, filename } = await downloadEntityStatsCsv(kind);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      // silently ignore — button re-enables on finally
+    } finally {
+      setExportingCsv(false);
+    }
+  }
+
   function setCompareSlot(slotIndex: 0 | 1, query: string) {
     setCompareQueries((current) => {
       const next: CompareQueryState = [...current] as CompareQueryState;
@@ -2198,6 +2220,14 @@ const MemberEntityStatsPanel: React.FC = () => {
           <div className={SIDEBAR_HEADER_CLS}>
             <strong>{filteredItems.length}</strong>
             <span className="small">records</span>
+            <button
+              type="button"
+              className={BTN + " ml-auto"}
+              onClick={onExportCsv}
+              disabled={exportingCsv || items.length === 0 || loading}
+            >
+              {exportingCsv ? "Exporting…" : "Export CSV"}
+            </button>
           </div>
 
           {loading ? (

@@ -20,6 +20,7 @@ export type AdminView =
   | "logs"
   | "memberAccessLogs"
   | "droidbrainUploads"
+  | "astrogationUploads"
   | "toolStore"
   | "jobPayRates"
   | "supportTickets";
@@ -63,7 +64,8 @@ const ALL_ITEMS: NavItem[] = [
   { key: "system", label: "System", category: "Data & Systems", role: "sysadmin", requiresSysadmin: true, keywords: ["system", "pull", "refresh"] },
   { key: "combatValues", label: "Combat Values", category: "Data & Systems", role: "sysadmin", requiresSysadmin: true, keywords: ["combat", "values", "matrix"] },
   { key: "entityStats", label: "Entity Stats", category: "Data & Systems", role: "sysadmin", requiresSysadmin: true, keywords: ["entity", "stats", "catalog"] },
-  { key: "droidbrainUploads", label: "DroidBrain Uploads", category: "Data & Systems", role: "sysadmin", requiresSysadmin: true, keywords: ["droidbrain", "uploads", "imports"] },
+  { key: "droidbrainUploads", label: "DroidBrain Uploads", category: "Audit", role: "sysadmin", requiresSysadmin: true, keywords: ["droidbrain", "uploads", "imports"] },
+  { key: "astrogationUploads", label: "Astrogation Uploads", category: "Audit", role: "sysadmin", requiresSysadmin: true, keywords: ["astrogation", "uploads", "imports", "galaxy", "events"] },
   { key: "toolStore", label: "Tools Store", category: "Data & Systems", role: "sysadmin", requiresSysadmin: true, keywords: ["store", "plans", "subscriptions"] },
   { key: "supportTickets", label: "Support Tickets", category: "Operations", role: "admin", keywords: ["support", "tickets", "bugs", "reports"] },
   { key: "logs", label: "Action Logs", category: "Audit", role: "sysadmin", requiresLogAccess: true, keywords: ["action", "logs", "audit"] },

@@ -1,0 +1,83 @@
+{
+  "ok": true,
+  "exported_at": "2026-06-02T00:00:00+00:00",
+  "version": "2.1.3",
+  "count": 5,
+  "entries": [
+    {
+      "version": "2.1.3",
+      "title": "Entity Stats — CSV export",
+      "details": "You can now export any Entity Stats table to a CSV file. Covers all entity types: stations, ships, vehicles, facilities, items, weapons, droids, creatures, NPCs, races, terrain, materials, and planets. The export includes all fields with human-readable column headers — linked weapons, raw materials, skills, terrain restrictions, shield arcs, and image URLs are all included.",
+      "tools": [
+        "Entity Stats"
+      ],
+      "audiences": [
+        "members",
+        "admin",
+        "sysadmin"
+      ],
+      "sort_order": 1,
+      "released_at": "2026-06-02T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.1.3",
+      "title": "Astrogation upload fix — cursor no longer resets",
+      "details": "Fixed a bug where your upload cursor (the position SWC events are fetched from) was being silently wiped every time you moved the galaxy map. This caused every upload after any map interaction to re-scan all your travel history from the beginning and report everything as unchanged, even when you had new grids to contribute. Uploads now correctly pick up from where you last left off.",
+      "tools": [
+        "Astrogation"
+      ],
+      "audiences": [
+        "members",
+        "admin",
+        "sysadmin"
+      ],
+      "sort_order": 2,
+      "released_at": "2026-06-02T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.1.3",
+      "title": "Admin: Astrogation Upload Logs panel",
+      "details": "A new sysadmin panel under Audit shows the full upload history for all members. Each entry shows events seen, events matched, new grids, updated grids, and unchanged grids. Expandable detail shows exactly which grids triggered a reward, the rule that applied (New DS, New AF, Updated DS 1y+, Updated AF 1y+), and the credit amount — as well as grids that were imported but did not qualify for a reward and why.",
+      "tools": [
+        "Admin"
+      ],
+      "audiences": [
+        "sysadmin"
+      ],
+      "sort_order": 3,
+      "released_at": "2026-06-02T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.1.3",
+      "title": "Admin: Pull Events for Member",
+      "details": "Sysadmins can now trigger a full SWC event pull for any member directly from the Astrogation Uploads panel. The pull fetches all of the member's travel history from the beginning, bypassing their upload cursor, and runs the full import and reward payment logic. Useful for recovering missed grids or diagnosing stuck uploads without requiring the member to take any action.",
+      "tools": [
+        "Admin"
+      ],
+      "audiences": [
+        "sysadmin"
+      ],
+      "sort_order": 4,
+      "released_at": "2026-06-02T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.1.3",
+      "title": "Admin: Action Log and Member Access Log improvements",
+      "details": "The Action Log and Member Access Log panels now have a Refresh button so new entries are visible without a full page reload. The Action Log also has a load selector (100, 250, or 500 entries) for reviewing more history at once. Both log tables now scroll horizontally so all columns are reachable on narrower screens.",
+      "tools": [
+        "Admin"
+      ],
+      "audiences": [
+        "admin",
+        "sysadmin"
+      ],
+      "sort_order": 5,
+      "released_at": "2026-06-02T00:00:00+00:00",
+      "is_active": true
+    }
+  ]
+}

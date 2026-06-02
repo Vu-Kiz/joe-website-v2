@@ -216,7 +216,7 @@ class SwcAuthorizationController extends Controller
             ];
         }
 
-        return [
+        $result = [
             'map_scope' => ($current['map_scope'] ?? null) === 'galaxy' ? 'galaxy' : 'sector',
             'selected_sector_uid' => isset($current['selected_sector_uid']) && $current['selected_sector_uid'] !== ''
                 ? (string) $current['selected_sector_uid']
@@ -226,6 +226,13 @@ class SwcAuthorizationController extends Controller
                 : null,
             'focus_request' => $normalizedFocus,
         ];
+
+        // Preserve system_updater cursor — managed by importPersonalEvents, not this endpoint.
+        if (is_array($current['system_updater'] ?? null)) {
+            $result['system_updater'] = $current['system_updater'];
+        }
+
+        return $result;
     }
 
     protected function normalizePublicToolPreferences(mixed $preferences): array

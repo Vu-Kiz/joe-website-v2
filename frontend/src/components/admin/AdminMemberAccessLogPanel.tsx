@@ -47,6 +47,7 @@ const AdminMemberAccessLogPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<number[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const [actorHandleFilter, setActorHandleFilter] = useState("");
   const [areaFilter, setAreaFilter] = useState("");
@@ -83,7 +84,7 @@ const AdminMemberAccessLogPanel: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshKey]);
 
   function toggleExpanded(id: number) {
     setExpandedIds((current) =>
@@ -266,14 +267,24 @@ const AdminMemberAccessLogPanel: React.FC = () => {
               Showing {filteredLogs.length} filtered entries
             </p>
 
-            <button
-              type="button"
-              className={`${uiButtonSmallBaseClass} ${uiButtonSoftClass}`}
-              onClick={clearFilters}
-              disabled={!actorHandleFilter && !areaFilter && !actionFilter && !methodFilter}
-            >
-              Clear filters
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className={`${uiButtonSmallBaseClass} ${uiButtonSoftClass}`}
+                onClick={clearFilters}
+                disabled={!actorHandleFilter && !areaFilter && !actionFilter && !methodFilter}
+              >
+                Clear filters
+              </button>
+              <button
+                type="button"
+                className={`${uiButtonSmallBaseClass} ${uiButtonPrimaryClass}`}
+                onClick={() => setRefreshKey((k) => k + 1)}
+                disabled={loading}
+              >
+                {loading ? "Loading…" : "Refresh"}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -287,8 +298,8 @@ const AdminMemberAccessLogPanel: React.FC = () => {
           <p className="small">No member access log entries found.</p>
         ) : (
           <>
-            <div className="flex flex-col overflow-hidden rounded-[14px] border border-white/10 bg-white/[0.02] max-[1180px]:overflow-x-auto">
-              <div className="grid border-b border-white/10 bg-white/[0.04] [grid-template-columns:170px_130px_110px_130px_minmax(320px,1fr)_150px_96px]">
+            <div className="flex flex-col overflow-x-auto rounded-[14px] border border-white/10 bg-white/[0.02]">
+              <div className="grid min-w-[980px] border-b border-white/10 bg-white/[0.04] [grid-template-columns:170px_130px_110px_130px_minmax(320px,1fr)_150px_96px]">
                 <div>When</div>
                 <div>Actor</div>
                 <div>Area</div>

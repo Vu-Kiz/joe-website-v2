@@ -1,5 +1,58 @@
 # Changelog
 
+## [2.1.3] — 2026-06-02
+
+### 🐛 Bug Fixes
+
+#### Astrogation Upload — Cursor Wipe
+- Fixed a bug where the upload cursor (`last_uploaded_timestamp`) was silently dropped every time the galaxy map camera moved
+- The preferences save endpoint was normalising universe preferences and only preserving 4 known keys, discarding `system_updater` entirely
+- This caused every subsequent upload after any map interaction to re-process all SWC events from the beginning and find them all unchanged
+- Cursor is now preserved correctly through preference saves
+
+#### Astrogation Upload — SWC Authorization Context
+- Fixed priority order for SWC `PAYMENTS` context in token lookups — was incorrectly falling through to the member tools auth before checking the dedicated payments auth
+
+### ✨ New Features
+
+#### Entity Stats — CSV Export
+- Members, subscribers, and admins can now export entity stats to CSV directly from the Entity Stats pages
+- Supports all entity types: stations, ships, vehicles, facilities, items, weapons, droids, creatures, NPCs, races, terrain, materials, planets
+- Exports all fields including linked weapons, raw materials, skills, terrain restrictions, shield arcs, and images with human-readable column headers
+- Member/subscriber export available via `/universe/entity-stats/{type}/export.csv` (public tool access)
+- Admin export available via `/admin/entity-stats/{type}/export.csv` (sysadmin) with full field set
+
+#### Admin — Astrogation Upload Logs Panel (Sysadmin → Audit)
+- New sysadmin panel showing all members' astrogation upload history across the site
+- Columns: handle, events seen, events matched, new grids, updated, unchanged
+- Server-side pagination (25/page) with date range and handle search filters
+- Expandable detail per upload showing rewarded grids (rule, coords, square name, asteroid marker, credit amount) and imported grids that did not qualify for reward with reason (previous record date shown for updated grids subject to the 1-year rule)
+- Pre-migration logs (no reward data stored) fall back to showing the raw imported areas
+
+#### Admin — Pull Events for Member
+- Sysadmin can trigger a full SWC event pull for any member directly from the Astrogation Uploads panel
+- Bypasses the upload cursor — fetches all events from the beginning so stuck or missing data can be recovered
+- Runs the full import and reward payment logic identically to a member's own upload
+- Result card shows events seen/matched, pages fetched, new/updated/unchanged/skipped counts, rewarded grids with rule breakdown, and grids imported without reward
+- Admin action logged as `admin_pull_personal_events`
+
+#### Admin — Action Log & Member Access Log Improvements
+- Added Refresh button to Action Log and Member Access Log panels (previously required a full page reload to see new entries)
+- Action Log now has a "Load" selector (100 / 250 / 500) to fetch more entries from the server
+- Both panels' table containers now always support horizontal scroll — previously `overflow-hidden` clipped content on wider tables
+
+### ♻️ Refactors
+
+#### AstrogationImportService
+- Extracted all shared import logic (event collection, parsing, grid import, cursor read/write, sector lookup) from `SearchRecordController` into a dedicated `AstrogationImportService`
+- Both the member-facing upload and the new admin pull share the same service, ensuring consistent behaviour
+
+#### Reward Breakdown Stored on Import Log
+- `swc_member_import_logs` now stores a `reward_breakdown` JSON column populated at import time
+- Each entry records which grids triggered a reward, the rule that applied, and the credit amount — no longer requires cross-referencing `PaymentItem` records
+
+---
+
 ## [2.1.2] — 2026-05-25
 
 ### ✨ New Features
