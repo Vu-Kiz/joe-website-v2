@@ -985,8 +985,9 @@ class UniverseController extends Controller
             'joe_member_id' => $joeMemberId,
         ], JSON_THROW_ON_ERROR));
         $cacheKey = sprintf('universe:galaxy-snapshot:meta:%s:%s', $manifestRevision, $scopeHash);
+        $isFullTier = $this->toolAccessService->tierForUser($request->user()) === ToolAccessService::TIER_FULL;
 
-        $meta = Cache::remember($cacheKey, 30, function () use ($canViewAsteroidIntel, $canViewScanWindow, $scanWindow, $joeMemberId, $manifestRevision, $scopeHash) {
+        $meta = Cache::remember($cacheKey, 30, function () use ($canViewAsteroidIntel, $canViewScanWindow, $scanWindow, $joeMemberId, $manifestRevision, $scopeHash, $isFullTier) {
             $systemsCount = (int) SwcSystem::query()
                 ->whereNotNull('galx')
                 ->whereNotNull('galy')

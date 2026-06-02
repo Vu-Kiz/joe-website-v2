@@ -316,6 +316,8 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
   const systemSearchLoadPromiseRef = useRef<Promise<void> | null>(null);
   const galaxyWorkerRef = useRef<Worker | null>(null);
   const galaxyWorkerRequestIdRef = useRef(0);
+  const loadAttemptsRef = useRef(0);
+  const pollingIntervalRef = useRef<number | null>(null);
   const subscriberRecordsRef = useRef<SectorSearchRecord[]>([]);
   const oauthParams = useMemo(() => new URLSearchParams(window.location.search), []);
   const swcOauthError = oauthParams.get("swc_oauth_error");
@@ -354,6 +356,12 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
           annotationsBySector: msg.annotationsBySector,
           updated_at: new Date().toISOString(),
         });
+
+        if (!pollingIntervalRef.current) {
+          pollingIntervalRef.current = window.setInterval(() => {
+            void loadGalaxySnapshotData({ silent: true });
+          }, 60_000);
+        }
       }
 
       if (msg.type === "error") {
@@ -371,6 +379,10 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
     return () => {
       worker.terminate();
       galaxyWorkerRef.current = null;
+      if (pollingIntervalRef.current) {
+        window.clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
     };
   }, []);
 
@@ -559,18 +571,27 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
     }
     setError(null);
 
-    const cached = await readCachedGalaxySnapshot(GALAXY_SNAPSHOT_CACHE_KEY);
-    if (cached && galaxyWorkerRequestIdRef.current === requestId) {
-      applyGalaxySnapshotResult(cached);
-      setGlobalMapDataLoaded(true);
-      setGlobalMapDataLoading(false);
-    }
+    try {
+      const [cached, metaRes] = await Promise.all([
+        readCachedGalaxySnapshot(GALAXY_SNAPSHOT_CACHE_KEY),
+        fetch(`${apiBase}/universe/galaxy-snapshot/meta`, { credentials: "include" })
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null),
+      ]);
+      const serverRevision = metaRes?.data?.revision ?? null;
+      if (cached && serverRevision && cached.revision === serverRevision && galaxyWorkerRequestIdRef.current === requestId) {
+        applyGalaxySnapshotResult(cached);
+        setGlobalMapDataLoaded(true);
+        setGlobalMapDataLoading(false);
+      }
+    } catch {}
 
     worker?.postMessage({ type: "load", requestId, apiBase } as GalaxyWorkerInbound);
   }
 
   useEffect(() => {
-    if (!globalMapDataLoaded && !globalMapDataLoading) {
+    if (!globalMapDataLoaded && !globalMapDataLoading && loadAttemptsRef.current < 3) {
+      loadAttemptsRef.current += 1;
       void loadGalaxySnapshotData().catch((e: any) => {
         setError(e?.message ?? "Failed to load galaxy data.");
         setGlobalMapDataLoading(false);

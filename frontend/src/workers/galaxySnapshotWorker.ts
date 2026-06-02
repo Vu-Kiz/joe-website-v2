@@ -91,13 +91,16 @@ async function doLoad(requestId: number, apiBase: string): Promise<void> {
   const revision = meta?.revision ?? "none";
   const available = new Set((meta?.layers ?? []).filter((l) => l.available).map((l) => l.name));
 
+  const versionedLayer = (name: string) =>
+    `${base}/universe/galaxy-snapshot/layer/${name}?v=${encodeURIComponent(revision)}`;
+
   const [systems, scans, asteroids, ships, stations, notes] = await Promise.all([
-    fetchLayer(`${base}/universe/galaxy-snapshot/layer/systems`),
-    available.has("scans") ? fetchLayer(`${base}/universe/galaxy-snapshot/layer/scans`) : Promise.resolve([]),
-    available.has("asteroids") ? fetchLayer(`${base}/universe/galaxy-snapshot/layer/asteroids`) : Promise.resolve([]),
-    available.has("ships") ? fetchLayer(`${base}/universe/galaxy-snapshot/layer/ships`) : Promise.resolve([]),
-    available.has("stations") ? fetchLayer(`${base}/universe/galaxy-snapshot/layer/stations`) : Promise.resolve([]),
-    available.has("notes") ? fetchLayer(`${base}/universe/galaxy-snapshot/layer/notes`) : Promise.resolve([]),
+    fetchLayer(versionedLayer("systems")),
+    available.has("scans") ? fetchLayer(versionedLayer("scans")) : Promise.resolve([]),
+    available.has("asteroids") ? fetchLayer(versionedLayer("asteroids")) : Promise.resolve([]),
+    available.has("ships") ? fetchLayer(versionedLayer("ships")) : Promise.resolve([]),
+    available.has("stations") ? fetchLayer(versionedLayer("stations")) : Promise.resolve([]),
+    available.has("notes") ? fetchLayer(versionedLayer("notes")) : Promise.resolve([]),
   ]);
 
   if (currentRequestId !== requestId) return;
