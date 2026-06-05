@@ -174,7 +174,7 @@ const AdminUsersPanel: React.FC = () => {
     userId: number,
     key: "isAdmin" | "isIntel" | "canViewAsteroidIntel" | "canManageBlog"
       | "canAccessCombatCalc" | "canAccessWreckingHelperExtension"
-      | "canAccessFleetCommander" | "canAccessRmBrowser" | "isRmBrowserServiceAccount"
+      | "canAccessFleetCommander" | "canAccessRmBrowser" | "isRmBrowserServiceAccount" | "isCombatOpsServiceAccount"
   ) => {
     setNotice(null);
 
