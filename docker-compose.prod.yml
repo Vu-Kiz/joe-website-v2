@@ -166,7 +166,7 @@ services:
       php artisan queue:work database
       --queue=search-index
       --sleep=3
-      --timeout=300
+      --timeout=3600
       --max-time=3600
     networks:
       - joe_prod_net

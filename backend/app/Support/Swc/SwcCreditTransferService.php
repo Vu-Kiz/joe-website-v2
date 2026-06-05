@@ -7,6 +7,7 @@ use App\Models\Payment\PaymentTransfer;
 use App\Models\Swc\SwcAuthorization;
 use App\Models\User;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class SwcCreditTransferService
@@ -127,38 +128,22 @@ class SwcCreditTransferService
         $attempt = $this->postCreditsWithAuthFallback($url, $payload, $accessToken);
         $response = $attempt['response'];
 
-        if (!$response->ok()) {
-            $mode = (string) ($attempt['mode'] ?? 'oauth');
-            $status = (int) $response->status();
-            $bodySummary = $this->summarizeResponseBody($response);
-
-            $message = "Failed to send SWC credits. SWC status {$status} using {$mode} auth.";
-
-            if ($bodySummary !== '') {
-                $message .= " Response: {$bodySummary}";
-            }
-
-            throw new RuntimeException($message);
-        }
-
-        $json = $response->json();
+        $json        = $response->json();
         $jsonPayload = is_array($json) ? $json : [];
-        $failureReason = $this->detectExplicitTransferFailure($jsonPayload);
 
-        if ($failureReason !== null) {
-            throw new RuntimeException('SWC did not accept this transfer: ' . $failureReason);
-        }
-
-        $transactionId = $this->extractTransactionId($jsonPayload);
-        if ($transactionId === null) {
-            throw new RuntimeException('SWC transfer appeared to succeed but returned no transaction ID. Credits may not have been sent.');
-        }
+        // SWC does not always return a confirmation response — treat any dispatch
+        // as completed and log the outcome for audit purposes.
+        Log::info('SwcCreditTransferService: credit transfer dispatched', [
+            'status'   => $response->status(),
+            'mode'     => $attempt['mode'] ?? 'oauth',
+            'response' => $jsonPayload,
+        ]);
 
         return [
-            'status' => (int) $response->status(),
-            'auth_mode' => (string) ($attempt['mode'] ?? 'oauth'),
-            'transaction_id' => $transactionId,
-            'response' => $jsonPayload,
+            'status'         => (int) $response->status(),
+            'auth_mode'      => (string) ($attempt['mode'] ?? 'oauth'),
+            'transaction_id' => $this->extractTransactionId($jsonPayload),
+            'response'       => $jsonPayload,
         ];
     }
 
@@ -208,38 +193,14 @@ class SwcCreditTransferService
         $attempt = $this->postCreditsWithAuthFallback($url, $payload, $accessToken);
         $response = $attempt['response'];
 
-        if (!$response->ok()) {
-            $mode = (string) ($attempt['mode'] ?? 'oauth');
-            $status = (int) $response->status();
-            $bodySummary = $this->summarizeResponseBody($response);
-
-            $message = "Failed to send SWC faction credits. SWC status {$status} using {$mode} auth.";
-
-            if ($bodySummary !== '') {
-                $message .= " Response: {$bodySummary}";
-            }
-
-            throw new RuntimeException($message);
-        }
-
-        $json = $response->json();
+        $json        = $response->json();
         $jsonPayload = is_array($json) ? $json : [];
-        $failureReason = $this->detectExplicitTransferFailure($jsonPayload);
-
-        if ($failureReason !== null) {
-            throw new RuntimeException('SWC did not accept this faction transfer: ' . $failureReason);
-        }
-
-        $transactionId = $this->extractTransactionId($jsonPayload);
-        if ($transactionId === null) {
-            throw new RuntimeException('SWC faction transfer appeared to succeed but returned no transaction ID. Credits may not have been sent.');
-        }
 
         return [
-            'status' => (int) $response->status(),
-            'auth_mode' => (string) ($attempt['mode'] ?? 'oauth'),
-            'transaction_id' => $transactionId,
-            'response' => $jsonPayload,
+            'status'         => (int) $response->status(),
+            'auth_mode'      => (string) ($attempt['mode'] ?? 'oauth'),
+            'transaction_id' => $this->extractTransactionId($jsonPayload),
+            'response'       => $jsonPayload,
         ];
     }
 

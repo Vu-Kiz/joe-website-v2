@@ -38,6 +38,7 @@ type EditableUserState = {
   canAccessFleetCommander: boolean;
   canAccessRmBrowser: boolean;
   isRmBrowserServiceAccount: boolean;
+  isCombatOpsServiceAccount: boolean;
   isGarry: boolean;
   isRaid: boolean;
 
@@ -76,6 +77,7 @@ function mapUser(user: AdminManageableUser): EditableUserState {
     canAccessFleetCommander: !!user.can_access_fleet_commander,
     canAccessRmBrowser: !!user.can_access_rm_browser,
     isRmBrowserServiceAccount: !!user.is_rm_browser_service_account,
+    isCombatOpsServiceAccount: !!user.is_combat_ops_service_account,
     isGarry: !!user.is_garry,
     isRaid: !!user.is_raid,
     canManageBlog: !!user.can_manage_blog,
@@ -197,6 +199,7 @@ const AdminUsersPanel: React.FC = () => {
         can_access_fleet_commander: user.canAccessFleetCommander,
         can_access_rm_browser: user.canAccessRmBrowser,
         is_rm_browser_service_account: user.isRmBrowserServiceAccount,
+        is_combat_ops_service_account: user.isCombatOpsServiceAccount,
         scan_window_top_left_galx: user.scanWindowTopLeftGalx.trim() === "" ? null : Number(user.scanWindowTopLeftGalx),
         scan_window_top_left_galy: user.scanWindowTopLeftGaly.trim() === "" ? null : Number(user.scanWindowTopLeftGaly),
         scan_window_bottom_right_galx: user.scanWindowBottomRightGalx.trim() === "" ? null : Number(user.scanWindowBottomRightGalx),
@@ -451,7 +454,8 @@ const AdminUsersPanel: React.FC = () => {
                         { show: user.canAccessWreckingHelperExtension,   label: "Wrecking Helper", hue: 90  },
                         { show: user.canAccessFleetCommander,            label: "Fleet Commander", hue: 230 },
                         { show: user.canAccessRmBrowser,                 label: "RM Browser",      hue: 165 },
-                        { show: user.isRmBrowserServiceAccount,          label: "RM Service Acct", hue: 165 },
+                        { show: user.isRmBrowserServiceAccount,          label: "RM Service Acct",      hue: 165 },
+                        { show: user.isCombatOpsServiceAccount,          label: "Combat Ops Acct",      hue: 0   },
                         { show: user.canManageBlog,                      label: "Blog",            hue: 320 },
                         { show: isSysadmin && !!user.activeSub,          label: user.activeSub ? `Subscriber (${user.activeSub.plan_key})` : "", hue: 145 },
                       ] as const).filter(b => b.show && b.label).map(b => (
@@ -652,6 +656,26 @@ const AdminUsersPanel: React.FC = () => {
                           </span>
                           <span className="text-[0.82rem] leading-snug opacity-80">
                             Designates this user's SWC token as the source for RM Browser faction inventory calls. Only one user should have this set.
+                          </span>
+                        </label>
+                      )}
+
+                      {isSysadmin && (
+                        <label className={`${permTileBaseClass} ${user.isCombatOpsServiceAccount ? permTileActiveClass : ""}`}>
+                          <input
+                            type="checkbox"
+                            className="sr-only"
+                            checked={user.isCombatOpsServiceAccount}
+                            onChange={() => handleToggle(user.id, "isCombatOpsServiceAccount")}
+                          />
+                          <span className="flex items-center justify-between gap-4">
+                            <span className="font-bold leading-tight">Combat Ops Service Account</span>
+                            <span className={`relative inline-flex h-[26px] w-[46px] shrink-0 items-center rounded-full border border-white/15 bg-white/10 transition-all duration-150 ${user.isCombatOpsServiceAccount ? permSwitchActiveClass : ""}`} aria-hidden="true">
+                              <span className={`absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white transition-transform duration-150 ${user.isCombatOpsServiceAccount ? permSwitchKnobActiveClass : ""}`} />
+                            </span>
+                          </span>
+                          <span className="text-[0.82rem] leading-snug opacity-80">
+                            Designates this user's <code>combat_ops</code> SWC auth as the source for Fire Delay Tracker faction event calls. Only one user should have this set.
                           </span>
                         </label>
                       )}

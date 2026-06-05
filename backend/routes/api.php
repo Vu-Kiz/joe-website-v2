@@ -59,6 +59,7 @@ use App\Http\Controllers\Api\Extension\HelperAuthController;
 use App\Http\Controllers\Api\Extension\HelperSettingsController;
 use App\Http\Controllers\Api\Member\RmBrowserController;
 use App\Http\Controllers\Api\Member\SkillsToolController;
+use App\Http\Controllers\Api\Member\FireDelayController;
 use App\Http\Controllers\Api\Member\XpTrackerController;
 use App\Http\Controllers\Api\ToolStoreController;
 use App\Http\Controllers\Api\Faction\FactionConsoleController;
@@ -534,6 +535,9 @@ Route::middleware(['auth:sanctum', 'require_any:can_access_rm_browser,is_admin,i
 
 Route::middleware(['auth:sanctum', 'require_any:is_joe_member,is_admin,is_sysadmin'])->group(function () {
     Route::get('/xp-tracker', [XpTrackerController::class, 'fetch'])->middleware('throttle:60,10');
+    Route::get('/fire-delays', [FireDelayController::class, 'fetch'])->middleware('throttle:12,1');
+    Route::get('/fire-delays/settings', [FireDelayController::class, 'getSettings']);
+    Route::put('/fire-delays/settings', [FireDelayController::class, 'updateSettings'])->middleware('sysadmin_only');
     Route::get('/material-prices', [MaterialPriceController::class, 'index']);
 });
 

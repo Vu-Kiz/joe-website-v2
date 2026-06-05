@@ -50,7 +50,7 @@ class ProcessAllPendingPaymentsJob implements ShouldQueue, ShouldBeUnique
             } catch (\Throwable $e) {
                 Log::error('ProcessAllPendingPaymentsJob: DroidBrain payment failed', [
                     'file_id' => $fileId,
-                    'error' => $e->getMessage(),
+                    'error'   => $e->getMessage(),
                 ]);
 
                 DB::table('droidbrain_files')

@@ -966,7 +966,7 @@ const isLoggedIn = !!user;
                         ? "XP Tracker"
                       : tool.key === "recyclingCalculator"
                         ? "Recycling Calculator"
-                        : "JOE placeholder logo"
+                      : "JOE placeholder logo"
                   }
                   className={`h-[84px] w-[84px] object-contain ${(tool.key === "payments" && hasPendingPayments) || (tool.key === "jobs" && hasPendingClaims) ? "animate-members-alert-pulse" : ""}`}
                 />
