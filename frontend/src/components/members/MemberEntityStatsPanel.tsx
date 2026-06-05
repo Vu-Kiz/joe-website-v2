@@ -1255,7 +1255,7 @@ const EntityStatsGroupOverlay: React.FC<{
       />
 
       <article
-        className="panel fixed m-0 overflow-hidden [transform:translateZ(0)] transition-[top,left,width,height,box-shadow] duration-[280ms] shadow-[0_18px_42px_rgba(0,0,0,0.42)] z-[1001] flex flex-col"
+        className="panel fixed m-0 overflow-hidden [transform:translateZ(0)] transition-[top,left,width,height,box-shadow] duration-[280ms] shadow-[0_18px_42px_rgba(0,0,0,0.42)] z-[1001] flex flex-col pointer-events-auto"
         style={{
           top: `${currentRect.top}px`,
           left: `${currentRect.left}px`,

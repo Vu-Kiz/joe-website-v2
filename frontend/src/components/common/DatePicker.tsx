@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { BTN_SM } from "../../utils/ui";
+import { BTN_SM, INPUT } from "../../utils/ui";
 
 type Props = {
   id?: string;
@@ -156,7 +156,7 @@ const DatePicker: React.FC<Props> = ({
       <button
         id={id}
         className={[
-          "input flex items-center justify-between gap-3 text-left cursor-pointer",
+          INPUT + " flex items-center justify-between gap-3 text-left cursor-pointer",
           open
             ? "border-[rgba(245,213,70,0.42)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03),0_0_0_1px_rgba(245,213,70,0.18),0_0_18px_rgba(245,213,70,0.10)]"
             : "",

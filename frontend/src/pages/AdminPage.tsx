@@ -27,6 +27,7 @@ import AdminCombatValuesPanel from "../components/admin/AdminCombatValuesPanel";
 import AdminMemberChangelogPanel from "../components/admin/AdminMemberChangelogPanel";
 import AdminToolStorePanel from "../components/admin/AdminToolStorePanel";
 import AdminJobPayRatesPanel from "../components/admin/AdminJobPayRatesPanel";
+import AdminMaterialPricesPanel from "../components/admin/AdminMaterialPricesPanel";
 import AdminSupportTicketsPanel from "../components/admin/AdminSupportTicketsPanel";
 import { BTN } from "../utils/ui";
 
@@ -208,6 +209,7 @@ const AdminPage: React.FC = () => {
               {activeView === "siteLock" && showSystemTools && <AdminSiteLockPanel />}
               {activeView === "toolStore" && showSystemTools && <AdminToolStorePanel />}
               {activeView === "jobPayRates" && <AdminJobPayRatesPanel />}
+              {activeView === "materialPrices" && <AdminMaterialPricesPanel />}
               {activeView === "supportTickets" && <AdminSupportTicketsPanel />}
             </div>
           </div>

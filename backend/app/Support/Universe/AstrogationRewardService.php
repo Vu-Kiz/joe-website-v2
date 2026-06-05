@@ -90,34 +90,37 @@ class AstrogationRewardService
             $totalAmount
         );
 
-        return PaymentItem::create([
-            'tool_key' => 'astrogation',
-            'source_type' => 'astrogation_import',
-            'source_id' => $user->id,
-            'payer_subject_type' => 'faction',
-            'payer_subject_id' => $payer->id,
-            'payer_label' => $payer->name,
-            'payee_subject_type' => 'user',
-            'payee_subject_id' => $user->id,
-            'payee_swc_uid' => $swcUid,
-            'payee_handle' => $swcHandle,
-            'payee_label' => $swcHandle,
-            'amount' => $totalAmount,
-            'bonus_amount' => 0,
-            'total_amount' => $totalAmount,
-            'status' => 'pending',
-            'meta' => [
-                'communication_prefix' => $communicationPrefix,
-                // Legacy keys kept for compatibility with existing UI payload usage.
-                'normal_grid_count' => $newDsCount,
-                'asteroid_grid_count' => $newAfCount,
-                'new_ds_count' => $newDsCount,
-                'new_af_count' => $newAfCount,
-                'updated_ds_count' => $updatedDsCount,
-                'updated_af_count' => $updatedAfCount,
-                'breakdown' => $breakdown,
+        return PaymentItem::updateOrCreate(
+            [
+                'source_type' => 'astrogation_import',
+                'source_id'   => $user->id,
+                'status'      => 'pending',
             ],
-        ]);
+            [
+                'tool_key' => 'astrogation',
+                'payer_subject_type' => 'faction',
+                'payer_subject_id' => $payer->id,
+                'payer_label' => $payer->name,
+                'payee_subject_type' => 'user',
+                'payee_subject_id' => $user->id,
+                'payee_swc_uid' => $swcUid,
+                'payee_handle' => $swcHandle,
+                'payee_label' => $swcHandle,
+                'amount' => $totalAmount,
+                'bonus_amount' => 0,
+                'total_amount' => $totalAmount,
+                'meta' => [
+                    'communication_prefix' => $communicationPrefix,
+                    'normal_grid_count' => $newDsCount,
+                    'asteroid_grid_count' => $newAfCount,
+                    'new_ds_count' => $newDsCount,
+                    'new_af_count' => $newAfCount,
+                    'updated_ds_count' => $updatedDsCount,
+                    'updated_af_count' => $updatedAfCount,
+                    'breakdown' => $breakdown,
+                ],
+            ]
+        );
     }
 
     protected function buildCommunicationPrefix(

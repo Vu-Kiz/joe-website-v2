@@ -821,14 +821,14 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
     });
   }
 
-  function handleMapSystemSelect(systemIdentifier: string, sectorUid?: string | null) {
+  function handleMapSystemSelect(systemUid: string, sectorUid?: string | null) {
     const mapSystem =
       mapSystems.find(
-        (system: StoredMapSystem) => system.identifier === systemIdentifier || system.uid === systemIdentifier
+        (system: StoredMapSystem) => system.uid === systemUid || system.identifier === systemUid
       ) ?? null;
-    const nextIdentifier = mapSystem?.uid ?? mapSystem?.identifier ?? systemIdentifier;
+    const routeId = systemUid.includes(":") ? systemUid.split(":").pop()! : systemUid;
 
-    navigate(`/tools/universe/system/${encodeURIComponent(nextIdentifier)}`, {
+    navigate(`/tools/universe/system/${encodeURIComponent(routeId)}`, {
       state: {
         fromUniverseMap: true,
         sectorUid: sectorUid ?? mapSystem?.sector_uid ?? null,
@@ -1013,9 +1013,7 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
       const response = await importSwcPersonalEvents();
 
       if (!response?.ok) {
-        throw new Error(
-          "Your SWC Astrogation access session has timed out. Please reconnect your access and try again."
-        );
+        throw new Error("Upload failed. Please try again.");
       }
 
       setEventsImportResult(response);
@@ -1033,7 +1031,11 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
       const statusCode = Number(e?.status ?? 0);
       const isReconnectStatus = statusCode === 401 || statusCode === 403 || statusCode === 422;
       const normalizedMessage =
-        isReconnectStatus || /timed out|expired|reconnect|not connected|unauthenticated|forbidden/i.test(message)
+        statusCode === 429
+          ? "Upload already in progress — please wait a moment and try again."
+          : statusCode === 500
+          ? "A server error occurred while processing your upload. Please try again shortly."
+          : isReconnectStatus || /timed out|expired|reconnect|not connected|unauthenticated|forbidden/i.test(message)
           ? "Your SWC Astrogation access session has timed out. Please reconnect your access and try again."
           : message;
 

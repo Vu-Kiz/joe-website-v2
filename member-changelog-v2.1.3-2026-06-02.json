@@ -2,7 +2,7 @@
   "ok": true,
   "exported_at": "2026-06-02T00:00:00+00:00",
   "version": "2.1.3",
-  "count": 5,
+  "count": 8,
   "entries": [
     {
       "version": "2.1.3",
@@ -38,6 +38,55 @@
     },
     {
       "version": "2.1.3",
+      "title": "Galaxy map — critical fix: map was broken for all users",
+      "details": "Fixed a crash that was returning a 500 error on every galaxy snapshot request, preventing the Astrogation map from loading at all. An undefined variable in the snapshot metadata endpoint caused the entire map to fail silently.",
+      "tools": [
+        "Astrogation"
+      ],
+      "audiences": [
+        "members",
+        "admin",
+        "sysadmin"
+      ],
+      "sort_order": 3,
+      "released_at": "2026-06-02T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.1.3",
+      "title": "Galaxy map — scouted grids now appear immediately after upload",
+      "details": "Fixed a bug where scouted grids submitted via DroidBrain syncs, astrogation uploads where all records were already known, or admin pulls never updated the map. The map cache was only refreshed when new grids were created — unchanged or DroidBrain-only changes were invisible until the cache expired. The map now updates correctly after any write.",
+      "tools": [
+        "Astrogation",
+        "DroidBrain"
+      ],
+      "audiences": [
+        "members",
+        "admin",
+        "sysadmin"
+      ],
+      "sort_order": 4,
+      "released_at": "2026-06-02T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.1.3",
+      "title": "Galaxy map — rescan due flag clears after a fresh visit",
+      "details": "Fixed a bug where grids imported from the legacy database permanently showed as 'rescan due' on the map even after a member visited them via astrogation. The rescan date is now pushed forward 6 months whenever a fresh visit is recorded, clearing the stale flag.",
+      "tools": [
+        "Astrogation"
+      ],
+      "audiences": [
+        "members",
+        "admin",
+        "sysadmin"
+      ],
+      "sort_order": 5,
+      "released_at": "2026-06-02T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.1.3",
       "title": "Admin: Astrogation Upload Logs panel",
       "details": "A new sysadmin panel under Audit shows the full upload history for all members. Each entry shows events seen, events matched, new grids, updated grids, and unchanged grids. Expandable detail shows exactly which grids triggered a reward, the rule that applied (New DS, New AF, Updated DS 1y+, Updated AF 1y+), and the credit amount — as well as grids that were imported but did not qualify for a reward and why.",
       "tools": [
@@ -46,7 +95,7 @@
       "audiences": [
         "sysadmin"
       ],
-      "sort_order": 3,
+      "sort_order": 6,
       "released_at": "2026-06-02T00:00:00+00:00",
       "is_active": true
     },
@@ -60,7 +109,7 @@
       "audiences": [
         "sysadmin"
       ],
-      "sort_order": 4,
+      "sort_order": 7,
       "released_at": "2026-06-02T00:00:00+00:00",
       "is_active": true
     },
@@ -75,7 +124,7 @@
         "admin",
         "sysadmin"
       ],
-      "sort_order": 5,
+      "sort_order": 8,
       "released_at": "2026-06-02T00:00:00+00:00",
       "is_active": true
     }

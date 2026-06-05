@@ -1,5 +1,103 @@
 # Changelog
 
+## [2.1.4] — 2026-06-05
+
+### ✨ New Features
+
+#### Member Tools — RM Hauler
+- New tool that calculates how many trips each ship or vehicle would need to haul a given cargo manifest
+- Build a manifest by searching for raw materials and entering quantities — total weight (tonnes) and volume (m³) are calculated automatically
+- Results table shows every hauler in the database ranked by trip count, with the limiting factor (weight or volume) highlighted per hauler
+- Filterable by hauler type (all / ships / vehicles) and by a maximum trip count
+- Manifests can be saved locally by name and reloaded in future sessions
+- Export a haul plan for a specific hauler as a formatted Discord-ready message
+
+#### Member Tools — Production Calculator
+- New tool for planning production runs across ships, vehicles, facilities, stations, droids, weapons, items, and creature/NPC types
+- Multi-row planner — add any number of entity types and quantities in a single session
+- Per-entity and total material requirements aggregated across all rows with material prices applied
+- Time estimates (min/max range) based on production modifier, management skill, civilisation level, and location modifier
+- XP estimate per entity type
+- Configurable settings: management level, civilisation level, location modifier, morale, crime, and tax rate
+- Cost estimate ranges (min/max) including production cost factor and tax
+- Aggregated materials list showing total quantities and credit costs across all rows
+
+#### Member Tools — XP Tracker
+- New tool that pulls a member's personal XP event history from SWC (up to 4 months)
+- Displays total XP gained, breakdown by category (production, recycling, combat, skill upgrades, etc.), and a daily chart
+- Average XP per active day calculated across the selected date range
+- Date range filter to narrow the history window
+
+#### Member Tools — Recycling Calculator
+- New tool for JOE members that estimates recycling time, materials returned, and cost for any ship, vehicle, facility, or station
+- Entity picker with typeahead search across all four categories
+- Condition selector (Non-Wreck / Wreck) and recycler type (Vehicle / Ship / Station & Facility) with time multipliers matching SWC rules (×1.00 / ×0.60 / ×0.40)
+- Pull repair skill directly from SWC profile via Chain Code with one click
+- Per-material breakdown table showing required quantity, returned quantity, and lost quantity for each material
+- Cost estimate based on 50% of RMP
+- Time displayed in days, hours, minutes, and seconds
+- Recycler type auto-sets based on selected entity category
+
+#### Astrogation Location Page — In-System Grid
+- Location pages (`/tools/universe/location/{x}/{y}`) now automatically load and display the full in-system grid for any system present at that chart coordinate
+- Shows planets (with images), stations, and DroidBrain ships on the same interactive 20×20 zoom/pan grid as the system page
+- DroidBrain Ships toggle in the system section toolbar works independently from the location grid's DroidBrain Intel toggle
+- Cell selection opens a panel showing planets, stations, and ship cards with IFF badges and expandable type stats
+
+#### Astrogation Location Page — DroidBrain Intel (Ship Grid Parity)
+- Location page DroidBrain ship panel now matches the system page: expandable ship cards with IFF colour coding, IFF filter pills (Friend / Enemy / Neutral / Unknown), class filter dropdown, and ship type stat expansion (hull, shield, armour, hyperdrive, speed, etc.)
+- Grid cell ship icon now picks the most significant ship class in each cell (same `biggestShip` logic as the system page)
+- Hover tooltip shows IFF breakdown by status instead of a plain ship count
+- Cell deselect works by clicking the active cell again, matching system page behaviour
+
+#### Admin — Material Prices Panel
+- New admin panel for managing raw material prices used by the Production Calculator
+- Admins can set a credit price per unit for each material type
+- Prices are applied automatically in the production calculator's cost breakdowns
+
+#### Admin — Worker Health — DroidBrain Search Reindex
+- New "Reindex DroidBrain Search" button in the Worker Health panel that manually queues a full search index rebuild for all DroidBrain tabs (ships, stations, planets, cities, vehicles, NPCs)
+- Clears the unique job lock before dispatching so it always fires even if a previous run stalled or failed
+- The `DroidBrainReindexJob` now processes records in chunks of 500 instead of calling `makeAllSearchable()` on the entire table at once, preventing the 504/timeout that caused the job to hit `MaxAttemptsExceededException` on large datasets
+- Job timeout raised from 5 minutes to 1 hour to accommodate large index rebuilds
+
+### 🐛 Bug Fixes
+
+#### Payments — Communication Column Truncation
+- Widened `payment_transfers.communication` from `VARCHAR(255)` to `TEXT` — long payment communication messages were silently failing with a data truncation error when the message exceeded 255 characters
+
+#### Astrogation Upload — Auth Mode Retried on Every Page
+- Fixed an issue where the upload renegotiated its SWC auth mode (`oauth` vs `bearer`) on every page of travel history fetched
+- Once the first page succeeds, the confirmed auth mode is now locked in for the rest of the upload
+
+#### Astrogation Reward — Duplicate Payment on Re-upload
+- Fixed a `UniqueConstraintViolationException` crash where uploading astrogation data more than once in a session attempted to create a second `pending` payment record for the same user
+- `PaymentItem::create()` replaced with `updateOrCreate()` matching on `source_type + source_id + status=pending`, so re-uploads update the existing reward in place rather than failing
+
+#### Astrogation Location Page — Page Crash (`snapshotShips is not defined`)
+- Fixed a runtime crash on `/tools/universe/location/` caused by references to `snapshotShips` and `snapshotTime` variables that were never declared
+- Added missing `public_status` and `placementX`/`placementY` fields to the `StoredLocationDetail` ships type definition
+
+#### Astrogation Location Page — Back Button Not Returning to Astrogation
+- The manual "Back To Tools Overview" link at the top of the page navigated to `/tools` without passing route state, landing users on the overview instead of the Astrogation panel
+- Removed the duplicate button — the `UniverseDetailHero` back button correctly passes `{ membersView: "universe" }` state
+
+#### Astrogation Location Page — API 504 Timeout
+- `/api/universe/locations/{x}/{y}` was timing out with a 504 on coordinates that have large DroidBrain scan archives
+- The two `LIKE '%fieldstring%'` queries on raw XML/JSON blob columns now run inside a `MAX_EXECUTION_TIME=8000` guard — if either query exceeds 8 seconds it fails fast and returns `null` for the asteroid field rather than hanging the whole request
+
+#### Galaxy Viewer — System Link UID Format
+- Clicking a system on the galaxy map now uses the system UID directly (e.g. `9:178` → URL `/tools/universe/system/178`) by stripping the entity-type prefix
+- Backend system lookup now falls back to `uid LIKE '%:{id}'` when a bare numeric ID is passed, so both formats resolve correctly
+
+### ♻️ Refactors
+
+#### Astrogation Location Page — Removed Unused Panels
+- Removed the "Location Intel" and "Sector / Primary Label" info panels from the location page selection sidebar — data already visible in the hero header
+- Cleaned up all unused imports and constants (`BBCodeView`, `META_CLS`, `LOCATION_STACK_CLS`, `LOCATION_LINE_CLS`, `LOCATION_NOTE_CLS`, `formatTimestamp`, `isSysadmin`)
+
+---
+
 ## [2.1.3] — 2026-06-02
 
 ### 🐛 Bug Fixes
@@ -40,6 +138,35 @@
 - Added Refresh button to Action Log and Member Access Log panels (previously required a full page reload to see new entries)
 - Action Log now has a "Load" selector (100 / 250 / 500) to fetch more entries from the server
 - Both panels' table containers now always support horizontal scroll — previously `overflow-hidden` clipped content on wider tables
+
+### 🐛 Bug Fixes (Galaxy Map)
+
+#### Galaxy Snapshot Meta — `$isFullTier` Undefined (Critical)
+- Fixed an `ErrorException: Undefined variable $isFullTier` crash inside the `galaxySnapshotMeta` closure that was returning 500 on every `/universe/galaxy-snapshot/meta` request and breaking the map entirely for all users
+- `$isFullTier` was only defined in `galaxySnapshotLayer()` and never passed into the `galaxySnapshotMeta` closure
+
+#### Galaxy Map — Infinite Retry Loop on Server Error
+- Fixed a frontend infinite retry loop: when the galaxy snapshot worker returned a server error it set `globalMapDataLoading = false` but never set `globalMapDataLoaded = true`, leaving both false and causing the load effect to fire endlessly
+- Load attempts are now capped at 3 before stopping
+
+#### Galaxy Map — Cache Version Never Bumped for DroidBrain / Unchanged Imports
+- The cache version key `universe:search-records:version` was only bumped in `SearchRecordController` when `created + updated > 0`
+- DroidBrain syncs, admin pulls, and astrogation imports where all records were unchanged never busted the cache — 654 modified records were invisible to the map
+- Added `SwcSectorSearchRecordObserver` that sets a flag on any `saved()` event across all write paths; a single cache bump fires at request/job termination via `app()->terminating()`
+- Reduced search records layer cache TTL from 120s to 30s as a safety net for any raw `DB::table()` paths that bypass Eloquent
+
+#### Galaxy Map — `rescan_due_at` Never Updated After Fresh Visit
+- When `importMatchedEvents` updated a record's `legacy_recorded_at` it never recalculated `rescan_due_at`, so old records (e.g. 3-year-old legacy imports) permanently showed the "rescan due" flag on the map even after a member visited them
+- `rescan_due_at` is now recalculated as `legacy_recorded_at + 6 months` in the import payload and included in the `isChanged` check so stale values trigger a proper update
+
+#### Galaxy Map — Stale IndexedDB Cache Applied Without Revision Check
+- The IndexedDB snapshot was applied immediately on load without checking whether it matched the current server revision, meaning stale data could persist indefinitely if a user never triggered a reload
+- `loadGalaxySnapshotData` now fetches the meta revision in parallel with the IndexedDB read and only applies the cached snapshot if revisions match
+- Added a 60-second polling interval after first successful load to detect revision changes in the background
+
+#### Galaxy Map — Layer Fetches Not Cache-Busted on Revision Change
+- Layer fetch URLs had no version parameter, allowing the browser HTTP cache to serve stale layer data even after the server revision changed
+- All layer fetches now include `?v={revision}` so the browser cache is bypassed whenever the server has fresh content
 
 ### ♻️ Refactors
 

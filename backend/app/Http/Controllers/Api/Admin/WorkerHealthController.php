@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\DroidBrainReindexJob;
 use App\Jobs\ProcessAllPendingPaymentsJob;
 use App\Jobs\ProcessDroidBrainUploadJob;
 use Illuminate\Http\JsonResponse;
@@ -419,6 +420,32 @@ class WorkerHealthController extends Controller
         ProcessDroidBrainUploadJob::dispatch($id);
 
         return response()->json(['ok' => true]);
+    }
+
+    public function reindexSearchTab(Request $request): JsonResponse
+    {
+        $validTabs = ['ships', 'stations', 'planets', 'cities', 'vehicles', 'npcs'];
+        $tab = (string) $request->input('tab', '');
+
+        if ($tab === 'all') {
+            foreach ($validTabs as $t) {
+                // Clear the unique lock so the manual trigger always dispatches
+                $lockKey = 'laravel_unique_job:DroidBrainReindexJob' . $t;
+                \Illuminate\Support\Facades\Cache::forget($lockKey);
+                DroidBrainReindexJob::dispatch($t);
+            }
+            return response()->json(['ok' => true, 'dispatched' => $validTabs]);
+        }
+
+        if (!in_array($tab, $validTabs, true)) {
+            return response()->json(['ok' => false, 'message' => 'Invalid tab.'], 422);
+        }
+
+        $lockKey = 'laravel_unique_job:DroidBrainReindexJob' . $tab;
+        \Illuminate\Support\Facades\Cache::forget($lockKey);
+        DroidBrainReindexJob::dispatch($tab);
+
+        return response()->json(['ok' => true, 'dispatched' => [$tab]]);
     }
 
     public function clearFailedJobs(): JsonResponse

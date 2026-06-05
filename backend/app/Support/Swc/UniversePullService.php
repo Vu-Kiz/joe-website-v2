@@ -2389,6 +2389,21 @@ class UniversePullService
             'large' => $this->firstStringValue($typeNode->images, ['large']),
         ] : [];
 
+        $materials = [];
+        if (isset($typeNode->materials) && isset($typeNode->materials->material)) {
+            foreach ($typeNode->materials->material as $material) {
+                $materialName = trim((string) $material) ?: null;
+                if ($materialName !== null) {
+                    $materials[] = [
+                        'uid' => trim((string) ($material['uid'] ?? '')) ?: null,
+                        'href' => trim((string) ($material['href'] ?? '')) ?: null,
+                        'name' => $materialName,
+                        'quantity' => $this->toIntOrNull($material['quantity'] ?? null),
+                    ];
+                }
+            }
+        }
+
         return [
             'uid' => $uid,
             'name' => $name,
@@ -2400,6 +2415,10 @@ class UniversePullService
             'weight_tonnes' => $this->firstFloatValue($typeNode, ['weight']),
             'volume_m3' => $this->firstFloatValue($typeNode, ['volume']),
             'price_credits' => isset($typeNode->price) ? $this->firstIntValue($typeNode->price, ['credits']) : null,
+            'batch_quantity' => $this->firstIntValue($typeNode, ['batchquantity']),
+            'production_modifier' => isset($typeNode->production) ? $this->firstIntValue($typeNode->production, ['modifier']) : null,
+            'recommended_workers' => isset($typeNode->production) ? $this->firstIntValue($typeNode->production, ['recommendedWorkers']) : null,
+            'materials' => $materials !== [] ? $materials : null,
             'images' => $images !== [] ? $images : null,
             'image_url' => $images['large'] ?? $images['small'] ?? $images['icon'] ?? $this->firstStringValue($typeNode, ['image', 'image_url', 'imageurl']),
             'payload' => $payload,

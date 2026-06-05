@@ -59,10 +59,12 @@ use App\Http\Controllers\Api\Extension\HelperAuthController;
 use App\Http\Controllers\Api\Extension\HelperSettingsController;
 use App\Http\Controllers\Api\Member\RmBrowserController;
 use App\Http\Controllers\Api\Member\SkillsToolController;
+use App\Http\Controllers\Api\Member\XpTrackerController;
 use App\Http\Controllers\Api\ToolStoreController;
 use App\Http\Controllers\Api\Faction\FactionConsoleController;
 use App\Http\Controllers\Api\Support\SupportTicketController;
 use App\Http\Controllers\Api\Admin\SupportTicketAdminController;
+use App\Http\Controllers\Api\Admin\MaterialPriceController;
 use App\Http\Controllers\Api\Swc\SwcStatusController;
 
 // SWC status (public — no auth)
@@ -137,6 +139,9 @@ Route::middleware(['auth:sanctum', 'require_any:is_admin'])->group(function () {
 
 // Admin user permissions: admin only (plus sysadmin override)
 Route::middleware(['auth:sanctum', 'require_any:is_admin'])->prefix('admin')->group(function () {
+    Route::get('/material-prices', [MaterialPriceController::class, 'index']);
+    Route::post('/material-prices', [MaterialPriceController::class, 'upsert']);
+    Route::delete('/material-prices/{materialUid}', [MaterialPriceController::class, 'destroy']);
     Route::get('/subscriber-cell-records', [SubscriberCellRecordController::class, 'adminIndex']);
     Route::get('/users', [UserController::class, 'index']);
     Route::patch('/users/{user}/permissions', [UserController::class, 'updatePermissions']);
@@ -296,6 +301,9 @@ Route::middleware(['auth:sanctum', 'public_tool_access'])->group(function () {
         ->where('galx', '-?[0-9]+')
         ->where('galy', '-?[0-9]+');
     Route::get('/universe/systems/{system}', [UniverseController::class, 'system']);
+    Route::get('/universe/ship-snapshots', [UniverseController::class, 'shipSnapshots']);
+    Route::get('/universe/ship-snapshots/{snapshot}', [UniverseController::class, 'shipSnapshotDetail'])
+        ->where('snapshot', '[0-9]+');
     Route::get('/universe/subscriber-cell-records', [SubscriberCellRecordController::class, 'index']);
     Route::post('/universe/subscriber-cell-records', [SubscriberCellRecordController::class, 'store']);
     // Cell annotations — JOE members see/edit shared notes; subscribers see/edit only their own scoped notes
@@ -390,6 +398,7 @@ Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('admin')->group(fun
     Route::post('/worker-health/retry-failed-payments', [WorkerHealthController::class, 'retryFailedPayments']);
     Route::post('/worker-health/retry-import/{id}', [WorkerHealthController::class, 'retryImport']);
     Route::delete('/worker-health/failed-jobs', [WorkerHealthController::class, 'clearFailedJobs']);
+    Route::post('/worker-health/reindex-search', [WorkerHealthController::class, 'reindexSearchTab']);
     Route::get('/site-lock', [SiteLockController::class, 'show']);
     Route::post('/site-lock', [SiteLockController::class, 'update']);
     Route::get('/entity-stats/{entityType}/export.csv', [EntityStatsController::class, 'exportCsv']);
@@ -521,6 +530,11 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
 
 Route::middleware(['auth:sanctum', 'require_any:can_access_rm_browser,is_admin,is_sysadmin'])->group(function () {
     Route::get('/rm-browser/materials', [RmBrowserController::class, 'search'])->middleware('throttle:rm-browser');
+});
+
+Route::middleware(['auth:sanctum', 'require_any:is_joe_member,is_admin,is_sysadmin'])->group(function () {
+    Route::get('/xp-tracker', [XpTrackerController::class, 'fetch'])->middleware('throttle:60,10');
+    Route::get('/material-prices', [MaterialPriceController::class, 'index']);
 });
 
 Route::middleware(['auth:sanctum', 'require_any:is_joe_member,can_access_fleet_commander,is_admin,is_sysadmin'])->group(function () {

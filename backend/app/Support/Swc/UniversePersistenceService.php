@@ -855,6 +855,8 @@ class UniversePersistenceService
                 ['uid' => (string) $item['uid']],
                 [
                     'name' => $item['name'] ?? null,
+                    'class_uid' => $item['class_uid'] ?? null,
+                    'class_name' => $item['class_name'] ?? null,
                     'last_pulled_at' => now(),
                 ]
             );
@@ -890,6 +892,10 @@ class UniversePersistenceService
                 'weight_tonnes' => $typeData['weight_tonnes'] ?? null,
                 'volume_m3' => $typeData['volume_m3'] ?? null,
                 'price_credits' => $typeData['price_credits'] ?? null,
+                'batch_quantity' => $typeData['batch_quantity'] ?? null,
+                'production_modifier' => $typeData['production_modifier'] ?? null,
+                'recommended_workers' => $typeData['recommended_workers'] ?? null,
+                'materials' => $typeData['materials'] ?? null,
                 'images' => $typeData['images'] ?? null,
                 'image_url' => $typeData['image_url'] ?? null,
                 'payload' => $typeData['payload'] ?? null,

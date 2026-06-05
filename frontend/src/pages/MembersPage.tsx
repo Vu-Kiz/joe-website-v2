@@ -32,6 +32,10 @@ import MemberCombatCalculatorPanel from "../components/members/MemberCombatCalcu
 import MemberWeaponHeatmapPanel from "../components/members/MemberWeaponHeatmapPanel";
 import MemberWreckingHelperPanel from "../components/members/MemberWreckingHelperPanel";
 import RmBrowserPanel from "../components/rmBrowser/RmBrowserPanel";
+import HaulCalculatorPanel from "../components/members/HaulCalculatorPanel";
+import ProductionCalculatorPanel from "../components/members/ProductionCalculatorPanel";
+import XpTrackerPanel from "../components/members/XpTrackerPanel";
+import RecyclingCalculatorPanel from "../components/members/RecyclingCalculatorPanel";
 import MemberRoleChangelogPanel from "../components/members/MemberRoleChangelogPanel";
 import MemberFleetCommandPanel from "../components/members/MemberFleetCommandPanel";
 import PrivilegePreviewPanel, {
@@ -40,6 +44,7 @@ import PrivilegePreviewPanel, {
 } from "../components/members/PrivilegePreviewPanel";
 import HamburgerToggle from "../components/common/HamburgerToggle";
 import jawaLogo from "../assets/branding/jawalogo.png";
+import recyclingIcon from "../assets/members/RecyclingIcon.png";
 import archiveIcon from "../assets/members/ArchiveIcon.png";
 import astrogationIcon from "../assets/members/AstrogationIcon.png";
 import biometricsIcon from "../assets/members/BiometricsIcon.png";
@@ -54,6 +59,9 @@ import paymentIcon from "../assets/members/PaymentIcon.png";
 import statsIcon from "../assets/members/StatsIcon.png";
 import wreckerIcon from "../assets/members/WreckerIcon.png";
 import rmIcon from "../assets/members/RMicon.png";
+import productionIcon from "../assets/members/ProductionIcon.png";
+import rmHaulerIcon from "../assets/members/RMHaulerIcon.png";
+import xpTrackerIcon from "../assets/members/XpTrackerIcon.png";
 import {
   getSwcAuthorizationStatus,
   type SwcAuthorizationStatus,
@@ -62,7 +70,7 @@ import { logMemberToolOpen, type MemberToolArea } from "../api/members/memberToo
 import { BTN, BTN_SM } from "../utils/ui";
 import ReportBugButton from "../components/support/ReportBugButton";
 
-type MembersView = "overview" | "jobs" | "universe" | "stats" | "hyperplanner" | "biometrics" | "archive" | "shipHeatmap" | "weaponHeatmap" | "wreckingHelper" | "changelog" | "rmBrowser";
+type MembersView = "overview" | "jobs" | "universe" | "stats" | "hyperplanner" | "biometrics" | "archive" | "shipHeatmap" | "weaponHeatmap" | "wreckingHelper" | "changelog" | "rmBrowser" | "haulCalculator" | "production" | "xpTracker" | "recyclingCalculator";
 type JobsView = "open" | "posted" | "taken" | "create" | "payClaims";
 type MembersToolCard = {
   key: string;
@@ -86,6 +94,9 @@ function parseMembersView(value: string | null): MembersView | null {
     case "wreckingHelper":
     case "changelog":
     case "rmBrowser":
+    case "haulCalculator":
+    case "production":
+    case "recyclingCalculator":
       return value;
     case "fleetCommand":
     case "Biometrics":
@@ -125,6 +136,7 @@ const MembersPage: React.FC = () => {
       ? "jobs"
       : requestedMembersView ?? (location.state?.membersView === "universe" ? "universe" : "overview")
   );
+  const [pendingHaulMaterials, setPendingHaulMaterials] = useState<Array<{ name: string; quantity: number }> | null>(null);
   const [jobsView, setJobsView] = useState<JobsView>(
     requestedJobsView === "posted" || requestedJobsView === "taken" || requestedJobsView === "create" || requestedJobsView === "payClaims"
       ? requestedJobsView
@@ -554,6 +566,46 @@ const isLoggedIn = !!user;
       ...(showMemberToolCards
         ? [
             {
+              key: "haulCalculator",
+              title: "RM Hauler",
+              description:
+                "Pick a raw material type and quantity to see which ships and vehicles can carry the load, and how many trips each would take.",
+              actionLabel: "Open RM Hauler",
+              onClick: () => setMembersView("haulCalculator"),
+            } satisfies MembersToolCard,
+          ]
+        : []),
+      ...(showMemberToolCards
+        ? [
+            {
+              key: "production",
+              title: "Production Calculator",
+              description:
+                "Plan production runs for ships, vehicles, and droids. Get material requirements, time estimates, and cost breakdowns.",
+              actionLabel: "Open Production Calculator",
+              onClick: () => setMembersView("production"),
+            } satisfies MembersToolCard,
+            {
+              key: "xpTracker",
+              title: "XP Tracker",
+              description:
+                "Pull your personal XP event history from SWC — see total XP gained, breakdown by activity type, and a daily chart over the past 4 months.",
+              actionLabel: "Open XP Tracker",
+              onClick: () => setMembersView("xpTracker"),
+            } satisfies MembersToolCard,
+            {
+              key: "recyclingCalculator",
+              title: "Recycling Calculator",
+              description:
+                "Estimate recycling time, materials returned, and cost for ships, vehicles, facilities, and stations.",
+              actionLabel: "Open Recycling Calculator",
+              onClick: () => setMembersView("recyclingCalculator"),
+            } satisfies MembersToolCard,
+          ]
+        : []),
+      ...(showMemberToolCards
+        ? [
+            {
               key: "changelog",
               title: "Change Log",
               description:
@@ -867,6 +919,14 @@ const isLoggedIn = !!user;
                         ? chainCodeIcon
                       : tool.key === "rmBrowser"
                         ? rmIcon
+                      : tool.key === "haulCalculator"
+                        ? rmHaulerIcon
+                      : tool.key === "production"
+                        ? productionIcon
+                      : tool.key === "xpTracker"
+                        ? xpTrackerIcon
+                      : tool.key === "recyclingCalculator"
+                        ? recyclingIcon
                         : jawaLogo
                   }
                   alt={
@@ -898,6 +958,14 @@ const isLoggedIn = !!user;
                         ? "Chain Code Verification"
                       : tool.key === "rmBrowser"
                         ? "RM Browser"
+                      : tool.key === "haulCalculator"
+                        ? "RM Hauler"
+                      : tool.key === "production"
+                        ? "Production Calculator"
+                      : tool.key === "xpTracker"
+                        ? "XP Tracker"
+                      : tool.key === "recyclingCalculator"
+                        ? "Recycling Calculator"
                         : "JOE placeholder logo"
                   }
                   className={`h-[84px] w-[84px] object-contain ${(tool.key === "payments" && hasPendingPayments) || (tool.key === "jobs" && hasPendingClaims) ? "animate-members-alert-pulse" : ""}`}
@@ -1076,6 +1144,50 @@ const isLoggedIn = !!user;
             </button>
           </div>
           <RmBrowserPanel />
+        </>
+      )}
+
+      {membersView === "production" && canSeeMemberOnlyTools && (
+        <>
+          <div className="flex mb-4">
+            <button className={BTN} type="button" onClick={() => setMembersView("overview")}>
+              Back to Overview
+            </button>
+          </div>
+          <ProductionCalculatorPanel onPushToHaul={(mats) => { setPendingHaulMaterials(mats); setMembersView("haulCalculator"); }} />
+        </>
+      )}
+
+      {membersView === "haulCalculator" && canSeeMemberOnlyTools && (
+        <>
+          <div className="flex mb-4">
+            <button className={BTN} type="button" onClick={() => setMembersView("overview")}>
+              Back to Overview
+            </button>
+          </div>
+          <HaulCalculatorPanel pendingMaterials={pendingHaulMaterials} />
+        </>
+      )}
+
+      {membersView === "xpTracker" && canSeeMemberOnlyTools && (
+        <>
+          <div className="flex mb-4">
+            <button className={BTN} type="button" onClick={() => setMembersView("overview")}>
+              Back to Overview
+            </button>
+          </div>
+          <XpTrackerPanel />
+        </>
+      )}
+
+      {membersView === "recyclingCalculator" && canSeeMemberOnlyTools && (
+        <>
+          <div className="flex mb-4">
+            <button className={BTN} type="button" onClick={() => setMembersView("overview")}>
+              Back to Overview
+            </button>
+          </div>
+          <RecyclingCalculatorPanel />
         </>
       )}
 

@@ -133,4 +133,48 @@ class CombineTime
 
         return "Year {$state->year} Day {$state->day} · {$h}:{$m}";
     }
+
+    /**
+     * Convert a Unix timestamp to CGT string.
+     */
+    public static function formatFromUnixTime(int $unixTime): string
+    {
+        $state = self::getState();
+
+        if ($state->year === 0 && $state->day === 0) {
+            return 'CGT unavailable';
+        }
+
+        // Calculate offset between real time and SWC seconds at the time of the state refresh
+        $stateRealSeconds = $state->refreshed_at->getTimestamp();
+        $swcSecondsOffset = $state->swc_seconds - $stateRealSeconds;
+
+        // Apply offset to the given unix time
+        $swcSeconds = $unixTime + $swcSecondsOffset;
+        $swcSeconds = (int) max(0, $swcSeconds);
+
+        // Convert SWC seconds to year/day/hour/min/sec
+        $secondsPerYear = 365 * 86400;
+        $secondsPerDay = 86400;
+        $secondsPerHour = 3600;
+        $secondsPerMin = 60;
+
+        $year = (int) floor($swcSeconds / $secondsPerYear);
+        $remainder = $swcSeconds % $secondsPerYear;
+
+        $day = (int) floor($remainder / $secondsPerDay);
+        $remainder = $remainder % $secondsPerDay;
+
+        $hours = (int) floor($remainder / $secondsPerHour);
+        $remainder = $remainder % $secondsPerHour;
+
+        $mins = (int) floor($remainder / $secondsPerMin);
+        $secs = (int) ($remainder % $secondsPerMin);
+
+        $h = str_pad((string) $hours, 2, '0', STR_PAD_LEFT);
+        $m = str_pad((string) $mins, 2, '0', STR_PAD_LEFT);
+        $s = str_pad((string) $secs, 2, '0', STR_PAD_LEFT);
+
+        return "Year {$year} Day {$day} · {$h}:{$m}:{$s}";
+    }
 }

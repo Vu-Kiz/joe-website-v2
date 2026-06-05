@@ -23,6 +23,7 @@ export type AdminView =
   | "astrogationUploads"
   | "toolStore"
   | "jobPayRates"
+  | "materialPrices"
   | "supportTickets";
 
 type NavItem = {
@@ -57,6 +58,7 @@ const ALL_ITEMS: NavItem[] = [
   { key: "memberChangelog", label: "Change Log", category: "Content", role: "admin", keywords: ["changelog", "release", "notes"] },
   { key: "users", label: "Users", category: "People", role: "admin", keywords: ["users", "permissions", "roles"] },
   { key: "jobPayRates", label: "Pay Rate Catalog", category: "People", role: "admin", keywords: ["pay", "rates", "catalog"] },
+  { key: "materialPrices", label: "Material Prices", category: "People", role: "admin", keywords: ["material", "prices", "mining", "cost"] },
   { key: "workerHealth", label: "Worker Health", category: "Operations", role: "sysadmin", requiresSysadmin: true, keywords: ["worker", "queue", "health"] },
   { key: "websiteHealth", label: "Website Health", category: "Operations", role: "sysadmin", requiresSysadmin: true, keywords: ["website", "health", "runtime"] },
   { key: "discordBot", label: "Discord Bot", category: "Operations", role: "sysadmin", requiresSysadmin: true, keywords: ["discord", "bot", "guild"] },

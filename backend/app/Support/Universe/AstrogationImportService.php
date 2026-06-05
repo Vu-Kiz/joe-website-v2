@@ -197,6 +197,7 @@ class AstrogationImportService
         $cutoffEventTimestamp        = null;
         $latestProcessedEventTimestamp = null;
         $latestProcessedEventUid     = null;
+        $confirmedAuthMode = null;
 
         for ($page = 0; $page < $maxPages; $page += 1) {
             $query = [
@@ -204,7 +205,8 @@ class AstrogationImportService
                 'item_count'  => (string) $itemCount,
             ];
 
-            $attempt  = SwcHttp::getWithOrderedAuthFallback($url, $query, $accessToken, ['oauth', 'bearer']);
+            $modes   = $confirmedAuthMode ? [$confirmedAuthMode] : ['oauth', 'bearer'];
+            $attempt = SwcHttp::getWithOrderedAuthFallback($url, $query, $accessToken, $modes);
             /** @var Response $response */
             $response    = $attempt['response'];
             $lastAttempt = $attempt;
@@ -219,6 +221,10 @@ class AstrogationImportService
                 'status'      => $response->status(),
                 'ok'          => $response->ok(),
             ];
+
+            if ($response->ok() && $confirmedAuthMode === null) {
+                $confirmedAuthMode = $attempt['mode'];
+            }
 
             if (!$response->ok()) {
                 return [

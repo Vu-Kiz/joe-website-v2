@@ -3,6 +3,7 @@ import {
   clearFailedJobs,
   getAdminWorkerHealth,
   recoverStuckImports,
+  reindexSearchTab,
   retryFailedPayments,
   runPaymentsNow,
   type AdminWorkerHealthState,
@@ -31,7 +32,7 @@ const formatSeconds = (value: number | null | undefined): string => {
   return `${hours}h ${minutes}m`;
 };
 
-type ActionKey = "recoverImports" | "runPayments" | "retryPayments" | "clearFailed" | `retryImport:${number}`;
+type ActionKey = "recoverImports" | "runPayments" | "retryPayments" | "clearFailed" | "reindexAll" | `retryImport:${number}`;
 
 const AdminWorkerHealthPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -159,6 +160,14 @@ const AdminWorkerHealthPanel: React.FC = () => {
           disabled={!!acting}
         >
           {acting === "retryPayments" ? "Running…" : "Retry Failed Payments"}
+        </button>
+        <button
+          type="button"
+          className={BTN_SM + " all"}
+          onClick={() => runAction("reindexAll", () => reindexSearchTab("all").then(r => ({ ...r, dispatched: r.dispatched?.length })))}
+          disabled={!!acting}
+        >
+          {acting === "reindexAll" ? "Dispatching…" : "Reindex DroidBrain Search"}
         </button>
         <button
           type="button"

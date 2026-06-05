@@ -1,0 +1,183 @@
+{
+  "ok": true,
+  "exported_at": "2026-06-05T00:00:00+00:00",
+  "version": "2.1.4",
+  "count": 11,
+  "entries": [
+    {
+      "version": "2.1.4",
+      "title": "New tool: RM Hauler",
+      "details": "Build a cargo manifest by searching for raw materials and entering quantities. The tool then shows you every ship and vehicle in the database ranked by how many trips it would need to move that cargo, highlighting whether weight or volume is the limiting factor. Save manifests locally by name and reload them in future sessions. Export a haul plan for a specific hauler as a formatted Discord message.",
+      "tools": [
+        "RM Hauler"
+      ],
+      "audiences": [
+        "members",
+        "admin",
+        "sysadmin"
+      ],
+      "sort_order": 1,
+      "released_at": "2026-06-05T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.1.4",
+      "title": "New tool: Production Calculator",
+      "details": "Plan production runs across ships, vehicles, facilities, stations, droids, weapons, items, and more — all in one place. Add any number of entity types and quantities, and the calculator aggregates total material requirements, time estimates (min/max range), XP gains, and credit costs across all rows. Configurable settings include management level, civilisation level, location modifier, morale, crime, and tax rate.",
+      "tools": [
+        "Production Calculator"
+      ],
+      "audiences": [
+        "members",
+        "admin",
+        "sysadmin"
+      ],
+      "sort_order": 2,
+      "released_at": "2026-06-05T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.1.4",
+      "title": "New tool: XP Tracker",
+      "details": "Pull your personal XP event history from SWC (up to 4 months). See your total XP gained, a breakdown by category (production, recycling, combat, skill upgrades, etc.), average XP per active day, and a daily chart. Filter by date range to focus on a specific period.",
+      "tools": [
+        "XP Tracker"
+      ],
+      "audiences": [
+        "members",
+        "admin",
+        "sysadmin"
+      ],
+      "sort_order": 3,
+      "released_at": "2026-06-05T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.1.4",
+      "title": "New tool: Recycling Calculator",
+      "details": "Estimate how long it will take to recycle any ship, vehicle, facility, or station, what materials you will get back, and what the recycling cost will be. Select entity condition (Non-Wreck or Wreck), recycler type (Vehicle, Ship, or Station/Facility), and your repair skill — or pull your skill directly from your SWC Chain Code. The per-material breakdown table shows required, returned, and lost quantities for each material.",
+      "tools": [
+        "Recycling Calculator"
+      ],
+      "audiences": [
+        "members",
+        "admin",
+        "sysadmin"
+      ],
+      "sort_order": 4,
+      "released_at": "2026-06-05T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.1.4",
+      "title": "Astrogation location view — in-system grid",
+      "details": "Location pages now load and display the full in-system grid for any system at that chart coordinate — the same interactive planet, station, and DroidBrain ship view that was previously only available on the system page. DroidBrain ship cards show IFF colour coding, IFF filter pills (Friend / Enemy / Neutral / Unknown), and expandable type stats.",
+      "tools": [
+        "Astrogation"
+      ],
+      "audiences": [
+        "members",
+        "admin",
+        "sysadmin"
+      ],
+      "sort_order": 5,
+      "released_at": "2026-06-05T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.1.4",
+      "title": "Astrogation location view — bug fixes",
+      "details": "Fixed a crash that prevented the location page from loading at all. Fixed the back button incorrectly landing on the Tools overview instead of returning to the Astrogation map. Fixed a 504 timeout on coordinates with large DroidBrain scan archives.",
+      "tools": [
+        "Astrogation"
+      ],
+      "audiences": [
+        "members",
+        "admin",
+        "sysadmin"
+      ],
+      "sort_order": 6,
+      "released_at": "2026-06-05T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.1.4",
+      "title": "Admin: DroidBrain search reindex button",
+      "details": "A new 'Reindex DroidBrain Search' button in the Worker Health panel lets sysadmins manually trigger a full rebuild of the DroidBrain search index for all entity tabs. The reindex job now processes records in chunks instead of all at once, preventing the timeout that was causing it to fail silently on large datasets.",
+      "tools": [
+        "Admin",
+        "DroidBrain"
+      ],
+      "audiences": [
+        "sysadmin"
+      ],
+      "sort_order": 11,
+      "released_at": "2026-06-05T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.1.4",
+      "title": "Payment fix — long communication messages no longer fail",
+      "details": "Fixed a database error that occurred when a payment communication message exceeded 255 characters. This was causing certain payments to fail silently. The communication field has been widened to support messages of any length.",
+      "tools": [
+        "Payments"
+      ],
+      "audiences": [
+        "members",
+        "admin",
+        "sysadmin"
+      ],
+      "sort_order": 7,
+      "released_at": "2026-06-05T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.1.4",
+      "title": "Astrogation upload fix — auth mode no longer retried on every page",
+      "details": "Fixed an issue where the astrogation upload was renegotiating its SWC authentication method on every page of travel history it fetched. Once the first page succeeds with a given auth mode, that mode is now locked in for the rest of the upload — reducing unnecessary auth overhead and making large uploads more reliable.",
+      "tools": [
+        "Astrogation"
+      ],
+      "audiences": [
+        "members",
+        "admin",
+        "sysadmin"
+      ],
+      "sort_order": 9,
+      "released_at": "2026-06-05T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.1.4",
+      "title": "Astrogation reward fix — duplicate payment no longer created on re-upload",
+      "details": "Fixed a bug where uploading astrogation data more than once in a session could create a duplicate pending payment record, causing a database error and blocking the reward from being issued. The reward payment is now updated in place if a pending one already exists for your account, so re-uploads always reflect the latest reward amount without creating duplicate entries.",
+      "tools": [
+        "Astrogation"
+      ],
+      "audiences": [
+        "members",
+        "admin",
+        "sysadmin"
+      ],
+      "sort_order": 10,
+      "released_at": "2026-06-05T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.1.4",
+      "title": "Admin: Material Prices panel",
+      "details": "New admin panel for setting the credit price per unit for each raw material type. Prices are used by the Production Calculator to show accurate cost estimates for production runs.",
+      "tools": [
+        "Admin",
+        "Production Calculator"
+      ],
+      "audiences": [
+        "admin",
+        "sysadmin"
+      ],
+      "sort_order": 12,
+      "released_at": "2026-06-05T00:00:00+00:00",
+      "is_active": true
+    }
+  ]
+}

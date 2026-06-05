@@ -19,7 +19,9 @@ class DroidBrainReindexJob implements ShouldQueue, ShouldBeUnique
     use SerializesModels;
 
     public int $tries = 1;
-    public int $timeout = 300;
+    public int $timeout = 3600;
+
+    private const CHUNK_SIZE = 500;
 
     private static array $modelMap = [
         'ships'    => \App\Models\DroidBrain\DroidBrainShip::class,
@@ -49,7 +51,7 @@ class DroidBrainReindexJob implements ShouldQueue, ShouldBeUnique
             return;
         }
 
-        $modelClass::makeAllSearchable();
+        $modelClass::chunk(self::CHUNK_SIZE, fn ($records) => $records->searchable());
         DroidBrainIndexStatus::markClean($this->tab);
         app(DroidBrainBrowserService::class)->warmOptionsCache($this->tab);
     }

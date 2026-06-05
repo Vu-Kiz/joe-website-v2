@@ -397,6 +397,7 @@ export type StoredSystemDetail = {
     owner_name: string | null;
     class_name: string | null;
     type_name: string | null;
+    public_status: string | null;
     galx: number | null;
     galy: number | null;
     sysx: number | null;
@@ -439,12 +440,15 @@ export type StoredLocationDetail = {
     object_name: string | null;
   } | null;
   ships: Array<{
+    placementX: number;
+    placementY: number;
     uid: string | null;
     name: string | null;
     owner_uid: string | null;
     owner_name: string | null;
     class_name: string | null;
     type_name: string | null;
+    public_status: string | null;
     system_name: string | null;
     planet_name: string | null;
     city_name: string | null;
@@ -580,6 +584,13 @@ export type StoredVehicleTypeSummary = {
   max_passengers: number | null;
   hull: number | null;
   shield: number | null;
+  weight_tonnes: number | null;
+  volume_m3: number | null;
+  weight_capacity_tonnes: number | null;
+  volume_capacity_m3: number | null;
+  production_modifier: number | null;
+  recommended_workers: number | null;
+  materials: Array<Record<string, unknown>> | null;
   price_credits: number | null;
   images: Record<string, string | null> | null;
   image_url: string | null;
@@ -591,10 +602,6 @@ export type StoredVehicleTypeDetail = StoredVehicleTypeSummary & {
   manoeuvrability: number | null;
   sensors: number | null;
   ecm: number | null;
-  weight_tonnes: number | null;
-  volume_m3: number | null;
-  weight_capacity_tonnes: number | null;
-  volume_capacity_m3: number | null;
   ionic_capacity: number | null;
   has_repulsors: boolean | null;
   slot_size: number | null;
@@ -602,13 +609,10 @@ export type StoredVehicleTypeDetail = StoredVehicleTypeSummary & {
   has_hangar_bay: boolean | null;
   has_docking_bay: boolean | null;
   can_recycle: boolean | null;
-  production_modifier: number | null;
-  recommended_workers: number | null;
   recycling_xp: number | null;
   generic_slots: number | null;
   terrain_restrictions: Array<Record<string, unknown>> | null;
   weapons: Array<Record<string, unknown>> | null;
-  materials: Array<Record<string, unknown>> | null;
   payload: Record<string, unknown> | null;
 };
 
@@ -729,6 +733,11 @@ export type StoredWeaponTypeSummary = {
   tracking: number | null;
   is_poison: boolean | null;
   is_dual: boolean | null;
+  weight_tonnes: number | null;
+  volume_m3: number | null;
+  production_modifier: number | null;
+  recommended_workers: number | null;
+  materials: Array<Record<string, unknown>> | null;
   price_credits: number | null;
   images: Record<string, string | null> | null;
   image_url: string | null;
@@ -763,6 +772,7 @@ export type StoredFacilityTypeSummary = {
   width: number | null;
   height: number | null;
   description: string | null;
+  materials: Array<Record<string, unknown>> | null;
   price_credits: number | null;
   images: Record<string, string | null> | null;
   image_url: string | null;
@@ -782,7 +792,11 @@ export type StoredItemTypeSummary = {
   description: string | null;
   weight_tonnes: number | null;
   volume_m3: number | null;
+  production_modifier: number | null;
+  recommended_workers: number | null;
+  materials: Array<Record<string, unknown>> | null;
   price_credits: number | null;
+  batch_quantity: number | null;
   images: Record<string, string | null> | null;
   image_url: string | null;
   icon_url: string | null;
@@ -1008,6 +1022,46 @@ export function saveStoredSearchRecord(payload: {
       method: "POST",
       body: JSON.stringify(payload),
     }
+  );
+}
+
+export type ShipSnapshot = {
+  snapshot_unixtime: number;
+  ship_count: number;
+  cgt_formatted: string;
+};
+
+export type SnapshotShip = {
+  uid: string | null;
+  name: string | null;
+  owner_uid: string | null;
+  owner_name: string | null;
+  class_name: string | null;
+  type_name: string | null;
+  public_status: string | null;
+  galx: number;
+  galy: number;
+  sysx: number | null;
+  sysy: number | null;
+  surfx: number | null;
+  surfy: number | null;
+  system_name: string | null;
+  planet_name: string | null;
+  city_name: string | null;
+  groundx: number | null;
+  groundy: number | null;
+  snapshot_unixtime: number;
+};
+
+export function getShipSnapshots(galx: number, galy: number) {
+  return apiFetch<{ ok: boolean; data: ShipSnapshot[] }>(
+    `/universe/ship-snapshots?galx=${galx}&galy=${galy}`
+  );
+}
+
+export function getShipSnapshotDetail(snapshot: number, galx: number, galy: number) {
+  return apiFetch<{ ok: boolean; data: SnapshotShip[] }>(
+    `/universe/ship-snapshots/${snapshot}?galx=${galx}&galy=${galy}`
   );
 }
 

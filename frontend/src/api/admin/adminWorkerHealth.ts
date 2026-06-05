@@ -85,3 +85,10 @@ export async function retryImport(id: number) {
 export async function clearFailedJobs() {
   return apiFetch<{ ok: true; cleared: number }>("/admin/worker-health/failed-jobs", { method: "DELETE" });
 }
+
+export async function reindexSearchTab(tab: string) {
+  return apiFetch<{ ok: true; dispatched: string[] }>("/admin/worker-health/reindex-search", {
+    method: "POST",
+    body: JSON.stringify({ tab }),
+  });
+}

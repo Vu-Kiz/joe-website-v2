@@ -29,6 +29,7 @@ use App\Models\Swc\SwcWeaponType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Support\Swc\Auth\Permissions;
+use App\Support\Swc\CombineTime;
 use App\Support\ToolStore\ToolAccessService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -664,21 +665,30 @@ class UniverseController extends Controller
 
     private function resolveLocationAsteroidField(int $galx, int $galy): ?array
     {
-        $candidates = DB::table('droidbrain_system_scan_objects as scan_object')
-            ->join('droidbrain_system_scans as scan', 'scan.id', '=', 'scan_object.scan_id')
-            ->where('scan_object.galx', $galx)
-            ->where('scan_object.galy', $galy)
-            ->whereNotNull('scan_object.raw_json')
-            ->where('scan_object.raw_json', 'like', '%fieldString%')
-            ->orderByDesc('scan.snapshot_unixtime')
-            ->orderByDesc('scan_object.id')
-            ->limit(50)
-            ->get([
-                'scan.snapshot_unixtime',
-                'scan_object.object_type',
-                'scan_object.object_name',
-                'scan_object.raw_json',
-            ]);
+        try {
+            DB::statement('SET SESSION MAX_EXECUTION_TIME=8000');
+        } catch (\Throwable) {}
+        try {
+            $candidates = DB::table('droidbrain_system_scan_objects as scan_object')
+                ->join('droidbrain_system_scans as scan', 'scan.id', '=', 'scan_object.scan_id')
+                ->where('scan_object.galx', $galx)
+                ->where('scan_object.galy', $galy)
+                ->whereNotNull('scan_object.raw_json')
+                ->where('scan_object.raw_json', 'like', '%fieldString%')
+                ->orderByDesc('scan.snapshot_unixtime')
+                ->orderByDesc('scan_object.id')
+                ->limit(50)
+                ->get([
+                    'scan.snapshot_unixtime',
+                    'scan_object.object_type',
+                    'scan_object.object_name',
+                    'scan_object.raw_json',
+                ]);
+        } catch (\Throwable) {
+            $candidates = collect();
+        } finally {
+            try { DB::statement('SET SESSION MAX_EXECUTION_TIME=0'); } catch (\Throwable) {}
+        }
 
         foreach ($candidates as $candidate) {
             $fieldString = $this->extractFieldStringFromRawJson(
@@ -704,20 +714,30 @@ class UniverseController extends Controller
         }
 
         // Some scan exports only carry fieldString in the parent file XML, not in object raw_json.
-        $xmlCandidates = DB::table('droidbrain_system_scans as scan')
-            ->join('droidbrain_files as file', 'file.id', '=', 'scan.file_id')
-            ->where('scan.galx', $galx)
-            ->where('scan.galy', $galy)
-            ->whereNotNull('file.raw_xml')
-            ->whereRaw('LOWER(file.raw_xml) like ?', ['%fieldstring%'])
-            ->orderByDesc('scan.snapshot_unixtime')
-            ->orderByDesc('file.id')
-            ->limit(25)
-            ->get([
-                'scan.snapshot_unixtime',
-                'file.file_name',
-                'file.raw_xml',
-            ]);
+        // The LIKE scan on raw_xml can be very slow for large tables, so cap it at 8 seconds.
+        try {
+            DB::statement('SET SESSION MAX_EXECUTION_TIME=8000');
+        } catch (\Throwable) {}
+        try {
+            $xmlCandidates = DB::table('droidbrain_system_scans as scan')
+                ->join('droidbrain_files as file', 'file.id', '=', 'scan.file_id')
+                ->where('scan.galx', $galx)
+                ->where('scan.galy', $galy)
+                ->whereNotNull('file.raw_xml')
+                ->whereRaw('LOWER(file.raw_xml) like ?', ['%fieldstring%'])
+                ->orderByDesc('scan.snapshot_unixtime')
+                ->orderByDesc('file.id')
+                ->limit(25)
+                ->get([
+                    'scan.snapshot_unixtime',
+                    'file.file_name',
+                    'file.raw_xml',
+                ]);
+        } catch (\Throwable) {
+            $xmlCandidates = collect();
+        } finally {
+            try { DB::statement('SET SESSION MAX_EXECUTION_TIME=0'); } catch (\Throwable) {}
+        }
 
         foreach ($xmlCandidates as $candidate) {
             $fieldString = $this->extractFieldStringFromRawXml(
@@ -2572,6 +2592,79 @@ class UniverseController extends Controller
         ]);
     }
 
+    public function shipSnapshots(Request $request): JsonResponse
+    {
+        if (!Permissions::hasAny($request->user(), ['is_intel', 'is_sysadmin'])) {
+            return response()->json(['ok' => false, 'message' => 'Forbidden.'], 403);
+        }
+
+        $validated = $request->validate([
+            'galx' => ['required', 'integer'],
+            'galy' => ['required', 'integer'],
+        ]);
+
+        $snapshots = DB::table('droidbrain_ships')
+            ->where('galx', (int) $validated['galx'])
+            ->where('galy', (int) $validated['galy'])
+            ->selectRaw('snapshot_unixtime, COUNT(*) as ship_count')
+            ->groupBy('snapshot_unixtime')
+            ->orderByDesc('snapshot_unixtime')
+            ->get()
+            ->map(fn ($row) => [
+                'snapshot_unixtime' => (int) $row->snapshot_unixtime,
+                'ship_count'        => (int) $row->ship_count,
+                'cgt_formatted'     => CombineTime::formatFromUnixTime((int) $row->snapshot_unixtime),
+            ]);
+
+        return response()->json(['ok' => true, 'data' => $snapshots]);
+    }
+
+    public function shipSnapshotDetail(Request $request, int $snapshot): JsonResponse
+    {
+        if (!Permissions::hasAny($request->user(), ['is_intel', 'is_sysadmin'])) {
+            return response()->json(['ok' => false, 'message' => 'Forbidden.'], 403);
+        }
+
+        $validated = $request->validate([
+            'galx' => ['required', 'integer'],
+            'galy' => ['required', 'integer'],
+        ]);
+
+        $ships = DB::table('droidbrain_ships')
+            ->where('galx', (int) $validated['galx'])
+            ->where('galy', (int) $validated['galy'])
+            ->where('snapshot_unixtime', $snapshot)
+            ->orderBy('sysy')->orderBy('sysx')->orderBy('name')
+            ->get([
+                'entity_uid', 'name', 'owner_uid', 'owner_name',
+                'class_name', 'type_name', 'public_status',
+                'sysx', 'sysy', 'surfx', 'surfy', 'snapshot_unixtime',
+            ])
+            ->map(fn ($ship) => [
+                'uid'              => $ship->entity_uid,
+                'name'             => $ship->name,
+                'owner_uid'        => $ship->owner_uid,
+                'owner_name'       => $ship->owner_name,
+                'class_name'       => $ship->class_name,
+                'type_name'        => $ship->type_name,
+                'public_status'    => $ship->public_status,
+                'galx'             => (int) $validated['galx'],
+                'galy'             => (int) $validated['galy'],
+                'sysx'             => $ship->sysx,
+                'sysy'             => $ship->sysy,
+                'surfx'            => $ship->surfx,
+                'surfy'            => $ship->surfy,
+                'system_name'      => null,
+                'planet_name'      => null,
+                'city_name'        => null,
+                'groundx'          => null,
+                'groundy'          => null,
+                'snapshot_unixtime'=> (int) $ship->snapshot_unixtime,
+            ]);
+
+        return response()->json(['ok' => true, 'data' => $ships]);
+    }
+
     public function location(Request $request, int $galx, int $galy): JsonResponse
     {
         $canViewAsteroidIntel = $this->canViewAsteroidIntel($request);
@@ -2645,6 +2738,7 @@ class UniverseController extends Controller
                     'owner_name',
                     'class_name',
                     'type_name',
+                    'public_status',
                     'system_name',
                     'planet_name',
                     'city_name',
@@ -2663,6 +2757,7 @@ class UniverseController extends Controller
                     'owner_name' => $ship->owner_name,
                     'class_name' => $ship->class_name,
                     'type_name' => $ship->type_name,
+                    'public_status' => $ship->public_status,
                     'system_name' => $ship->system_name,
                     'planet_name' => $ship->planet_name,
                     'city_name' => $ship->city_name,
@@ -2814,6 +2909,7 @@ class UniverseController extends Controller
         );
 
         $systemRecord = SwcSystem::query()->where('uid', $system)->first()
+            ?? (ctype_digit($system) ? SwcSystem::query()->where('uid', 'like', '%:' . $system)->first() : null)
             ?? SwcSystem::query()->where('identifier', $system)->first()
             ?? SwcSystem::query()->where('name', $system)->firstOrFail();
 
@@ -2909,6 +3005,7 @@ class UniverseController extends Controller
                     'owner_name',
                     'class_name',
                     'type_name',
+                    'public_status',
                     'galx',
                     'galy',
                     'sysx',
@@ -2922,6 +3019,7 @@ class UniverseController extends Controller
                     'owner_name' => $ship->owner_name,
                     'class_name' => $ship->class_name,
                     'type_name' => $ship->type_name,
+                    'public_status' => $ship->public_status,
                     'galx' => $ship->galx,
                     'galy' => $ship->galy,
                     'sysx' => $ship->sysx,
@@ -3394,7 +3492,7 @@ class UniverseController extends Controller
 
     public function facilityTypes(): JsonResponse
     {
-        return $this->cachedListResponse('universe:types:facility', 300, fn () => SwcFacilityType::query()
+        return $this->cachedListResponse('universe:types:facility:v2', 300, fn () => SwcFacilityType::query()
             ->orderBy('name')
             ->get([
                 'uid',
@@ -3405,6 +3503,7 @@ class UniverseController extends Controller
                 'width',
                 'height',
                 'description',
+                'materials',
                 'price_credits',
                 'images',
                 'image_url',
@@ -3474,7 +3573,7 @@ class UniverseController extends Controller
 
     public function itemTypes(): JsonResponse
     {
-        return $this->cachedListResponse('universe:types:item', 300, fn () => SwcItemType::query()
+        return $this->cachedListResponse('universe:types:item:v2', 300, fn () => SwcItemType::query()
             ->orderBy('name')
             ->get([
                 'uid',
@@ -3485,6 +3584,10 @@ class UniverseController extends Controller
                 'weight_tonnes',
                 'volume_m3',
                 'price_credits',
+                'batch_quantity',
+                'production_modifier',
+                'recommended_workers',
+                'materials',
                 'images',
                 'image_url',
                 'icon_url',
@@ -3505,6 +3608,10 @@ class UniverseController extends Controller
                 'description',
                 'weight_tonnes',
                 'volume_m3',
+                'production_modifier',
+                'recommended_workers',
+                'batch_quantity',
+                'materials',
                 'price_credits',
                 'images',
                 'image_url',
