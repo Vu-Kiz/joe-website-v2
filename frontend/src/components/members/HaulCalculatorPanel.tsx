@@ -565,12 +565,6 @@ const HaulCalculatorPanel: React.FC<{
     setCargoRows(manifest.rows.map((r) => ({ ...r, id: newRowId() })));
   }
 
-  function handleDeleteManifest(id: string) {
-    const next = savedManifests.filter((m) => m.id !== id);
-    setSavedManifests(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  }
-
   const fmt = (n: number) =>
     n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
