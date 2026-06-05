@@ -6,12 +6,17 @@ use App\Models\DroidBrain\DroidBrainPaymentSetting;
 use App\Models\Faction;
 use App\Models\Payment\PaymentItem;
 use App\Models\User;
+use App\Support\ToolStore\ToolAccessService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class DroidBrainRewardService
 {
     private const MODIFIED_ENTITY_MIN_AGE_SECONDS = 14 * 24 * 60 * 60;
+
+    public function __construct(protected ToolAccessService $toolAccessService)
+    {
+    }
 
     public function syncForFile(int $fileId, ?int $payerFactionId = null, bool $createPaymentItem = false): ?array
     {
@@ -126,6 +131,11 @@ class DroidBrainRewardService
             }
         });
 
+        $uploaderUser = User::query()->find((int) $uploader->user_id);
+        $uploaderTier = $this->toolAccessService->tierForUser($uploaderUser);
+        $rewardMultiplier = $uploaderTier === ToolAccessService::TIER_PUBLIC ? 0.5 : 1.0;
+        $totalAmount = (int) floor($totalAmount * $rewardMultiplier);
+
         $paymentItem = $existingPaymentItem;
         if ($createPaymentItem && $totalAmount > 0 && $payer && $payeeHandle !== null) {
             $paymentItem = PaymentItem::updateOrCreate(
@@ -149,6 +159,7 @@ class DroidBrainRewardService
                     'status' => 'pending',
                     'meta' => [
                         'communication_prefix' => $this->buildCommunicationPrefix($logs),
+                        'reward_multiplier' => $rewardMultiplier,
                         'droidbrain_file_id' => $fileId,
                         'file_name' => $file->file_name,
                         'breakdown' => $logs->map(fn (array $log) => [

@@ -445,7 +445,7 @@ Route::middleware(['auth:sanctum', 'public_tool_access'])->group(function () {
     Route::get('/droidbrain/history', [DroidBrainController::class, 'history']);
 });
 
-Route::middleware(['auth:sanctum', 'require_any:is_joe_member,is_intel,is_sysadmin'])->group(function () {
+Route::middleware(['auth:sanctum', 'public_tool_access'])->group(function () {
     Route::post('/droidbrain/upload', [DroidBrainController::class, 'upload']);
     Route::get('/droidbrain/upload-queue/{queueId}', [DroidBrainController::class, 'uploadQueueStatus']);
 });
