@@ -201,7 +201,7 @@ const AdminWorkerHealthPanel: React.FC = () => {
       {!loading && !error && health ? (
         <>
           <div className="mb-4 flex items-stretch gap-3 overflow-x-auto pb-1">
-            <section className="panel flex min-w-[300px] flex-[0_0_300px] flex-col gap-4">
+            <section className="panel flex min-w-75 flex-[0_0_300px] flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <h3 className="m-0">Overall</h3>
                 <p className="small">
@@ -217,7 +217,7 @@ const AdminWorkerHealthPanel: React.FC = () => {
               </div>
             </section>
 
-            <section className="panel flex min-w-[300px] flex-[0_0_300px] flex-col gap-4">
+            <section className="panel flex min-w-75 flex-[0_0_300px] flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <h3 className="m-0">Queue Backlog</h3>
                 <p className="small"><strong>Connection:</strong> {health.queue.default_connection ?? "Unknown"}</p>
@@ -233,7 +233,7 @@ const AdminWorkerHealthPanel: React.FC = () => {
               </div>
             </section>
 
-            <section className="panel flex min-w-[300px] flex-[0_0_300px] flex-col gap-4">
+            <section className="panel flex min-w-75 flex-[0_0_300px] flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <h3 className="m-0">Failed Queue Jobs</h3>
                 <p className="small"><strong>Recent Failed:</strong> {health.failed_jobs.recent ?? "Unknown"}{health.failed_jobs.recent_window_hours ? ` (last ${health.failed_jobs.recent_window_hours}h)` : ""}</p>
@@ -248,7 +248,7 @@ const AdminWorkerHealthPanel: React.FC = () => {
               </div>
             </section>
 
-            <section className="panel flex min-w-[300px] flex-[0_0_300px] flex-col gap-4">
+            <section className="panel flex min-w-75 flex-[0_0_300px] flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <h3 className="m-0">DroidBrain Upload Queue</h3>
                 {droidbrainCounts.length > 0 ? (
@@ -269,7 +269,7 @@ const AdminWorkerHealthPanel: React.FC = () => {
               </div>
             </section>
 
-            <section className="panel flex min-w-[300px] flex-[0_0_300px] flex-col gap-4">
+            <section className="panel flex min-w-75 flex-[0_0_300px] flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <h3 className="m-0">DroidBrain Payments</h3>
                 {paymentCounts.length > 0 ? (
@@ -298,7 +298,7 @@ const AdminWorkerHealthPanel: React.FC = () => {
             ) : (
               <div className="flex flex-wrap items-stretch gap-3 overflow-x-auto pb-1">
                 {health.queue.by_queue.map((entry) => (
-                  <section key={entry.queue} className="panel flex min-w-[220px] flex-[0_0_220px] flex-col gap-4">
+                  <section key={entry.queue} className="panel flex min-w-55 flex-[0_0_220px] flex-col gap-4">
                     <div className="flex flex-col gap-1.5">
                       <h3 className={`m-0 ${toneClassForStatus(entry.status)}`}>
                         {entry.queue}

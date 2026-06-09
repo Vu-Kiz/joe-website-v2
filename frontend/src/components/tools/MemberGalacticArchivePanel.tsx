@@ -533,18 +533,18 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
               <>
                 <h3 className="m-0 text-[rgba(246,163,0,0.95)]">{selectedSector.sector.name ?? selectedSector.sector.uid}</h3>
                 <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>UID</span><strong>{formatSwcId(selectedSector.sector.uid)}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Owner</span><strong>{selectedSector.sector.owner_name ?? "Unknown"}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Population</span><strong>{formatNumber(selectedSector.sector.population)}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Known Systems</span><strong>{formatNumber(selectedSector.sector.known_systems)}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Grid Cells</span><strong>{formatNumber(selectedSector.coordinates.length)}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Last Pulled</span><strong>{formatTimestamp(sectors.find((row) => row.uid === selectedSector.sector.uid)?.last_pulled_at ?? null)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>UID</span><strong>{formatSwcId(selectedSector.sector.uid)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Owner</span><strong>{selectedSector.sector.owner_name ?? "Unknown"}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Population</span><strong>{formatNumber(selectedSector.sector.population)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Known Systems</span><strong>{formatNumber(selectedSector.sector.known_systems)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Grid Cells</span><strong>{formatNumber(selectedSector.coordinates.length)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Last Pulled</span><strong>{formatTimestamp(sectors.find((row) => row.uid === selectedSector.sector.uid)?.last_pulled_at ?? null)}</strong></div>
                 </div>
                 <div className="grid gap-3 [&_h4]:m-0">
                   <h4>Systems</h4>
                   <div className="flex flex-wrap gap-[0.6rem]">
                     {selectedSector.systems.slice(0, 40).map((system) => (
-                      <span key={system.uid ?? system.name} className="inline-flex py-[0.45rem] px-[0.65rem] rounded-full border border-white/8 bg-white/[0.04]">
+                      <span key={system.uid ?? system.name} className="inline-flex py-[0.45rem] px-[0.65rem] rounded-full border border-white/8 bg-white/4">
                         {system.name ?? system.uid}
                       </span>
                     ))}
@@ -557,23 +557,23 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
               <>
                 <h3 className="m-0 text-[rgba(246,163,0,0.95)]">{selectedSystem.system.name ?? selectedSystem.system.uid}</h3>
                 <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>UID</span><strong>{formatSwcId(selectedSystem.system.uid)}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Sector</span><strong>{selectedSystem.system.sector_name ?? "Unknown"}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]">
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>UID</span><strong>{formatSwcId(selectedSystem.system.uid)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Sector</span><strong>{selectedSystem.system.sector_name ?? "Unknown"}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5">
                     <span>Faction</span>
                     <strong>{selectedSystem.system.owner_name ?? "Unclaimed"}</strong>
                     {selectedSystem.system.owner_uid && (
                       <span className="text-[0.72rem] opacity-50">{formatSwcId(selectedSystem.system.owner_uid)}</span>
                     )}
                   </div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Galaxy</span><strong>{selectedSystem.system.galx}, {selectedSystem.system.galy}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Last Pulled</span><strong>{formatTimestamp(selectedSystem.system.last_pulled_at)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Galaxy</span><strong>{selectedSystem.system.galx}, {selectedSystem.system.galy}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Last Pulled</span><strong>{formatTimestamp(selectedSystem.system.last_pulled_at)}</strong></div>
                 </div>
                 <div className="grid gap-3 [&_h4]:m-0">
                   <h4>Planets</h4>
                   <div className="flex flex-wrap gap-[0.6rem]">
                     {selectedSystem.planets.map((planet) => (
-                      <span key={planet.uid ?? planet.name} className="inline-flex py-[0.45rem] px-[0.65rem] rounded-full border border-white/8 bg-white/[0.04]">
+                      <span key={planet.uid ?? planet.name} className="inline-flex py-[0.45rem] px-[0.65rem] rounded-full border border-white/8 bg-white/4">
                         {planet.name ?? planet.uid}
                       </span>
                     ))}
@@ -583,7 +583,7 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
                   <h4>Hyperlanes</h4>
                   <div className="flex flex-wrap gap-[0.6rem]">
                     {selectedSystem.hyperlanes.map((lane) => (
-                      <span key={lane.uid ?? lane.name} className="inline-flex py-[0.45rem] px-[0.65rem] rounded-full border border-white/8 bg-white/[0.04]">
+                      <span key={lane.uid ?? lane.name} className="inline-flex py-[0.45rem] px-[0.65rem] rounded-full border border-white/8 bg-white/4">
                         {lane.destination_name ?? lane.name ?? lane.uid}
                       </span>
                     ))}
@@ -596,16 +596,16 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
               <>
                 <h3 className="m-0 text-[rgba(246,163,0,0.95)]">{selectedPlanet.name ?? selectedPlanet.identifier ?? selectedPlanet.uid}</h3>
                 <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>UID</span><strong>{formatSwcId(selectedPlanet.uid)}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>System</span><strong>{selectedPlanet.system_name ?? "Unknown"}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Sector</span><strong>{selectedPlanet.sector_name ?? "Unknown"}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Owner</span><strong>{selectedPlanet.owner_name ?? "Unknown"}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Type</span><strong>{selectedPlanet.planet_type_name ?? "Unknown"}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Population</span><strong>{formatNumber(selectedPlanet.population)}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Population Change</span><strong>{formatPopulationChange(selectedPlanet.population, selectedPlanet.previous_population) ?? "Unknown"}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Size</span><strong>{formatNumber(selectedPlanet.size)}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Galaxy</span><strong>{selectedPlanet.galx}, {selectedPlanet.galy}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Previous Recorded</span><strong>{formatTimestamp(selectedPlanet.previous_population_recorded_at)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>UID</span><strong>{formatSwcId(selectedPlanet.uid)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>System</span><strong>{selectedPlanet.system_name ?? "Unknown"}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Sector</span><strong>{selectedPlanet.sector_name ?? "Unknown"}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Owner</span><strong>{selectedPlanet.owner_name ?? "Unknown"}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Type</span><strong>{selectedPlanet.planet_type_name ?? "Unknown"}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Population</span><strong>{formatNumber(selectedPlanet.population)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Population Change</span><strong>{formatPopulationChange(selectedPlanet.population, selectedPlanet.previous_population) ?? "Unknown"}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Size</span><strong>{formatNumber(selectedPlanet.size)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Galaxy</span><strong>{selectedPlanet.galx}, {selectedPlanet.galy}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Previous Recorded</span><strong>{formatTimestamp(selectedPlanet.previous_population_recorded_at)}</strong></div>
                 </div>
               </>
             )}
@@ -614,11 +614,11 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
               <>
                 <h3 className="m-0 text-[rgba(246,163,0,0.95)]">{selectedFaction.name ?? `Faction ${selectedFaction.id}`}</h3>
                 <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Population</span><strong>{formatNumber(selectedFaction.population)}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Population Change</span><strong>{selectedFaction.population_change === null ? "Unknown" : formatPopulationChange(selectedFaction.population_change, 0) ?? "Unknown"}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Systems Owned</span><strong>{selectedFaction.systems_owned.toLocaleString()}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Planets Owned</span><strong>{selectedFaction.planets_owned.toLocaleString()}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Stations Owned</span><strong>{selectedFaction.stations_owned.toLocaleString()}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Population</span><strong>{formatNumber(selectedFaction.population)}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Population Change</span><strong>{selectedFaction.population_change === null ? "Unknown" : formatPopulationChange(selectedFaction.population_change, 0) ?? "Unknown"}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Systems Owned</span><strong>{selectedFaction.systems_owned.toLocaleString()}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Planets Owned</span><strong>{selectedFaction.planets_owned.toLocaleString()}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/2.5"><span>Stations Owned</span><strong>{selectedFaction.stations_owned.toLocaleString()}</strong></div>
                 </div>
               </>
             )}

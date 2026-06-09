@@ -769,7 +769,7 @@ const MemberCombatCalculatorPanel: React.FC = () => {
             </label>
             <div className="flex flex-col gap-2">
               <input
-                className={`${inputCls} w-[90px]`}
+                className={`${inputCls} w-22.5`}
                 type="number"
                 min={0}
                 max={359}

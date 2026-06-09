@@ -926,7 +926,7 @@ const isLoggedIn = !!user;
       {membersView === "overview" && (
         <section className="space-y-4">
           {canSeeToolkitPrivilegePreview ? (
-            <section className="panel !mb-4 space-y-3 pb-5">
+            <section className="panel mb-4! space-y-3 pb-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 className="m-0 text-base">Privilege Preview</h2>
@@ -974,7 +974,7 @@ const isLoggedIn = !!user;
                   <button
                     key={cat.key}
                     type="button"
-                    className="flex w-full sm:w-[calc(50%-6px)] xl:w-[calc(33.333%-8px)] flex-col items-center gap-[18px] rounded-xl border border-white/12 bg-white/5 p-6 text-center hover:bg-white/10 transition-colors cursor-pointer"
+                    className="flex w-full sm:w-[calc(50%-6px)] xl:w-[calc(33.333%-8px)] flex-col items-center gap-4.5 rounded-xl border border-white/12 bg-white/5 p-6 text-center hover:bg-white/10 transition-colors cursor-pointer"
                     onClick={(e) => {
                       const rect = e.currentTarget.getBoundingClientRect();
                       setCategorySourceRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
@@ -991,7 +991,7 @@ const isLoggedIn = !!user;
                         />
                       ))}
                     </div>
-                    <div className="grid gap-[6px]">
+                    <div className="grid gap-1.5">
                       <h2 className="m-0 text-4xl font-tektur">{cat.label}</h2>
                       <p className="m-0 text-base text-white/60 font-tektur">{cat.description}</p>
                     </div>
@@ -1012,7 +1012,7 @@ const isLoggedIn = !!user;
                   <img
                     src={TOOL_ICON_MAP[tool.key] ?? jawaLogo}
                     alt={tool.title}
-                    className="h-[84px] w-[84px] object-contain"
+                    className="h-21 w-21 object-contain"
                   />
                   <div className="grid gap-2">
                     <h2 className="m-0 text-base">{tool.title}</h2>
@@ -1048,7 +1048,7 @@ const isLoggedIn = !!user;
                       <img
                         src={TOOL_ICON_MAP[tool.key] ?? jawaLogo}
                         alt={tool.title}
-                        className={`h-[84px] w-[84px] object-contain ${(tool.key === "payments" && hasPendingPayments) || (tool.key === "jobs" && hasPendingClaims) ? "animate-members-alert-pulse" : ""}`}
+                        className={`h-21 w-21 object-contain ${(tool.key === "payments" && hasPendingPayments) || (tool.key === "jobs" && hasPendingClaims) ? "animate-members-alert-pulse" : ""}`}
                       />
                       <div className="grid gap-2">
                         <h2 className="m-0 text-base">{tool.title}</h2>
