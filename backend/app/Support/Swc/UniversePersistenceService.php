@@ -1243,6 +1243,7 @@ class UniversePersistenceService
                 'drop_off' => $typeData['drop_off'] ?? null,
                 'firepower' => $typeData['firepower'] ?? null,
                 'tracking' => $typeData['tracking'] ?? null,
+                'fire_delay' => $typeData['fire_delay'] ?? null,
                 'is_poison' => $typeData['is_poison'] ?? null,
                 'is_dual' => $typeData['is_dual'] ?? null,
                 'price_credits' => $typeData['price_credits'] ?? null,

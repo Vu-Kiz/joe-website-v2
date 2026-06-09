@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SlideTabNav, { type TabItem } from "../common/SlideTabNav";
 import {
   getArchiveFactions,
   getArchivePlanet,
   getArchivePlanets,
-  getStoredMapSystems,
+  getArchiveSystems,
   getStoredSector,
   getStoredSectors,
   getStoredSystem,
@@ -80,9 +80,11 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
   const [error, setError] = useState<string | null>(null);
 
   const [sectors, setSectors] = useState<StoredSectorSummary[]>([]);
-  const [systems, setSystems] = useState<StoredMapSystem[]>([]);
+  const [systems, setSystems] = useState<StoredMapSystem[]>([]); // full list — always unfiltered, used by system_ids tab
+  const [systemSearchResults, setSystemSearchResults] = useState<StoredMapSystem[] | null>(null); // non-null when Meilisearch results active
   const [planets, setPlanets] = useState<ArchivePlanetSummary[]>([]);
   const [factions, setFactions] = useState<ArchiveFactionSummary[]>([]);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [selectedSector, setSelectedSector] = useState<StoredSectorDetail | null>(null);
   const [selectedSystem, setSelectedSystem] = useState<StoredSystemDetail | null>(null);
@@ -95,6 +97,7 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
   const [showIdGaps, setShowIdGaps] = useState(false);
   const [selectedFactionKey, setSelectedFactionKey] = useState<string | null>(null);
 
+  // Initial load per tab (no query)
   useEffect(() => {
     let cancelled = false;
 
@@ -110,7 +113,7 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
         }
 
         if ((activeTab === "systems" || activeTab === "system_ids") && systems.length === 0) {
-          const response = await getStoredMapSystems();
+          const response = await getArchiveSystems();
           if (cancelled) return;
           setSystems(response.data);
         }
@@ -144,6 +147,40 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
     };
   }, [activeTab, factions.length, planets.length, sectors.length, systems.length]);
 
+  // Debounced Meilisearch for systems and planets
+  useEffect(() => {
+    const needle = query.trim();
+
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+
+    if (!needle) {
+      setSystemSearchResults(null);
+      return;
+    }
+
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        setLoading(true);
+        if (activeTab === "systems" || activeTab === "system_ids") {
+          const res = await getArchiveSystems(needle);
+          setSystemSearchResults(res.data);
+        }
+        if (activeTab === "planets") {
+          const res = await getArchivePlanets(needle);
+          setPlanets(res.data);
+        }
+      } catch {
+        // silently ignore search errors
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, [query, activeTab]);
+
   const filteredSectors = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return sectors;
@@ -159,19 +196,13 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
   }, [query, sectors]);
 
   const filteredSystems = useMemo(() => {
+    if (systemSearchResults !== null) return systemSearchResults;
     const needle = query.trim().toLowerCase();
     if (!needle) return systems;
     return systems.filter((system) =>
-      buildSearchBlob([
-        system.uid,
-        system.identifier,
-        system.name,
-        system.sector_name,
-        system.galx,
-        system.galy,
-      ]).includes(needle)
+      buildSearchBlob([system.uid, system.name, system.sector_name, system.galx, system.galy]).includes(needle)
     );
-  }, [query, systems]);
+  }, [query, systems, systemSearchResults]);
 
   const systemsByNumber = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -257,7 +288,7 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
   };
 
   const handleSelectSystem = async (system: StoredMapSystem) => {
-    const key = system.identifier ?? system.uid ?? system.name;
+    const key = system.uid ?? system.name;
     if (!key) return;
     setSelectedSystemKey(key);
     setSelectedSystem(null);
@@ -355,6 +386,7 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
               onChange={(key) => {
                 setActiveTab(key);
                 setQuery("");
+                setSystemSearchResults(null);
                 setError(null);
                 setShowIdGaps(false);
                 clearSelection();
@@ -404,7 +436,7 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
 
             {activeTab === "systems" &&
               filteredSystems.map((system) => {
-                const key = system.identifier ?? system.uid ?? system.name ?? "system";
+                const key = system.uid ?? system.name ?? "system";
                 return (
                   <button
                     key={key}
@@ -449,7 +481,7 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
                   <button
                     key={key}
                     type="button"
-                    className={archiveItemCls(selectedSystemKey === (system.identifier ?? system.uid ?? system.name ?? "system"))}
+                    className={archiveItemCls(selectedSystemKey === (system.uid ?? system.name ?? "system"))}
                     onClick={() => void handleSelectSystem(system)}
                   >
                     <strong>#{numericId}{system.name ? ` — ${system.name}` : ""}</strong>
@@ -512,8 +544,8 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
                   <h4>Systems</h4>
                   <div className="flex flex-wrap gap-[0.6rem]">
                     {selectedSector.systems.slice(0, 40).map((system) => (
-                      <span key={system.uid ?? system.identifier ?? system.name} className="inline-flex py-[0.45rem] px-[0.65rem] rounded-full border border-white/8 bg-white/[0.04]">
-                        {system.name ?? system.identifier ?? system.uid}
+                      <span key={system.uid ?? system.name} className="inline-flex py-[0.45rem] px-[0.65rem] rounded-full border border-white/8 bg-white/[0.04]">
+                        {system.name ?? system.uid}
                       </span>
                     ))}
                   </div>
@@ -523,12 +555,17 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
 
             {(activeTab === "systems" || activeTab === "system_ids") && selectedSystem && (
               <>
-                <h3 className="m-0 text-[rgba(246,163,0,0.95)]">{selectedSystem.system.name ?? selectedSystem.identifier}</h3>
+                <h3 className="m-0 text-[rgba(246,163,0,0.95)]">{selectedSystem.system.name ?? selectedSystem.system.uid}</h3>
                 <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
                   <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>UID</span><strong>{formatSwcId(selectedSystem.system.uid)}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Identifier</span><strong>{selectedSystem.system.identifier ?? "Unknown"}</strong></div>
                   <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Sector</span><strong>{selectedSystem.system.sector_name ?? "Unknown"}</strong></div>
-                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Owner</span><strong>{selectedSystem.system.owner_name ?? "Unknown"}</strong></div>
+                  <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]">
+                    <span>Faction</span>
+                    <strong>{selectedSystem.system.owner_name ?? "Unclaimed"}</strong>
+                    {selectedSystem.system.owner_uid && (
+                      <span className="text-[0.72rem] opacity-50">{formatSwcId(selectedSystem.system.owner_uid)}</span>
+                    )}
+                  </div>
                   <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Galaxy</span><strong>{selectedSystem.system.galx}, {selectedSystem.system.galy}</strong></div>
                   <div className="grid gap-[0.35rem] p-[0.85rem] border border-white/8 rounded-[10px] bg-white/[0.025]"><span>Last Pulled</span><strong>{formatTimestamp(selectedSystem.system.last_pulled_at)}</strong></div>
                 </div>
@@ -536,8 +573,8 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
                   <h4>Planets</h4>
                   <div className="flex flex-wrap gap-[0.6rem]">
                     {selectedSystem.planets.map((planet) => (
-                      <span key={planet.uid ?? planet.identifier ?? planet.name} className="inline-flex py-[0.45rem] px-[0.65rem] rounded-full border border-white/8 bg-white/[0.04]">
-                        {planet.name ?? planet.identifier ?? planet.uid}
+                      <span key={planet.uid ?? planet.name} className="inline-flex py-[0.45rem] px-[0.65rem] rounded-full border border-white/8 bg-white/[0.04]">
+                        {planet.name ?? planet.uid}
                       </span>
                     ))}
                   </div>

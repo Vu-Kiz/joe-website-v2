@@ -67,6 +67,7 @@ use App\Http\Controllers\Api\Support\SupportTicketController;
 use App\Http\Controllers\Api\Admin\SupportTicketAdminController;
 use App\Http\Controllers\Api\Admin\MaterialPriceController;
 use App\Http\Controllers\Api\Swc\SwcStatusController;
+use App\Http\Controllers\Api\Sys\KanbanController;
 
 // SWC status (public — no auth)
 Route::get('/swc-status', [SwcStatusController::class, 'status']);
@@ -233,6 +234,7 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
     // Member-only universe (JOE data: scan records, archive)
     Route::get('/universe/search-records', [UniverseController::class, 'searchRecords']);
     Route::get('/universe/sectors/{sector}', [UniverseController::class, 'sector']);
+    Route::get('/universe/archive/systems', [UniverseController::class, 'archiveSystems']);
     Route::get('/universe/archive/planets', [UniverseController::class, 'archivePlanets']);
     Route::get('/universe/archive/planets/{planet}', [UniverseController::class, 'archivePlanet']);
     Route::get('/universe/archive/factions', [UniverseController::class, 'archiveFactions']);
@@ -289,6 +291,19 @@ Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('sys')->group(funct
     Route::get('/universe/full-sync-runs/latest', [PullController::class, 'latestFullSync']);
     Route::get('/universe/full-sync-runs/{run}', [PullController::class, 'showFullSync']);
     Route::post('/universe/full-sync-runs/{run}/cancel', [PullController::class, 'cancelFullSync']);
+
+    // Kanban board
+    Route::get('/kanban/assignees', [KanbanController::class, 'assignees']);
+    Route::get('/kanban', [KanbanController::class, 'index']);
+    Route::post('/kanban/columns', [KanbanController::class, 'storeColumn']);
+    Route::patch('/kanban/columns/{column}', [KanbanController::class, 'updateColumn']);
+    Route::delete('/kanban/columns/{column}', [KanbanController::class, 'destroyColumn']);
+    Route::post('/kanban/columns/reorder', [KanbanController::class, 'reorderColumns']);
+    Route::post('/kanban/cards', [KanbanController::class, 'storeCard']);
+    Route::patch('/kanban/cards/{card}', [KanbanController::class, 'updateCard']);
+    Route::delete('/kanban/cards/{card}', [KanbanController::class, 'destroyCard']);
+    Route::post('/kanban/cards/reorder', [KanbanController::class, 'reorderCards']);
+    Route::post('/kanban/tickets/{ticket}/promote', [KanbanController::class, 'promoteTicket']);
 });
 
 // Public tool routes — accessible to JOE members AND active subscribers

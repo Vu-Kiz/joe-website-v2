@@ -171,6 +171,14 @@ const AdminWorkerHealthPanel: React.FC = () => {
         </button>
         <button
           type="button"
+          className={BTN_SM + " all"}
+          onClick={() => runAction("reindexUniverse", () => reindexSearchTab("universe:all").then(r => ({ ...r, dispatched: r.dispatched?.length })))}
+          disabled={!!acting}
+        >
+          {acting === "reindexUniverse" ? "Dispatching…" : "Reindex Universe Search"}
+        </button>
+        <button
+          type="button"
           className={BTN_SM}
           onClick={() => { if (window.confirm("Clear all failed queue jobs? This cannot be undone.")) runAction("clearFailed", () => clearFailedJobs().then(r => r)); }}
           disabled={!!acting}

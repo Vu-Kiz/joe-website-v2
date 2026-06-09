@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin\Universe;
 use App\Http\Controllers\Controller;
 use App\Jobs\RunStoredSystemRefreshJob;
 use App\Jobs\RunUniverseFullSyncJob;
+use App\Jobs\UniverseReindexJob;
 use App\Models\Swc\SwcPlanet;
 use App\Models\Swc\SwcSystem;
 use App\Models\Swc\SwcUniverseSyncRun;
@@ -1226,6 +1227,8 @@ class PullController extends Controller
             ]
         );
 
+        UniverseReindexJob::dispatchForTab('planets');
+
         return response()->json([
             'ok' => true,
             'message' => 'Stored planets refreshed.',
@@ -1422,6 +1425,8 @@ class PullController extends Controller
                 'skipped_not_found' => $skippedNotFound,
             ]
         );
+
+        UniverseReindexJob::dispatchForTab('systems');
 
         return response()->json([
             'ok' => true,

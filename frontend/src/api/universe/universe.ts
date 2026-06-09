@@ -731,6 +731,7 @@ export type StoredWeaponTypeSummary = {
   drop_off: number | null;
   firepower: number | null;
   tracking: number | null;
+  fire_delay: number | null;
   is_poison: boolean | null;
   is_dual: boolean | null;
   weight_tonnes: number | null;
@@ -903,6 +904,11 @@ export function getStoredSector(sector: string) {
 
 export function getStoredMapSystems() {
   return apiFetch<{ ok: boolean; data: StoredMapSystem[] }>("/universe/map-systems");
+}
+
+export function getArchiveSystems(query?: string) {
+  const params = query ? `?q=${encodeURIComponent(query)}` : "";
+  return apiFetch<{ ok: boolean; data: StoredMapSystem[] }>(`/universe/archive/systems${params}`);
 }
 
 export type GalaxyBounds = {

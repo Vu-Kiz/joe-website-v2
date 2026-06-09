@@ -2277,6 +2277,7 @@ class UniversePullService
             'drop_off' => $this->firstFloatValue($typeNode, ['dropoff', 'dropOff']),
             'firepower' => $this->firstIntValue($typeNode, ['firepower']),
             'tracking' => $this->firstIntValue($typeNode, ['tracking']),
+            'fire_delay' => $this->firstIntValue($typeNode, ['firedelay', 'fire_delay']),
             'is_poison' => $this->toBoolOrNull($typeNode->poison ?? null),
             'is_dual' => $this->toBoolOrNull($typeNode->dual ?? null),
             'price_credits' => isset($typeNode->price) ? $this->firstIntValue($typeNode->price, ['credits']) : null,

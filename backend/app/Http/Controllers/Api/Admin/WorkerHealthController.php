@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\DroidBrainReindexJob;
+use App\Jobs\UniverseReindexJob;
 use App\Jobs\ProcessAllPendingPaymentsJob;
 use App\Jobs\ProcessDroidBrainUploadJob;
 use Illuminate\Http\JsonResponse;
@@ -424,20 +425,33 @@ class WorkerHealthController extends Controller
 
     public function reindexSearchTab(Request $request): JsonResponse
     {
-        $validTabs = ['ships', 'stations', 'planets', 'cities', 'vehicles', 'npcs'];
+        $validDroidBrainTabs = ['ships', 'stations', 'planets', 'cities', 'vehicles', 'npcs'];
+        $validUniverseTabs = ['universe:systems', 'universe:planets', 'universe:sectors'];
         $tab = (string) $request->input('tab', '');
 
         if ($tab === 'all') {
-            foreach ($validTabs as $t) {
-                // Clear the unique lock so the manual trigger always dispatches
+            foreach ($validDroidBrainTabs as $t) {
                 $lockKey = 'laravel_unique_job:DroidBrainReindexJob' . $t;
                 \Illuminate\Support\Facades\Cache::forget($lockKey);
                 DroidBrainReindexJob::dispatch($t);
             }
-            return response()->json(['ok' => true, 'dispatched' => $validTabs]);
+            return response()->json(['ok' => true, 'dispatched' => $validDroidBrainTabs]);
         }
 
-        if (!in_array($tab, $validTabs, true)) {
+        if ($tab === 'universe:all') {
+            UniverseReindexJob::dispatchAll();
+            return response()->json(['ok' => true, 'dispatched' => $validUniverseTabs]);
+        }
+
+        if (in_array($tab, $validUniverseTabs, true)) {
+            $universeTab = str_replace('universe:', '', $tab);
+            $lockKey = 'laravel_unique_job:UniverseReindexJob' . $universeTab;
+            \Illuminate\Support\Facades\Cache::forget($lockKey);
+            UniverseReindexJob::dispatch($universeTab);
+            return response()->json(['ok' => true, 'dispatched' => [$tab]]);
+        }
+
+        if (!in_array($tab, $validDroidBrainTabs, true)) {
             return response()->json(['ok' => false, 'message' => 'Invalid tab.'], 422);
         }
 

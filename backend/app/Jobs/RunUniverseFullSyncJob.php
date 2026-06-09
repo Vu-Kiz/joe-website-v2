@@ -14,6 +14,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
+use App\Jobs\UniverseReindexJob;
 
 class RunUniverseFullSyncJob implements ShouldQueue
 {
@@ -320,6 +321,8 @@ class RunUniverseFullSyncJob implements ShouldQueue
             'finished_at' => now(),
             'next_retry_at' => null,
         ])->save();
+
+        UniverseReindexJob::dispatchAll();
 
         $this->writeHeartbeat($run->id, [
             'status' => 'completed',

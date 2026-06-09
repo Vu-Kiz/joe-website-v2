@@ -349,10 +349,7 @@ class DroidBrainUploadService
         ]);
         $galxValues = $coords->pluck('galx')->unique()->values();
         $galyValues = $coords->pluck('galy')->unique()->values();
-        $droidBrainFlagsByCoord = $this->resolveDroidBrainFlagsFromMeilisearch($coords->all());
-        if ($droidBrainFlagsByCoord === []) {
-            $droidBrainFlagsByCoord = $this->resolveDroidBrainFlagsFromLatestTables($galxValues->all(), $galyValues->all());
-        }
+        $droidBrainFlagsByCoord = $this->resolveDroidBrainFlagsFromLatestTables($galxValues->all(), $galyValues->all());
         $apiStationsByCoord = DB::table('swc_stations')
             ->whereIn('galx', $galxValues)
             ->whereIn('galy', $galyValues)

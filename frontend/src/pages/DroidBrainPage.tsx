@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import MemberDroidBrainPanel from "../components/members/MemberDroidBrainPanel";
+import MemberDroidBrainPanel from "../components/tools/MemberDroidBrainPanel";
 import { logMemberToolOpen } from "../api/members/memberTools";
 
 const DroidBrainPage: React.FC = () => {

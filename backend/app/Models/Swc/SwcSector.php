@@ -4,9 +4,30 @@ namespace App\Models\Swc;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Laravel\Scout\Searchable;
 
 class SwcSector extends Model
 {
+    use Searchable;
+    public function getScoutKey(): string
+    {
+        return str_replace(':', '_', (string) $this->uid);
+    }
+
+    public function getScoutKeyName(): string
+    {
+        return 'uid';
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'uid'        => $this->uid,
+            'name'       => $this->name,
+            'owner_name' => $this->owner_name,
+        ];
+    }
+
     protected $fillable = [
         'uid',
         'name',

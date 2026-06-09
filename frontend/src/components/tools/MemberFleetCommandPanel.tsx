@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { getFleetRosterMatrix, getMySkills, getSkillPlan, saveSkillPlan, type FleetRosterMatrixRow } from "../../api/universe/fleetCommander";
 import type { SwcAuthorizationStatus } from "../../api/members/swcAuthorization";
 import type { SwcUser } from "../../api/core/auth";
-import { BTN, INPUT, SELECT_INPUT } from "../../utils/ui";
+import { BTN, INPUT } from "../../utils/ui";
 import ReportBugButton from "../support/ReportBugButton";
 
 type Props = {
@@ -24,6 +24,11 @@ function skillCost(level: number): number {
     total += STEP_COSTS[i];
   }
   return total;
+}
+
+function SortArrow({ active, dir }: { active: boolean; dir: "asc" | "desc" }) {
+  if (!active) return <span className="opacity-25 ml-1">↕</span>;
+  return <span className="ml-1">{dir === "asc" ? "↑" : "↓"}</span>;
 }
 
 type MetricKey =
@@ -199,10 +204,14 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
     }).catch(() => {});
   }, []);
 
+  const errorRows = useMemo(() => matrixRows.filter((row) => row.snapshot_error), [matrixRows]);
+
   const filteredMatrixRows = useMemo(() => {
     const query = filter.trim().toLowerCase();
 
     const list = matrixRows.filter((row) => {
+      if (row.snapshot_error) return false;
+
       const name = String(row.handle ?? "").toLowerCase();
       if (query && !name.includes(query)) {
         return false;
@@ -251,6 +260,15 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
   }, [filter, matrixRows, metricMins, sortBy, sortDir]);
 
   const hasMatrix = matrixRows.length > 0;
+
+  function handleSort(key: SortKey) {
+    if (sortBy === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(key);
+      setSortDir("desc");
+    }
+  }
 
   function clearMetricFilters() {
     setMetricMins({});
@@ -541,24 +559,6 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
             </div>
 
             <div className="flex items-center flex-wrap gap-[0.55rem] mb-[0.95rem]">
-              <select
-                className={SELECT_INPUT + " w-[220px] max-w-full"}
-                value={sortBy}
-                onChange={(event) => setSortBy(event.target.value as SortKey)}
-              >
-                <option value="name">Sort: Member</option>
-                {visibleMetrics.map((metric) => (
-                  <option key={metric.key} value={metric.key}>{`Sort: ${metric.label}`}</option>
-                ))}
-              </select>
-              <select
-                className={SELECT_INPUT + " w-[120px]"}
-                value={sortDir}
-                onChange={(event) => setSortDir(event.target.value as "asc" | "desc")}
-              >
-                <option value="desc">Desc</option>
-                <option value="asc">Asc</option>
-              </select>
               <button type="button" className={BTN} onClick={clearMetricFilters}>Clear Stat Filters</button>
             </div>
 
@@ -595,17 +595,28 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
                 </p>
               </div>
             ) : (
+              <>
               <div className="overflow-x-auto p-[0.55rem] rounded-[12px] border border-white/12 bg-[rgba(0,0,0,0.22)] [&_table_thead_tr]:bg-[rgba(246,163,0,0.13)] [&_table_tbody_tr:nth-child(even)]:bg-[rgba(255,255,255,0.018)] [&_table_tbody_tr:hover]:bg-[rgba(246,163,0,0.08)]">
                 <table style={{ width: "100%", borderCollapse: "collapse", minWidth: `${Math.max(700, 280 + (visibleMetrics.length * 140))}px` }}>
                   <thead>
                     <tr>
-                      <th style={{ textAlign: "left", padding: "8px 10px" }}>Member</th>
+                      <th
+                        className="cursor-pointer select-none whitespace-nowrap"
+                        style={{ textAlign: "left", padding: "8px 10px" }}
+                        onClick={() => handleSort("name")}
+                      >
+                        Member <SortArrow active={sortBy === "name"} dir={sortDir} />
+                      </th>
                       {visibleMetrics.map((metric) => (
-                        <th key={metric.key} style={{ textAlign: "right", padding: "8px 10px" }}>
-                          {metric.label}
+                        <th
+                          key={metric.key}
+                          className="cursor-pointer select-none whitespace-nowrap"
+                          style={{ textAlign: "right", padding: "8px 10px" }}
+                          onClick={() => handleSort(metric.key)}
+                        >
+                          {metric.label} <SortArrow active={sortBy === metric.key} dir={sortDir} />
                         </th>
                       ))}
-                      <th style={{ textAlign: "left", padding: "8px 10px" }}>Snapshot</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -619,14 +630,18 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
                             {row[metric.key] ?? "-"}
                           </td>
                         ))}
-                        <td style={{ padding: "8px 10px" }} className="small">
-                          {row.fetched_at ? "Fresh" : (row.snapshot_error ? "Error" : "Pending")}
-                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+              {errorRows.length > 0 && (
+                <div className="mt-3 p-[0.7rem_0.8rem] rounded-[10px] border border-[rgba(255,100,100,0.2)] bg-[rgba(255,60,60,0.06)]">
+                  <p className="small m-0 mb-[0.4rem] font-bold text-[rgba(255,160,160,0.95)]">Missing member stats ({errorRows.length})</p>
+                  <p className="small m-0 opacity-75">{errorRows.map((r) => r.handle ?? `Member #${r.id}`).join(", ")}</p>
+                </div>
+              )}
+              </>
             )}
           </section>
         ) : null}

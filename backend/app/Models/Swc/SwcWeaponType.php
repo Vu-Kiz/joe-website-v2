@@ -19,6 +19,7 @@ class SwcWeaponType extends Model
         'drop_off',
         'firepower',
         'tracking',
+        'fire_delay',
         'is_poison',
         'is_dual',
         'price_credits',

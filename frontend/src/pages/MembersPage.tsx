@@ -18,31 +18,33 @@ import { getMyPayableFactions, type PayableFaction } from "../api/factions/facti
 import { canAccessAdmin, canAccessCombatCalculator, canAccessFleetCommander, canAccessIntel, canAccessMembers, canAccessPayments, canAccessPublicTools, canAccessRmBrowser, canAccessSysadmin, canAccessWreckingHelperExtension, getToolAccessTier } from "../auth/permissions";
 import ForbiddenState from "../components/common/ForbiddenState";
 import NotLoggedInState from "../components/common/NotLoggedInState";
-import OpenJobsPanel from "../components/members/jobs/OpenJobsPanel";
-import MyPostedJobsPanel from "../components/members/jobs/MyPostedJobsPanel";
-import MyTakenJobsPanel from "../components/members/jobs/MyTakenJobsPanel";
-import CreateJobPanel from "../components/members/jobs/CreateJobPanel";
-import JobsSubnav from "../components/members/jobs/JobsSubnav";
-import PayClaimsPanel from "../components/members/jobs/PayClaimsPanel";
+import OpenJobsPanel from "../components/tools/jobs/OpenJobsPanel";
+import MyPostedJobsPanel from "../components/tools/jobs/MyPostedJobsPanel";
+import MyTakenJobsPanel from "../components/tools/jobs/MyTakenJobsPanel";
+import CreateJobPanel from "../components/tools/jobs/CreateJobPanel";
+import JobsSubnav from "../components/tools/jobs/JobsSubnav";
+import PayClaimsPanel from "../components/tools/jobs/PayClaimsPanel";
 import { getJobPayClaims } from "../api/jobs/jobPayRates";
-import MemberEntityStatsPanel from "../components/members/MemberEntityStatsPanel";
-import HyperPlannerPanel from "../components/members/HyperPlannerPanel";
-import MemberGalacticArchivePanel from "../components/members/MemberGalacticArchivePanel";
-import MemberCombatCalculatorPanel from "../components/members/MemberCombatCalculatorPanel";
-import MemberWeaponHeatmapPanel from "../components/members/MemberWeaponHeatmapPanel";
-import MemberWreckingHelperPanel from "../components/members/MemberWreckingHelperPanel";
+import MemberEntityStatsPanel from "../components/tools/MemberEntityStatsPanel";
+import HyperPlannerPanel from "../components/tools/HyperPlannerPanel";
+import MemberGalacticArchivePanel from "../components/tools/MemberGalacticArchivePanel";
+import MemberCombatCalculatorPanel from "../components/tools/MemberCombatCalculatorPanel";
+import MemberWeaponHeatmapPanel from "../components/tools/MemberWeaponHeatmapPanel";
+import MemberWreckingHelperPanel from "../components/tools/MemberWreckingHelperPanel";
 import RmBrowserPanel from "../components/rmBrowser/RmBrowserPanel";
-import HaulCalculatorPanel from "../components/members/HaulCalculatorPanel";
-import ProductionCalculatorPanel from "../components/members/ProductionCalculatorPanel";
-import XpTrackerPanel from "../components/members/XpTrackerPanel";
-import RecyclingCalculatorPanel from "../components/members/RecyclingCalculatorPanel";
-import MemberRoleChangelogPanel from "../components/members/MemberRoleChangelogPanel";
-import MemberFleetCommandPanel from "../components/members/MemberFleetCommandPanel";
+import HaulCalculatorPanel from "../components/tools/HaulCalculatorPanel";
+import ProductionCalculatorPanel from "../components/tools/ProductionCalculatorPanel";
+import XpTrackerPanel from "../components/tools/XpTrackerPanel";
+import RecyclingCalculatorPanel from "../components/tools/RecyclingCalculatorPanel";
+import MemberRoleChangelogPanel from "../components/tools/MemberRoleChangelogPanel";
+import MemberFleetCommandPanel from "../components/tools/MemberFleetCommandPanel";
+import DevHubPanel from "../components/sys/DevHubPanel";
 import PrivilegePreviewPanel, {
   toPreviewPrivs,
   type PreviewPrivs,
-} from "../components/members/PrivilegePreviewPanel";
+} from "../components/tools/PrivilegePreviewPanel";
 import HamburgerToggle from "../components/common/HamburgerToggle";
+import Overlay from "../components/common/Overlay";
 import jawaLogo from "../assets/branding/jawalogo.png";
 import recyclingIcon from "../assets/members/RecyclingIcon.png";
 import archiveIcon from "../assets/members/ArchiveIcon.png";
@@ -70,7 +72,64 @@ import { logMemberToolOpen, type MemberToolArea } from "../api/members/memberToo
 import { BTN, BTN_SM } from "../utils/ui";
 import ReportBugButton from "../components/support/ReportBugButton";
 
-type MembersView = "overview" | "jobs" | "universe" | "stats" | "hyperplanner" | "biometrics" | "archive" | "shipHeatmap" | "weaponHeatmap" | "wreckingHelper" | "changelog" | "rmBrowser" | "haulCalculator" | "production" | "xpTracker" | "recyclingCalculator";
+type Rect = { top: number; left: number; width: number; height: number };
+
+const TOOL_ICON_MAP: Record<string, string> = {
+  universe: astrogationIcon,
+  wreckingHelper: wreckerIcon,
+  changelog: changelogIcon,
+  shipHeatmap: combatCalcIcon,
+  weaponHeatmap: heatmapIcon,
+  hyperplanner: hyperIcon,
+  biometrics: biometricsIcon,
+  archive: archiveIcon,
+  stats: statsIcon,
+  jobs: jobBoardIcon,
+  payments: paymentIcon,
+  droidbrain: droidBrainIcon,
+  "swc-access": chainCodeIcon,
+  rmBrowser: rmIcon,
+  haulCalculator: rmHaulerIcon,
+  production: productionIcon,
+  xpTracker: xpTrackerIcon,
+  recyclingCalculator: recyclingIcon,
+  admin: jawaLogo,
+};
+
+const TOOL_CATEGORIES: Array<{ key: string; label: string; description: string; toolKeys: string[] }> = [
+  {
+    key: "galaxy",
+    label: "Galaxy",
+    description: "Astrogation, intel, and universe data tools.",
+    toolKeys: ["universe", "hyperplanner", "archive", "stats", "droidbrain"],
+  },
+  {
+    key: "infrastructure",
+    label: "Infrastructure",
+    description: "Raw materials, production, and logistics tools.",
+    toolKeys: ["haulCalculator", "rmBrowser", "production", "recyclingCalculator", "wreckingHelper"],
+  },
+  {
+    key: "military",
+    label: "Military Ops",
+    description: "Combat planning and targeting tools.",
+    toolKeys: ["shipHeatmap", "weaponHeatmap"],
+  },
+  {
+    key: "datacore",
+    label: "Datacore",
+    description: "Site administration and records.",
+    toolKeys: ["admin", "changelog", "kanban"],
+  },
+  {
+    key: "personnel",
+    label: "Personnel",
+    description: "Jobs, payments, and member services.",
+    toolKeys: ["jobs", "payments", "biometrics", "xpTracker", "swc-access"],
+  },
+];
+
+type MembersView = "overview" | "jobs" | "universe" | "stats" | "hyperplanner" | "biometrics" | "archive" | "shipHeatmap" | "weaponHeatmap" | "wreckingHelper" | "changelog" | "rmBrowser" | "haulCalculator" | "production" | "xpTracker" | "recyclingCalculator" | "kanban";
 type JobsView = "open" | "posted" | "taken" | "create" | "payClaims";
 type MembersToolCard = {
   key: string;
@@ -97,7 +156,10 @@ function parseMembersView(value: string | null): MembersView | null {
     case "haulCalculator":
     case "production":
     case "recyclingCalculator":
+    case "kanban":
       return value;
+    case "dev-hub":
+      return "kanban";
     case "fleetCommand":
     case "Biometrics":
       return "biometrics";
@@ -106,7 +168,7 @@ function parseMembersView(value: string | null): MembersView | null {
   }
 }
 
-const MembersUniversePanel = React.lazy(() => import("../components/members/MembersUniversePanel"));
+const MembersUniversePanel = React.lazy(() => import("../components/tools/MembersUniversePanel"));
 let prefetchedUniversePanel = false;
 
 const MembersPage: React.FC = () => {
@@ -130,6 +192,8 @@ const MembersPage: React.FC = () => {
   const [authRefreshNonce, setAuthRefreshNonce] = useState(0);
   const [toolkitPrivPreviewOpen, setToolkitPrivPreviewOpen] = useState(false);
   const [toolkitPreviewPrivs, setToolkitPreviewPrivs] = useState<PreviewPrivs>(() => toPreviewPrivs(null));
+  const [openCategory, setOpenCategory] = useState<string | null>(null);
+  const [categorySourceRect, setCategorySourceRect] = useState<Rect | null>(null);
 
   const [membersView, setMembersView] = useState<MembersView>(
     Number.isFinite(requestedJobId) && requestedJobId > 0
@@ -190,7 +254,7 @@ const MembersPage: React.FC = () => {
         return;
       }
       prefetchedUniversePanel = true;
-      void import("../components/members/MembersUniversePanel");
+      void import("../components/tools/MembersUniversePanel");
     };
 
     if (typeof window !== "undefined" && "requestIdleCallback" in window) {
@@ -243,7 +307,7 @@ const MembersPage: React.FC = () => {
       nextParams.delete("job_id");
       nextParams.delete("changelog_version");
     } else {
-      nextParams.set("tools_view", membersView);
+      nextParams.set("tools_view", membersView === "kanban" ? "dev-hub" : membersView);
 
       if (membersView === "jobs") {
         nextParams.set("jobs_view", jobsView);
@@ -419,7 +483,7 @@ const isLoggedIn = !!user;
   const canSeeMemberOnlyTools = canAccessMembers(user);
   const canSeeFleetCommander = canAccessFleetCommander(user);
   const canSeeRmBrowser = canAccessRmBrowser(user);
-  const canSeeGalacticArchive = canAccessAdmin(user);
+  const canSeeGalacticArchive = canAccessMembers(user);
   const canSeeCombatCalculator = canAccessCombatCalculator(user);
   const canSeeWreckingHelperExtension = canAccessWreckingHelperExtension(user);
   const canSeeToolkitPrivilegePreview = canAccessSysadmin(user);
@@ -436,7 +500,8 @@ const isLoggedIn = !!user;
   const showFleetCommanderCard = effectiveCardPrivs.canAccessFleetCommander || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
   const showRmBrowserCard = effectiveCardPrivs.canAccessRmBrowser || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
   const showCombatCalculatorCard = effectiveCardPrivs.canAccessCombatCalc || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
-  const showGalacticArchiveCard = effectiveCardPrivs.isSysadmin;
+  const showGalacticArchiveCard = effectiveCardPrivs.isJoeMember || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
+  const showDevHubCard = effectiveCardPrivs.isSysadmin;
 
   const openJobs = useMemo(() => jobs.filter((j) => j.status === "open"), [jobs]);
 
@@ -489,6 +554,17 @@ const isLoggedIn = !!user;
                 "Open the admin control area for site operations, health checks, moderation, and system tooling.",
               actionLabel: "Open Admin",
               onClick: () => navigate("/admin"),
+            } satisfies MembersToolCard,
+          ]
+        : []),
+      ...(showDevHubCard
+        ? [
+            {
+              key: "kanban",
+              title: "Dev Hub",
+              description: "Task board and support tickets in one place. Plan work, track bugs, and manage the team across dev and art.",
+              actionLabel: "Open Dev Hub",
+              onClick: () => setMembersView("kanban"),
             } satisfies MembersToolCard,
           ]
         : []),
@@ -742,6 +818,11 @@ const isLoggedIn = !!user;
     ]
   );
 
+  const toolByKey = useMemo(
+    () => Object.fromEntries(memberTools.map((t) => [t.key, t])),
+    [memberTools]
+  );
+
   async function onCreate(payload: {
     title: string;
     description: string;
@@ -883,107 +964,109 @@ const isLoggedIn = !!user;
             </section>
           ) : null}
 
-          <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {memberTools.map((tool) => (
-              <article
-                key={tool.key}
-                className={`flex h-full flex-col gap-3 rounded-xl border border-white/12 bg-white/5 p-4 ${tool.key === "wreckingHelper" ? "hidden md:flex" : ""}`}
-              >
-                <img
-                  src={
-                    tool.key === "universe"
-                      ? astrogationIcon
-                      : tool.key === "wreckingHelper"
-                        ? wreckerIcon
-                      : tool.key === "changelog"
-                        ? changelogIcon
-                      : tool.key === "shipHeatmap"
-                        ? combatCalcIcon
-                      : tool.key === "weaponHeatmap"
-                        ? heatmapIcon
-                      : tool.key === "hyperplanner"
-                        ? hyperIcon
-                      : tool.key === "biometrics"
-                        ? biometricsIcon
-                        : tool.key === "archive"
-                          ? archiveIcon
-                        : tool.key === "stats"
-                          ? statsIcon
-                      : tool.key === "jobs"
-                        ? jobBoardIcon
-                      : tool.key === "payments"
-                        ? paymentIcon
-                      : tool.key === "droidbrain"
-                        ? droidBrainIcon
-                      : tool.key === "swc-access"
-                        ? chainCodeIcon
-                      : tool.key === "rmBrowser"
-                        ? rmIcon
-                      : tool.key === "haulCalculator"
-                        ? rmHaulerIcon
-                      : tool.key === "production"
-                        ? productionIcon
-                      : tool.key === "xpTracker"
-                        ? xpTrackerIcon
-                      : tool.key === "recyclingCalculator"
-                        ? recyclingIcon
-                        : jawaLogo
-                  }
-                  alt={
-                    tool.key === "universe"
-                      ? "Astrogation"
-                      : tool.key === "wreckingHelper"
-                        ? "Wrecking Helper"
-                      : tool.key === "changelog"
-                        ? "Change Log"
-                      : tool.key === "shipHeatmap"
-                        ? "Combat Calculator"
-                      : tool.key === "weaponHeatmap"
-                        ? "Targeting Heatmap"
-                      : tool.key === "hyperplanner"
-                        ? "Hyper Planner"
-                      : tool.key === "biometrics"
-                        ? "Biometrics"
-                      : tool.key === "archive"
-                        ? "Galactic Archive"
-                      : tool.key === "stats"
-                        ? "Entity Stats"
-                      : tool.key === "jobs"
-                        ? "Job Board"
-                      : tool.key === "payments"
-                        ? "Payments"
-                      : tool.key === "droidbrain"
-                        ? "DroidBrain"
-                      : tool.key === "swc-access"
-                        ? "Chain Code Verification"
-                      : tool.key === "rmBrowser"
-                        ? "RM Browser"
-                      : tool.key === "haulCalculator"
-                        ? "RM Hauler"
-                      : tool.key === "production"
-                        ? "Production Calculator"
-                      : tool.key === "xpTracker"
-                        ? "XP Tracker"
-                      : tool.key === "recyclingCalculator"
-                        ? "Recycling Calculator"
-                      : "JOE placeholder logo"
-                  }
-                  className={`h-[84px] w-[84px] object-contain ${(tool.key === "payments" && hasPendingPayments) || (tool.key === "jobs" && hasPendingClaims) ? "animate-members-alert-pulse" : ""}`}
-                />
-                <div className="grid gap-2">
-                  <h2 className="m-0 text-base">{tool.title}</h2>
-                  <p className="small m-0">{tool.description}</p>
-                </div>
-                <button
-                  className={BTN + " mt-auto"}
-                  type="button"
-                  onClick={tool.onClick}
+          {/* Member category blocks */}
+          {showMemberToolCards && (
+            <section className="mt-4 flex flex-wrap justify-center gap-3">
+              {TOOL_CATEGORIES.map((cat) => {
+                const catTools = cat.toolKeys.map((k) => toolByKey[k]).filter(Boolean);
+                if (catTools.length === 0) return null;
+                return (
+                  <button
+                    key={cat.key}
+                    type="button"
+                    className="flex w-full sm:w-[calc(50%-6px)] xl:w-[calc(33.333%-8px)] flex-col items-center gap-[18px] rounded-xl border border-white/12 bg-white/5 p-6 text-center hover:bg-white/10 transition-colors cursor-pointer"
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setCategorySourceRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
+                      setOpenCategory(cat.key);
+                    }}
+                  >
+                    <div className="flex flex-wrap justify-center items-center gap-3">
+                      {catTools.map((t) => (
+                        <img
+                          key={t.key}
+                          src={TOOL_ICON_MAP[t.key] ?? jawaLogo}
+                          alt={t.title}
+                          className={`h-15 w-15 object-contain shrink-0 ${(t.key === "payments" && hasPendingPayments) || (t.key === "jobs" && hasPendingClaims) ? "animate-members-alert-pulse" : ""}`}
+                        />
+                      ))}
+                    </div>
+                    <div className="grid gap-[6px]">
+                      <h2 className="m-0 text-4xl font-tektur">{cat.label}</h2>
+                      <p className="m-0 text-base text-white/60 font-tektur">{cat.description}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </section>
+          )}
+
+          {/* Subscriber flat grid — unchanged */}
+          {showPublicToolCards && (
+            <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {memberTools.map((tool) => (
+                <article
+                  key={tool.key}
+                  className="flex h-full flex-col gap-3 rounded-xl border border-white/12 bg-white/5 p-4"
                 >
-                  {tool.actionLabel}
-                </button>
-              </article>
-            ))}
-          </section>
+                  <img
+                    src={TOOL_ICON_MAP[tool.key] ?? jawaLogo}
+                    alt={tool.title}
+                    className="h-[84px] w-[84px] object-contain"
+                  />
+                  <div className="grid gap-2">
+                    <h2 className="m-0 text-base">{tool.title}</h2>
+                    <p className="small m-0">{tool.description}</p>
+                  </div>
+                  <button className={BTN + " mt-auto"} type="button" onClick={tool.onClick}>
+                    {tool.actionLabel}
+                  </button>
+                </article>
+              ))}
+            </section>
+          )}
+
+          {/* Category overlay */}
+          {openCategory && (() => {
+            const cat = TOOL_CATEGORIES.find((c) => c.key === openCategory);
+            if (!cat) return null;
+            const catTools = cat.toolKeys.map((k) => toolByKey[k]).filter(Boolean);
+            return (
+              <Overlay
+                title={cat.label}
+                onClose={() => setOpenCategory(null)}
+                sourceRect={categorySourceRect ?? undefined}
+                maxWidth={900}
+                maxHeight={680}
+              >
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {catTools.map((tool) => (
+                    <article
+                      key={tool.key}
+                      className="flex h-full flex-col gap-3 rounded-xl border border-white/12 bg-white/5 p-4"
+                    >
+                      <img
+                        src={TOOL_ICON_MAP[tool.key] ?? jawaLogo}
+                        alt={tool.title}
+                        className={`h-[84px] w-[84px] object-contain ${(tool.key === "payments" && hasPendingPayments) || (tool.key === "jobs" && hasPendingClaims) ? "animate-members-alert-pulse" : ""}`}
+                      />
+                      <div className="grid gap-2">
+                        <h2 className="m-0 text-base">{tool.title}</h2>
+                        <p className="small m-0">{tool.description}</p>
+                      </div>
+                      <button
+                        className={BTN + " mt-auto"}
+                        type="button"
+                        onClick={() => { setOpenCategory(null); tool.onClick(); }}
+                      >
+                        {tool.actionLabel}
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              </Overlay>
+            );
+          })()}
         </section>
       )}
 
@@ -1197,6 +1280,17 @@ const isLoggedIn = !!user;
           initialVersionFilter={requestedChangelogVersion}
           onBack={() => setMembersView("overview")}
         />
+      )}
+
+      {membersView === "kanban" && canAccessSysadmin(user) && (
+        <>
+          <div className="flex mb-4">
+            <button className={BTN} type="button" onClick={() => setMembersView("overview")}>
+              Back to Overview
+            </button>
+          </div>
+          <DevHubPanel />
+        </>
       )}
 
     </main>

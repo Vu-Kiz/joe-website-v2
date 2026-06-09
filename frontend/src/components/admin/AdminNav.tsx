@@ -24,7 +24,8 @@ export type AdminView =
   | "toolStore"
   | "jobPayRates"
   | "materialPrices"
-  | "supportTickets";
+  | "supportTickets"
+  | "kanban";
 
 type NavItem = {
   key: AdminView;

@@ -1,125 +1,177 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  TouchSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+} from "@dnd-kit/core";
+import type { DragStartEvent, DragEndEvent, UniqueIdentifier } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { BTN, BTN_SM, BTN_GHOST_SM, INPUT, SELECT_INPUT } from "../../utils/ui";
-import Btn from "../common/Btn";
 import Overlay from "../common/Overlay";
+import TicketStatusBadge from "../support/TicketStatusBadge";
 import {
   adminGetTickets,
-  adminGetTicketSettings,
-  adminUpdateTicketSettings,
-  adminReplyToTicket,
   adminUpdateTicketStatus,
+  adminReplyToTicket,
   type SupportTicket,
   type TicketStatus,
-  type TicketRecipient,
   STATUS_LABELS,
 } from "../../api/support/supportTickets";
-import TicketStatusBadge from "../support/TicketStatusBadge";
 import { getKanbanBoard, promoteTicketToCard, type KanbanColumn } from "../../api/sys/kanban";
+
+// ---------------------------------------------------------------------------
+
+const COLUMNS: Array<{ key: TicketStatus; label: string }> = [
+  { key: "open",        label: "Open" },
+  { key: "in_progress", label: "In Progress" },
+  { key: "resolved",    label: "Resolved" },
+];
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+    year: "numeric", month: "short", day: "numeric",
   });
 }
 
-const STATUS_FILTERS: Array<{ value: TicketStatus | "all"; label: string }> = [
-  { value: "all",         label: "All" },
-  { value: "open",        label: "Open" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "resolved",    label: "Resolved" },
-];
-
 // ---------------------------------------------------------------------------
-// Settings section
+// Draggable ticket card
 // ---------------------------------------------------------------------------
 
-type SettingsSectionProps = {
-  recipient: TicketRecipient | null;
-  candidates: TicketRecipient[];
-  onSaved: () => void;
+type CardProps = {
+  ticket: SupportTicket;
+  onClick: () => void;
+  isDragOverlay?: boolean;
 };
 
-const SettingsSection: React.FC<SettingsSectionProps> = ({ recipient, candidates, onSaved }) => {
-  const [selectedId, setSelectedId] = useState<string>(recipient ? String(recipient.id) : "");
-  const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(null);
-
-  async function handleSave() {
-    setSaving(true);
-    setFeedback(null);
-    try {
-      await adminUpdateTicketSettings(selectedId !== "" ? Number(selectedId) : null);
-      setFeedback("Saved.");
-      onSaved();
-    } catch (err) {
-      setFeedback(err instanceof Error ? err.message : "Failed to save.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const displayName = (r: TicketRecipient) => {
-    const name = r.swc_handle ?? r.discord_global_name ?? r.discord_username ?? `User #${r.id}`;
-    const role = r.is_sysadmin ? "Sysadmin" : r.is_admin ? "Admin" : null;
-    return role ? `${name} [${role}]` : name;
-  };
+const TicketCard: React.FC<CardProps & { id: UniqueIdentifier }> = ({ id, ticket, onClick }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
 
   return (
-    <div className="border border-white/8 rounded-xl bg-white/2 px-5 py-4 flex flex-col gap-3">
-      <p className="text-[0.8rem] uppercase tracking-[0.08em] opacity-50 m-0 font-semibold">Discord PM Recipient</p>
-      <p className="text-[0.8rem] opacity-60 m-0">
-        This user receives a Discord PM when a new ticket is submitted or a user replies.
-        Set this to the developer / support lead, not the faction leader.
-      </p>
-      <div className="flex items-center gap-3 flex-wrap">
-        <select
-          className={INPUT + " max-w-70"}
-          value={selectedId}
-          onChange={(e) => setSelectedId(e.target.value)}
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={[
+        "group rounded-[14px] border bg-[rgba(255,255,255,0.04)] border-white/[0.07] p-[0.65rem_0.8rem]",
+        "flex flex-col gap-[0.35rem] cursor-pointer select-none",
+        "transition-[border-color,box-shadow,background] duration-150 shadow-[0_2px_8px_rgba(0,0,0,0.18)]",
+        isDragging
+          ? "opacity-40"
+          : "hover:bg-[rgba(255,255,255,0.06)] hover:border-white/[0.13] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)]",
+      ].join(" ")}
+      onClick={onClick}
+    >
+      <div className="flex items-start gap-2">
+        <span
+          {...attributes}
+          {...listeners}
+          className="mt-[2px] text-white/25 cursor-grab active:cursor-grabbing shrink-0 hover:text-white/50 transition-colors leading-none text-[1rem]"
+          onClick={(e) => e.stopPropagation()}
         >
-          <option value="">— None —</option>
-          {candidates.map((c) => (
-            <option key={c.id} value={String(c.id)}>
-              {displayName(c)}
-            </option>
-          ))}
-        </select>
-        <button type="button" className={BTN} onClick={handleSave} disabled={saving}>
-          {saving ? "Saving…" : "Save"}
-        </button>
-        {feedback && (
-          <span className={`text-[0.8rem] ${feedback === "Saved." ? "text-[#8ef0a0]" : "text-[salmon]"}`}>
-            {feedback}
-          </span>
-        )}
+          ⋮⋮
+        </span>
+        <span className="text-[0.82rem] font-semibold leading-snug flex-1">{ticket.title}</span>
+        <span className="text-[0.68rem] opacity-35 shrink-0">#{ticket.id}</span>
       </div>
-      {recipient && (
-        <p className="text-[0.78rem] opacity-50 m-0">
-          Currently: {displayName(recipient)}
-        </p>
-      )}
+      <div className="flex items-center gap-[0.4rem] flex-wrap pl-[1.4rem]">
+        <TicketStatusBadge severity={ticket.severity} />
+        <span className="text-[0.68rem] opacity-40">{ticket.tool_key}</span>
+        <span className="text-[0.68rem] opacity-30 ml-auto">{formatDate(ticket.created_at)}</span>
+      </div>
+    </div>
+  );
+};
+
+const TicketCardOverlay: React.FC<{ ticket: SupportTicket }> = ({ ticket }) => (
+  <div className="rounded-[14px] border bg-[rgba(255,255,255,0.08)] border-white/[0.18] p-[0.65rem_0.8rem] flex flex-col gap-[0.35rem] shadow-[0_8px_24px_rgba(0,0,0,0.4)] cursor-grabbing">
+    <div className="flex items-start gap-2">
+      <span className="mt-[2px] text-white/40 leading-none text-[1rem]">⋮⋮</span>
+      <span className="text-[0.82rem] font-semibold leading-snug flex-1">{ticket.title}</span>
+      <span className="text-[0.68rem] opacity-35 shrink-0">#{ticket.id}</span>
+    </div>
+    <div className="flex items-center gap-[0.4rem] flex-wrap pl-[1.4rem]">
+      <TicketStatusBadge severity={ticket.severity} />
+      <span className="text-[0.68rem] opacity-40">{ticket.tool_key}</span>
+    </div>
+  </div>
+);
+
+// ---------------------------------------------------------------------------
+// Droppable column
+// ---------------------------------------------------------------------------
+
+type ColumnProps = {
+  col: { key: TicketStatus; label: string };
+  tickets: SupportTicket[];
+  onOpenTicket: (t: SupportTicket) => void;
+};
+
+const TicketColumn: React.FC<ColumnProps> = ({ col, tickets, onOpenTicket }) => {
+  const { setNodeRef, isOver } = useDroppable({ id: `col-${col.key}` });
+
+  const ids = tickets.map((t) => `ticket-${t.id}` as UniqueIdentifier);
+
+  return (
+    <div className="flex flex-col gap-3 min-w-0">
+      <div className="flex items-center gap-2 px-1">
+        <span className="text-[0.78rem] uppercase tracking-[0.1em] font-semibold opacity-60">{col.label}</span>
+        <span className="text-[0.68rem] bg-white/8 rounded-full px-[0.5rem] py-px opacity-50">{tickets.length}</span>
+      </div>
+
+      <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+        <div
+          ref={setNodeRef}
+          className={[
+            "flex flex-col gap-2 rounded-[18px] border p-3 min-h-[120px] transition-colors duration-150",
+            isOver
+              ? "border-white/20 bg-[rgba(255,255,255,0.05)]"
+              : "border-white/[0.06] bg-[rgba(255,255,255,0.02)]",
+          ].join(" ")}
+        >
+          {tickets.length === 0 && (
+            <p className="text-[0.72rem] opacity-25 text-center py-4 m-0">No tickets</p>
+          )}
+          {tickets.map((t) => (
+            <TicketCard
+              key={t.id}
+              id={`ticket-${t.id}`}
+              ticket={t}
+              onClick={() => onOpenTicket(t)}
+            />
+          ))}
+        </div>
+      </SortableContext>
     </div>
   );
 };
 
 // ---------------------------------------------------------------------------
-// Main panel
+// Main board
 // ---------------------------------------------------------------------------
 
-const AdminSupportTicketsPanel: React.FC = () => {
+type Props = {
+  onTicketsChanged: () => void;
+};
+
+const TicketBoardView: React.FC<Props> = ({ onTicketsChanged }) => {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<TicketStatus | "all">("all");
+  const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
+
+  // Detail overlay
   const [selected, setSelected] = useState<SupportTicket | null>(null);
   const [reply, setReply] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
-  const [recipient, setRecipient] = useState<TicketRecipient | null>(null);
-  const [candidates, setCandidates] = useState<TicketRecipient[]>([]);
 
   // Push to board
-  const [columns, setColumns] = useState<KanbanColumn[]>([]);
+  const [columns, setBoardColumns] = useState<KanbanColumn[]>([]);
   const [showPush, setShowPush] = useState(false);
   const [pushColumnId, setPushColumnId] = useState<string>("");
   const [pushing, setPushing] = useState(false);
@@ -131,21 +183,62 @@ const AdminSupportTicketsPanel: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [ticketsRes, settingsRes] = await Promise.all([
-        adminGetTickets(statusFilter !== "all" ? { status: statusFilter } : undefined),
-        adminGetTicketSettings(),
-      ]);
-      setTickets(ticketsRes.data);
-      setRecipient(settingsRes.data.recipient);
-      setCandidates(settingsRes.data.candidate_recipients);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load tickets.");
+      const res = await adminGetTickets();
+      setTickets(res.data);
+    } catch {
+      setError("Failed to load tickets.");
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor,   { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor),
+  );
+
+  function getTicketFromDragId(id: UniqueIdentifier): SupportTicket | undefined {
+    const numId = Number(String(id).replace("ticket-", ""));
+    return tickets.find((t) => t.id === numId);
+  }
+
+  function handleDragStart({ active }: DragStartEvent) {
+    setActiveId(active.id);
+  }
+
+  async function handleDragEnd({ active, over }: DragEndEvent) {
+    setActiveId(null);
+    if (!over) return;
+
+    const overId = String(over.id);
+    const targetStatus = overId.startsWith("col-")
+      ? (overId.replace("col-", "") as TicketStatus)
+      : (() => {
+          const targetTicket = getTicketFromDragId(over.id);
+          return targetTicket?.status ?? null;
+        })();
+
+    if (!targetStatus) return;
+
+    const ticket = getTicketFromDragId(active.id);
+    if (!ticket || ticket.status === targetStatus) return;
+
+    // Optimistic update
+    setTickets((prev) => prev.map((t) => t.id === ticket.id ? { ...t, status: targetStatus } : t));
+    if (selected?.id === ticket.id) setSelected((s) => s ? { ...s, status: targetStatus } : s);
+
+    try {
+      const res = await adminUpdateTicketStatus(ticket.id, targetStatus);
+      setTickets((prev) => prev.map((t) => t.id === res.data.id ? res.data : t));
+      onTicketsChanged();
+    } catch {
+      // Revert on failure
+      setTickets((prev) => prev.map((t) => t.id === ticket.id ? { ...t, status: ticket.status } : t));
+    }
+  }
 
   async function handleReply(e: React.SyntheticEvent) {
     e.preventDefault();
@@ -170,6 +263,7 @@ const AdminSupportTicketsPanel: React.FC = () => {
       const res = await adminUpdateTicketStatus(selected.id, status);
       setSelected(res.data);
       setTickets((prev) => prev.map((t) => t.id === res.data.id ? res.data : t));
+      onTicketsChanged();
     } catch (err) {
       setReplyError(err instanceof Error ? err.message : "Failed to update status.");
     }
@@ -182,7 +276,7 @@ const AdminSupportTicketsPanel: React.FC = () => {
     if (!columnsLoaded.current) {
       try {
         const res = await getKanbanBoard();
-        setColumns(res.data);
+        setBoardColumns(res.data);
         if (res.data.length > 0) setPushColumnId(String(res.data[0].id));
         columnsLoaded.current = true;
       } catch {
@@ -206,75 +300,47 @@ const AdminSupportTicketsPanel: React.FC = () => {
     }
   }
 
-  const openCount = tickets.filter((t) => t.status === "open").length;
+  function openTicket(ticket: SupportTicket) {
+    setSelected(ticket);
+    setReply("");
+    setReplyError(null);
+    setShowPush(false);
+    setPushSuccess(false);
+    setPushError(null);
+  }
+
+  const activeTicket = activeId ? getTicketFromDragId(activeId) : null;
+
+  if (loading) return <p className="small opacity-50">Loading…</p>;
+  if (error) return <p className="small text-[salmon]">{error}</p>;
+
+  const grouped = Object.fromEntries(
+    COLUMNS.map((col) => [col.key, tickets.filter((t) => t.status === col.key)])
+  ) as Record<TicketStatus, SupportTicket[]>;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3 flex-wrap">
-        <h2 className="h2 m-0 flex-1">
-          Support Tickets
-          {openCount > 0 && (
-            <span className="ml-2 text-[0.75rem] bg-[rgba(245,213,70,0.15)] border border-[rgba(245,213,70,0.3)] text-[#f2c46f] rounded-full px-2 py-px">
-              {openCount} open
-            </span>
-          )}
-        </h2>
+    <>
+      <div className="flex justify-end mb-2">
         <button className={BTN_GHOST_SM} type="button" onClick={load}>Refresh</button>
       </div>
 
-      {/* Recipient settings */}
-      <SettingsSection
-        recipient={recipient}
-        candidates={candidates}
-        onSaved={load}
-      />
-
-      {/* Status filter */}
-      <div className="flex gap-2 flex-wrap">
-        {STATUS_FILTERS.map((f) => (
-          <Btn
-            key={f.value}
-            variant="tab"
-            size="sm"
-            active={statusFilter === f.value}
-            onClick={() => { setStatusFilter(f.value); setSelected(null); }}
-          >
-            {f.label}
-          </Btn>
-        ))}
-      </div>
-
-      {loading && <p className="small opacity-50">Loading…</p>}
-      {error && <p className="small text-[salmon]">{error}</p>}
-
-      {!loading && !error && (
-        <div className="flex flex-col gap-2">
-          {tickets.length === 0 && <p className="small opacity-50">No tickets.</p>}
-          {tickets.map((ticket) => (
-            <button
-              key={ticket.id}
-              type="button"
-              onClick={() => { setSelected(ticket); setReply(""); setReplyError(null); setShowPush(false); setPushSuccess(false); setPushError(null); }}
-              className="w-full text-left rounded-xl border px-4 py-3 transition-colors duration-100 border-white/8 bg-surface hover:border-white/20 hover:bg-white/[0.05]"
-            >
-              <div className="flex items-start justify-between gap-2 mb-1">
-                <span className="text-[0.85rem] font-semibold leading-snug">{ticket.title}</span>
-                <span className="text-[0.7rem] opacity-40 shrink-0">#{ticket.id}</span>
-              </div>
-              <p className="text-[0.75rem] opacity-50 m-0 mb-2">{ticket.tool_key}</p>
-              <div className="flex gap-2 flex-wrap">
-                <TicketStatusBadge status={ticket.status} />
-                <TicketStatusBadge severity={ticket.severity} />
-              </div>
-              <p className="text-[0.7rem] opacity-40 m-0 mt-1">
-                {ticket.user?.swc_handle ?? "Unknown"} · {formatDate(ticket.created_at)}
-              </p>
-            </button>
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="grid grid-cols-3 gap-4 max-[640px]:grid-cols-1">
+          {COLUMNS.map((col) => (
+            <TicketColumn
+              key={col.key}
+              col={col}
+              tickets={grouped[col.key]}
+              onOpenTicket={openTicket}
+            />
           ))}
         </div>
-      )}
 
-      {/* Ticket detail overlay */}
+        <DragOverlay>
+          {activeTicket && <TicketCardOverlay ticket={activeTicket} />}
+        </DragOverlay>
+      </DndContext>
+
       {selected && (
         <Overlay
           title={
@@ -288,7 +354,6 @@ const AdminSupportTicketsPanel: React.FC = () => {
           maxHeight={820}
         >
           <div className="flex flex-col gap-4">
-            {/* Badges + controls */}
             <div className="flex items-start gap-3 flex-wrap">
               <div className="flex gap-2 flex-wrap flex-1">
                 <TicketStatusBadge status={selected.status} />
@@ -337,7 +402,6 @@ const AdminSupportTicketsPanel: React.FC = () => {
               </div>
             </div>
 
-            {/* Messages */}
             <div className="flex flex-col gap-3">
               {selected.messages.map((msg) => (
                 <div
@@ -364,7 +428,6 @@ const AdminSupportTicketsPanel: React.FC = () => {
               ))}
             </div>
 
-            {/* Reply */}
             <form onSubmit={handleReply} className="flex flex-col gap-3">
               <textarea
                 className={INPUT + " resize-none h-25"}
@@ -383,8 +446,8 @@ const AdminSupportTicketsPanel: React.FC = () => {
           </div>
         </Overlay>
       )}
-    </div>
+    </>
   );
 };
 
-export default AdminSupportTicketsPanel;
+export default TicketBoardView;

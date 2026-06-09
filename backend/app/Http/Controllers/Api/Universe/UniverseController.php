@@ -55,45 +55,37 @@ class UniverseController extends Controller
             sprintf('universe:archive:planets:%s', md5(strtolower($query))),
             300,
             function () use ($query) {
-                $planets = SwcPlanet::query()
-                    ->when($query !== '', function ($builder) use ($query) {
-                        $builder->where(function ($inner) use ($query) {
-                            $inner
-                                ->where('name', 'like', '%' . $query . '%')
-                                ->orWhere('uid', $query)
-                                ->orWhere('identifier', $query)
-                                ->orWhere('system_name', 'like', '%' . $query . '%')
-                                ->orWhere('sector_name', 'like', '%' . $query . '%')
-                                ->orWhere('owner_name', 'like', '%' . $query . '%')
-                                ->orWhere('planet_type_name', 'like', '%' . $query . '%');
-                        });
-                    })
-                    ->orderBy('name')
-                    ->limit(500)
-                    ->get([
-                        'uid',
-                        'identifier',
-                        'name',
-                        'sector_uid',
-                        'sector_name',
-                        'system_uid',
-                        'system_name',
-                        'owner_uid',
-                        'owner_name',
-                        'planet_type_uid',
-                        'planet_type_name',
-                        'size',
-                        'population',
-                        'previous_population',
-                        'previous_population_recorded_at',
-                        'galx',
-                        'galy',
-                        'sysx',
-                        'sysy',
-                        'image_small_url',
-                        'image_large_url',
-                        'last_pulled_at',
-                    ]);
+                if ($query !== '') {
+                    $planets = SwcPlanet::search($query)->take(500)->get();
+                } else {
+                    $planets = SwcPlanet::query()
+                        ->orderBy('name')
+                        ->limit(500)
+                        ->get([
+                            'uid',
+                            'identifier',
+                            'name',
+                            'sector_uid',
+                            'sector_name',
+                            'system_uid',
+                            'system_name',
+                            'owner_uid',
+                            'owner_name',
+                            'planet_type_uid',
+                            'planet_type_name',
+                            'size',
+                            'population',
+                            'previous_population',
+                            'previous_population_recorded_at',
+                            'galx',
+                            'galy',
+                            'sysx',
+                            'sysy',
+                            'image_small_url',
+                            'image_large_url',
+                            'last_pulled_at',
+                        ]);
+                }
 
                 return $planets->map(fn (SwcPlanet $planet) => [
                     'uid' => $planet->uid,
@@ -907,6 +899,39 @@ class UniverseController extends Controller
                 ])
                 ->toArray();
         });
+    }
+
+    public function archiveSystems(Request $request): JsonResponse
+    {
+        $query = trim((string) $request->query('q', ''));
+
+        return $this->cachedListResponse(
+            sprintf('universe:archive:systems:%s', md5(strtolower($query))),
+            300,
+            function () use ($query) {
+                if ($query !== '') {
+                    $systems = SwcSystem::search($query)->take(500)->get();
+                } else {
+                    $systems = SwcSystem::query()
+                        ->whereNotNull('galx')
+                        ->whereNotNull('galy')
+                        ->orderBy('name')
+                        ->get(['uid', 'name', 'sector_uid', 'sector_name', 'owner_uid', 'owner_name', 'galx', 'galy', 'last_pulled_at']);
+                }
+
+                return $systems->map(fn (SwcSystem $system) => [
+                    'uid'         => $system->uid,
+                    'name'        => $system->name,
+                    'sector_uid'  => $system->sector_uid,
+                    'sector_name' => $system->sector_name,
+                    'owner_uid'   => $system->owner_uid,
+                    'owner_name'  => $system->owner_name,
+                    'galx'        => $system->galx,
+                    'galy'        => $system->galy,
+                    'last_pulled_at' => $system->last_pulled_at,
+                ])->values()->all();
+            }
+        );
     }
 
     public function mapSystems(): JsonResponse
@@ -3089,10 +3114,10 @@ class UniverseController extends Controller
             'ok' => true,
             'data' => [
                 'resource' => 'system',
-                'identifier' => $systemRecord->identifier ?: $systemRecord->uid,
+                'identifier' => $systemRecord->uid,
                 'system' => [
                     'uid' => $systemRecord->uid,
-                    'identifier' => $systemRecord->identifier,
+                    'identifier' => $systemRecord->uid,
                     'name' => $systemRecord->name,
                     'sector_uid' => $systemRecord->sector_uid,
                     'sector_name' => $systemRecord->sector_name,
@@ -3924,9 +3949,22 @@ class UniverseController extends Controller
             ])
             ->values();
 
+        // Extract fire_delay from the stored payload JSON so it's available
+        // even before the fire_delay DB column migration has run on the server.
+        $fireDelayFromPayload = null;
+        if (is_array($type->payload)) {
+            $fd = $type->payload['firedelay'] ?? $type->payload['fire_delay'] ?? null;
+            if (is_numeric($fd)) {
+                $fireDelayFromPayload = (int) $fd;
+            } elseif (is_array($fd) && isset($fd[0]) && is_numeric($fd[0])) {
+                $fireDelayFromPayload = (int) $fd[0];
+            }
+        }
+
         return response()->json([
             'ok' => true,
             'data' => array_merge($type->toArray(), [
+                'fire_delay' => $fireDelayFromPayload,
                 'mounted_ships' => $mountedShips,
                 'mounted_vehicles' => $mountedVehicles,
             ]),
