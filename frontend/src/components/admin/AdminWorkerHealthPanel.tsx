@@ -32,7 +32,7 @@ const formatSeconds = (value: number | null | undefined): string => {
   return `${hours}h ${minutes}m`;
 };
 
-type ActionKey = "recoverImports" | "runPayments" | "retryPayments" | "clearFailed" | "reindexAll" | `retryImport:${number}`;
+type ActionKey = "recoverImports" | "runPayments" | "retryPayments" | "clearFailed" | "reindexAll" | "reindexUniverse" | `retryImport:${number}`;
 
 const AdminWorkerHealthPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);

@@ -172,10 +172,6 @@ type AggregatedResults = {
 
 // ─── Math helpers ─────────────────────────────────────────────────────────────
 
-function clamp01(v: number): number {
-  return Math.max(0, Math.min(1, v));
-}
-
 function formatNumber(v: number | null | undefined, digits = 2, fallback = "—"): string {
   if (v == null || Number.isNaN(v)) return fallback;
   return Number(v)
@@ -226,27 +222,6 @@ function arcLabel(arc: string | null): string {
   return arc.charAt(0).toUpperCase() + arc.slice(1);
 }
 
-function buildShieldArcPools(detail: StoredShipTypeDetail): Record<string, number> {
-  const arcs = (detail as unknown as Record<string, unknown>).shield_arcs;
-  if (!Array.isArray(arcs) || !arcs.length) return {};
-  const totalShield = Math.max(0, Number(detail.shield ?? 0));
-  const pools: Record<string, number> = {};
-  for (const arc of arcs) {
-    if (!arc.name) continue;
-    const key = normalizeArc(arc.name);
-    if (!key || key === "all") continue;
-    let value: number;
-    if (arc.value != null) {
-      value = Math.max(0, Number(arc.value));
-    } else if (arc.percent != null) {
-      value = Math.round(totalShield * arc.percent / 100);
-    } else {
-      continue;
-    }
-    pools[key] = value;
-  }
-  return pools;
-}
 
 function weaponCanFireAtBearing(weapon: ResolvedWeapon, bearing: number): boolean {
   if (weapon.arcFrom != null && weapon.arcTo != null) {
