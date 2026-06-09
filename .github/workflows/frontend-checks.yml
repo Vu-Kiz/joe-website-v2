@@ -1,0 +1,46 @@
+name: Frontend Checks
+
+on:
+  push:
+    paths:
+      - 'frontend/**'
+  pull_request:
+    paths:
+      - 'frontend/**'
+
+jobs:
+  check:
+    name: TypeScript & ESLint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript
+        run: ./node_modules/.bin/tsc -b
+
+      - name: ESLint
+        # Ratchet: fail if problem count exceeds baseline of 78 pre-existing issues.
+        # Reduce baseline as existing issues are fixed.
+        shell: bash
+        run: |
+          RESULT=$(./node_modules/.bin/eslint src 2>&1 || true)
+          PROBLEMS=$(echo "$RESULT" | grep -oE '[0-9]+ problems' | grep -oE '^[0-9]+' || echo "0")
+          if [ "$PROBLEMS" -gt 78 ]; then
+            echo "$RESULT"
+            echo "ESLint: $PROBLEMS problems (baseline 78). Fix new issues."
+            exit 1
+          fi
+          echo "ESLint OK: $PROBLEMS problems (baseline 78)"

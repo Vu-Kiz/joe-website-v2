@@ -35,7 +35,7 @@ const Pagination: React.FC<Props> = ({
   const pages = useMemo(() => {
     const windowSize = 5;
     let start = Math.max(1, safePage - Math.floor(windowSize / 2));
-    let end = Math.min(totalPages, start + windowSize - 1);
+    const end = Math.min(totalPages, start + windowSize - 1);
 
     if (end - start + 1 < windowSize) {
       start = Math.max(1, end - windowSize + 1);
