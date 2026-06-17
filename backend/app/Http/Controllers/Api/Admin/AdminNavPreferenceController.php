@@ -14,6 +14,7 @@ class AdminNavPreferenceController extends Controller
         'workerHealth',
         'websiteHealth',
         'tips',
+        'tos',
         'tenets',
         'eotm',
         'weather',
@@ -27,8 +28,11 @@ class AdminNavPreferenceController extends Controller
         'logs',
         'memberAccessLogs',
         'droidbrainUploads',
+        'astrogationUploads',
         'toolStore',
         'jobPayRates',
+        'materialPrices',
+        'supportTickets',
     ];
 
     private const MAX_RECENTS = 6;
