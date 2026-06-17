@@ -41,6 +41,10 @@ export function initMonitoring(): void {
             defaultInputMode: 1, // mask all inputs by default
             network: {
                 capturePayload: true,
+                failuresOnly: false,
+                sessionTokenHeader: false,
+                ignoreHeaders: false,
+                captureInIframes: false,
                 sanitizer: (data) => {
                     if (data.request.body && typeof data.request.body === 'object') {
                         SENSITIVE.forEach((key) => delete (data.request.body as any)[key]);
