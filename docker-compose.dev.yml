@@ -324,5 +324,78 @@ services:
     ports:
       - "9013:80"
 
+  # ---------------------------------------------------------------------------
+  # GlitchTip
+  # ---------------------------------------------------------------------------
+  glitchtip-db:
+    image: postgres:16-alpine
+    container_name: joe_glitchtip_db_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: glitchtip
+      POSTGRES_USER: glitchtip
+      POSTGRES_PASSWORD: ${GLITCHTIP_DB_PASSWORD}
+    volumes:
+      - glitchtip_db_data:/var/lib/postgresql/data
+
+  glitchtip-redis:
+    image: redis:7-alpine
+    container_name: joe_glitchtip_redis_dev
+    restart: unless-stopped
+
+  glitchtip:
+    image: glitchtip/glitchtip:latest
+    container_name: joe_glitchtip_dev
+    restart: unless-stopped
+    depends_on:
+      - glitchtip-db
+      - glitchtip-redis
+    networks:
+      - default
+      - nginxproxy
+    environment:
+      DATABASE_URL: postgresql://glitchtip:${GLITCHTIP_DB_PASSWORD}@glitchtip-db:5432/glitchtip
+      REDIS_URL: redis://glitchtip-redis:6379
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
+      PORT: 8000
+      EMAIL_URL: ${GLITCHTIP_EMAIL_URL}
+      GLITCHTIP_DOMAIN: https://glitchtip-dev.swc-joe.com
+      DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL}
+      CELERY_WORKER_CONCURRENCY: 2
+      GLITCHTIP_MAX_EVENT_LIFE_DAYS: 90
+      ENABLE_USER_REGISTRATION: "False"
+      ENABLE_OPEN_USER_REGISTRATION: "False"
+      ENABLE_ORGANIZATION_CREATION: "False"
+      GLITCHTIP_ENABLE_LOGS: "True"
+      GLITCHTIP_ALLOW_PRIVATE_IPS: "True"
+    ports:
+      - "9020:8000"
+
+  glitchtip-worker:
+    image: glitchtip/glitchtip:latest
+    container_name: joe_glitchtip_worker_dev
+    restart: unless-stopped
+    depends_on:
+      - glitchtip-db
+      - glitchtip-redis
+    command: ./bin/run-celery-with-beat.sh
+    environment:
+      DATABASE_URL: postgresql://glitchtip:${GLITCHTIP_DB_PASSWORD}@glitchtip-db:5432/glitchtip
+      REDIS_URL: redis://glitchtip-redis:6379
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
+      EMAIL_URL: ${GLITCHTIP_EMAIL_URL}
+      GLITCHTIP_DOMAIN: https://glitchtip-dev.swc-joe.com
+      DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL}
+      CELERY_WORKER_CONCURRENCY: 2
+      GLITCHTIP_MAX_EVENT_LIFE_DAYS: 90
+      GLITCHTIP_ALLOW_PRIVATE_IPS: "True"
+
 volumes:
   meilisearch_data:
+  glitchtip_db_data:
+
+networks:
+  default:
+  nginxproxy:
+    external: true
+    name: nginxproxymanager_default

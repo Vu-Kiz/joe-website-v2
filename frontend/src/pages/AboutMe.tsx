@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { fetchAuthMe, getBackendOrigin } from "../api/core/auth";
 import type { SwcUser } from "../api/core/auth";
+import TosModal from "../components/common/TosModal";
 import {
   getSwcAuthorizationStatus,
   updateSwcAuthorizationPreferences,
@@ -40,6 +41,7 @@ const AboutMe: React.FC = () => {
     astrogation: true,
   });
   const [error, setError] = useState<string | null>(null);
+  const [showTos, setShowTos] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -479,6 +481,21 @@ const AboutMe: React.FC = () => {
           </span>
         )}
       </div>
+      <hr className="w-full border-0 border-t border-white/22 my-1.5" />
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className={BTN_SM + " all"}
+          onClick={() => setShowTos(true)}
+        >
+          View Terms of Service
+        </button>
+      </div>
+
+      {showTos && (
+        <TosModal readOnly onClose={() => setShowTos(false)} />
+      )}
     </div>
   );
 };

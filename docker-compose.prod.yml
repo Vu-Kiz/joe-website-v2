@@ -315,13 +315,82 @@ services:
       - joe_prod_net
       - nginx_proxy
 
+  # ---------------------------------------------------------------------------
+  # GlitchTip
+  # ---------------------------------------------------------------------------
+  glitchtip-db:
+    image: postgres:16-alpine
+    container_name: joe_glitchtip_db_prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: glitchtip
+      POSTGRES_USER: glitchtip
+      POSTGRES_PASSWORD: ${GLITCHTIP_DB_PASSWORD}
+    volumes:
+      - glitchtip_db_data:/var/lib/postgresql/data
+    networks:
+      - joe_glitchtip_prod_net
+
+  glitchtip-redis:
+    image: redis:7-alpine
+    container_name: joe_glitchtip_redis_prod
+    restart: unless-stopped
+    networks:
+      - joe_glitchtip_prod_net
+
+  glitchtip:
+    image: glitchtip/glitchtip:latest
+    container_name: joe_glitchtip_prod
+    restart: unless-stopped
+    depends_on:
+      - glitchtip-db
+      - glitchtip-redis
+    environment:
+      DATABASE_URL: postgresql://glitchtip:${GLITCHTIP_DB_PASSWORD}@glitchtip-db:5432/glitchtip
+      REDIS_URL: redis://glitchtip-redis:6379
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
+      PORT: 8000
+      EMAIL_URL: ${GLITCHTIP_EMAIL_URL}
+      GLITCHTIP_DOMAIN: https://glitchtip.swc-joe.com
+      DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL}
+      CELERY_WORKER_CONCURRENCY: 2
+      GLITCHTIP_MAX_EVENT_LIFE_DAYS: 90
+    networks:
+      - joe_glitchtip_prod_net
+      - joe_prod_net
+      - nginx_proxy
+
+  glitchtip-worker:
+    image: glitchtip/glitchtip:latest
+    container_name: joe_glitchtip_worker_prod
+    restart: unless-stopped
+    depends_on:
+      - glitchtip-db
+      - glitchtip-redis
+    command: ./bin/run-celery-with-beat.sh
+    environment:
+      DATABASE_URL: postgresql://glitchtip:${GLITCHTIP_DB_PASSWORD}@glitchtip-db:5432/glitchtip
+      REDIS_URL: redis://glitchtip-redis:6379
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
+      EMAIL_URL: ${GLITCHTIP_EMAIL_URL}
+      GLITCHTIP_DOMAIN: https://glitchtip.swc-joe.com
+      DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL}
+      CELERY_WORKER_CONCURRENCY: 2
+      GLITCHTIP_MAX_EVENT_LIFE_DAYS: 90
+    networks:
+      - joe_glitchtip_prod_net
+
 volumes:
   db_data:
   backend_public_uploads:
   meili_data:
+  glitchtip_db_data:
 
 networks:
   joe_prod_net:
+    driver: bridge
+
+  joe_glitchtip_prod_net:
     driver: bridge
 
   nginx_proxy:

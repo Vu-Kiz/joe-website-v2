@@ -191,6 +191,7 @@ const MembersPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [authRefreshNonce, setAuthRefreshNonce] = useState(0);
   const [toolkitPrivPreviewOpen, setToolkitPrivPreviewOpen] = useState(false);
+  const [memberFlatView, setMemberFlatView] = useState(() => localStorage.getItem("toolkit_flat_view") === "1");
   const [toolkitPreviewPrivs, setToolkitPreviewPrivs] = useState<PreviewPrivs>(() => toPreviewPrivs(null));
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [categorySourceRect, setCategorySourceRect] = useState<Rect | null>(null);
@@ -479,7 +480,7 @@ const MembersPage: React.FC = () => {
 const isLoggedIn = !!user;
   const canSeePublicTools = canAccessPublicTools(user);
   const toolAccessTier = getToolAccessTier(user);
-  const canSeeMembers = canAccessMembers(user) || canAccessIntel(user) || canAccessWreckingHelperExtension(user) || canAccessFleetCommander(user) || canSeePublicTools;
+  const canSeeMembers = isLoggedIn || canAccessMembers(user) || canAccessIntel(user) || canAccessWreckingHelperExtension(user) || canAccessFleetCommander(user) || canSeePublicTools;
   const canSeeMemberOnlyTools = canAccessMembers(user);
   const canSeeFleetCommander = canAccessFleetCommander(user);
   const canSeeRmBrowser = canAccessRmBrowser(user);
@@ -494,8 +495,9 @@ const isLoggedIn = !!user;
   const showAdminCard = effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
   const showMemberToolCards = effectiveCardPrivs.isJoeMember || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
   const showPublicToolCards = toolAccessTier === "public" && !showMemberToolCards;
+  const showFreeToolCards = isLoggedIn && !showMemberToolCards && !showPublicToolCards;
   const showPaymentsCard = effectiveCardPrivs.isJoeMember || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
-  const showDroidBrainCard = effectiveCardPrivs.isJoeMember || effectiveCardPrivs.isIntel || effectiveCardPrivs.isSysadmin || showPublicToolCards;
+  const showDroidBrainCard = effectiveCardPrivs.isJoeMember || effectiveCardPrivs.isIntel || effectiveCardPrivs.isSysadmin || showPublicToolCards || showFreeToolCards;
   const showWreckingHelperCard = effectiveCardPrivs.canAccessWreckingHelper || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
   const showFleetCommanderCard = effectiveCardPrivs.canAccessFleetCommander || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
   const showRmBrowserCard = effectiveCardPrivs.canAccessRmBrowser || effectiveCardPrivs.isAdmin || effectiveCardPrivs.isSysadmin;
@@ -603,13 +605,25 @@ const isLoggedIn = !!user;
             } satisfies MembersToolCard,
           ]
         : []),
-      ...(showDroidBrainCard
+      ...(showDroidBrainCard && !showFreeToolCards
         ? [
             {
               key: "droidbrain",
               title: "DroidBrain",
               description:
                 "Browse recorded intel, scan reports, and archived sightings from the DroidBrain network.",
+              actionLabel: "Open DroidBrain",
+              onClick: () => navigate("/intel/droidbrain"),
+            } satisfies MembersToolCard,
+          ]
+        : []),
+      ...(showFreeToolCards
+        ? [
+            {
+              key: "droidbrain",
+              title: "DroidBrain",
+              description:
+                "Submit scan reports to the DroidBrain network. Search and browse is available to subscribers and JOE members.",
               actionLabel: "Open DroidBrain",
               onClick: () => navigate("/intel/droidbrain"),
             } satisfies MembersToolCard,
@@ -639,19 +653,19 @@ const isLoggedIn = !!user;
             } satisfies MembersToolCard,
           ]
         : []),
-      ...(showMemberToolCards
+      ...(showMemberToolCards || showFreeToolCards
         ? [
             {
               key: "haulCalculator",
-              title: "RM Hauler",
+              title: "Hauler",
               description:
                 "Pick a raw material type and quantity to see which ships and vehicles can carry the load, and how many trips each would take.",
-              actionLabel: "Open RM Hauler",
+              actionLabel: "Open Hauler",
               onClick: () => setMembersView("haulCalculator"),
             } satisfies MembersToolCard,
           ]
         : []),
-      ...(showMemberToolCards
+      ...(showMemberToolCards || showFreeToolCards
         ? [
             {
               key: "production",
@@ -662,20 +676,24 @@ const isLoggedIn = !!user;
               onClick: () => setMembersView("production"),
             } satisfies MembersToolCard,
             {
-              key: "xpTracker",
-              title: "XP Tracker",
-              description:
-                "Pull your personal XP event history from SWC — see total XP gained, breakdown by activity type, and a daily chart over the past 4 months.",
-              actionLabel: "Open XP Tracker",
-              onClick: () => setMembersView("xpTracker"),
-            } satisfies MembersToolCard,
-            {
               key: "recyclingCalculator",
               title: "Recycling Calculator",
               description:
                 "Estimate recycling time, materials returned, and cost for ships, vehicles, facilities, and stations.",
               actionLabel: "Open Recycling Calculator",
               onClick: () => setMembersView("recyclingCalculator"),
+            } satisfies MembersToolCard,
+          ]
+        : []),
+      ...(showMemberToolCards
+        ? [
+            {
+              key: "xpTracker",
+              title: "XP Tracker",
+              description:
+                "Pull your personal XP event history from SWC — see total XP gained, breakdown by activity type, and a daily chart over the past 4 months.",
+              actionLabel: "Open XP Tracker",
+              onClick: () => setMembersView("xpTracker"),
             } satisfies MembersToolCard,
           ]
         : []),
@@ -795,6 +813,42 @@ const isLoggedIn = !!user;
               actionLabel: "Open Targeting Heatmap",
               onClick: () => setMembersView("weaponHeatmap"),
             } satisfies MembersToolCard,
+            {
+              key: "haulCalculator",
+              title: "Hauler",
+              description:
+                "Pick a raw material type and quantity to see which ships and vehicles can carry the load, and how many trips each would take.",
+              actionLabel: "Open Hauler",
+              onClick: () => setMembersView("haulCalculator"),
+            } satisfies MembersToolCard,
+            {
+              key: "production",
+              title: "Production Calculator",
+              description:
+                "Plan production runs for ships, vehicles, and droids. Get material requirements, time estimates, and cost breakdowns.",
+              actionLabel: "Open Production Calculator",
+              onClick: () => setMembersView("production"),
+            } satisfies MembersToolCard,
+            {
+              key: "recyclingCalculator",
+              title: "Recycling Calculator",
+              description:
+                "Estimate recycling time, materials returned, and cost for ships, vehicles, facilities, and stations.",
+              actionLabel: "Open Recycling Calculator",
+              onClick: () => setMembersView("recyclingCalculator"),
+            } satisfies MembersToolCard,
+          ]
+        : []),
+      ...(showFreeToolCards
+        ? [
+            {
+              key: "stats",
+              title: "Entity Stats",
+              description:
+                "Browse stored ships, stations, planets, materials, and other SWC catalog stats in a cleaner viewer.",
+              actionLabel: "Open Entity Stats",
+              onClick: () => setMembersView("stats"),
+            } satisfies MembersToolCard,
           ]
         : []),
     ],
@@ -802,6 +856,7 @@ const isLoggedIn = !!user;
       showAdminCard,
       showMemberToolCards,
       showPublicToolCards,
+      showFreeToolCards,
       showPaymentsCard,
       showDroidBrainCard,
       showWreckingHelperCard,
@@ -964,8 +1019,25 @@ const isLoggedIn = !!user;
             </section>
           ) : null}
 
-          {/* Member category blocks */}
+          {/* Member view toggle */}
           {showMemberToolCards && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                className={BTN_SM}
+                onClick={() => {
+                  const next = !memberFlatView;
+                  setMemberFlatView(next);
+                  localStorage.setItem("toolkit_flat_view", next ? "1" : "0");
+                }}
+              >
+                {memberFlatView ? "Switch to Categories" : "Switch to Flat View"}
+              </button>
+            </div>
+          )}
+
+          {/* Member category blocks */}
+          {showMemberToolCards && !memberFlatView && (
             <section className="mt-4 flex flex-wrap justify-center gap-3">
               {TOOL_CATEGORIES.map((cat) => {
                 const catTools = cat.toolKeys.map((k) => toolByKey[k]).filter(Boolean);
@@ -998,6 +1070,56 @@ const isLoggedIn = !!user;
                   </button>
                 );
               })}
+            </section>
+          )}
+
+          {/* Member flat grid — opt-in alternative to categories */}
+          {showMemberToolCards && memberFlatView && (
+            <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {memberTools.map((tool) => (
+                <article
+                  key={tool.key}
+                  className="flex h-full flex-col gap-3 rounded-xl border border-white/12 bg-white/5 p-4"
+                >
+                  <img
+                    src={TOOL_ICON_MAP[tool.key] ?? jawaLogo}
+                    alt={tool.title}
+                    className={`h-21 w-21 object-contain ${(tool.key === "payments" && hasPendingPayments) || (tool.key === "jobs" && hasPendingClaims) ? "animate-members-alert-pulse" : ""}`}
+                  />
+                  <div className="grid gap-2">
+                    <h2 className="m-0 text-base">{tool.title}</h2>
+                    <p className="small m-0">{tool.description}</p>
+                  </div>
+                  <button className={BTN + " mt-auto"} type="button" onClick={tool.onClick}>
+                    {tool.actionLabel}
+                  </button>
+                </article>
+              ))}
+            </section>
+          )}
+
+          {/* Free tools flat grid — any logged-in user */}
+          {showFreeToolCards && (
+            <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {memberTools.map((tool) => (
+                <article
+                  key={tool.key}
+                  className="flex h-full flex-col gap-3 rounded-xl border border-white/12 bg-white/5 p-4"
+                >
+                  <img
+                    src={TOOL_ICON_MAP[tool.key] ?? jawaLogo}
+                    alt={tool.title}
+                    className="h-21 w-21 object-contain"
+                  />
+                  <div className="grid gap-2">
+                    <h2 className="m-0 text-base">{tool.title}</h2>
+                    <p className="small m-0">{tool.description}</p>
+                  </div>
+                  <button className={BTN + " mt-auto"} type="button" onClick={tool.onClick}>
+                    {tool.actionLabel}
+                  </button>
+                </article>
+              ))}
             </section>
           )}
 
@@ -1200,7 +1322,7 @@ const isLoggedIn = !!user;
         </>
       )}
 
-      {membersView === "stats" && (canSeeMemberOnlyTools || canSeePublicTools) && (
+      {membersView === "stats" && (canSeeMemberOnlyTools || canSeePublicTools || isLoggedIn) && (
         <>
           <div className="flex mb-4">
             <button className={BTN} type="button" onClick={() => setMembersView("overview")}>
@@ -1230,18 +1352,18 @@ const isLoggedIn = !!user;
         </>
       )}
 
-      {membersView === "production" && canSeeMemberOnlyTools && (
+      {membersView === "production" && (canSeeMemberOnlyTools || canSeePublicTools || isLoggedIn) && (
         <>
           <div className="flex mb-4">
             <button className={BTN} type="button" onClick={() => setMembersView("overview")}>
               Back to Overview
             </button>
           </div>
-          <ProductionCalculatorPanel onPushToHaul={(mats) => { setPendingHaulMaterials(mats); setMembersView("haulCalculator"); }} />
+          <ProductionCalculatorPanel canPullSkills={canSeeMemberOnlyTools} onPushToHaul={(mats) => { setPendingHaulMaterials(mats); setMembersView("haulCalculator"); }} />
         </>
       )}
 
-      {membersView === "haulCalculator" && canSeeMemberOnlyTools && (
+      {membersView === "haulCalculator" && (canSeeMemberOnlyTools || canSeePublicTools || isLoggedIn) && (
         <>
           <div className="flex mb-4">
             <button className={BTN} type="button" onClick={() => setMembersView("overview")}>
@@ -1263,14 +1385,14 @@ const isLoggedIn = !!user;
         </>
       )}
 
-      {membersView === "recyclingCalculator" && canSeeMemberOnlyTools && (
+      {membersView === "recyclingCalculator" && (canSeeMemberOnlyTools || canSeePublicTools || isLoggedIn) && (
         <>
           <div className="flex mb-4">
             <button className={BTN} type="button" onClick={() => setMembersView("overview")}>
               Back to Overview
             </button>
           </div>
-          <RecyclingCalculatorPanel />
+          <RecyclingCalculatorPanel canPullSkills={canSeeMemberOnlyTools} />
         </>
       )}
 

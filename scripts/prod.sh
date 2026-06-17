@@ -74,6 +74,9 @@ Usage:
   ./scripts/prod.sh optimize-clear Clear Laravel runtime caches
   ./scripts/prod.sh shell         Shell into backend container (bash)
 
+  ./scripts/prod.sh glitchtip-setup   First-time GlitchTip setup: run Django migrations + create superuser
+  ./scripts/prod.sh glitchtip-logs    Tail GlitchTip web container logs
+
   ./scripts/prod.sh pull          git fetch + git pull (branch: ${GIT_BRANCH})
   ./scripts/prod.sh deploy        Pull + build images + restart stack + migrate + queue restart
 
@@ -169,6 +172,20 @@ case "${cmd}" in
     ${DC} restart scheduler
     ;;
 
+  glitchtip-setup)
+    echo "▶ Running GlitchTip first-time setup..."
+    echo "  Step 1/2: running Django migrations..."
+    ${DC} run --rm glitchtip ./manage.py migrate
+    echo "  Step 2/2: creating superuser (follow the prompts)..."
+    ${DC} run --rm glitchtip ./manage.py createsuperuser
+    echo "✔ GlitchTip setup complete. Visit https://glitchtip.swc-joe.com to finish configuration."
+    ;;
+
+  glitchtip-logs)
+    echo "▶ Tailing GlitchTip logs..."
+    ${DC} logs -f glitchtip
+    ;;
+
   recover-stuck-uploads)
     echo "▶ Re-dispatching stuck DroidBrain uploads..."
     ${DC} exec backend php artisan droidbrain:recover-stuck-uploads
@@ -226,31 +243,28 @@ case "${cmd}" in
     echo "▶ Deploying latest version from GitHub (branch: ${GIT_BRANCH})..."
     (
       cd "${ROOT_DIR}"
-      echo "▶ Step 1/8: git fetch + pull..."
+      echo "▶ Step 1/7: git fetch + pull..."
       git fetch origin
       git pull origin "${GIT_BRANCH}"
 
-      echo "▶ Step 2/7: docker compose build (backend + frontend)..."
-      ${DC} build
+      echo "▶ Step 2/7: build images and restart stack..."
+      ${DC} up -d --build --force-recreate --remove-orphans
 
-      echo "▶ Step 3/7: restart stack..."
-      ${DC} up -d --force-recreate --remove-orphans
-
-      echo "▶ Step 4/7: run database migrations..."
+      echo "▶ Step 3/7: run database migrations..."
       run_migrations_with_retry
 
-      echo "▶ Step 5/7: sync Scout index settings..."
+      echo "▶ Step 4/7: sync Scout index settings..."
       ${DC} exec backend php artisan scout:sync-index-settings
 
-      echo "▶ Step 6/7: restart queue workers and scheduler..."
+      echo "▶ Step 5/7: restart queue workers and scheduler..."
       ${DC} exec backend php artisan optimize:clear
       ${DC} exec backend php artisan queue:restart
       ${DC} restart worker-xml worker-swc worker-search worker-payment worker-default scheduler
 
-      echo "▶ Step 7/8: reindex any dirty DroidBrain tabs..."
+      echo "▶ Step 6/7: reindex any dirty DroidBrain tabs..."
       ${DC} exec backend php artisan droidbrain:reindex-dirty
 
-      echo "▶ Step 8/8: warm DroidBrain options cache..."
+      echo "▶ Step 7/7: warm DroidBrain options cache..."
       ${DC} exec backend php artisan droidbrain:warm-cache
     )
     echo "✔ Deploy complete."

@@ -184,6 +184,7 @@ class DiscordBotController extends Controller
             DiscordNotifier::KEY_CONTACT_REQUESTS,
             DiscordNotifier::KEY_MARKET_SALE,
             DiscordNotifier::KEY_SUPPORT_TICKET,
+            DiscordNotifier::KEY_GLITCHTIP_ALERT,
         ]);
     }
 
@@ -241,7 +242,7 @@ class DiscordBotController extends Controller
             ]);
         }
 
-        $dmKeys = [DiscordNotifier::KEY_CONTACT_REQUESTS, DiscordNotifier::KEY_MARKET_SALE, DiscordNotifier::KEY_SUPPORT_TICKET];
+        $dmKeys = [DiscordNotifier::KEY_CONTACT_REQUESTS, DiscordNotifier::KEY_MARKET_SALE, DiscordNotifier::KEY_SUPPORT_TICKET, DiscordNotifier::KEY_GLITCHTIP_ALERT];
 
         $configs = DiscordChannelConfig::query()
             ->whereIn('notification_key', $messages->pluck('notification_key')->unique()->values())

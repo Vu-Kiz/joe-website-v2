@@ -13,6 +13,7 @@ import {
   canAccessDroidBrain,
   canAccessDroidBrainFull,
   canAccessSysadmin,
+  canUploadToDroidBrain,
 } from "../../auth/permissions";
 import ForbiddenState from "../common/ForbiddenState";
 import NotLoggedInState from "../common/NotLoggedInState";
@@ -282,13 +283,71 @@ const MemberDroidBrainPanel: React.FC = () => {
   }
 
   if (!canAccessDroidBrain(viewer)) {
+    if (!canUploadToDroidBrain(viewer)) {
+      return (
+        <div className="site-scale">
+          <div className="app app--one">
+            <main className="board flex flex-col gap-4">
+              <ForbiddenState
+                title="403 Forbidden"
+                message="You do not have permission to access DroidBrain."
+              />
+            </main>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="site-scale">
         <div className="app app--one">
           <main className="board flex flex-col gap-4">
-            <ForbiddenState
-              title="403 Forbidden"
-              message="You do not have permission to access DroidBrain."
+            <h1 className="h1">DroidBrain</h1>
+            <div className="flex items-center gap-3 mb-4">
+              <button className={BTN} type="button" onClick={() => navigate("/tools")}>
+                Back to Overview
+              </button>
+              <ReportBugButton toolKey="droidbrain" toolLabel="DroidBrain" />
+            </div>
+            <p className="small">
+              Submit scan reports to the DroidBrain network. Search and browse functions are available to subscribers and JOE members.
+            </p>
+            {error && (
+              <div className="panel">
+                <p className="small" style={{ color: "salmon" }}>{error}</p>
+              </div>
+            )}
+            <DroidBrainUploadPanel
+              compact
+              uploading={uploading}
+              uploadStatus={uploadStatus}
+              uploadResults={uploadResults}
+              isSysadmin={false}
+              onUpload={async (files) => {
+                try {
+                  setUploading(true);
+                  setUploadStatus(null);
+                  setUploadResults([]);
+                  const batch = files.slice(0, MAX_DROIDBRAIN_UPLOAD_FILES);
+                  const results: DroidBrainUploadResult[] = [];
+
+                  for (let index = 0; index < batch.length; index += 1) {
+                    const file = batch[index];
+                    setUploadStatus(`Uploading file ${index + 1} of ${batch.length}: ${file.name}`);
+                    const response = await uploadDroidBrainFile(file);
+                    results.push(response.data);
+                    setUploadResults([...results]);
+                  }
+
+                  setError(null);
+                  setUploadStatus(null);
+                } catch (e: any) {
+                  setError(e?.message ?? "Failed to upload DroidBrain file.");
+                } finally {
+                  setUploading(false);
+                  setUploadStatus(null);
+                }
+              }}
             />
           </main>
         </div>

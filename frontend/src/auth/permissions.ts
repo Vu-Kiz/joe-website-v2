@@ -36,6 +36,10 @@ export function canAccessDroidBrainFull(user: SwcUser | null | undefined): boole
   return !!(user.is_intel || user.is_sysadmin);
 }
 
+export function canUploadToDroidBrain(user: SwcUser | null | undefined): boolean {
+  return !!user;
+}
+
 export function canViewAsteroidIntel(user: SwcUser | null | undefined): boolean {
   if (!user) return false;
   return !!(user.can_view_asteroid_intel || user.is_admin || user.is_sysadmin);

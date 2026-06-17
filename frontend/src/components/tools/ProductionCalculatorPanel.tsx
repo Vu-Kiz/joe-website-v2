@@ -417,7 +417,8 @@ const SavePlanModal: React.FC<{ onSave: (name: string) => void; onClose: () => v
 
 const ProductionCalculatorPanel: React.FC<{
   onPushToHaul?: (materials: Array<{ name: string; quantity: number }>) => void;
-}> = ({ onPushToHaul }) => {
+  canPullSkills?: boolean;
+}> = ({ onPushToHaul, canPullSkills = false }) => {
   const [mode, setMode] = useState<"batch" | "facility" | "station">("batch");
   const [rows, setRows] = useState<ProdRow[]>([{ id: newRowId(), category: "ship", entityUid: "", quantity: "1" }]);
   const [facilityRows, setFacilityRows] = useState<FacilityRow[]>([{ id: newRowId(), facilityUid: "", quantity: "1" }]);
@@ -937,9 +938,11 @@ const matPriceMap = useMemo(() => {
                 <div className="flex gap-2 items-center">
                   <input type="number" className={INPUT} min={0} max={5} step={1} value={settings.managementSkill}
                     onChange={(e) => setSettings((s) => ({ ...s, managementSkill: String(Math.round(parseInt(e.target.value, 10) || 0)) }))} />
-                  <button type="button" className={BTN_GHOST_SM + " shrink-0"} onClick={() => { void handlePullSkills(); }} disabled={skillsPulling}>
-                    {skillsPulling ? "Pulling…" : skillsPulled ? "Pulled ✓" : "Pull from SWC"}
-                  </button>
+                  {canPullSkills && (
+                    <button type="button" className={BTN_GHOST_SM + " shrink-0"} onClick={() => { void handlePullSkills(); }} disabled={skillsPulling}>
+                      {skillsPulling ? "Pulling…" : skillsPulled ? "Pulled ✓" : "Pull from SWC"}
+                    </button>
+                  )}
                 </div>
                 {skillsError && <p className="text-[0.72rem] m-0" style={{ color: "salmon" }}>{skillsError}</p>}
               </div>

@@ -25,7 +25,8 @@ export type AdminView =
   | "jobPayRates"
   | "materialPrices"
   | "supportTickets"
-  | "kanban";
+  | "kanban"
+  | "tos";
 
 type NavItem = {
   key: AdminView;
@@ -53,6 +54,7 @@ const QUICK_JUMP_BUTTON_CLASS =
 const ALL_ITEMS: NavItem[] = [
   { key: "home", label: "Overview", category: "Overview", role: "admin", keywords: ["home", "overview"] },
   { key: "tips", label: "Tips", category: "Content", role: "admin", keywords: ["loading", "tips"] },
+  { key: "tos", label: "Terms of Service", category: "Content", role: "sysadmin", requiresSysadmin: true, keywords: ["tos", "terms", "service", "legal"] },
   { key: "tenets", label: "Tenets", category: "Content", role: "admin", keywords: ["reference", "tenets"] },
   { key: "eotm", label: "EoTM", category: "Content", role: "admin", keywords: ["employee", "month", "eotm"] },
   { key: "weather", label: "Weather", category: "Content", role: "admin", keywords: ["weather", "tatooine"] },

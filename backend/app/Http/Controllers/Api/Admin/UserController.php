@@ -385,6 +385,41 @@ class UserController extends Controller
         ]);
     }
 
+    public function kickFromJoe(Request $request, User $user): JsonResponse
+    {
+        $actor = $request->user();
+
+        if (!$actor || !(bool) $actor->is_sysadmin) {
+            return response()->json(['ok' => false, 'message' => 'Only sysadmins can kick members.'], 403);
+        }
+
+        $user->update(['is_joe_member' => false]);
+        $this->swcAuthorizationService->revokeAuthorizationsForUser($user, true);
+        $user->invalidateActiveSessions();
+        $user->refresh();
+
+        AdminActionLogger::log(
+            $request,
+            'users',
+            'kick_from_joe',
+            'Kicked from JOE: ' . $this->resolveDisplayHandle($user),
+            'user',
+            $user->id,
+            null,
+            ['auth_version' => $user->auth_version]
+        );
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Member kicked from JOE. is_joe_member set to false, sessions invalidated, SWC authorization revoked.',
+            'user' => [
+                'id'            => $user->id,
+                'handle'        => $this->resolveDisplayHandle($user),
+                'is_joe_member' => false,
+            ],
+        ]);
+    }
+
     public function forceLogout(Request $request, User $user): JsonResponse
     {
         $user->invalidateActiveSessions();

@@ -1,10 +1,13 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import SwcStatusBanner from "../components/common/SwcStatusBanner";
+import TosModal from "../components/common/TosModal";
 import { emitAuthStateChanged, fetchAuthMe, getApiBaseUrl, getSessionStreamUrl } from "../api/core/auth";
 
 const AppLayout: React.FC = () => {
+  const [tosNeeded, setTosNeeded] = useState(false);
+
   const envLabel = (() => {
     const viteEnv = String((import.meta as any).env?.VITE_APP_ENV ?? "").trim().toLowerCase();
     if (viteEnv === "development" || viteEnv === "local") {
@@ -63,6 +66,22 @@ const AppLayout: React.FC = () => {
       window.location.href = "/home?session_invalidated=1";
     };
 
+    const checkTos = async () => {
+      if (cancelled) return;
+      try {
+        const auth = await fetchAuthMe();
+        if (!cancelled && auth?.user?.tos_needs_acceptance) {
+          setTosNeeded(true);
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    const handleTosVersionChanged = () => {
+      void checkTos();
+    };
+
     const scheduleAuthCheck = () => {
       clearReconnectTimer();
       reconnectTimer = window.setTimeout(async () => {
@@ -74,6 +93,8 @@ const AppLayout: React.FC = () => {
           const auth = await fetchAuthMe();
           if (!auth?.user) {
             handleSessionInvalidated();
+          } else if (auth.user.tos_needs_acceptance) {
+            setTosNeeded(true);
           }
         } catch {
           handleSessionInvalidated();
@@ -84,8 +105,14 @@ const AppLayout: React.FC = () => {
     const start = async () => {
       try {
         const auth = await fetchAuthMe();
-        if (cancelled || !auth?.user) {
+        if (cancelled) return;
+
+        if (!auth?.user) {
           return;
+        }
+
+        if (auth.user.tos_needs_acceptance) {
+          setTosNeeded(true);
         }
 
         const streamUrl = getSessionStreamUrl();
@@ -96,9 +123,8 @@ const AppLayout: React.FC = () => {
         eventSource = new EventSource(streamUrl, { withCredentials: true });
 
         eventSource.addEventListener("session_invalidated", handleSessionInvalidated);
+        eventSource.addEventListener("tos_version_changed", handleTosVersionChanged);
         eventSource.onerror = () => {
-          // Browser/SSE can transiently drop. Validate auth quickly so navbar/pages
-          // still react even if the stream does not recover cleanly.
           scheduleAuthCheck();
         };
       } catch {
@@ -144,6 +170,12 @@ const AppLayout: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      {tosNeeded && (
+        <TosModal
+          onAccepted={() => setTosNeeded(false)}
+        />
+      )}
     </>
   );
 };

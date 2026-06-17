@@ -1,0 +1,116 @@
+{
+  "ok": true,
+  "exported_at": "2026-06-17T00:00:00+00:00",
+  "version": "2.2.0",
+  "count": 7,
+  "entries": [
+    {
+      "version": "2.2.0",
+      "title": "Terms of Service",
+      "details": "The site now has a versioned Terms of Service. When a new version is published you will see a modal the next time you log in — you must accept it to continue using the site. Declining logs you out. You can read the current Terms of Service at any time from your About Me page using the 'View Terms of Service' button.",
+      "tools": [
+        "General"
+      ],
+      "audiences": [
+        "members",
+        "admin",
+        "sysadmin"
+      ],
+      "sort_order": 1,
+      "released_at": "2026-06-17T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.2.0",
+      "title": "Hauler, Production Calculator, and Recycling Calculator now open to all logged-in users",
+      "details": "You no longer need a JOE membership or active subscription to access the Hauler, Production Calculator, or Recycling Calculator. Any account logged in with a SWC character can use these tools. The 'Pull from SWC' skill button in the Production Calculator and Recycling Calculator is available to members who have linked their SWC account with the appropriate permission scope.",
+      "tools": [
+        "Hauler",
+        "Production Calculator",
+        "Recycling Calculator"
+      ],
+      "audiences": [
+        "members",
+        "admin",
+        "sysadmin"
+      ],
+      "sort_order": 2,
+      "released_at": "2026-06-17T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.2.0",
+      "title": "DroidBrain upload now open to all logged-in users",
+      "details": "Any logged-in user can now submit scan reports to the DroidBrain network, even without a JOE membership or subscriber access. You will see an upload-only view of DroidBrain when visiting the tool without full access — search and browse remain available to subscribers and JOE members.",
+      "tools": [
+        "DroidBrain"
+      ],
+      "audiences": [
+        "members",
+        "admin",
+        "sysadmin"
+      ],
+      "sort_order": 3,
+      "released_at": "2026-06-17T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.2.0",
+      "title": "Astrogation reward fix — grids no longer lost on back-to-back uploads",
+      "details": "Fixed a bug where uploading astrogation data a second time in the same session could cause newly earned grids to be silently discarded. If a pending reward already exists for your account, new grids and their credit amounts are now correctly merged into it rather than being dropped.",
+      "tools": [
+        "Astrogation"
+      ],
+      "audiences": [
+        "members",
+        "admin",
+        "sysadmin"
+      ],
+      "sort_order": 4,
+      "released_at": "2026-06-17T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.2.0",
+      "title": "Admin: Terms of Service management panel",
+      "details": "Admins can now create, edit, and publish versioned Terms of Service documents via a new panel in the Admin area. Publishing a document sets it as the active version and triggers the acceptance modal for any member whose recorded accepted version is lower than the new one.",
+      "tools": [
+        "Admin"
+      ],
+      "audiences": [
+        "sysadmin"
+      ],
+      "sort_order": 5,
+      "released_at": "2026-06-17T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.2.0",
+      "title": "Admin: Kick from JOE action",
+      "details": "Sysadmins can now kick a member from JOE in a single action from the Users panel. This strips the member flag, revokes all SWC authorizations, and immediately invalidates all of their active sessions. The action is logged in the admin action log.",
+      "tools": [
+        "Admin"
+      ],
+      "audiences": [
+        "sysadmin"
+      ],
+      "sort_order": 6,
+      "released_at": "2026-06-17T00:00:00+00:00",
+      "is_active": true
+    },
+    {
+      "version": "2.2.0",
+      "title": "Error monitoring — GlitchTip and OpenReplay",
+      "details": "The site now runs self-hosted GlitchTip for error tracking and OpenReplay for session replay. Both services are hosted on swc-joe.com subdomains and all traffic is proxied through the main domain to avoid adblockers. When a new error alert fires in GlitchTip, a Discord DM is sent to the configured sysadmin with the error title, culprit, occurrence count, environment, and a direct link to the issue. Session replays are privacy-preserving: all inputs are masked by default, email addresses are obscured, and sensitive fields are stripped from network capture.",
+      "tools": [
+        "Admin"
+      ],
+      "audiences": [
+        "sysadmin"
+      ],
+      "sort_order": 7,
+      "released_at": "2026-06-17T00:00:00+00:00",
+      "is_active": true
+    }
+  ]
+}

@@ -82,6 +82,40 @@ class AstrogationRewardService
 
         $swcUid = $user->swc_character_id ? '1:' . $user->swc_character_id : null;
 
+        $existing = PaymentItem::where([
+            'source_type' => 'astrogation_import',
+            'source_id'   => $user->id,
+            'status'      => 'pending',
+        ])->first();
+
+        if ($existing) {
+            $existingMeta = $existing->meta ?? [];
+            $mergedNewDs      = (int) ($existingMeta['new_ds_count'] ?? 0) + $newDsCount;
+            $mergedNewAf      = (int) ($existingMeta['new_af_count'] ?? 0) + $newAfCount;
+            $mergedUpdatedDs  = (int) ($existingMeta['updated_ds_count'] ?? 0) + $updatedDsCount;
+            $mergedUpdatedAf  = (int) ($existingMeta['updated_af_count'] ?? 0) + $updatedAfCount;
+            $mergedTotal      = (int) $existing->total_amount + $totalAmount;
+            $mergedBreakdown  = array_merge($existingMeta['breakdown'] ?? [], $breakdown);
+
+            $existing->amount       = $mergedTotal;
+            $existing->total_amount = $mergedTotal;
+            $existing->meta = array_merge($existingMeta, [
+                'communication_prefix' => $this->buildCommunicationPrefix(
+                    $mergedNewDs, $mergedNewAf, $mergedUpdatedDs, $mergedUpdatedAf, $mergedTotal
+                ),
+                'normal_grid_count'   => $mergedNewDs,
+                'asteroid_grid_count' => $mergedNewAf,
+                'new_ds_count'        => $mergedNewDs,
+                'new_af_count'        => $mergedNewAf,
+                'updated_ds_count'    => $mergedUpdatedDs,
+                'updated_af_count'    => $mergedUpdatedAf,
+                'breakdown'           => $mergedBreakdown,
+            ]);
+            $existing->save();
+
+            return $existing;
+        }
+
         $communicationPrefix = $this->buildCommunicationPrefix(
             $newDsCount,
             $newAfCount,
@@ -90,37 +124,33 @@ class AstrogationRewardService
             $totalAmount
         );
 
-        return PaymentItem::updateOrCreate(
-            [
-                'source_type' => 'astrogation_import',
-                'source_id'   => $user->id,
-                'status'      => 'pending',
+        return PaymentItem::create([
+            'source_type' => 'astrogation_import',
+            'source_id'   => $user->id,
+            'status'      => 'pending',
+            'tool_key' => 'astrogation',
+            'payer_subject_type' => 'faction',
+            'payer_subject_id' => $payer->id,
+            'payer_label' => $payer->name,
+            'payee_subject_type' => 'user',
+            'payee_subject_id' => $user->id,
+            'payee_swc_uid' => $swcUid,
+            'payee_handle' => $swcHandle,
+            'payee_label' => $swcHandle,
+            'amount' => $totalAmount,
+            'bonus_amount' => 0,
+            'total_amount' => $totalAmount,
+            'meta' => [
+                'communication_prefix' => $communicationPrefix,
+                'normal_grid_count' => $newDsCount,
+                'asteroid_grid_count' => $newAfCount,
+                'new_ds_count' => $newDsCount,
+                'new_af_count' => $newAfCount,
+                'updated_ds_count' => $updatedDsCount,
+                'updated_af_count' => $updatedAfCount,
+                'breakdown' => $breakdown,
             ],
-            [
-                'tool_key' => 'astrogation',
-                'payer_subject_type' => 'faction',
-                'payer_subject_id' => $payer->id,
-                'payer_label' => $payer->name,
-                'payee_subject_type' => 'user',
-                'payee_subject_id' => $user->id,
-                'payee_swc_uid' => $swcUid,
-                'payee_handle' => $swcHandle,
-                'payee_label' => $swcHandle,
-                'amount' => $totalAmount,
-                'bonus_amount' => 0,
-                'total_amount' => $totalAmount,
-                'meta' => [
-                    'communication_prefix' => $communicationPrefix,
-                    'normal_grid_count' => $newDsCount,
-                    'asteroid_grid_count' => $newAfCount,
-                    'new_ds_count' => $newDsCount,
-                    'new_af_count' => $newAfCount,
-                    'updated_ds_count' => $updatedDsCount,
-                    'updated_af_count' => $updatedAfCount,
-                    'breakdown' => $breakdown,
-                ],
-            ]
-        );
+        ]);
     }
 
     protected function buildCommunicationPrefix(

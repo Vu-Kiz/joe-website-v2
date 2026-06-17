@@ -216,6 +216,20 @@ export async function revokeAdminUserSwcAuthorization(
   );
 }
 
+export type KickFromJoeResponse = {
+  ok: boolean;
+  message: string;
+  user?: { id: number; handle: string; is_joe_member: boolean };
+};
+
+export async function kickAdminUserFromJoe(
+  userId: number
+): Promise<KickFromJoeResponse> {
+  return apiFetch<KickFromJoeResponse>(`/admin/users/${userId}/kick-from-joe`, {
+    method: "POST",
+  });
+}
+
 export type AdminFactionSubscription = {
   id: number;
   plan_key: string;

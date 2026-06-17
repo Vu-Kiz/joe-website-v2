@@ -69,7 +69,7 @@ function formatTime(hours: number): string {
   return parts.join(" ") || "0s";
 }
 
-const RecyclingCalculatorPanel: React.FC = () => {
+const RecyclingCalculatorPanel: React.FC<{ canPullSkills?: boolean }> = ({ canPullSkills = false }) => {
   const [shipTypes, setShipTypes] = useState<StoredShipTypeSummary[]>([]);
   const [vehicleTypes, setVehicleTypes] = useState<StoredVehicleTypeSummary[]>([]);
   const [facilityTypes, setFacilityTypes] = useState<StoredFacilityTypeSummary[]>([]);
@@ -394,14 +394,16 @@ const RecyclingCalculatorPanel: React.FC = () => {
                     value={repairSkill}
                     onChange={(e) => setRepairSkill(e.target.value)}
                   />
-                  <button
-                    type="button"
-                    className={BTN_GHOST_SM + " shrink-0"}
-                    onClick={() => { void handlePullSkills(); }}
-                    disabled={skillsPulling}
-                  >
-                    {skillsPulling ? "Pulling…" : skillsPulled ? "Pulled ✓" : "Pull from SWC"}
-                  </button>
+                  {canPullSkills && (
+                    <button
+                      type="button"
+                      className={BTN_GHOST_SM + " shrink-0"}
+                      onClick={() => { void handlePullSkills(); }}
+                      disabled={skillsPulling}
+                    >
+                      {skillsPulling ? "Pulling…" : skillsPulled ? "Pulled ✓" : "Pull from SWC"}
+                    </button>
+                  )}
                 </div>
                 {skillsError && <p className="text-[0.72rem] m-0" style={{ color: "salmon" }}>{skillsError}</p>}
               </div>

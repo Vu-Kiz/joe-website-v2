@@ -33,6 +33,8 @@ export type SwcUser = {
   lock_joe_flags: boolean;
   store_has_active_plans: boolean;
   tool_access_tier: "full" | "public" | "none";
+  tos_needs_acceptance?: boolean;
+  tos_current_version?: number | null;
   tool_subscription: {
     id: number;
     plan_key: string;
@@ -325,5 +327,11 @@ export function apiLogout(): Promise<{ ok: true }> {
   }).then((result) => {
     emitAuthStateChanged();
     return result;
+  });
+}
+
+export function acceptTos(): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>("/auth/accept-tos", {
+    method: "POST",
   });
 }

@@ -1,5 +1,57 @@
 # Changelog
 
+## [2.2.0] — 2026-06-17
+
+### ✨ New Features
+
+#### Terms of Service System
+- Admins can now create, edit, and publish versioned Terms of Service documents via the new Admin TOS panel
+- Publishing a new version increments the version number and sets it as the active document
+- Any member with an accepted version lower than the current active version is prompted to re-accept on next login
+- TOS modal blocks the app until accepted — members who decline are logged out immediately
+- The SSE session stream now pushes a `tos_version_changed` event so the modal appears in real time without requiring a page reload
+- Members can view the current Terms of Service at any time from the About Me page via the "View Terms of Service" button
+
+#### Error Monitoring — GlitchTip
+- Self-hosted GlitchTip is now part of the production stack (`glitchtip`, `glitchtip-db`, `glitchtip-redis`, `glitchtip-worker` containers)
+- Backend integrates via `sentry/sentry-laravel` — unhandled exceptions and slow queries are captured automatically
+- Frontend integrates via `@sentry/react` — JavaScript errors, unhandled rejections, and frontend traces are reported
+- All error traffic is routed through `www.swc-joe.com/errors` (proxied in NPM) to bypass adblockers
+- Discord DM alert: when GlitchTip fires its alert webhook, the backend parses the payload and sends a formatted DM to the configured Discord user ID with the error title, culprit, occurrence count, environment label, and a direct link to the issue
+
+#### Session Replay — OpenReplay
+- `@openreplay/tracker` and `@openreplay/tracker-assist` integrated into the frontend
+- All inputs masked by default; email fields and text obscured; sensitive keys (`password`, `token`, `access_token`, `refresh_token`, `secret`) stripped from captured network payloads; `X-XSRF-TOKEN` and `Cookie` headers never sent to the replay service
+- Session replay traffic is routed through `www.swc-joe.com/ingest` (proxied in NPM) to bypass adblockers
+- Logged-in user identity (handle + user ID) is set on the tracker after every auth refresh and cleared on logout
+
+#### Free Tool Access for Logged-In Users
+- Any authenticated user (not just JOE members or subscribers) can now access the Hauler, Production Calculator, and Recycling Calculator from the Members toolkit
+- DroidBrain now shows an upload-only view for logged-in users without full DroidBrain access, allowing them to contribute scan reports — search and browse remain subscriber/member only
+- XP Tracker remains member-only (requires SWC OAuth event access)
+- "Pull from SWC" skill buttons in the Production Calculator and Recycling Calculator are hidden when the user does not have SWC OAuth linked (previously always visible but would fail)
+
+#### Admin — Kick from JOE
+- New sysadmin-only action on the Users panel: "Kick from JOE" strips `is_joe_member`, revokes all SWC authorizations, and invalidates all active sessions in a single operation
+- Action is logged under `kick_from_joe` in the admin action log
+
+### 🐛 Bug Fixes
+
+#### Astrogation Reward — Grids Lost When Pending Reward Already Exists
+- Fixed a bug where a second astrogation upload in the same session that earned new grids would silently discard them if a `pending` payment item already existed for that user
+- The service now detects an existing pending reward and merges the new grid counts and credit amounts into it rather than creating a duplicate (which was previously rejected by the unique constraint)
+- The merged communication prefix, grid counts, and breakdown are all recalculated correctly on merge
+
+### 🔧 Infrastructure
+
+#### Monitoring Stack (docker-compose)
+- `docker-compose.prod.yml` and `docker-compose.dev.yml` now include GlitchTip (web + worker + Postgres + Redis) and OpenReplay containers
+- NPM ingestion proxy configuration documented in `docs/npm-ingestion-proxy.md` — `www.swc-joe.com/ingest` → OpenReplay, `www.swc-joe.com/errors` → GlitchTip
+- New proxy hosts required: `glitchtip.swc-joe.com` and `openreplay.swc-joe.com`
+- New env vars: `SENTRY_LARAVEL_DSN`, `SENTRY_TRACES_SAMPLE_RATE`, `GLITCHTIP_WEBHOOK_TOKEN`, `GLITCHTIP_ALERT_DISCORD_USER_ID` (backend); `VITE_GLITCHTIP_DSN`, `VITE_GLITCHTIP_TUNNEL`, `VITE_OPENREPLAY_KEY`, `VITE_OPENREPLAY_INGEST_URL` (frontend); `GLITCHTIP_DB_PASSWORD`, `GLITCHTIP_SECRET_KEY`, `GLITCHTIP_EMAIL_URL`, `GLITCHTIP_FROM_EMAIL`, `OPENREPLAY_DB_PASSWORD`, `OPENREPLAY_MINIO_USER`, `OPENREPLAY_MINIO_PASSWORD`, `OPENREPLAY_JWT_SECRET` (root compose)
+
+---
+
 ## [2.1.4] — 2026-06-05
 
 ### ✨ New Features

@@ -9,6 +9,7 @@ import AdminHomePanel from "../components/admin/AdminHomePanel";
 import AdminWorkerHealthPanel from "../components/admin/AdminWorkerHealthPanel";
 import AdminWebsiteHealthPanel from "../components/admin/AdminWebsiteHealthPanel";
 import AdminTipsPanel from "../components/admin/AdminTipsPanel";
+import AdminTosPanel from "../components/admin/AdminTosPanel";
 import AdminTenetsPanel from "../components/admin/AdminTenetsPanel";
 import AdminEotmPanel from "../components/admin/AdminEotmPanel";
 import AdminSystemPanel from "../components/admin/AdminSystemPanel";
@@ -193,6 +194,7 @@ const AdminPage: React.FC = () => {
               {activeView === "workerHealth" && showSystemTools && <AdminWorkerHealthPanel />}
               {activeView === "websiteHealth" && showSystemTools && <AdminWebsiteHealthPanel />}
               {activeView === "tips" && <AdminTipsPanel />}
+              {activeView === "tos" && showSystemTools && <AdminTosPanel />}
               {activeView === "tenets" && <AdminTenetsPanel />}
               {activeView === "eotm" && <AdminEotmPanel />}
               {activeView === "users" && <AdminUsersPanel />}

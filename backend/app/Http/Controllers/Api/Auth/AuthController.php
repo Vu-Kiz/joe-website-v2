@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\TosDocument;
 use App\Models\User;
 use App\Support\ToolStore\ToolAccessService;
 use Illuminate\Http\JsonResponse;
@@ -24,6 +25,10 @@ class AuthController extends Controller
         $tier = $this->toolAccessService->tierForUser($authUser);
         $subscription = $authUser ? $this->toolAccessService->activeSubscriptionFor($authUser) : null;
         $storeHasActivePlans = \App\Models\ToolStore\ToolSubscriptionPlan::where('is_active', true)->exists();
+
+        $activeToSVersion = TosDocument::activeVersion();
+        $tosNeedsAcceptance = $authUser && $activeToSVersion !== null
+            && ((int) ($authUser->tos_accepted_version ?? 0)) < $activeToSVersion;
 
         return response()->json([
             'ok' => true,
@@ -65,6 +70,8 @@ class AuthController extends Controller
                 'lock_joe_flags' => (bool) Auth::user()->lock_joe_flags,
                 'tool_access_tier' => $tier,
                 'store_has_active_plans' => $storeHasActivePlans,
+                'tos_needs_acceptance' => $tosNeedsAcceptance,
+                'tos_current_version' => $activeToSVersion,
                 'tool_subscription' => $subscription ? [
                     'id' => $subscription->id,
                     'plan_key' => $subscription->plan_key,
@@ -134,6 +141,13 @@ class AuthController extends Controller
                         'error_code' => 'session_invalidated',
                     ]);
                     break;
+                }
+
+                $activeTosVersion = TosDocument::activeVersion();
+                if ($activeTosVersion !== null && ((int) ($freshUser->tos_accepted_version ?? 0)) < $activeTosVersion) {
+                    $send('tos_version_changed', [
+                        'version' => $activeTosVersion,
+                    ]);
                 }
 
                 $send('heartbeat', [

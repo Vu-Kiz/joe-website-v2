@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   fullResetAdminUserSystemUpdater,
+  kickAdminUserFromJoe,
   forceAdminUserLogout,
   listAdminUsers,
   listFactionSubscriptions,
@@ -90,6 +91,7 @@ const AdminUsersPanel: React.FC = () => {
   const [savingId, setSavingId] = useState<number | null>(null);
   const [forcingLogoutId, setForcingLogoutId] = useState<number | null>(null);
   const [revokingSwcId, setRevokingSwcId] = useState<number | null>(null);
+  const [kickingId, setKickingId] = useState<number | null>(null);
   const [revokingSubId, setRevokingSubId] = useState<number | null>(null);
   const [revokingAllSwc, setRevokingAllSwc] = useState(false);
   const [resettingSystemUpdaterId, setResettingSystemUpdaterId] = useState<number | null>(null);
@@ -218,6 +220,28 @@ const AdminUsersPanel: React.FC = () => {
       setError(e?.message ?? "Failed to save permissions");
     } finally {
       setSavingId(null);
+    }
+  };
+
+  const handleKickFromJoe = async (user: EditableUserState) => {
+    const confirmed = window.confirm(
+      `Kick ${user.handle} from JOE? This will remove their JOE membership, invalidate all sessions, and revoke their SWC authorization.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setKickingId(user.id);
+      setError(null);
+      setNotice(null);
+      const res = await kickAdminUserFromJoe(user.id);
+      setNotice(res.message || `${user.handle} has been kicked from JOE.`);
+      setUsers((prev) =>
+        prev.map((u) => (u.id === user.id ? { ...u, isJoeMember: false } : u))
+      );
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to kick member from JOE.");
+    } finally {
+      setKickingId(null);
     }
   };
 
@@ -780,6 +804,20 @@ const AdminUsersPanel: React.FC = () => {
                           {revokingSubId === user.id ? "Revoking…" : "Revoke Subscription"}
                         </button>
                       )}
+                      <button
+                        type="button"
+                        className={BTN_GHOST_SM}
+                        style={{ color: "salmon", borderColor: "salmon" }}
+                        onClick={() => handleKickFromJoe(user)}
+                        disabled={
+                          kickingId === user.id ||
+                          revokingSwcId === user.id ||
+                          forcingLogoutId === user.id ||
+                          savingId === user.id
+                        }
+                      >
+                        {kickingId === user.id ? "Kicking…" : "Kick from JOE"}
+                      </button>
                       <button
                         type="button"
                         className={BTN_GHOST_SM}

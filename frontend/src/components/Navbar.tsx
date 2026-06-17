@@ -4,6 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import jawaLogo from "../assets/branding/joe-banner.png";
 import { fetchAuthMe, apiLogout, getBackendOrigin, subscribeToAuthStateChange } from "../api/core/auth";
 import type { SwcUser } from "../api/core/auth";
+import { identifyUser, clearUser } from "../lib/monitoring";
 import { getPendingPaymentsCount } from "../api/payments/payments";
 import CgtPill from "./CgtPill";
 import { canAccessAdmin, canAccessMembers, canAccessPublicTools } from "../auth/permissions";
@@ -28,6 +29,11 @@ const Navbar: React.FC = () => {
         const data = await fetchAuthMe();
         if (!cancelled && data.ok) {
           setUser(data.user);
+          if (data.user?.handle && data.user?.id) {
+            identifyUser(data.user.handle, data.user.id);
+          } else {
+            clearUser();
+          }
         }
       } catch {
         if (!cancelled) setUser(null);
@@ -43,6 +49,7 @@ const Navbar: React.FC = () => {
         setUser(null);
         setHasPendingPayments(false);
         setNavOpen(false);
+        clearUser();
       }
       void refreshUser();
     });

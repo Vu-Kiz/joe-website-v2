@@ -4,6 +4,9 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./styles/tailwind.css";
 import { getApiBaseUrl, initCsrf } from "./api/core/auth";
+import { initMonitoring } from "./lib/monitoring";
+
+initMonitoring();
 
 const Root: React.FC = () => {
   useEffect(() => {

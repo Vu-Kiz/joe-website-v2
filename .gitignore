@@ -29,5 +29,7 @@ db/
 
 .claude/
 
+
 .codex
 V1.zip
+.env

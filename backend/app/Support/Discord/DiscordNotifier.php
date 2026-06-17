@@ -14,6 +14,7 @@ class DiscordNotifier
     public const KEY_CONTACT_REQUESTS = 'contact_requests';
     public const KEY_MARKET_SALE = 'market_sale';
     public const KEY_SUPPORT_TICKET = 'support_ticket';
+    public const KEY_GLITCHTIP_ALERT = 'glitchtip_alert';
 
     public function postJobCreated(Job $job): bool
     {
@@ -184,6 +185,31 @@ class DiscordNotifier
                 'delivery_type'          => 'dm',
                 'target_discord_user_id' => $targetDiscordUserId,
                 'ticket_id'              => $ticketId,
+            ],
+        ]);
+
+        return true;
+    }
+
+    public function notifyGlitchTipIssue(string $targetDiscordUserId, string $issueTitle, string $culprit, int $count, string $issueUrl, string $environment): bool
+    {
+        $envLabel = $environment === 'production' ? '🔴 Production' : '🟡 Dev';
+
+        $content = implode("\n", [
+            "**{$envLabel} — New Error**",
+            '**' . $issueTitle . '**',
+            $culprit !== '' ? "In: {$culprit}" : '',
+            "Occurrences: {$count}",
+            $issueUrl,
+        ]);
+
+        DiscordOutboxMessage::create([
+            'notification_key' => self::KEY_GLITCHTIP_ALERT,
+            'status'           => DiscordOutboxMessage::STATUS_PENDING,
+            'content'          => trim($content),
+            'meta'             => [
+                'delivery_type'          => 'dm',
+                'target_discord_user_id' => $targetDiscordUserId,
             ],
         ]);
 

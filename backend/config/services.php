@@ -61,4 +61,11 @@ return [
         'webhook_token' => env('UPTIME_KUMA_WEBHOOK_TOKEN', ''),
     ],
 
+    'glitchtip' => [
+        // Secret token sent by GlitchTip in X-Webhook-Token header — set this in GlitchTip webhook config
+        'webhook_token'          => env('GLITCHTIP_WEBHOOK_TOKEN', ''),
+        // Your personal Discord user ID — alerts DM here
+        'alert_discord_user_id'  => env('GLITCHTIP_ALERT_DISCORD_USER_ID', ''),
+    ],
+
 ];

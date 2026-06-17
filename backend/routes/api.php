@@ -68,10 +68,18 @@ use App\Http\Controllers\Api\Admin\SupportTicketAdminController;
 use App\Http\Controllers\Api\Admin\MaterialPriceController;
 use App\Http\Controllers\Api\Swc\SwcStatusController;
 use App\Http\Controllers\Api\Sys\KanbanController;
+use App\Http\Controllers\Api\Webhook\GlitchTipWebhookController;
+use App\Http\Controllers\Api\TosController;
+use App\Http\Controllers\Api\Admin\AdminTosController;
+
+// TOS — current version is public; acceptance requires auth
+Route::get('/tos/current', [TosController::class, 'current']);
+Route::middleware(['auth:sanctum'])->post('/auth/accept-tos', [TosController::class, 'accept']);
 
 // SWC status (public — no auth)
 Route::get('/swc-status', [SwcStatusController::class, 'status']);
 Route::post('/webhooks/uptime-kuma', [SwcStatusController::class, 'webhook'])->middleware('throttle:60,1');
+Route::post('/webhooks/glitchtip', [GlitchTipWebhookController::class, 'handle'])->middleware('throttle:30,1');
 
 // Tools store (catalog is public; subscribe requires auth)
 Route::get('/tools/store/catalog', [ToolStoreController::class, 'catalog']);
@@ -147,6 +155,7 @@ Route::middleware(['auth:sanctum', 'require_any:is_admin'])->prefix('admin')->gr
     Route::get('/subscriber-cell-records', [SubscriberCellRecordController::class, 'adminIndex']);
     Route::get('/users', [UserController::class, 'index']);
     Route::patch('/users/{user}/permissions', [UserController::class, 'updatePermissions']);
+    Route::post('/users/{user}/kick-from-joe', [UserController::class, 'kickFromJoe']);
     Route::post('/users/{user}/force-logout', [UserController::class, 'forceLogout']);
     Route::post('/users/{user}/revoke-swc-authorization', [UserController::class, 'revokeSwcAuthorization']);
     Route::post('/users/revoke-swc-authorization-all', [UserController::class, 'revokeAllSwcAuthorizations']);
@@ -238,8 +247,6 @@ Route::middleware(['auth:sanctum', 'member_tool_access'])->group(function () {
     Route::get('/universe/archive/planets', [UniverseController::class, 'archivePlanets']);
     Route::get('/universe/archive/planets/{planet}', [UniverseController::class, 'archivePlanet']);
     Route::get('/universe/archive/factions', [UniverseController::class, 'archiveFactions']);
-    Route::get('/universe/material-types', [UniverseController::class, 'materialTypes']);
-    Route::get('/universe/material-types/{materialType}', [UniverseController::class, 'materialType']);
 });
 
 Route::middleware(['auth:sanctum', 'require_any:is_admin'])->group(function () {
@@ -306,33 +313,8 @@ Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('sys')->group(funct
     Route::post('/kanban/tickets/{ticket}/promote', [KanbanController::class, 'promoteTicket']);
 });
 
-// Public tool routes — accessible to JOE members AND active subscribers
-Route::middleware(['auth:sanctum', 'public_tool_access'])->group(function () {
-    Route::get('/universe/sectors', [UniverseController::class, 'sectors']);
-    Route::get('/universe/cache-manifest', [UniverseController::class, 'cacheManifest']);
-    Route::get('/universe/galaxy-snapshot/meta', [UniverseController::class, 'galaxySnapshotMeta']);
-    Route::get('/universe/galaxy-snapshot/layer/{layer}', [UniverseController::class, 'galaxySnapshotLayer']);
-    Route::get('/universe/map-systems', [UniverseController::class, 'mapSystems']);
-    Route::get('/universe/locations/{galx}/{galy}', [UniverseController::class, 'location'])
-        ->where('galx', '-?[0-9]+')
-        ->where('galy', '-?[0-9]+');
-    Route::get('/universe/systems/{system}', [UniverseController::class, 'system']);
-    Route::get('/universe/ship-snapshots', [UniverseController::class, 'shipSnapshots']);
-    Route::get('/universe/ship-snapshots/{snapshot}', [UniverseController::class, 'shipSnapshotDetail'])
-        ->where('snapshot', '[0-9]+');
-    Route::get('/universe/subscriber-cell-records', [SubscriberCellRecordController::class, 'index']);
-    Route::post('/universe/subscriber-cell-records', [SubscriberCellRecordController::class, 'store']);
-    // Cell annotations — JOE members see/edit shared notes; subscribers see/edit only their own scoped notes
-    Route::get('/universe/cell-annotations', [CellAnnotationController::class, 'index']);
-    Route::post('/universe/cell-annotations', [CellAnnotationController::class, 'upsert']);
-    Route::post('/universe/search-records/import-personal-events', [SearchRecordController::class, 'importPersonalEvents'])->middleware('throttle:import-personal-events');
-    Route::get('/universe/search-records/import-logs', [SearchRecordController::class, 'importLogs']);
-    Route::delete('/universe/search-records/import-logs', [SearchRecordController::class, 'clearImportLogs']);
-    Route::get('/universe/hyper-planner', [UniverseController::class, 'hyperPlanner']);
-    Route::get('/universe/hyper-plans', [UniverseController::class, 'hyperPlans']);
-    Route::post('/universe/hyper-plans', [UniverseController::class, 'storeHyperPlan']);
-    Route::delete('/universe/hyper-plans/{hyperPlan}', [UniverseController::class, 'deleteHyperPlan']);
-    // Entity stats
+// Free tool routes — accessible to any authenticated user
+Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/universe/station-types', [UniverseController::class, 'stationTypes']);
     Route::get('/universe/station-types/{stationType}', [UniverseController::class, 'stationType']);
     Route::get('/universe/facility-types', [UniverseController::class, 'facilityTypes']);
@@ -360,6 +342,35 @@ Route::middleware(['auth:sanctum', 'public_tool_access'])->group(function () {
     Route::get('/universe/material-types', [UniverseController::class, 'materialTypes']);
     Route::get('/universe/material-types/{materialType}', [UniverseController::class, 'materialType']);
     Route::get('/universe/entity-stats/{entityType}/export.csv', [UniverseEntityStatsController::class, 'exportCsv']);
+    Route::get('/material-prices', [MaterialPriceController::class, 'index']);
+});
+
+// Public tool routes — accessible to JOE members AND active subscribers
+Route::middleware(['auth:sanctum', 'public_tool_access'])->group(function () {
+    Route::get('/universe/sectors', [UniverseController::class, 'sectors']);
+    Route::get('/universe/cache-manifest', [UniverseController::class, 'cacheManifest']);
+    Route::get('/universe/galaxy-snapshot/meta', [UniverseController::class, 'galaxySnapshotMeta']);
+    Route::get('/universe/galaxy-snapshot/layer/{layer}', [UniverseController::class, 'galaxySnapshotLayer']);
+    Route::get('/universe/map-systems', [UniverseController::class, 'mapSystems']);
+    Route::get('/universe/locations/{galx}/{galy}', [UniverseController::class, 'location'])
+        ->where('galx', '-?[0-9]+')
+        ->where('galy', '-?[0-9]+');
+    Route::get('/universe/systems/{system}', [UniverseController::class, 'system']);
+    Route::get('/universe/ship-snapshots', [UniverseController::class, 'shipSnapshots']);
+    Route::get('/universe/ship-snapshots/{snapshot}', [UniverseController::class, 'shipSnapshotDetail'])
+        ->where('snapshot', '[0-9]+');
+    Route::get('/universe/subscriber-cell-records', [SubscriberCellRecordController::class, 'index']);
+    Route::post('/universe/subscriber-cell-records', [SubscriberCellRecordController::class, 'store']);
+    // Cell annotations — JOE members see/edit shared notes; subscribers see/edit only their own scoped notes
+    Route::get('/universe/cell-annotations', [CellAnnotationController::class, 'index']);
+    Route::post('/universe/cell-annotations', [CellAnnotationController::class, 'upsert']);
+    Route::post('/universe/search-records/import-personal-events', [SearchRecordController::class, 'importPersonalEvents'])->middleware('throttle:import-personal-events');
+    Route::get('/universe/search-records/import-logs', [SearchRecordController::class, 'importLogs']);
+    Route::delete('/universe/search-records/import-logs', [SearchRecordController::class, 'clearImportLogs']);
+    Route::get('/universe/hyper-planner', [UniverseController::class, 'hyperPlanner']);
+    Route::get('/universe/hyper-plans', [UniverseController::class, 'hyperPlans']);
+    Route::post('/universe/hyper-plans', [UniverseController::class, 'storeHyperPlan']);
+    Route::delete('/universe/hyper-plans/{hyperPlan}', [UniverseController::class, 'deleteHyperPlan']);
 });
 
 // Loading tip management: can_manage_tips OR is_admin OR sysadmin override
@@ -368,6 +379,15 @@ Route::middleware(['auth:sanctum', 'require_any:can_manage_tips,is_admin'])->gro
     Route::post('/admin/loading-tips', [AdminLoadingTipController::class, 'store']);
     Route::put('/admin/loading-tips/{loadingTip}', [AdminLoadingTipController::class, 'update']);
     Route::delete('/admin/loading-tips/{loadingTip}', [AdminLoadingTipController::class, 'destroy']);
+});
+
+// TOS admin — sysadmin only
+Route::middleware(['auth:sanctum', 'sysadmin_only'])->group(function () {
+    Route::get('/admin/tos', [AdminTosController::class, 'index']);
+    Route::post('/admin/tos', [AdminTosController::class, 'store']);
+    Route::put('/admin/tos/{tosDocument}', [AdminTosController::class, 'update']);
+    Route::post('/admin/tos/{tosDocument}/publish', [AdminTosController::class, 'publish']);
+    Route::delete('/admin/tos/{tosDocument}', [AdminTosController::class, 'destroy']);
 });
 
 Route::get('/eotm/current', [EmployeeSpotlightController::class, 'current']);
@@ -460,7 +480,7 @@ Route::middleware(['auth:sanctum', 'public_tool_access'])->group(function () {
     Route::get('/droidbrain/history', [DroidBrainController::class, 'history']);
 });
 
-Route::middleware(['auth:sanctum', 'public_tool_access'])->group(function () {
+Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/droidbrain/upload', [DroidBrainController::class, 'upload']);
     Route::get('/droidbrain/upload-queue/{queueId}', [DroidBrainController::class, 'uploadQueueStatus']);
 });
@@ -553,7 +573,6 @@ Route::middleware(['auth:sanctum', 'require_any:is_joe_member,is_admin,is_sysadm
     Route::get('/fire-delays', [FireDelayController::class, 'fetch'])->middleware('throttle:12,1');
     Route::get('/fire-delays/settings', [FireDelayController::class, 'getSettings']);
     Route::put('/fire-delays/settings', [FireDelayController::class, 'updateSettings'])->middleware('sysadmin_only');
-    Route::get('/material-prices', [MaterialPriceController::class, 'index']);
 });
 
 Route::middleware(['auth:sanctum', 'require_any:is_joe_member,can_access_fleet_commander,is_admin,is_sysadmin'])->group(function () {
