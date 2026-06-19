@@ -11,6 +11,7 @@ class PaymentItem extends Model
         'tool_key',
         'source_type',
         'source_id',
+        'pending_dedupe_id',
         'payer_subject_type',
         'payer_subject_id',
         'payer_label',
@@ -36,5 +37,15 @@ class PaymentItem extends Model
     {
         return $this->belongsToMany(PaymentTransfer::class, 'payment_transfer_items')
             ->withTimestamps();
+    }
+
+    protected static function booted(): void
+    {
+        // Only a still-pending row can occupy a (source_type, source_id) dedupe slot.
+        // Once a row moves past pending (attached/paid/cancelled) it's historical and
+        // must free the slot so the next reward/payment cycle can create a new row.
+        static::saving(function (PaymentItem $item) {
+            $item->pending_dedupe_id = $item->status === 'pending' ? $item->source_id : null;
+        });
     }
 }
