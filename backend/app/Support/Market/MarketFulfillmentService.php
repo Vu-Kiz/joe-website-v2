@@ -82,7 +82,7 @@ class MarketFulfillmentService
             $reason
         );
 
-        DB::transaction(function () use ($order, $listing, $result, $stockUnit) {
+        DB::transaction(function () use ($order, $listing, $result, $stockUnit, $transferEntityUid) {
             $order = MarketOrder::lockForUpdate()->findOrFail($order->id);
             $order->swc_transfer_result = json_encode($result);
 
