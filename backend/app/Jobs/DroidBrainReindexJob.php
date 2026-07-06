@@ -18,7 +18,12 @@ class DroidBrainReindexJob implements ShouldQueue, ShouldBeUnique
     use Queueable;
     use SerializesModels;
 
-    public int $tries = 1;
+    // 2, not 1 — a deploy's hard worker restart can catch this job mid-run, orphaning
+    // it as "reserved" in the queue. Once redelivered it would otherwise instantly
+    // fail with MaxAttemptsExceededException before ever calling handle() again.
+    // Reindexing is idempotent (just re-syncs the whole tab to Meilisearch), so a
+    // real retry is safe.
+    public int $tries = 2;
     public int $timeout = 3600;
 
     private const CHUNK_SIZE = 500;
