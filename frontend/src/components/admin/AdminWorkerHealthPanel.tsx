@@ -387,6 +387,7 @@ const AdminWorkerHealthPanel: React.FC = () => {
                     <tr>
                       <th className="text-right">File ID</th>
                       <th className="text-left">File Name</th>
+                      <th className="text-left">Error</th>
                       <th className="text-left">Updated At</th>
                     </tr>
                   </thead>
@@ -395,6 +396,7 @@ const AdminWorkerHealthPanel: React.FC = () => {
                       <tr key={item.id}>
                         <td className="text-right">{item.id}</td>
                         <td>{item.file_name}</td>
+                        <td className="text-[#FF8A8A]">{item.payment_error ?? "—"}</td>
                         <td>{item.updated_at ? new Date(item.updated_at).toLocaleString() : "Unknown"}</td>
                       </tr>
                     ))}

@@ -312,16 +312,22 @@ class WorkerHealthController extends Controller
                 ->where('updated_at', '<', now()->subHours(25)->toDateTimeString())
                 ->count();
 
+            $hasErrorColumn = Schema::hasColumn('droidbrain_files', 'payment_error');
+            $failedColumns  = $hasErrorColumn
+                ? ['id', 'file_name', 'payment_status', 'payment_error', 'updated_at']
+                : ['id', 'file_name', 'payment_status', 'updated_at'];
+
             $failedRows = DB::table('droidbrain_files')
                 ->where('payment_status', 'failed')
                 ->orderByDesc('id')
                 ->limit(20)
-                ->get(['id', 'file_name', 'payment_status', 'updated_at']);
+                ->get($failedColumns);
 
             foreach ($failedRows as $row) {
                 $recentFailed[] = [
                     'id' => (int) $row->id,
                     'file_name' => (string) $row->file_name,
+                    'payment_error' => $hasErrorColumn ? $row->payment_error : null,
                     'updated_at' => $row->updated_at ? Carbon::parse((string) $row->updated_at)->toIso8601String() : null,
                 ];
             }

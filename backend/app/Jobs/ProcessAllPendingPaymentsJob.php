@@ -48,14 +48,28 @@ class ProcessAllPendingPaymentsJob implements ShouldQueue, ShouldBeUnique
                     ->where('id', $fileId)
                     ->update(['payment_status' => 'complete', 'updated_at' => now()]);
             } catch (\Throwable $e) {
-                Log::error('ProcessAllPendingPaymentsJob: DroidBrain payment failed', [
-                    'file_id' => $fileId,
-                    'error'   => $e->getMessage(),
-                ]);
-
+                // Mark the file failed BEFORE attempting to log — if Log::error() itself
+                // throws (e.g. the log stream can't be opened, which has happened in this
+                // app before), it must not stop this file from being marked failed, and it
+                // must not abort the loop and leave every subsequent pending file stuck
+                // forever behind this one.
                 DB::table('droidbrain_files')
                     ->where('id', $fileId)
-                    ->update(['payment_status' => 'failed', 'updated_at' => now()]);
+                    ->update([
+                        'payment_status' => 'failed',
+                        'payment_error'  => substr($e->getMessage(), 0, 2000),
+                        'updated_at'     => now(),
+                    ]);
+
+                try {
+                    Log::error('ProcessAllPendingPaymentsJob: DroidBrain payment failed', [
+                        'file_id' => $fileId,
+                        'error'   => $e->getMessage(),
+                    ]);
+                } catch (\Throwable $logException) {
+                    // Logging failed too — nothing more we can do here, but the payment
+                    // status above is already saved, so the batch can continue.
+                }
             }
         }
     }

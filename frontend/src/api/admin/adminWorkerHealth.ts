@@ -56,6 +56,7 @@ export type AdminWorkerHealthState = {
     recent_failed: Array<{
       id: number;
       file_name: string;
+      payment_error: string | null;
       updated_at: string | null;
     }>;
     error: string | null;
