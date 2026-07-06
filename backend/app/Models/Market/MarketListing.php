@@ -126,6 +126,11 @@ class MarketListing extends Model
         return $this->sale_type === 'stock';
     }
 
+    public function isBundle(): bool
+    {
+        return $this->sale_type === 'bundle';
+    }
+
     public function isAvailable(): bool
     {
         return $this->status === self::STATUS_OPEN && $this->quantity_available > 0;

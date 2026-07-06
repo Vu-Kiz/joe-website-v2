@@ -55,32 +55,43 @@ class MarketFulfillmentService
         $buyerUid = '1:' . $buyer->swc_character_id;
         $reason = 'JOE Internal Market - ' . $order->order_reference;
 
-        // For stock listings, transfer the specific assigned unit
-        $transferEntityUid  = $listing->entity_uid;
-        $transferEntityType = $listing->entity_type;
-        $stockUnit          = null;
+        $stockUnit = null;
 
-        if ($listing->isStock()) {
-            $stockUnit = MarketListingStock::where('listing_id', $listing->id)
-                ->where('order_id', $order->id)
-                ->where('status', MarketListingStock::STATUS_RESERVED)
-                ->first();
+        if ($listing->isBundle()) {
+            // Bundles have no real SWC entity of their own — entity_uid is a synthetic
+            // "bundle-xxx" string we generate for grouping — so each real item inside
+            // bundle_items must be transferred individually rather than calling SWC
+            // with the fake bundle identifier (which 404s, since SWC has no concept
+            // of a "bundle" entity type).
+            $result = $this->transferBundleItems($listing, $sellerAccessToken, $buyerUid, $reason);
+            $transferEntityUid = $listing->entity_uid;
+        } else {
+            // For stock listings, transfer the specific assigned unit
+            $transferEntityUid  = $listing->entity_uid;
+            $transferEntityType = $listing->entity_type;
 
-            if (!$stockUnit) {
-                throw new \RuntimeException('No stock unit assigned to this order.');
+            if ($listing->isStock()) {
+                $stockUnit = MarketListingStock::where('listing_id', $listing->id)
+                    ->where('order_id', $order->id)
+                    ->where('status', MarketListingStock::STATUS_RESERVED)
+                    ->first();
+
+                if (!$stockUnit) {
+                    throw new \RuntimeException('No stock unit assigned to this order.');
+                }
+
+                $transferEntityUid  = $stockUnit->entity_uid;
+                $transferEntityType = $stockUnit->entity_type;
             }
 
-            $transferEntityUid  = $stockUnit->entity_uid;
-            $transferEntityType = $stockUnit->entity_type;
+            $result = $this->swcInventoryService->transferOwnership(
+                $sellerAccessToken,
+                $transferEntityType,
+                $transferEntityUid,
+                $buyerUid,
+                $reason
+            );
         }
-
-        $result = $this->swcInventoryService->transferOwnership(
-            $sellerAccessToken,
-            $transferEntityType,
-            $transferEntityUid,
-            $buyerUid,
-            $reason
-        );
 
         DB::transaction(function () use ($order, $listing, $result, $stockUnit, $transferEntityUid) {
             $order = MarketOrder::lockForUpdate()->findOrFail($order->id);
@@ -116,7 +127,7 @@ class MarketFulfillmentService
                 $this->removeListingTag($listing, $stockUnit?->entity_uid, $stockUnit?->entity_type);
             } else {
                 $order->status = MarketOrder::STATUS_DISPUTED;
-                $order->dispute_note = 'SWC ownership transfer failed: ' . $this->extractSwcError($result);
+                $order->dispute_note = 'SWC ownership transfer failed: ' . $this->extractResultError($result);
                 $order->save();
 
                 Log::error('Market ownership transfer failed', [
@@ -128,9 +139,71 @@ class MarketFulfillmentService
             }
         });
 
-        $result['swc_error'] = $result['ok'] ? null : $this->extractSwcError($result);
+        $result['swc_error'] = $result['ok'] ? null : $this->extractResultError($result);
 
         return $result;
+    }
+
+    /**
+     * Transfers every real entity inside a bundle listing individually and returns
+     * an aggregate result. If any item fails, the whole order is marked disputed —
+     * but items that DID transfer successfully are recorded per-item in the result
+     * (and logged in the dispute note) so a partial-transfer bundle can be manually
+     * reconciled instead of leaving no record of what actually happened.
+     */
+    protected function transferBundleItems(
+        MarketListing $listing,
+        string $sellerAccessToken,
+        string $buyerUid,
+        string $reason
+    ): array {
+        $items = $listing->bundle_items ?? [];
+        $itemResults = [];
+        $allOk = true;
+
+        foreach ($items as $item) {
+            $entityType = (string) ($item['entity_type'] ?? '');
+            $entityUid  = (string) ($item['entity_uid'] ?? '');
+            $entityName = $item['entity_name'] ?? $item['type_name'] ?? $entityUid;
+
+            if ($entityType === '' || $entityUid === '') {
+                $allOk = false;
+                $itemResults[] = [
+                    'entity_uid'  => $entityUid,
+                    'entity_type' => $entityType,
+                    'entity_name' => $entityName,
+                    'ok'          => false,
+                    'error'       => 'Bundle item is missing entity_type/entity_uid.',
+                ];
+                continue;
+            }
+
+            $itemResult = $this->swcInventoryService->transferOwnership(
+                $sellerAccessToken,
+                $entityType,
+                $entityUid,
+                $buyerUid,
+                $reason
+            );
+
+            if (!$itemResult['ok']) {
+                $allOk = false;
+            }
+
+            $itemResults[] = [
+                'entity_uid'  => $entityUid,
+                'entity_type' => $entityType,
+                'entity_name' => $entityName,
+                'ok'          => $itemResult['ok'],
+                'status'      => $itemResult['status'] ?? null,
+                'error'       => $itemResult['ok'] ? null : $this->extractSwcError($itemResult),
+            ];
+        }
+
+        return [
+            'ok'    => $allOk,
+            'items' => $itemResults,
+        ];
     }
 
     public function completeMaterialOrder(MarketOrder $order): void
@@ -182,6 +255,25 @@ class MarketFulfillmentService
                 'message'    => $e->getMessage(),
             ]);
         }
+    }
+
+    protected function extractResultError(array $result): string
+    {
+        if (isset($result['items']) && is_array($result['items'])) {
+            $failed = array_filter($result['items'], fn (array $item): bool => empty($item['ok']));
+            if ($failed === []) {
+                return 'Unknown error.';
+            }
+
+            $parts = array_map(
+                fn (array $item): string => ($item['entity_name'] ?? $item['entity_uid'] ?? 'item') . ': ' . ($item['error'] ?? 'unknown error'),
+                $failed
+            );
+
+            return 'Bundle transfer partially failed — ' . implode('; ', $parts);
+        }
+
+        return $this->extractSwcError($result);
     }
 
     protected function extractSwcError(array $result): string
