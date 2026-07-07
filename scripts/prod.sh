@@ -24,6 +24,14 @@ GIT_BRANCH="${GIT_BRANCH:-dev}"
 # Convenience alias for docker compose
 DC="docker compose --env-file ${ENV_FILE} -f ${COMPOSE_FILE}"
 
+# The website's own services — deliberately excludes glitchtip/glitchtip-worker/
+# glitchtip-db/glitchtip-redis. GlitchTip doesn't need to restart just because the
+# website rebuilt, and recreating it gives it a new internal Docker IP that Nginx
+# Proxy Manager's proxy_pass doesn't reliably re-resolve, which was causing a 502
+# on glitchtip.swc-joe.com after every deploy (fixed by scoping recreate to just
+# these services instead of the whole compose file).
+WEBSITE_SERVICES="db meilisearch backend worker-xml worker-swc worker-search worker-payment worker-default scheduler frontend discord-bot phpmyadmin"
+
 run_migrations_with_retry() {
   local attempts="${1:-20}"
   local delay_seconds="${2:-3}"
@@ -102,7 +110,7 @@ fi
 case "${cmd}" in
   up)
     echo "▶ Starting prod stack (db + backend + workers + scheduler + frontend)..."
-    ${DC} up -d --build --remove-orphans
+    ${DC} up -d --build --remove-orphans ${WEBSITE_SERVICES}
     ;;
 
   down)
@@ -111,13 +119,13 @@ case "${cmd}" in
     ;;
 
   restart)
-    echo "▶ Restarting prod stack..."
-    ${DC} up -d --build --force-recreate --remove-orphans
+    echo "▶ Restarting prod stack (website services only — not GlitchTip)..."
+    ${DC} up -d --build --force-recreate --remove-orphans ${WEBSITE_SERVICES}
     ;;
 
   refresh)
-    echo "▶ Rebuilding and recreating all services..."
-    ${DC} up -d --build --force-recreate --remove-orphans
+    echo "▶ Rebuilding and recreating website services (not GlitchTip)..."
+    ${DC} up -d --build --force-recreate --remove-orphans ${WEBSITE_SERVICES}
     ;;
 
   logs)
@@ -247,8 +255,8 @@ case "${cmd}" in
       git fetch origin
       git pull origin "${GIT_BRANCH}"
 
-      echo "▶ Step 2/7: build images and restart stack..."
-      ${DC} up -d --build --force-recreate --remove-orphans
+      echo "▶ Step 2/7: build images and restart website services (not GlitchTip)..."
+      ${DC} up -d --build --force-recreate --remove-orphans ${WEBSITE_SERVICES}
 
       echo "▶ Step 3/7: run database migrations..."
       run_migrations_with_retry
