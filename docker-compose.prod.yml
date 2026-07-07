@@ -14,6 +14,17 @@ services:
       - db_data:/var/lib/mysql
     networks:
       - joe_prod_net
+    healthcheck:
+      # Waits for MySQL to actually accept connections (and finish InnoDB crash
+      # recovery) before dependents start — plain `depends_on: [db]` only waits
+      # for the container process to start, not for MySQL itself to be ready,
+      # which was flooding GlitchTip with "Connection refused" / "Access denied"
+      # noise on every deploy as backend/workers raced the DB's own startup.
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
 
   meilisearch:
     image: getmeili/meilisearch:v1.8
@@ -36,8 +47,10 @@ services:
     container_name: joe_backend_v2_prod
     restart: unless-stopped
     depends_on:
-      - db
-      - meilisearch
+      db:
+        condition: service_healthy
+      meilisearch:
+        condition: service_started
     env_file:
       - ./backend/.env
     environment:
@@ -68,9 +81,12 @@ services:
     container_name: joe_worker_xml_v2_prod
     restart: unless-stopped
     depends_on:
-      - db
-      - backend
-      - meilisearch
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_started
+      meilisearch:
+        condition: service_started
     env_file:
       - ./backend/.env
     environment:
@@ -104,9 +120,12 @@ services:
     container_name: joe_worker_swc_v2_prod
     restart: unless-stopped
     depends_on:
-      - db
-      - backend
-      - meilisearch
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_started
+      meilisearch:
+        condition: service_started
     env_file:
       - ./backend/.env
     environment:
@@ -140,9 +159,12 @@ services:
     container_name: joe_worker_search_v2_prod
     restart: unless-stopped
     depends_on:
-      - db
-      - backend
-      - meilisearch
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_started
+      meilisearch:
+        condition: service_started
     env_file:
       - ./backend/.env
     environment:
@@ -176,9 +198,12 @@ services:
     container_name: joe_worker_payment_v2_prod
     restart: unless-stopped
     depends_on:
-      - db
-      - backend
-      - meilisearch
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_started
+      meilisearch:
+        condition: service_started
     env_file:
       - ./backend/.env
     environment:
@@ -212,9 +237,12 @@ services:
     container_name: joe_worker_default_v2_prod
     restart: unless-stopped
     depends_on:
-      - db
-      - backend
-      - meilisearch
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_started
+      meilisearch:
+        condition: service_started
     env_file:
       - ./backend/.env
     environment:
@@ -248,8 +276,10 @@ services:
     container_name: joe_scheduler_v2_prod
     restart: unless-stopped
     depends_on:
-      - db
-      - backend
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_started
     env_file:
       - ./backend/.env
     environment:
@@ -308,7 +338,8 @@ services:
     container_name: joe_phpmyadmin_v2_prod
     restart: unless-stopped
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       PMA_HOST: db
     networks:
