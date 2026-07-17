@@ -27,6 +27,9 @@ discord-bot/.env.*
 db/data/
 db/
 
+# Changelog drafts/exports — not source, don't need to bloat git history
+changelogs/
+
 .claude/
 
 
