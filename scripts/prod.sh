@@ -217,6 +217,10 @@ case "${cmd}" in
     ${DC} exec backend php artisan scout:import "App\Models\DroidBrainNpc"
     ${DC} exec backend php artisan scout:import "App\Models\DroidBrainPlanet"
     ${DC} exec backend php artisan scout:import "App\Models\DroidBrainStation"
+    echo "▶ Importing Galactic Archive models into Meilisearch..."
+    ${DC} exec backend php artisan scout:import "App\Models\Swc\SwcPlanet"
+    ${DC} exec backend php artisan scout:import "App\Models\Swc\SwcSystem"
+    ${DC} exec backend php artisan scout:import "App\Models\Swc\SwcSector"
     echo "▶ Backfilling search record flags from Meilisearch..."
     ${DC} exec backend php artisan droidbrain:backfill-search-record-flags-from-meili
     echo "✔ Scout import complete."
