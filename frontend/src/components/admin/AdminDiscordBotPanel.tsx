@@ -212,7 +212,7 @@ const AdminDiscordBotPanel: React.FC = () => {
               <div className="members-hyperplanner__suggestions">
                 <button
                   type="button"
-                  className={`members-hyperplanner__suggestion${selectedRecipientId === "" ? " members-hyperplanner__suggestion--active" : ""}`}
+                  className={`members-hyperplanner__suggestion font-tektur${selectedRecipientId === "" ? " members-hyperplanner__suggestion--active" : ""}`}
                   onClick={() => {
                     setSelectedRecipientId("");
                     setRecipientQuery("");
@@ -227,7 +227,7 @@ const AdminDiscordBotPanel: React.FC = () => {
                   <button
                     key={recipient.id}
                     type="button"
-                    className={`members-hyperplanner__suggestion${selectedRecipientId === String(recipient.id) ? " members-hyperplanner__suggestion--active" : ""}`}
+                    className={`members-hyperplanner__suggestion font-tektur${selectedRecipientId === String(recipient.id) ? " members-hyperplanner__suggestion--active" : ""}`}
                     onClick={() => {
                       setSelectedRecipientId(String(recipient.id));
                       setRecipientQuery(formatRecipient(recipient));

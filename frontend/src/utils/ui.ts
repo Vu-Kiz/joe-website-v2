@@ -1,5 +1,5 @@
 export const INPUT =
-  "w-full min-h-[44px] px-[0.95rem] py-3 rounded-[12px] border border-white/10 bg-[#111] text-white/[0.94] outline-none appearance-none transition-[border-color,box-shadow,background] duration-[180ms] shadow-[inset_0_1px_0_rgba(255,255,255,0.03),0_6px_18px_rgba(0,0,0,0.18)] placeholder:text-white/[0.42] hover:border-[rgba(245,213,70,0.18)] focus:border-[rgba(245,213,70,0.42)] focus:shadow-[inset_0_1px_0_rgba(255,255,255,0.03),0_0_0_1px_rgba(245,213,70,0.18),0_0_18px_rgba(245,213,70,0.10)] disabled:opacity-65 disabled:cursor-not-allowed";
+  "w-full min-h-[44px] px-[0.95rem] py-3 rounded-[12px] border border-white/10 bg-[#111] text-white/[0.94] font-tektur outline-none appearance-none transition-[border-color,box-shadow,background] duration-[180ms] shadow-[inset_0_1px_0_rgba(255,255,255,0.03),0_6px_18px_rgba(0,0,0,0.18)] placeholder:text-white/[0.42] hover:border-[rgba(245,213,70,0.18)] focus:border-[rgba(245,213,70,0.42)] focus:shadow-[inset_0_1px_0_rgba(255,255,255,0.03),0_0_0_1px_rgba(245,213,70,0.18),0_0_18px_rgba(245,213,70,0.10)] disabled:opacity-65 disabled:cursor-not-allowed";
 
 export const SELECT_INPUT = INPUT + " pr-[2.5rem] select-chevron";
 

@@ -3,10 +3,12 @@ import { Outlet } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import SwcStatusBanner from "../components/common/SwcStatusBanner";
 import TosModal from "../components/common/TosModal";
+import SwcLinkRequiredState from "../components/common/SwcLinkRequiredState";
 import { emitAuthStateChanged, fetchAuthMe, getApiBaseUrl, getSessionStreamUrl } from "../api/core/auth";
 
 const AppLayout: React.FC = () => {
   const [tosNeeded, setTosNeeded] = useState(false);
+  const [swcLinkRequired, setSwcLinkRequired] = useState(false);
 
   const envLabel = (() => {
     const viteEnv = String((import.meta as any).env?.VITE_APP_ENV ?? "").trim().toLowerCase();
@@ -70,7 +72,9 @@ const AppLayout: React.FC = () => {
       if (cancelled) return;
       try {
         const auth = await fetchAuthMe();
-        if (!cancelled && auth?.user?.tos_needs_acceptance) {
+        if (cancelled) return;
+        setSwcLinkRequired(Boolean(auth?.user) && auth.user!.swc_character_id == null);
+        if (auth?.user?.tos_needs_acceptance) {
           setTosNeeded(true);
         }
       } catch {
@@ -93,8 +97,11 @@ const AppLayout: React.FC = () => {
           const auth = await fetchAuthMe();
           if (!auth?.user) {
             handleSessionInvalidated();
-          } else if (auth.user.tos_needs_acceptance) {
-            setTosNeeded(true);
+          } else {
+            setSwcLinkRequired(auth.user.swc_character_id == null);
+            if (auth.user.tos_needs_acceptance) {
+              setTosNeeded(true);
+            }
           }
         } catch {
           handleSessionInvalidated();
@@ -110,6 +117,8 @@ const AppLayout: React.FC = () => {
         if (!auth?.user) {
           return;
         }
+
+        setSwcLinkRequired(auth.user.swc_character_id == null);
 
         if (auth.user.tos_needs_acceptance) {
           setTosNeeded(true);
@@ -171,10 +180,14 @@ const AppLayout: React.FC = () => {
         </div>
       </footer>
 
-      {tosNeeded && (
-        <TosModal
-          onAccepted={() => setTosNeeded(false)}
-        />
+      {swcLinkRequired ? (
+        <SwcLinkRequiredState />
+      ) : (
+        tosNeeded && (
+          <TosModal
+            onAccepted={() => setTosNeeded(false)}
+          />
+        )
       )}
     </>
   );

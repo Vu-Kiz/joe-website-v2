@@ -34,14 +34,14 @@ const DevHubPanel: React.FC = () => {
           <div className="flex gap-2 mb-4">
             <button
               type="button"
-              className={"text-[0.75rem] px-3 py-1 rounded-lg border transition-colors duration-100 " + (ticketsView === "kanban" ? "border-[rgba(245,213,70,0.4)] bg-[rgba(245,213,70,0.08)] text-[#f2c46f]" : "border-white/10 text-white/50 hover:border-white/20 hover:text-white/70")}
+              className={"text-[0.75rem] px-3 py-1 rounded-lg border transition-colors duration-100  font-tektur" + (ticketsView === "kanban" ? "border-[rgba(245,213,70,0.4)] bg-[rgba(245,213,70,0.08)] text-[#f2c46f]" : "border-white/10 text-white/50 hover:border-white/20 hover:text-white/70")}
               onClick={() => setTicketsView("kanban")}
             >
               Board
             </button>
             <button
               type="button"
-              className={"text-[0.75rem] px-3 py-1 rounded-lg border transition-colors duration-100 " + (ticketsView === "list" ? "border-[rgba(245,213,70,0.4)] bg-[rgba(245,213,70,0.08)] text-[#f2c46f]" : "border-white/10 text-white/50 hover:border-white/20 hover:text-white/70")}
+              className={"text-[0.75rem] px-3 py-1 rounded-lg border transition-colors duration-100  font-tektur" + (ticketsView === "list" ? "border-[rgba(245,213,70,0.4)] bg-[rgba(245,213,70,0.08)] text-[#f2c46f]" : "border-white/10 text-white/50 hover:border-white/20 hover:text-white/70")}
               onClick={() => setTicketsView("list")}
             >
               List

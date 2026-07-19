@@ -43,6 +43,7 @@ use App\Http\Controllers\Api\Admin\DroidBrainUploadAuditController;
 use App\Http\Controllers\Api\Admin\ToolStoreAdminController;
 use App\Http\Controllers\Api\SiteLockStatusController;
 use App\Http\Controllers\Api\Member\SwcAuthorizationController;
+use App\Http\Controllers\Api\Member\CharacterLocationController;
 use App\Http\Controllers\Api\TenetOfSalvageController;
 use App\Http\Controllers\Api\Admin\TenetOfSalvageController as AdminTenetOfSalvageController;
 use App\Http\Controllers\Api\Admin\DebugController;
@@ -60,12 +61,15 @@ use App\Http\Controllers\Api\Extension\HelperSettingsController;
 use App\Http\Controllers\Api\Member\RmBrowserController;
 use App\Http\Controllers\Api\Member\SkillsToolController;
 use App\Http\Controllers\Api\Member\FireDelayController;
+use App\Http\Controllers\Api\Member\MarketVendorController;
+use App\Http\Controllers\Api\Member\BountyHuntingController;
 use App\Http\Controllers\Api\Member\XpTrackerController;
 use App\Http\Controllers\Api\ToolStoreController;
 use App\Http\Controllers\Api\Faction\FactionConsoleController;
 use App\Http\Controllers\Api\Support\SupportTicketController;
 use App\Http\Controllers\Api\Admin\SupportTicketAdminController;
 use App\Http\Controllers\Api\Admin\MaterialPriceController;
+use App\Http\Controllers\Api\Admin\MarketVendorAdminController;
 use App\Http\Controllers\Api\Swc\SwcStatusController;
 use App\Http\Controllers\Api\Sys\KanbanController;
 use App\Http\Controllers\Api\Webhook\GlitchTipWebhookController;
@@ -435,6 +439,8 @@ Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('admin')->group(fun
     Route::post('/worker-health/retry-import/{id}', [WorkerHealthController::class, 'retryImport']);
     Route::delete('/worker-health/failed-jobs', [WorkerHealthController::class, 'clearFailedJobs']);
     Route::post('/worker-health/reindex-search', [WorkerHealthController::class, 'reindexSearchTab']);
+    Route::get('/market-vendors/status', [MarketVendorAdminController::class, 'status']);
+    Route::post('/market-vendors/sync-now', [MarketVendorAdminController::class, 'syncNow']);
     Route::get('/site-lock', [SiteLockController::class, 'show']);
     Route::post('/site-lock', [SiteLockController::class, 'update']);
     Route::get('/entity-stats/{entityType}/export.csv', [EntityStatsController::class, 'exportCsv']);
@@ -464,6 +470,7 @@ Route::middleware(['auth:sanctum', 'sysadmin_only'])->prefix('admin')->group(fun
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/swc/authorization', [SwcAuthorizationController::class, 'show']);
     Route::put('/swc/authorization/preferences', [SwcAuthorizationController::class, 'updatePreferences']);
+    Route::get('/character-location', [CharacterLocationController::class, 'show'])->middleware('throttle:30,1');
 });
 
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -573,6 +580,19 @@ Route::middleware(['auth:sanctum', 'require_any:is_joe_member,is_admin,is_sysadm
     Route::get('/fire-delays', [FireDelayController::class, 'fetch'])->middleware('throttle:12,1');
     Route::get('/fire-delays/settings', [FireDelayController::class, 'getSettings']);
     Route::put('/fire-delays/settings', [FireDelayController::class, 'updateSettings'])->middleware('sysadmin_only');
+    Route::get('/market-vendors', [MarketVendorController::class, 'index']);
+    Route::get('/market-vendors/vendors', [MarketVendorController::class, 'vendors']);
+    Route::get('/market-vendors/owners', [MarketVendorController::class, 'owners']);
+    Route::get('/market-vendors/hubs', [MarketVendorController::class, 'hubs']);
+    Route::get('/market-vendors/vendors/{id}', [MarketVendorController::class, 'show']);
+    Route::get('/bounty-contracts', [BountyHuntingController::class, 'index']);
+    Route::get('/bounty-contracts/candidate-worlds', [BountyHuntingController::class, 'candidateWorlds']);
+    Route::post('/bounty-contracts', [BountyHuntingController::class, 'store']);
+    Route::put('/bounty-contracts/{bountyContract}', [BountyHuntingController::class, 'update']);
+    Route::delete('/bounty-contracts/{bountyContract}', [BountyHuntingController::class, 'destroy']);
+    Route::post('/bounty-contracts/{bountyContract}/scans', [BountyHuntingController::class, 'storeScan']);
+    Route::put('/bounty-contracts/{bountyContract}/scans/{scan}', [BountyHuntingController::class, 'updateScan']);
+    Route::delete('/bounty-contracts/{bountyContract}/scans/{scan}', [BountyHuntingController::class, 'destroyScan']);
 });
 
 Route::middleware(['auth:sanctum', 'require_any:is_joe_member,can_access_fleet_commander,is_admin,is_sysadmin'])->group(function () {

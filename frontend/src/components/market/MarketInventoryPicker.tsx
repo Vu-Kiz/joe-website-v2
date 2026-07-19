@@ -223,7 +223,7 @@ const MarketInventoryPicker: React.FC<Props> = ({
           <span className="text-[0.75rem] text-white/40">{filteredItems.length} available</span>
           <button
             type="button"
-            className="text-[0.75rem] text-white/55 hover:text-white/90 bg-transparent border-0 cursor-pointer underline underline-offset-2"
+            className="text-[0.75rem] text-white/55 hover:text-white/90 bg-transparent border-0 cursor-pointer underline underline-offset-2 font-tektur"
             onClick={() => onToggleAll(filteredItems)}
           >
             {allVisibleSelected ? "Deselect all" : "Select all"}

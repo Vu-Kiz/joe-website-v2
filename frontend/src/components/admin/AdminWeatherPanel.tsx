@@ -271,7 +271,7 @@ const AdminWeatherPanel: React.FC = () => {
 
             <button
               type="button"
-              className={`inline-flex h-10 w-10 shrink-0 cursor-pointer flex-col justify-center gap-1 rounded-[10px] border border-white/10 bg-white/[0.03] text-inherit ${openSection === "settings" ? "border-[#f5d546]/35 bg-[#f5d546]/10" : ""}`}
+              className={`inline-flex h-10 w-10 shrink-0 cursor-pointer flex-col justify-center gap-1 rounded-[10px] border border-white/10 bg-white/[0.03] text-inherit  font-tektur${openSection === "settings" ? "border-[#f5d546]/35 bg-[#f5d546]/10" : ""}`}
               onClick={() => toggleSection("settings")}
               aria-label={openSection === "settings" ? "Close daily range" : "Open daily range"}
               aria-expanded={openSection === "settings"}
@@ -329,7 +329,7 @@ const AdminWeatherPanel: React.FC = () => {
 
             <button
               type="button"
-              className={`inline-flex h-10 w-10 shrink-0 cursor-pointer flex-col justify-center gap-1 rounded-[10px] border border-white/10 bg-white/[0.03] text-inherit ${openSection === "adjectives" ? "border-[#f5d546]/35 bg-[#f5d546]/10" : ""}`}
+              className={`inline-flex h-10 w-10 shrink-0 cursor-pointer flex-col justify-center gap-1 rounded-[10px] border border-white/10 bg-white/[0.03] text-inherit  font-tektur${openSection === "adjectives" ? "border-[#f5d546]/35 bg-[#f5d546]/10" : ""}`}
               onClick={() => toggleSection("adjectives")}
               aria-label={openSection === "adjectives" ? "Close adjectives" : "Open adjectives"}
               aria-expanded={openSection === "adjectives"}
@@ -437,7 +437,7 @@ const AdminWeatherPanel: React.FC = () => {
 
             <button
               type="button"
-              className={`inline-flex h-10 w-10 shrink-0 cursor-pointer flex-col justify-center gap-1 rounded-[10px] border border-white/10 bg-white/[0.03] text-inherit ${openSection === "advice" ? "border-[#f5d546]/35 bg-[#f5d546]/10" : ""}`}
+              className={`inline-flex h-10 w-10 shrink-0 cursor-pointer flex-col justify-center gap-1 rounded-[10px] border border-white/10 bg-white/[0.03] text-inherit  font-tektur${openSection === "advice" ? "border-[#f5d546]/35 bg-[#f5d546]/10" : ""}`}
               onClick={() => toggleSection("advice")}
               aria-label={openSection === "advice" ? "Close advice" : "Open advice"}
               aria-expanded={openSection === "advice"}

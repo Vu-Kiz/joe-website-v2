@@ -6,6 +6,7 @@ export type MemberToolPreferences = {
   fleet_command?: boolean;
   market_personal?: boolean;
   market_faction?: boolean;
+  location?: boolean;
   universe?: {
     map_scope?: "sector" | "galaxy";
     selected_sector_uid: string | null;
@@ -29,6 +30,7 @@ export type MemberToolPreferences = {
 export type PublicToolPreferences = {
   payments: boolean;
   astrogation: boolean;
+  location?: boolean;
 };
 
 export type SwcAuthorizationStatus = {
@@ -48,6 +50,7 @@ export type SwcAuthorizationStatus = {
   has_character_credits_write_access?: boolean;
   has_personal_inventory_access?: boolean;
   has_faction_inventory_access?: boolean;
+  has_character_location_access?: boolean;
   granted_scopes: string | null;
   token_expires_at: string | null;
   last_verified_at: string | null;

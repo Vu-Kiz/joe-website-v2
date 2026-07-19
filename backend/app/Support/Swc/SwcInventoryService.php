@@ -20,6 +20,7 @@ class SwcInventoryService
 
     // Singular → plural mapping for inventory URL path segments
     public const ENTITY_TYPE_PLURAL = [
+        'character' => 'characters',
         'ship'      => 'ships',
         'vehicle'   => 'vehicles',
         'station'   => 'stations',

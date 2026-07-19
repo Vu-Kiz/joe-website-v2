@@ -94,9 +94,9 @@ const MarketMyOrdersTab: React.FC<{ hasPaymentsAccess: boolean }> = ({ hasPaymen
       {orders.map((order) => {
         const payResult = payResults[order.id];
         return (
-          <div key={order.id} className="bg-white/[0.03] border border-white/[0.08] hover:border-white/[0.14] rounded-[12px] flex flex-col gap-[0.45rem] p-[0.82rem]" style={{ maxWidth: 520 }}>
+          <div key={order.id} className="bg-white/3 border border-white/8 hover:border-white/[0.14] rounded-xl flex flex-col gap-[0.45rem] p-[0.82rem]" style={{ maxWidth: 520 }}>
             <div className="flex items-center gap-[0.4rem] flex-wrap text-[0.72rem] opacity-60 uppercase tracking-[0.06em]">
-              <span className="rounded-[4px] text-[0.7rem] font-semibold px-[0.45rem] py-[0.15rem] uppercase tracking-[0.05em] bg-white/[0.07] text-white/70">{order.listing?.entity_type ?? "—"}</span>
+              <span className="rounded-sm text-[0.7rem] font-semibold px-[0.45rem] py-[0.15rem] uppercase tracking-wider bg-white/[0.07] text-white/70">{order.listing?.entity_type ?? "—"}</span>
               <span className="small ml-auto normal-case" style={{ opacity: 1, letterSpacing: 0, color: statusColor(order.status) }}>
                 {statusLabel(order.status)}
               </span>
@@ -111,7 +111,7 @@ const MarketMyOrdersTab: React.FC<{ hasPaymentsAccess: boolean }> = ({ hasPaymen
 
             {order.status === "pending_payment" && !payResult?.ok && (
               <>
-                <div className="flex flex-col gap-3 max-w-[520px] p-5 rounded-[12px] border border-[rgba(255,200,80,0.2)] bg-[rgba(255,200,80,0.06)]">
+                <div className="flex flex-col gap-3 max-w-130 p-5 rounded-xl border border-[rgba(255,200,80,0.2)] bg-[rgba(255,200,80,0.06)]">
                   <p className="small muted">Reference</p>
                   <div className="font-mono text-[1rem] font-bold text-[#ffd875]">{order.order_reference}</div>
                   {payResult?.needs_payments_access ? (

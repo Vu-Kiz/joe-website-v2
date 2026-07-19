@@ -40,7 +40,7 @@ const LEGEND_ACTIONS_CLS = "flex justify-end";
 const LEGEND_ACTION_CLS = BTN_SM + " border-[rgba(246,163,0,0.24)]";
 const LEGEND_SECTION_LABEL_CLS = "small text-white/[0.55] mt-[0.15rem]";
 const legendItemCls = (active: boolean) =>
-  "grid [grid-template-columns:22px_minmax(0,1fr)] items-center gap-[0.55rem] w-full p-[0.45rem_0.55rem] border border-white/[0.08] rounded-[10px] bg-[rgba(255,255,255,0.06)] text-inherit text-left cursor-pointer transition-[border-color,background,transform] duration-[150ms] hover:border-[rgba(246,163,0,0.42)] hover:bg-[rgba(246,163,0,0.08)] hover:-translate-y-px" +
+  "grid [grid-template-columns:22px_minmax(0,1fr)] items-center gap-[0.55rem] w-full p-[0.45rem_0.55rem] border border-white/[0.08] rounded-[10px] bg-[rgba(255,255,255,0.06)] text-inherit text-left cursor-pointer transition-[border-color,background,transform] duration-[150ms] hover:border-[rgba(246,163,0,0.42)] hover:bg-[rgba(246,163,0,0.08)] hover:-translate-y-px font-tektur" +
   (active ? " !border-[rgba(246,163,0,0.72)] !bg-[rgba(246,163,0,0.16)] shadow-[inset_0_0_0_1px_rgba(246,163,0,0.18)]" : "");
 const LEGEND_ICON_CLS = "block w-[22px] h-[22px] object-contain";
 
@@ -56,7 +56,7 @@ const SELECTION_BODY_CLS = "grid gap-[0.35rem] flex-[1_1_auto] min-h-0 p-[0_2.4r
 const SELECTION_COPY_CLS = "grid gap-[0.18rem]";
 const SELECTION_LABEL_CLS = "font-bold text-[rgba(246,163,0,0.94)]";
 const SELECTION_HEAD_ACTIONS_CLS = "absolute top-[0.55rem] right-[0.55rem]";
-const SELECTION_CLOSE_CLS = "flex items-center justify-center w-[26px] h-[26px] p-0 border border-[rgba(246,163,0,0.28)] rounded-full bg-[rgba(246,163,0,0.08)] text-white/[0.92] font-inherit text-[0.95rem] leading-none cursor-pointer transition-[border-color,background,transform] duration-[140ms] hover:border-[rgba(246,163,0,0.48)] hover:bg-[rgba(246,163,0,0.16)] hover:-translate-y-px";
+const SELECTION_CLOSE_CLS = "flex items-center justify-center w-[26px] h-[26px] p-0 border border-[rgba(246,163,0,0.28)] rounded-full bg-[rgba(246,163,0,0.08)] text-white/[0.92] font-inherit text-[0.95rem] leading-none cursor-pointer transition-[border-color,background,transform] duration-[140ms] hover:border-[rgba(246,163,0,0.48)] hover:bg-[rgba(246,163,0,0.16)] hover:-translate-y-px font-tektur";
 const SELECTION_CLOSE_GLYPH_CLS = "block leading-none -translate-y-px";
 const SELECTION_STATS_CLS = "grid gap-[0.15rem]";
 const SELECTION_STAT_VALUE_CLS = "text-[rgba(246,163,0,0.94)] font-bold";
@@ -92,6 +92,7 @@ type DeckGalaxyMapProps = {
   canEditCellIntel?: boolean;
   canViewSystemIds?: boolean;
   activeSectorUid?: string | null;
+  myLocation?: { galx: number; galy: number } | null;
   focusRequest?: DeckFocusRequest;
   onClearFocusRequest?: () => void;
   onSelectSector?: (sectorUid: string) => void;
@@ -605,6 +606,7 @@ const DeckGalaxyMap: React.FC<DeckGalaxyMapProps> = ({
   canViewSystemIds = false,
   isFullTier = false,
   activeSectorUid,
+  myLocation,
   focusRequest,
   onClearFocusRequest,
   onSelectSector,
@@ -1358,6 +1360,24 @@ new PolygonLayer({
         getFillColor: [248, 181, 72, 50],
         updateTriggers: { data: [highlightedCell] },
       }),
+      new PolygonLayer({
+        id: "deck-galaxy-my-location",
+        data: myLocation ? [myLocation] : [],
+        pickable: false,
+        stroked: true,
+        filled: true,
+        lineWidthUnits: "pixels",
+        getLineWidth: 2.5,
+        getLineColor: [93, 222, 200, 255],
+        getPolygon: (d: { galx: number; galy: number }) => [
+          [d.galx, d.galy],
+          [d.galx + 1, d.galy],
+          [d.galx + 1, d.galy + 1],
+          [d.galx, d.galy + 1],
+        ],
+        getFillColor: [93, 222, 200, 70],
+        updateTriggers: { data: [myLocation] },
+      }),
       new PathLayer<SectorBoundaryDatum>({
         id: "deck-galaxy-sectors-stroke",
         data: visibleSectorBoundaries,
@@ -1478,6 +1498,7 @@ new PolygonLayer({
     [
       activeSectorUid,
       highlightedCell,
+      myLocation,
       asteroidIcons,
       flagSizePx,
       gridLines,

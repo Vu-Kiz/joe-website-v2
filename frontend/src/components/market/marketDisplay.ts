@@ -17,12 +17,12 @@ export const BADGE_CLS: Record<string, string> = {
   stock:   `${BADGE_BASE} bg-[rgba(100,220,200,0.12)] text-[#5ddec8]`,
 };
 
-export const CARD_CLS = "bg-white/[0.03] border border-white/[0.08] rounded-[12px] flex flex-col gap-[0.45rem] p-[0.82rem] hover:border-white/[0.14] transition-[border-color] duration-150";
+export const CARD_CLS = "bg-white/[0.03] border border-white/[0.08] rounded-[12px] flex flex-col gap-[0.45rem] p-[0.82rem] hover:border-white/[0.14] transition-[border-color] duration-150 font-tektur";
 
 export const EMPTY_CLS = "text-white/40 text-[0.9rem] py-8";
 
 export const FILTER_CHIP_CLS = (active: boolean) =>
-  `bg-transparent cursor-pointer text-[0.78rem] px-[0.7rem] py-[0.25rem] rounded-[20px] transition-[background,color,border-color] duration-150 border ${
+  `bg-transparent cursor-pointer text-[0.78rem] px-[0.7rem] py-[0.25rem] rounded-[20px] transition-[background,color,border-color] duration-150 border  font-tektur${
     active
       ? "bg-white/10 border-white/[0.28] text-white"
       : "border-white/10 text-white/55 hover:bg-white/[0.05] hover:text-white/85"

@@ -822,10 +822,10 @@ const SysShipHeatmapPage: React.FC = () => {
   }
 
   const modeBtnCls = (active: boolean) =>
-    `inline-flex items-center justify-center min-h-[34px] px-3 py-1.5 text-[0.88rem] rounded-[10px] border cursor-pointer transition-[border-color,background] duration-150 ${active ? "border-[rgba(246,163,0,0.55)] bg-[rgba(246,163,0,0.14)] text-[#f2c46f]" : "border-white/10 bg-white/[0.025] text-white/90 hover:border-[rgba(246,163,0,0.3)] hover:bg-[rgba(246,163,0,0.08)]"}`;
+    `inline-flex items-center justify-center min-h-[34px] px-3 py-1.5 text-[0.88rem] rounded-[10px] border cursor-pointer transition-[border-color,background] duration-150  font-tektur${active ? "border-[rgba(246,163,0,0.55)] bg-[rgba(246,163,0,0.14)] text-[#f2c46f]" : "border-white/10 bg-white/[0.025] text-white/90 hover:border-[rgba(246,163,0,0.3)] hover:bg-[rgba(246,163,0,0.08)]"}`;
   const statCls = "grid gap-[0.25rem] p-[0.8rem] border border-white/[0.08] rounded-[12px] bg-white/[0.025]";
   const tileCls = (active: boolean) =>
-    `grid gap-[0.15rem] w-full p-[0.75rem_0.8rem] text-left border rounded-[10px] bg-white/[0.025] text-inherit cursor-pointer transition-[border-color,background] duration-150 hover:border-[rgba(246,163,0,0.3)] hover:bg-[rgba(246,163,0,0.08)] ${active ? "border-[rgba(246,163,0,0.55)] bg-[rgba(246,163,0,0.14)]" : "border-white/[0.08]"}`;
+    `grid gap-[0.15rem] w-full p-[0.75rem_0.8rem] text-left border rounded-[10px] bg-white/[0.025] text-inherit cursor-pointer transition-[border-color,background] duration-150 hover:border-[rgba(246,163,0,0.3)] hover:bg-[rgba(246,163,0,0.08)]  font-tektur${active ? "border-[rgba(246,163,0,0.55)] bg-[rgba(246,163,0,0.14)]" : "border-white/[0.08]"}`;
 
   return (
     <main className="board grid gap-4">
@@ -852,7 +852,7 @@ const SysShipHeatmapPage: React.FC = () => {
           </label>
           <input
             id="ship-heatmap-query"
-            className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit"
+            className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit font-tektur"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search by name, class, or UID"
@@ -878,13 +878,13 @@ const SysShipHeatmapPage: React.FC = () => {
           <div className="grid gap-[0.22rem]">
             <span className="small">Attacker / Target</span>
             <label className="small" htmlFor="ship-heatmap-combat-skill">Combat Skill</label>
-            <input id="ship-heatmap-combat-skill" className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit" type="number" min={0} max={10} step={1} value={combatSkill} onChange={(event) => setCombatSkill(Math.max(0, Math.min(10, Number(event.target.value) || 0)))} />
+            <input id="ship-heatmap-combat-skill" className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit font-tektur" type="number" min={0} max={10} step={1} value={combatSkill} onChange={(event) => setCombatSkill(Math.max(0, Math.min(10, Number(event.target.value) || 0)))} />
             <label className="small" htmlFor="ship-heatmap-attacker-piloting-skill">Attacker Piloting Skill</label>
-            <input id="ship-heatmap-attacker-piloting-skill" className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit" type="number" min={0} max={10} step={1} value={attackerPilotingSkill} onChange={(event) => setAttackerPilotingSkill(Math.max(0, Math.min(10, Number(event.target.value) || 0)))} />
+            <input id="ship-heatmap-attacker-piloting-skill" className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit font-tektur" type="number" min={0} max={10} step={1} value={attackerPilotingSkill} onChange={(event) => setAttackerPilotingSkill(Math.max(0, Math.min(10, Number(event.target.value) || 0)))} />
             <label className="small" htmlFor="ship-heatmap-target-ship">Target Ship</label>
             <select
               id="ship-heatmap-target-ship"
-              className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit"
+              className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit font-tektur"
               value={targetShipUid ?? ""}
               onChange={(event) => setTargetShipUid(event.target.value || null)}
             >
@@ -895,7 +895,7 @@ const SysShipHeatmapPage: React.FC = () => {
               ))}
             </select>
             <label className="small" htmlFor="ship-heatmap-piloting-skill">Target Piloting Skill</label>
-            <input id="ship-heatmap-piloting-skill" className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit" type="number" min={0} max={10} step={1} value={targetPilotingSkill} onChange={(event) => setTargetPilotingSkill(Math.max(0, Math.min(10, Number(event.target.value) || 0)))} />
+            <input id="ship-heatmap-piloting-skill" className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit font-tektur" type="number" min={0} max={10} step={1} value={targetPilotingSkill} onChange={(event) => setTargetPilotingSkill(Math.max(0, Math.min(10, Number(event.target.value) || 0)))} />
           </div>
 
           {shipsLoading ? <p className="small">Loading stored ships…</p> : null}
@@ -992,7 +992,7 @@ const SysShipHeatmapPage: React.FC = () => {
                       <button
                         key={`${cell.x}:${cell.y}`}
                         type="button"
-                        className={`relative overflow-hidden aspect-square border rounded-[4px] text-white/[0.88] grid place-items-center text-[0.62rem] p-0 appearance-none cursor-pointer transition-[transform,border-color] duration-100 hover:scale-[1.03] hover:border-[rgba(246,163,0,0.55)] focus-visible:scale-[1.03] focus-visible:border-[rgba(246,163,0,0.55)] focus-visible:outline-none min-[32px] [&_span]:pointer-events-none ${originAndTarget ? "border-white/[0.65] shadow-[inset_0_0_0_1px_rgba(246,163,0,0.55),0_0_0_1px_rgba(255,255,255,0.45)]" : isOrigin ? "border-white/[0.06] bg-white/[0.03] shadow-[inset_0_0_0_1px_rgba(246,163,0,0.55)]" : isTarget ? "border-white/[0.65] bg-white/[0.03]" : "border-white/[0.06] bg-white/[0.03]"}`}
+                        className={`relative overflow-hidden aspect-square border rounded-[4px] text-white/[0.88] grid place-items-center text-[0.62rem] p-0 appearance-none cursor-pointer transition-[transform,border-color] duration-100 hover:scale-[1.03] hover:border-[rgba(246,163,0,0.55)] focus-visible:scale-[1.03] focus-visible:border-[rgba(246,163,0,0.55)] focus-visible:outline-none min-[32px] [&_span]:pointer-events-none  font-tektur${originAndTarget ? "border-white/[0.65] shadow-[inset_0_0_0_1px_rgba(246,163,0,0.55),0_0_0_1px_rgba(255,255,255,0.45)]" : isOrigin ? "border-white/[0.06] bg-white/[0.03] shadow-[inset_0_0_0_1px_rgba(246,163,0,0.55)]" : isTarget ? "border-white/[0.65] bg-white/[0.03]" : "border-white/[0.06] bg-white/[0.03]"}`}
                         style={{ background: heatColor(cell.combinedHitChance) }}
                         onMouseEnter={() => setHoveredCell(cell)}
                         onFocus={() => setHoveredCell(cell)}
@@ -1018,7 +1018,7 @@ const SysShipHeatmapPage: React.FC = () => {
                     <h4>Cell Inspector</h4>
                     <button
                       type="button"
-                      className="text-[0.82rem] text-white/60 hover:text-white/90 cursor-pointer bg-transparent border-0 p-0"
+                      className="text-[0.82rem] text-white/60 hover:text-white/90 cursor-pointer bg-transparent border-0 p-0 font-tektur"
                       onClick={() => {
                         setSelectedOrigin(defaultOrigin);
                         setSelectedTarget(defaultOrigin);

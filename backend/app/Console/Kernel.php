@@ -2,6 +2,7 @@
 
 namespace App\Console;
 
+use App\Jobs\MarketVendorSyncJob;
 use App\Jobs\ProcessAllPendingPaymentsJob;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
@@ -16,6 +17,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('droidbrain:recover-stuck-uploads')->everyFifteenMinutes();
         $schedule->job(new ProcessAllPendingPaymentsJob())->dailyAt('03:00');
         $schedule->command('tool-subscriptions:expire')->hourly();
+        $schedule->job(new MarketVendorSyncJob())->twiceDaily(3, 15);
     }
 
     /**

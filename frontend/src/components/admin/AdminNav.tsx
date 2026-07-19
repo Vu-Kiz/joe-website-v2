@@ -411,7 +411,7 @@ const AdminNav: React.FC<Props> = ({
                   <section key={sectionKey} className="rounded-xl border border-white/10 bg-black/25">
                     <button
                       type="button"
-                      className="flex w-full items-center justify-between gap-2 rounded-t-xl border-0 bg-transparent px-3 py-2 text-left text-sm font-semibold text-white/85"
+                      className="flex w-full items-center justify-between gap-2 rounded-t-xl border-0 bg-transparent px-3 py-2 text-left text-sm font-semibold text-white/85 font-tektur"
                       onClick={() => setExpanded((current) => ({ ...current, [sectionKey]: !sectionOpen }))}
                     >
                       <span>{category}</span>
@@ -426,7 +426,7 @@ const AdminNav: React.FC<Props> = ({
                             <div key={item.key} className="flex items-center gap-1">
                               <button
                                 type="button"
-                                className={`flex-1 rounded-md border border-white/10 px-2 py-1.5 text-left text-sm transition ${isActive ? "bg-amber-300/15 text-amber-100 ring-1 ring-amber-300/45" : "bg-black/20 text-white/80 hover:bg-white/10 hover:text-white"}`}
+                                className={`flex-1 rounded-md border border-white/10 px-2 py-1.5 text-left text-sm transition  font-tektur${isActive ? "bg-amber-300/15 text-amber-100 ring-1 ring-amber-300/45" : "bg-black/20 text-white/80 hover:bg-white/10 hover:text-white"}`}
                                 onClick={() => handleSelect(item.key)}
                               >
                                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-300/70 align-middle" />
@@ -434,7 +434,7 @@ const AdminNav: React.FC<Props> = ({
                               </button>
                               <button
                                 type="button"
-                                className={`h-8 w-8 rounded-md border border-white/10 bg-black/20 text-sm transition ${isFavorite ? "text-amber-300 hover:bg-amber-300/15" : "text-white/35 hover:bg-white/10 hover:text-white/70"}`}
+                                className={`h-8 w-8 rounded-md border border-white/10 bg-black/20 text-sm transition  font-tektur${isFavorite ? "text-amber-300 hover:bg-amber-300/15" : "text-white/35 hover:bg-white/10 hover:text-white/70"}`}
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   toggleFavorite(item.key);
@@ -509,14 +509,14 @@ const QuickSection: React.FC<QuickSectionProps> = ({
               <div key={view} className="flex items-center gap-1">
                 <button
                   type="button"
-                  className={`flex-1 rounded-md border border-white/10 px-2 py-1.5 text-left text-sm transition ${isActive ? "bg-amber-300/15 text-amber-100 ring-1 ring-amber-300/45" : "bg-black/20 text-white/80 hover:bg-white/10 hover:text-white"}`}
+                  className={`flex-1 rounded-md border border-white/10 px-2 py-1.5 text-left text-sm transition  font-tektur${isActive ? "bg-amber-300/15 text-amber-100 ring-1 ring-amber-300/45" : "bg-black/20 text-white/80 hover:bg-white/10 hover:text-white"}`}
                   onClick={() => onSelect(view)}
                 >
                   {item.label}
                 </button>
                 <button
                   type="button"
-                  className={`h-8 w-8 rounded-md border border-white/10 bg-black/20 text-sm transition ${isFavorite ? "text-amber-300 hover:bg-amber-300/15" : "text-white/35 hover:bg-white/10 hover:text-white/70"}`}
+                  className={`h-8 w-8 rounded-md border border-white/10 bg-black/20 text-sm transition  font-tektur${isFavorite ? "text-amber-300 hover:bg-amber-300/15" : "text-white/35 hover:bg-white/10 hover:text-white/70"}`}
                   onClick={() => onToggleFavorite(view)}
                   aria-label={isFavorite ? `Remove ${item.label} from favorites` : `Add ${item.label} to favorites`}
                   title={isFavorite ? "Remove from favorites" : "Add to favorites"}
@@ -573,7 +573,7 @@ const PaletteDialog: React.FC<PaletteDialogProps> = ({
                 <button
                   key={item.key}
                   type="button"
-                  className={`flex w-full items-center justify-between rounded-md border border-white/10 px-2 py-2 text-left text-sm transition ${activeView === item.key ? "bg-amber-300/15 text-amber-100 ring-1 ring-amber-300/45" : "bg-black/25 text-white/85 hover:bg-white/10"}`}
+                  className={`flex w-full items-center justify-between rounded-md border border-white/10 px-2 py-2 text-left text-sm transition  font-tektur${activeView === item.key ? "bg-amber-300/15 text-amber-100 ring-1 ring-amber-300/45" : "bg-black/25 text-white/85 hover:bg-white/10"}`}
                   onClick={() => onSelect(item.key)}
                 >
                   <span>{item.label}</span>

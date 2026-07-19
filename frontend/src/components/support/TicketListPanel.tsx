@@ -75,7 +75,7 @@ const TicketListPanel: React.FC<Props> = ({ onClose }) => {
                   key={ticket.id}
                   type="button"
                   onClick={() => setSelected(ticket)}
-                  className="w-full text-left border border-white/[0.08] rounded-[12px] px-4 py-3 bg-surface hover:border-white/20 hover:bg-white/[0.05] transition-colors duration-100"
+                  className="w-full text-left border border-white/[0.08] rounded-[12px] px-4 py-3 bg-surface hover:border-white/20 hover:bg-white/[0.05] transition-colors duration-100 font-tektur"
                 >
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <span className="text-[0.88rem] font-semibold text-[#f2c46f]">{ticket.title}</span>

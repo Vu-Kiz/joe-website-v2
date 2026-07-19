@@ -65,7 +65,7 @@ type ResolvedMountedWeapon = {
 type WeaponHeatmapViewMode = "single" | "combined";
 
 const uiButtonSmallBaseClass =
-  "inline-flex min-h-[34px] items-center justify-center rounded-[10px] border px-[0.8rem] py-2 text-[0.88rem] font-bold leading-none no-underline transition-[border-color,background,transform,box-shadow] duration-150 ease-out hover:enabled:-translate-y-px hover:enabled:border-[#f5d546]/[0.28] hover:enabled:bg-[#f5d546]/[0.07] disabled:cursor-not-allowed disabled:opacity-[0.55]";
+  "inline-flex min-h-[34px] items-center justify-center rounded-[10px] border px-[0.8rem] py-2 text-[0.88rem] font-bold leading-none no-underline transition-[border-color,background,transform,box-shadow] duration-150 ease-out hover:enabled:-translate-y-px hover:enabled:border-[#f5d546]/[0.28] hover:enabled:bg-[#f5d546]/[0.07] disabled:cursor-not-allowed disabled:opacity-[0.55] font-tektur";
 const uiButtonSoftClass = "border-white/10 bg-white/[0.025] text-white/90";
 const uiButtonPrimaryClass =
   "border-[#f5d546]/35 bg-[#f5d546]/10 text-[#f2c46f] shadow-[inset_0_0_0_1px_rgba(245,213,70,0.08)] hover:enabled:border-[#f5d546]/45 hover:enabled:bg-[#f5d546]/15";
@@ -148,7 +148,7 @@ const SectionToggle: React.FC<{
 }> = ({ title, open, onClick }) => (
   <button
     type="button"
-    className="flex justify-between items-center gap-3 w-full p-0 border-0 bg-transparent text-inherit text-left cursor-pointer"
+    className="flex justify-between items-center gap-3 w-full p-0 border-0 bg-transparent text-inherit text-left cursor-pointer font-tektur"
     onClick={onClick}
     aria-expanded={open}
     aria-label={`${open ? "Collapse" : "Expand"} ${title}`}
@@ -578,13 +578,13 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
               <>
                 <div className="grid gap-[0.22rem]">
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" className={`${uiButtonSmallBaseClass} ${platformMode === "ship" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setPlatformMode("ship")}>
+                    <button type="button" className={`font-tektur${uiButtonSmallBaseClass} ${platformMode === "ship" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setPlatformMode("ship")}>
                       Ships
                     </button>
-                    <button type="button" className={`${uiButtonSmallBaseClass} ${platformMode === "vehicle" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setPlatformMode("vehicle")}>
+                    <button type="button" className={`font-tektur${uiButtonSmallBaseClass} ${platformMode === "vehicle" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setPlatformMode("vehicle")}>
                       Vehicles
                     </button>
-                    <button type="button" className={`${uiButtonSmallBaseClass} ${platformMode === "item" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setPlatformMode("item")}>
+                    <button type="button" className={`font-tektur${uiButtonSmallBaseClass} ${platformMode === "item" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setPlatformMode("item")}>
                       Items
                     </button>
                   </div>
@@ -625,7 +625,7 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
                     <span className="small">{selectedPlatformDetail.class_name ?? "Unknown class"}</span>
                     <button
                       type="button"
-                      className={`${uiButtonSmallBaseClass} ${uiButtonSoftClass}`}
+                      className={`font-tektur${uiButtonSmallBaseClass} ${uiButtonSoftClass}`}
                       onClick={() => {
                         setSelectedPlatformUid(null);
                         setSelectedWeaponKey(null);
@@ -654,10 +654,10 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
                       bearingLabel="Current Bearing"
                     />
                     <div className="flex flex-wrap gap-2">
-                      <button type="button" className={`${uiButtonSmallBaseClass} ${uiButtonSoftClass}`} onClick={() => setHeadingDegrees((current) => normalizeDegrees(current - 15))}>
+                      <button type="button" className={`font-tektur${uiButtonSmallBaseClass} ${uiButtonSoftClass}`} onClick={() => setHeadingDegrees((current) => normalizeDegrees(current - 15))}>
                         -15°
                       </button>
-                      <button type="button" className={`${uiButtonSmallBaseClass} ${uiButtonSoftClass}`} onClick={() => setHeadingDegrees((current) => normalizeDegrees(current + 15))}>
+                      <button type="button" className={`font-tektur${uiButtonSmallBaseClass} ${uiButtonSoftClass}`} onClick={() => setHeadingDegrees((current) => normalizeDegrees(current + 15))}>
                         +15°
                       </button>
                     </div>
@@ -672,10 +672,10 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
             {leftSectionsOpen.weapons ? (
               <div className="grid gap-[0.22rem]">
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" className={`${uiButtonSmallBaseClass} ${viewMode === "single" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setViewMode("single")}>
+                  <button type="button" className={`font-tektur${uiButtonSmallBaseClass} ${viewMode === "single" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setViewMode("single")}>
                     Single
                   </button>
-                  <button type="button" className={`${uiButtonSmallBaseClass} ${viewMode === "combined" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setViewMode("combined")}>
+                  <button type="button" className={`font-tektur${uiButtonSmallBaseClass} ${viewMode === "combined" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setViewMode("combined")}>
                     Combined
                   </button>
                 </div>
@@ -685,14 +685,14 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
                     <div className="grid grid-cols-2 gap-[0.45rem]">
                       <button
                         type="button"
-                        className={`${uiButtonSmallBaseClass} ${uiButtonSoftClass}`}
+                        className={`font-tektur${uiButtonSmallBaseClass} ${uiButtonSoftClass}`}
                         onClick={() => setEnabledWeaponKeys(resolvedWeapons.map((weapon) => weapon.key))}
                       >
                         All
                       </button>
                       <button
                         type="button"
-                        className={`${uiButtonSmallBaseClass} ${uiButtonSoftClass}`}
+                        className={`font-tektur${uiButtonSmallBaseClass} ${uiButtonSoftClass}`}
                         onClick={() => setEnabledWeaponKeys([])}
                       >
                         None
@@ -707,7 +707,7 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
                       <div key={weapon.key} className={`grid grid-cols-[minmax(0,1fr)_auto] gap-2 p-[0.65rem_0.75rem] border rounded-[10px] bg-white/[0.03] transition-[border-color,background] duration-[120ms] hover:border-[rgba(246,163,0,0.35)] ${weapon.key === selectedWeaponKey ? "border-[rgba(246,163,0,0.45)] bg-[rgba(246,163,0,0.08)]" : "border-white/[0.08]"}`}>
                         <button
                           type="button"
-                          className="grid gap-[0.15rem] p-0 border-0 bg-transparent text-inherit text-left cursor-pointer focus-visible:outline-none"
+                          className="grid gap-[0.15rem] p-0 border-0 bg-transparent text-inherit text-left cursor-pointer focus-visible:outline-none font-tektur"
                           onClick={() => setSelectedWeaponKey(weapon.key)}
                         >
                           <strong>{weapon.name ?? weapon.uid ?? "Unknown weapon"}</strong>
@@ -720,7 +720,7 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
                         {viewMode === "combined" ? (
                           <button
                             type="button"
-                            className={`${uiButtonSmallBaseClass} ${enabledWeaponKeys.includes(weapon.key) ? uiButtonPrimaryClass : uiButtonSoftClass}`}
+                            className={`font-tektur${uiButtonSmallBaseClass} ${enabledWeaponKeys.includes(weapon.key) ? uiButtonPrimaryClass : uiButtonSoftClass}`}
                             onClick={() => {
                               setEnabledWeaponKeys((current) => current.includes(weapon.key)
                                 ? current.filter((key) => key !== weapon.key)
@@ -758,13 +758,13 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
           <div className="grid gap-3 items-start justify-items-center">
             <div className="w-[min(100%,760px)] grid gap-2 justify-items-center">
               <div className="flex flex-wrap gap-2">
-                <button type="button" className={`${uiButtonSmallBaseClass} ${boardMode === "space" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setBoardMode("space")}>
+                <button type="button" className={`font-tektur${uiButtonSmallBaseClass} ${boardMode === "space" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setBoardMode("space")}>
                   Space 20x20
                 </button>
-                <button type="button" className={`${uiButtonSmallBaseClass} ${boardMode === "atmo" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setBoardMode("atmo")}>
+                <button type="button" className={`font-tektur${uiButtonSmallBaseClass} ${boardMode === "atmo" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setBoardMode("atmo")}>
                   Atmo {atmoBoardSize}x{atmoBoardSize}
                 </button>
-                <button type="button" className={`${uiButtonSmallBaseClass} ${boardMode === "ground" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setBoardMode("ground")}>
+                <button type="button" className={`font-tektur${uiButtonSmallBaseClass} ${boardMode === "ground" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setBoardMode("ground")}>
                   Ground 21x21
                 </button>
               </div>
@@ -815,18 +815,18 @@ const WeaponHeatmapTool: React.FC<WeaponHeatmapToolProps> = ({
             />
             <div className="w-[min(100%,760px)] flex justify-center">
               <div className="flex flex-wrap gap-2">
-                <button type="button" className={`${uiButtonSmallBaseClass} ${selectionMode === "none" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setSelectionMode("none")}>
+                <button type="button" className={`font-tektur${uiButtonSmallBaseClass} ${selectionMode === "none" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setSelectionMode("none")}>
                   Inspect Only
                 </button>
-                <button type="button" className={`${uiButtonSmallBaseClass} ${selectionMode === "origin" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setSelectionMode("origin")}>
+                <button type="button" className={`font-tektur${uiButtonSmallBaseClass} ${selectionMode === "origin" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setSelectionMode("origin")}>
                   Set Weapon Grid
                 </button>
-                <button type="button" className={`${uiButtonSmallBaseClass} ${selectionMode === "target" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setSelectionMode("target")}>
+                <button type="button" className={`font-tektur${uiButtonSmallBaseClass} ${selectionMode === "target" ? uiButtonPrimaryClass : uiButtonSoftClass}`} onClick={() => setSelectionMode("target")}>
                   Set Target Grid
                 </button>
                 <button
                   type="button"
-                  className={`${uiButtonSmallBaseClass} ${uiButtonSoftClass}`}
+                  className={`font-tektur${uiButtonSmallBaseClass} ${uiButtonSoftClass}`}
                   onClick={() => {
                     setSelectedOrigin(defaultOrigin);
                     setSelectedTarget(defaultOrigin);

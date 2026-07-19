@@ -121,7 +121,7 @@ const Navbar: React.FC = () => {
         {/* Hamburger toggle row */}
         <div className="hidden max-[900px]:flex items-center gap-2 shrink-0 ml-auto">
           <button
-            className="inline-flex items-center justify-center px-3 py-[6px] border border-[var(--accent)] bg-transparent text-[var(--accent)] rounded-[6px] cursor-pointer"
+            className="inline-flex items-center justify-center px-3 py-[6px] border border-[var(--accent)] bg-transparent text-[var(--accent)] rounded-[6px] cursor-pointer font-tektur"
             type="button"
             onClick={() => setNavOpen((o) => !o)}
             aria-expanded={navOpen}

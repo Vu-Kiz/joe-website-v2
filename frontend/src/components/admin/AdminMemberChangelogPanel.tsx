@@ -515,7 +515,7 @@ const AdminMemberChangelogPanel: React.FC = () => {
                     <button
                       key={tool}
                       type="button"
-                      className="inline-flex min-h-[30px] items-center rounded-full border border-[#f5d546]/40 bg-[#f5d546]/10 px-2.5 py-1 text-[0.78rem] font-bold text-[#ffdc84]"
+                      className="inline-flex min-h-[30px] items-center rounded-full border border-[#f5d546]/40 bg-[#f5d546]/10 px-2.5 py-1 text-[0.78rem] font-bold text-[#ffdc84] font-tektur"
                       onClick={() => setEditor((current) => ({ ...current, tools: removeValue(current.tools, tool) }))}
                       title="Remove tool"
                     >
@@ -566,7 +566,7 @@ const AdminMemberChangelogPanel: React.FC = () => {
                     <button
                       key={audience}
                       type="button"
-                      className="inline-flex min-h-[30px] items-center rounded-full border border-[#f5d546]/40 bg-[#f5d546]/10 px-2.5 py-1 text-[0.78rem] font-bold text-[#ffdc84]"
+                      className="inline-flex min-h-[30px] items-center rounded-full border border-[#f5d546]/40 bg-[#f5d546]/10 px-2.5 py-1 text-[0.78rem] font-bold text-[#ffdc84] font-tektur"
                       onClick={() => setEditor((current) => ({ ...current, audiences: removeValue(current.audiences, audience) }))}
                       title="Remove audience"
                     >

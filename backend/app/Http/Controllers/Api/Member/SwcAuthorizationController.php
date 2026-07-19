@@ -16,6 +16,7 @@ class SwcAuthorizationController extends Controller
         'fleet_command' => true,
         'market_personal' => false,
         'market_faction' => false,
+        'location' => false,
         'universe' => [
             'map_scope' => 'sector',
             'selected_sector_uid' => null,
@@ -27,6 +28,7 @@ class SwcAuthorizationController extends Controller
     protected const DEFAULT_PUBLIC_TOOL_PREFERENCES = [
         'payments'    => true,
         'astrogation' => true,
+        'location'    => false,
     ];
 
     public function __construct(
@@ -80,6 +82,7 @@ class SwcAuthorizationController extends Controller
                 'has_character_credits_write_access' => $this->swcAuthorizationService->hasCharacterCreditsWriteAccess($user),
                 'has_personal_inventory_access' => $this->swcAuthorizationService->hasPersonalInventoryAccess($user),
                 'has_faction_inventory_access' => $this->swcAuthorizationService->hasFactionInventoryAccess($user),
+                'has_character_location_access' => $this->swcAuthorizationService->hasCharacterLocationAccess($user),
                 'granted_scopes' => $memberToolsAuth?->granted_scopes ?? $paymentsAuth?->granted_scopes,
                 'token_expires_at' => $memberToolsAuth?->token_expires_at?->toIso8601String() ?? $paymentsAuth?->token_expires_at?->toIso8601String(),
                 'last_verified_at' => $memberToolsAuth?->last_verified_at?->toIso8601String() ?? $paymentsAuth?->last_verified_at?->toIso8601String(),
@@ -107,6 +110,7 @@ class SwcAuthorizationController extends Controller
             'member_tool_preferences.fleet_command' => ['nullable', 'boolean'],
             'member_tool_preferences.market_personal' => ['nullable', 'boolean'],
             'member_tool_preferences.market_faction' => ['nullable', 'boolean'],
+            'member_tool_preferences.location' => ['nullable', 'boolean'],
             'member_tool_preferences.universe' => ['nullable', 'array'],
             'member_tool_preferences.universe.map_scope' => ['nullable', 'in:sector,galaxy'],
             'member_tool_preferences.universe.selected_sector_uid' => ['nullable', 'string', 'max:255'],
@@ -120,6 +124,7 @@ class SwcAuthorizationController extends Controller
             'public_tool_preferences' => ['nullable', 'array'],
             'public_tool_preferences.payments' => ['nullable', 'boolean'],
             'public_tool_preferences.astrogation' => ['nullable', 'boolean'],
+            'public_tool_preferences.location' => ['nullable', 'boolean'],
         ]);
 
         $hasMemberPayload = array_key_exists('member_tool_preferences', $validated);
@@ -185,6 +190,9 @@ class SwcAuthorizationController extends Controller
             'market_faction' => array_key_exists('market_faction', $current)
                 ? (bool) $current['market_faction']
                 : self::DEFAULT_MEMBER_TOOL_PREFERENCES['market_faction'],
+            'location' => array_key_exists('location', $current)
+                ? (bool) $current['location']
+                : self::DEFAULT_MEMBER_TOOL_PREFERENCES['location'],
             'universe' => $this->normalizeUniversePreferences($current['universe'] ?? null),
         ];
     }
@@ -246,6 +254,9 @@ class SwcAuthorizationController extends Controller
             'astrogation' => array_key_exists('astrogation', $current)
                 ? (bool) $current['astrogation']
                 : self::DEFAULT_PUBLIC_TOOL_PREFERENCES['astrogation'],
+            'location' => array_key_exists('location', $current)
+                ? (bool) $current['location']
+                : self::DEFAULT_PUBLIC_TOOL_PREFERENCES['location'],
         ];
     }
 }

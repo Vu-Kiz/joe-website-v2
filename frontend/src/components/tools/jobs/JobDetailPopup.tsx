@@ -32,7 +32,7 @@ const JobDetailPopup: React.FC<Props> = ({ job, onClose, actions }) => {
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          className="absolute right-3 top-3 bg-white/[0.06] hover:bg-white/10 hover:text-white/90 border-0 rounded-[6px] text-white/50 text-[0.85rem] px-2 py-1 cursor-pointer"
+          className="absolute right-3 top-3 bg-white/[0.06] hover:bg-white/10 hover:text-white/90 border-0 rounded-[6px] text-white/50 text-[0.85rem] px-2 py-1 cursor-pointer font-tektur"
           type="button"
           onClick={onClose}
           aria-label="Close"

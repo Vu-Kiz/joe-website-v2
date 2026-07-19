@@ -103,7 +103,7 @@ const BBCodeEditor: React.FC<Props> = ({
   const textarea = (
     <textarea
       ref={textareaRef}
-      className={INPUT + " min-h-[260px] resize-y leading-[1.5] py-[0.85rem]"}
+      className={INPUT + " min-h-65 resize-y leading-normal py-[0.85rem]"}
       rows={rows}
       value={value}
       spellCheck={spellCheck}
@@ -154,7 +154,7 @@ const BBCodeEditor: React.FC<Props> = ({
           onClick={() => setShowColorTools((v) => !v)}
         >
           <span
-            className="w-[10px] h-[10px] rounded-full inline-block border border-white/40"
+            className="w-2.5 h-2.5 rounded-full inline-block border border-white/40"
             style={{ backgroundColor: normalizeHex(colorValue) ?? "#ff8800" }}
           />
           Colour
@@ -164,7 +164,7 @@ const BBCodeEditor: React.FC<Props> = ({
           <label className="small" htmlFor="bbcode-size-select">Size</label>
           <select
             id="bbcode-size-select"
-            className={INPUT + " w-auto min-w-[90px] py-1 px-[0.4rem] min-h-0"}
+            className={INPUT + " w-auto min-w-22.5 py-1 px-[0.4rem] min-h-0"}
             value={sizeValue}
             onChange={(e) => setSizeValue(e.target.value)}
             title="Text size [size=x][/size]"

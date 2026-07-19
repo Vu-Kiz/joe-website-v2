@@ -343,7 +343,7 @@ const KanbanBoard: React.FC = () => {
                         <span className="text-[0.68rem] font-tektur text-white/30 shrink-0">{col.cards.length}</span>
                         <button
                           type="button"
-                          className="text-white/25 hover:text-white/70 transition-colors bg-transparent border-0 p-[0.2rem] cursor-pointer opacity-0 group-hover/header:opacity-100 shrink-0"
+                          className="text-white/25 hover:text-white/70 transition-colors bg-transparent border-0 p-[0.2rem] cursor-pointer opacity-0 group-hover/header:opacity-100 shrink-0 font-tektur"
                           onClick={() => { setEditingColumn(col); setEditColumnTitle(col.title); }}
                           title="Rename column"
                         >
@@ -351,7 +351,7 @@ const KanbanBoard: React.FC = () => {
                         </button>
                         <button
                           type="button"
-                          className="text-white/20 hover:text-[#f87171] transition-colors bg-transparent border-0 p-[0.2rem] cursor-pointer opacity-0 group-hover/header:opacity-100 shrink-0"
+                          className="text-white/20 hover:text-[#f87171] transition-colors bg-transparent border-0 p-[0.2rem] cursor-pointer opacity-0 group-hover/header:opacity-100 shrink-0 font-tektur"
                           onClick={() => handleDeleteColumn(col)}
                           title="Delete column"
                         >

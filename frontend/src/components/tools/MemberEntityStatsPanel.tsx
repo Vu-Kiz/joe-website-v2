@@ -594,7 +594,7 @@ function getArcSweepDegrees(
 // ─── Class string constants ───────────────────────────────────────────────────
 const CHIP_LIST_CLS = "flex flex-wrap gap-[0.6rem]";
 const COLLECTION_IMG_CLS = "w-full max-w-[96px] max-h-[96px] object-contain rounded-[8px] bg-white/[0.04]";
-const COLLECTION_CARD_BASE = "grid gap-[0.2rem] min-w-[180px] p-[0.75rem_0.85rem] border border-white/[0.08] rounded-[10px] bg-[rgba(255,255,255,0.025)] [&_p]:m-0";
+const COLLECTION_CARD_BASE = "grid gap-[0.2rem] min-w-[180px] p-[0.75rem_0.85rem] border border-white/[0.08] rounded-[10px] bg-[rgba(255,255,255,0.025)] [&_p]:m-0 font-tektur";
 const collectionCardCls = (interactive: boolean, active?: boolean) =>
   COLLECTION_CARD_BASE +
   (interactive
@@ -606,7 +606,7 @@ const LIST_TABLE_CLS = "grid";
 const LIST_ROW_CLS = "grid grid-cols-[minmax(0,1fr)_auto] gap-4 items-center px-4 py-[0.8rem] border-t border-t-white/[0.06] first:border-t-0";
 const LIST_LABEL_CLS = "text-white/[0.72]";
 const LIST_VALUE_CLS = "text-right";
-const LIST_BUTTON_BASE = "block w-full p-[0.8rem_1rem] border-0 border-t border-t-white/[0.06] bg-transparent text-inherit text-left cursor-pointer transition-[background,border-color] duration-[140ms] first:border-t-0 hover:bg-[rgba(246,163,0,0.08)]";
+const LIST_BUTTON_BASE = "block w-full p-[0.8rem_1rem] border-0 border-t border-t-white/[0.06] bg-transparent text-inherit text-left cursor-pointer transition-[background,border-color] duration-[140ms] first:border-t-0 hover:bg-[rgba(246,163,0,0.08)] font-tektur";
 const listButtonCls = (active: boolean) => LIST_BUTTON_BASE + (active ? " bg-[rgba(246,163,0,0.12)]" : "");
 const LIST_BUTTON_COPY_CLS = "grid gap-[0.25rem]";
 
@@ -633,7 +633,7 @@ const SIDEBAR_CLS = "grid gap-[0.85rem] p-4 border border-white/[0.08] rounded-[
 const SIDEBAR_HEADER_CLS = "flex items-baseline gap-2";
 const ENTITY_LIST_CLS = "grid gap-[0.55rem] max-h-[70vh] overflow-y-auto pr-[0.2rem]";
 const itemCls = (active: boolean) =>
-  "grid gap-[0.18rem] p-[0.8rem] border border-white/[0.08] rounded-[10px] bg-white/[0.03] text-inherit text-left cursor-pointer transition-[border-color,background,transform] duration-[140ms] hover:border-[rgba(246,163,0,0.26)] hover:bg-[rgba(246,163,0,0.08)] hover:-translate-y-px" +
+  "grid gap-[0.18rem] p-[0.8rem] border border-white/[0.08] rounded-[10px] bg-white/[0.03] text-inherit text-left cursor-pointer transition-[border-color,background,transform] duration-[140ms] hover:border-[rgba(246,163,0,0.26)] hover:bg-[rgba(246,163,0,0.08)] hover:-translate-y-px font-tektur" +
   (active ? " !border-[rgba(246,163,0,0.44)] !bg-[rgba(246,163,0,0.12)]" : "");
 const DETAIL_CLS = "grid gap-4 min-w-0 p-4 border border-white/[0.08] rounded-[14px] bg-white/[0.03]";
 const COMPARE_VIEW_CLS = "grid gap-4";
@@ -650,7 +650,7 @@ const HERO_IMAGE_CLS = "w-[140px] h-[140px] max-w-full rounded-[12px] bg-white/[
 const HERO_COPY_CLS = "grid gap-[0.35rem] [&_h3]:m-0 [&_p]:m-0";
 const GROUPED_SECTIONS_CLS = "grid [grid-template-columns:repeat(4,minmax(0,1fr))] gap-[0.8rem] items-start max-[960px]:[grid-template-columns:repeat(2,minmax(0,1fr))] max-[640px]:grid-cols-1";
 const groupPanelCls = (isActive: boolean, hasOpen: boolean) =>
-  "relative grid gap-3 p-[0.9rem_1rem] w-full border border-white/[0.08] rounded-[12px] bg-[rgba(255,255,255,0.025)] self-start text-inherit text-left cursor-pointer transition-[opacity,border-color,background] duration-[200ms] hover:border-[rgba(246,163,0,0.26)] hover:bg-[rgba(246,163,0,0.08)]" +
+  "relative grid gap-3 p-[0.9rem_1rem] w-full border border-white/[0.08] rounded-[12px] bg-[rgba(255,255,255,0.025)] self-start text-inherit text-left cursor-pointer transition-[opacity,border-color,background] duration-[200ms] hover:border-[rgba(246,163,0,0.26)] hover:bg-[rgba(246,163,0,0.08)] font-tektur" +
   (isActive ? " z-[2]" : "") +
   (hasOpen && !isActive ? " opacity-[0.45]" : "");
 const GROUP_PANEL_HEADER_CLS = "flex items-start justify-between gap-3";
@@ -1249,7 +1249,7 @@ const EntityStatsGroupOverlay: React.FC<{
     <div className={"fixed inset-0 z-[1000] pointer-events-none" + (entered && !closing ? " pointer-events-auto" : "")}>
       <button
         type="button"
-        className={"absolute inset-0 border-0 p-0 m-0 bg-black/[0.45] transition-opacity duration-[280ms] ease-[ease] cursor-pointer" + (entered && !closing ? " opacity-100" : " opacity-0")}
+        className={"absolute inset-0 border-0 p-0 m-0 bg-black/[0.45] transition-opacity duration-[280ms] ease-[ease] cursor-pointer font-tektur" + (entered && !closing ? " opacity-100" : " opacity-0")}
         aria-label="Close stats section"
         onClick={handleClose}
       />

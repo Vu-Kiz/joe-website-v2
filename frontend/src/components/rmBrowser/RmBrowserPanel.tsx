@@ -69,7 +69,7 @@ const RmBrowserPanel: React.FC = () => {
   }
 
   return (
-    <div className="max-w-[1200px] mx-auto p-4 max-[767px]:px-2 max-[767px]:py-3">
+    <div className="max-w-300 mx-auto p-4 max-[767px]:px-2 max-[767px]:py-3">
       <div className="mb-5">
         <h1 className="text-[1.4rem] font-semibold m-0">RM Browser</h1>
         <p className="small opacity-70 m-0">

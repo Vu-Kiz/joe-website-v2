@@ -207,6 +207,37 @@ class SwcAuthorizationService
             || in_array('faction_all', $grantedScopes, true);
     }
 
+    public function hasCharacterLocationAccess(User $user): bool
+    {
+        return $this->getCharacterLocationAccessToken($user) !== null;
+    }
+
+    /**
+     * Resolve an access token from whichever authorization context actually has the
+     * character_location scope granted — the scope can come from member tools (galaxy),
+     * public tools (astrogation), or payments, so we can't assume a single context.
+     */
+    public function getCharacterLocationAccessToken(User $user): ?string
+    {
+        foreach ([
+            SwcAuthorization::CONTEXT_MEMBER_TOOLS,
+            SwcAuthorization::CONTEXT_PUBLIC_TOOLS,
+            SwcAuthorization::CONTEXT_PAYMENTS,
+        ] as $context) {
+            $auth = $this->forUser($user, $context);
+            if (!$this->isAuthorizationActive($auth)) {
+                continue;
+            }
+
+            $grantedScopes = $this->normalizeScopeValue($auth->granted_scopes);
+            if (in_array('character_location', $grantedScopes, true) || in_array('character_all', $grantedScopes, true)) {
+                return $this->getAccessToken($user, $context);
+            }
+        }
+
+        return null;
+    }
+
     public function getAccessToken(User $user, string $context = SwcAuthorization::CONTEXT_MEMBER_TOOLS): ?string
     {
         $auth = match ($context) {

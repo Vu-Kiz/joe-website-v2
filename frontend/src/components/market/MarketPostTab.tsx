@@ -531,7 +531,7 @@ const MarketPostTab: React.FC<Props> = ({
                         {s.typeName && <span className="text-[0.72rem] text-white/45">{s.typeName}</span>}
                       </div>
                       <button
-                        className="bg-transparent border-0 text-white/55 cursor-pointer text-[0.8rem] px-[0.3rem] py-[0.1rem] hover:text-[#f87171] shrink-0"
+                        className="bg-transparent border-0 text-white/55 cursor-pointer text-[0.8rem] px-[0.3rem] py-[0.1rem] hover:text-[#f87171] shrink-0 font-tektur"
                         type="button"
                         onClick={() => setSelected((prev) => prev.filter((x) => x.uid !== s.uid))}
                       >✕</button>

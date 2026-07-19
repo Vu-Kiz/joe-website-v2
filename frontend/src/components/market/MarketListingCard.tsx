@@ -22,15 +22,15 @@ function formatCredits(n: number): string {
 const isMaterial = (listing: MarketListing) => listing.entity_type === "material";
 
 const QTY_BTN = (small?: boolean) =>
-  `bg-white/[0.06] border border-white/[0.12] rounded-[6px] text-white/70 cursor-pointer leading-none transition-[background] duration-150 hover:not-disabled:bg-white/[0.12] hover:not-disabled:text-white disabled:opacity-35 disabled:cursor-default ${
+  `bg-white/[0.06] border border-white/[0.12] rounded-[6px] text-white/70 cursor-pointer leading-none transition-[background] duration-150 hover:not-disabled:bg-white/[0.12] hover:not-disabled:text-white disabled:opacity-35 disabled:cursor-default  font-tektur${
     small ? "text-[0.75rem] px-2 py-[0.3rem]" : "text-[0.9rem] px-[0.6rem] py-[0.3rem]"
   }`;
 
-const QTY_INPUT = "bg-white/[0.06] border border-white/[0.12] rounded-[6px] text-white text-[0.9rem] px-2 py-[0.3rem] text-center w-[70px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
+const QTY_INPUT = "bg-white/[0.06] border border-white/[0.12] rounded-[6px] text-white text-[0.9rem] px-2 py-[0.3rem] text-center w-[70px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none font-tektur";
 
 const POPUP_BASE = "fixed inset-0 z-[1200] flex items-center justify-center bg-black/65";
 const POPUP_PANEL = "relative flex flex-col gap-4 w-[calc(100vw-2rem)] max-w-[480px] max-h-[90vh] overflow-y-auto p-5 rounded-[12px] border border-white/[0.12] bg-[#1a1c22] shadow-[0_24px_64px_rgba(0,0,0,0.6)]";
-const POPUP_CLOSE = "absolute right-3 top-3 bg-white/[0.06] hover:bg-white/10 hover:text-white/90 border-0 rounded-[6px] text-white/50 text-[0.85rem] px-2 py-1 cursor-pointer";
+const POPUP_CLOSE = "absolute right-3 top-3 bg-white/[0.06] hover:bg-white/10 hover:text-white/90 border-0 rounded-[6px] text-white/50 text-[0.85rem] px-2 py-1 cursor-pointer font-tektur";
 const POPUP_ROW = "flex items-baseline gap-2 justify-between";
 
 const MarketListingCard: React.FC<Props> = ({ listing, isMine, onCancelled, hasPaymentsAccess = false }) => {
@@ -113,10 +113,10 @@ const MarketListingCard: React.FC<Props> = ({ listing, isMine, onCancelled, hasP
       </div>
 
       {/* Image */}
-      <div className={`w-full rounded-[6px] overflow-hidden shrink-0 flex items-center justify-center ${isCustom ? "bg-white/[0.015] p-[0.2rem]" : "h-[102px] bg-white/[0.02]"}`}>
+      <div className={`w-full rounded-md overflow-hidden shrink-0 flex items-center justify-center ${isCustom ? "bg-white/1.5 p-[0.2rem]" : "h-25.5 bg-white/2"}`}>
         {imageUrl ? (
           <img
-            className={isCustom ? "w-full h-auto max-h-[240px] object-contain" : "w-full h-full object-contain block"}
+            className={isCustom ? "w-full h-auto max-h-60 object-contain" : "w-full h-full object-contain block"}
             src={imageUrl}
             alt={displayName}
             onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
@@ -131,7 +131,7 @@ const MarketListingCard: React.FC<Props> = ({ listing, isMine, onCancelled, hasP
       {/* Bundle items */}
       {listing.sale_type === "bundle" && listing.bundle_items && (
         <div
-          className="flex flex-col gap-[0.3rem] border-t border-white/[0.06] pt-2"
+          className="flex flex-col gap-[0.3rem] border-t border-white/6 pt-2"
           style={{ maxHeight: "calc(5 * (24px + 0.3rem))", overflowY: "auto", scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.15) transparent" } as React.CSSProperties}
         >
           {listing.bundle_items.map((item, i) => (
@@ -177,7 +177,7 @@ const MarketListingCard: React.FC<Props> = ({ listing, isMine, onCancelled, hasP
             {listing.entity_snapshot.hull != null && listing.entity_snapshot.max_hull != null && listing.entity_snapshot.max_hull > 0 && (
               <div className="flex items-center gap-[0.4rem] text-[0.76rem] min-h-[1.05rem]">
                 <span className="text-white/40 shrink-0 w-12">Hull</span>
-                <div className="bg-white/[0.08] rounded-[3px] flex-1 h-1 overflow-hidden">
+                <div className="bg-white/8 rounded-[3px] flex-1 h-1 overflow-hidden">
                   <div className="rounded-[3px] h-full transition-[width] duration-300" style={{
                     width: `${Math.round((listing.entity_snapshot.hull / listing.entity_snapshot.max_hull) * 100)}%`,
                     background: listing.entity_snapshot.hull / listing.entity_snapshot.max_hull > 0.66 ? "#4ade80" : listing.entity_snapshot.hull / listing.entity_snapshot.max_hull > 0.33 ? "#facc15" : "#f87171"
@@ -189,7 +189,7 @@ const MarketListingCard: React.FC<Props> = ({ listing, isMine, onCancelled, hasP
             {listing.entity_snapshot.shield != null && listing.entity_snapshot.max_shield != null && listing.entity_snapshot.max_shield > 0 && (
               <div className="flex items-center gap-[0.4rem] text-[0.76rem] min-h-[1.05rem]">
                 <span className="text-white/40 shrink-0 w-12">Shield</span>
-                <div className="bg-white/[0.08] rounded-[3px] flex-1 h-1 overflow-hidden">
+                <div className="bg-white/8 rounded-[3px] flex-1 h-1 overflow-hidden">
                   <div className="rounded-[3px] h-full bg-[#60a5fa]" style={{ width: `${Math.round((listing.entity_snapshot.shield / listing.entity_snapshot.max_shield) * 100)}%` }} />
                 </div>
                 <span className="text-white/50 shrink-0 text-[0.7rem] w-16 text-right">{listing.entity_snapshot.shield}/{listing.entity_snapshot.max_shield}</span>
@@ -212,7 +212,7 @@ const MarketListingCard: React.FC<Props> = ({ listing, isMine, onCancelled, hasP
 
       {/* Quantity selector for materials and stock */}
       {!isMine && (material || isStock) && listing.quantity_available > 0 && (
-        <div className="flex flex-col gap-[0.4rem] border-t border-white/[0.06] pt-[0.6rem]">
+        <div className="flex flex-col gap-[0.4rem] border-t border-white/6 pt-[0.6rem]">
           <label className="small muted">Quantity</label>
           <div className="flex items-center gap-[0.35rem]">
             <button className={QTY_BTN()} type="button" onClick={() => setBuyQty((v) => Math.max(1, v - 1))} disabled={buyQty <= 1}>−</button>
@@ -242,7 +242,7 @@ const MarketListingCard: React.FC<Props> = ({ listing, isMine, onCancelled, hasP
 
       {/* Actions */}
       <div className="flex flex-col gap-[0.42rem] pt-[0.15rem]">
-        <div className="flex gap-[0.42rem] [&>*]:flex-1">
+        <div className="flex gap-[0.42rem] *:flex-1">
           <button className={BTN_GHOST} type="button" onClick={() => setShowDetail(true)}>Details</button>
           <button className={BTN_GHOST} type="button" onClick={handleShare}>{copied ? "Copied!" : "Share"}</button>
         </div>

@@ -33,11 +33,16 @@ class SwcAuthController extends Controller
             return redirect()->away($frontend . '/aboutme?oauth_error=' . urlencode('Sign in with Discord before linking SWC.'));
         }
 
+        $returnTo = $this->sanitizeFrontendReturnPath(
+            (string) $request->query('return_to', '/aboutme'),
+            '/aboutme'
+        );
+
         return $this->redirectForFlow(
             request: $request,
             stateSessionKey: 'swc_oauth_state',
-            returnToSessionKey: null,
-            returnTo: null,
+            returnToSessionKey: 'swc_link_oauth_return_to',
+            returnTo: $returnTo,
             redirectUri: (string) Config::get('swc.redirect_uri', ''),
             scope: (string) Config::get('swc.default_scope', 'character_read'),
             accessType: (string) Config::get('swc.access_type', 'offline'),
@@ -221,6 +226,10 @@ class SwcAuthController extends Controller
         $eventsReturnTo = $this->sanitizeFrontendReturnPath(
             (string) $request->session()->get('swc_events_oauth_return_to', '/sys/debug'),
             '/sys/debug'
+        );
+        $linkReturnTo = $this->sanitizeFrontendReturnPath(
+            (string) $request->session()->get('swc_link_oauth_return_to', '/aboutme'),
+            '/aboutme'
         );
 
         $frontend = (string) Config::get('swc.frontend_url', 'https://www.joe-swc.com');
@@ -549,7 +558,7 @@ class SwcAuthController extends Controller
                 $authorization
             );
 
-            return redirect()->away($frontend . '/aboutme?swc_linked=1');
+            return redirect()->away($frontend . $this->appendQueryParam($linkReturnTo, 'swc_linked', '1'));
         } catch (\Throwable $e) {
             Log::warning('SWC OAuth callback failed', [
                 'message' => $e->getMessage(),
@@ -587,7 +596,7 @@ class SwcAuthController extends Controller
                 ));
             }
 
-            return redirect()->away($frontend . '/aboutme?oauth_error=' . urlencode($e->getMessage()));
+            return redirect()->away($frontend . $this->appendQueryParam($linkReturnTo, 'oauth_error', $e->getMessage()));
         }
     }
 

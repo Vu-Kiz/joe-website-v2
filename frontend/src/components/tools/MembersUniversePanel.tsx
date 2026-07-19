@@ -30,6 +30,7 @@ import {
   type SwcAuthorizationStatus,
   type SwcPersonalEventsImportResponse,
 } from "../../api/members/swcAuthorization";
+import { usePlayerLocation } from "../../hooks/usePlayerLocation";
 import SpinnerLoadingCard from "../common/SpinnerLoadingCard";
 import SearchSuggestionPicker from "../common/SearchSuggestionPicker";
 import DroidBrainUploadPanel from "../droidbrain/DroidBrainUploadPanel";
@@ -41,7 +42,7 @@ const TOP_COPY_CLS = "grid gap-[0.2rem]";
 const TOP_CONTROLS_CLS = "flex justify-start items-center gap-[0.65rem] flex-wrap";
 const IMPORT_LOG_CLS = "grid gap-[0.3rem]";
 const IMPORT_LOG_ENTRY_CLS = "grid gap-[0.2rem]";
-const IMPORT_LOG_HEADER_CLS = "flex items-baseline justify-between gap-2 bg-transparent border-none p-[0.3rem_0] cursor-pointer text-inherit text-left w-full border-b border-b-white/[0.06] hover:text-[rgba(246,163,0,0.9)]";
+const IMPORT_LOG_HEADER_CLS = "flex items-baseline justify-between gap-2 bg-transparent border-none p-[0.3rem_0] cursor-pointer text-inherit text-left w-full border-b border-b-white/[0.06] hover:text-[rgba(246,163,0,0.9)] font-tektur";
 const IMPORT_LOG_COUNTS_CLS = "flex gap-[0.4rem] flex-shrink-0";
 const IMPORT_LOG_NEW_CLS = "text-[rgb(100,220,120)]";
 const IMPORT_LOG_UPDATED_CLS = "text-[rgba(246,163,0,0.9)]";
@@ -55,7 +56,7 @@ const INLINE_TOP_CLS = INLINE_CLS + " items-start";
 const TYPEAHEAD_CLS = "relative flex-[1_1_240px] min-w-[240px] max-[767px]:min-w-0 max-[767px]:w-full";
 const TYPEAHEAD_LIST_CLS = "absolute top-[calc(100%+0.35rem)] left-0 right-0 z-[8] grid gap-[0.35rem] max-h-[260px] overflow-y-auto p-[0.45rem] rounded-[12px] border border-[rgba(246,163,0,0.18)] bg-[rgba(18,21,24,0.98)] shadow-[0_16px_40px_rgba(0,0,0,0.34)]";
 const typeaheadOptionCls = (active: boolean) =>
-  "grid gap-[0.15rem] p-[0.7rem_0.8rem] border border-white/[0.06] rounded-[10px] bg-white/[0.03] text-inherit text-left cursor-pointer transition-[border-color,background,transform] duration-[140ms] [&_strong]:leading-[1.2] [&_strong]:text-[#f2c46f] hover:border-[rgba(246,163,0,0.26)] hover:bg-[rgba(246,163,0,0.08)] hover:-translate-y-px" +
+  "grid gap-[0.15rem] p-[0.7rem_0.8rem] border border-white/[0.06] rounded-[10px] bg-white/[0.03] text-inherit text-left cursor-pointer transition-[border-color,background,transform] duration-[140ms] [&_strong]:leading-[1.2] [&_strong]:text-[#f2c46f] hover:border-[rgba(246,163,0,0.26)] hover:bg-[rgba(246,163,0,0.08)] hover:-translate-y-px font-tektur" +
   (active ? " !border-[rgba(246,163,0,0.4)] !bg-[rgba(246,163,0,0.12)]" : "");
 
 const DeckGalaxyMap = lazy(() => import("../maps/DeckGalaxyMap"));
@@ -268,6 +269,13 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
 }) => {
   const navigate = useNavigate();
   const [swcAuth, setSwcAuth] = useState<SwcAuthorizationStatus | null>(swcAuthFromParent);
+  const myCharacterLocation = usePlayerLocation(Boolean(swcAuth?.has_character_location_access));
+  const myGalx = myCharacterLocation?.galx ?? null;
+  const myGaly = myCharacterLocation?.galy ?? null;
+  const myMapLocation = useMemo(
+    () => (myGalx != null && myGaly != null ? { galx: myGalx, galy: myGaly } : null),
+    [myGalx, myGaly]
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sectors, setSectors] = useState<StoredSectorSummary[]>([]);
@@ -1410,6 +1418,7 @@ const MembersUniversePanel: React.FC<MembersUniversePanelProps> = ({
             canViewSystemIds={canAccessAdmin(viewer)}
             isFullTier={!isPublicTier && getToolAccessTier(viewer) === "full"}
             activeSectorUid={selectedSectorUid || undefined}
+            myLocation={myMapLocation}
             focusRequest={focusRequest}
             onClearFocusRequest={() => setFocusRequest(null)}
             onCameraChange={(galx, galy, zoom) => setGalaxyCameraPosition({ galx, galy, zoom })}

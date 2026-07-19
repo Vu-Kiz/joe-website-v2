@@ -89,13 +89,13 @@ const KanbanCardItem: React.FC<Props> = ({ card, isDragging, handleProps, sysadm
         className={[
           "group rounded-[14px] border bg-[rgba(255,255,255,0.04)] border-white/[0.07] p-[0.65rem_0.8rem] flex flex-col gap-[0.35rem] overflow-hidden",
           "transition-[border-color,box-shadow,background] duration-150 shadow-[0_2px_8px_rgba(0,0,0,0.18)]",
-          isDragging ? "opacity-40 shadow-xl" : "hover:bg-[rgba(255,255,255,0.06)] hover:border-white/[0.13] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)]",
+          isDragging ? "opacity-40 shadow-xl" : "hover:bg-[rgba(255,255,255,0.06)] hover:border-white/13 hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)]",
         ].join(" ")}
       >
         {/* Priority bar */}
         {card.priority !== "none" && (
           <div
-            className="h-[3px] mb-[0.3rem] -mx-[0.8rem] -mt-[0.65rem] rounded-t-[14px]"
+            className="h-0.75 mb-[0.3rem] mx-[-0.8rem] mt-[-0.65rem] rounded-t-[14px]"
             style={{ backgroundColor: priorityColor }}
           />
         )}
@@ -104,7 +104,7 @@ const KanbanCardItem: React.FC<Props> = ({ card, isDragging, handleProps, sysadm
           {/* Drag handle */}
           <span
             {...handleProps}
-            className="mt-[2px] text-white/25 cursor-grab active:cursor-grabbing select-none shrink-0 hover:text-white/50 transition-colors leading-none text-[1rem]"
+            className="mt-0.5 text-white/25 cursor-grab active:cursor-grabbing select-none shrink-0 hover:text-white/50 transition-colors leading-none text-[1rem]"
             title="Drag to reorder"
           >
             ⋮⋮
@@ -119,7 +119,7 @@ const KanbanCardItem: React.FC<Props> = ({ card, isDragging, handleProps, sysadm
           </button>
         </div>
 
-        <div className="flex items-center gap-[0.5rem] flex-wrap pl-[1.4rem]">
+        <div className="flex items-center gap-2 flex-wrap pl-[1.4rem]">
           {card.priority !== "none" && (
             <span className="text-[0.68rem] font-semibold px-[0.45rem] py-[0.15rem] rounded-full" style={{ color: priorityColor, backgroundColor: `${priorityColor}18` }}>
               {PRIORITY_LABELS[card.priority]}
@@ -184,7 +184,7 @@ const KanbanCardItem: React.FC<Props> = ({ card, isDragging, handleProps, sysadm
             <label className="flex flex-col gap-[0.35rem]">
               <span className="small opacity-75">Description</span>
               <textarea
-                className={INPUT + " min-h-[100px] resize-y"}
+                className={INPUT + " min-h-25 resize-y"}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
@@ -192,13 +192,13 @@ const KanbanCardItem: React.FC<Props> = ({ card, isDragging, handleProps, sysadm
 
             {error && <p className="small m-0" style={{ color: "#ff9f9f" }}>{error}</p>}
 
-            <div className="flex gap-[0.5rem] flex-wrap">
+            <div className="flex gap-2 flex-wrap">
               <button className={BTN} type="button" onClick={handleSave} disabled={saving || !title.trim()}>
                 {saving ? "Saving…" : "Save"}
               </button>
               <button className={BTN} type="button" onClick={() => setEditing(false)}>Cancel</button>
               <button
-                className={BTN_GHOST_SM + " ml-auto hover:!border-[rgba(248,113,113,0.35)] hover:!text-[#f87171]"}
+                className={BTN_GHOST_SM + " ml-auto hover:border-[rgba(248,113,113,0.35)]! hover:text-[#f87171]!"}
                 type="button"
                 onClick={handleDelete}
                 disabled={deleting}

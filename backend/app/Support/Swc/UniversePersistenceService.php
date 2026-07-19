@@ -1814,6 +1814,12 @@ class UniversePersistenceService
         $planet->surface_bounds = $data['surface_bounds'] ?? $planet->surface_bounds;
         $planet->terrain_grid = $data['terrain_grid'] ?? $planet->terrain_grid;
         $planet->cities = $data['cities'] ?? $planet->cities;
+        $cellCounts = SwcPlanet::computeTerrainCellCounts(
+            (array) $planet->terrain_grid,
+            (array) $planet->cities
+        );
+        $planet->valid_terrain_cell_count = $cellCounts['valid'];
+        $planet->terrain_cell_count = $cellCounts['total'];
         $planet->image_small_url = $data['image_small_url'] ?? $planet->image_small_url;
         $planet->image_large_url = $data['image_large_url'] ?? $planet->image_large_url;
         $planet->image_atmosphere_url = $data['image_atmosphere_url'] ?? $planet->image_atmosphere_url;

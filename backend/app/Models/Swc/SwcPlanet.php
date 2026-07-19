@@ -60,6 +60,8 @@ class SwcPlanet extends Model
         'surface_bounds',
         'terrain_grid',
         'cities',
+        'valid_terrain_cell_count',
+        'terrain_cell_count',
         'image_small_url',
         'image_large_url',
         'image_atmosphere_url',
@@ -72,6 +74,8 @@ class SwcPlanet extends Model
         'surface_bounds' => 'array',
         'terrain_grid' => 'array',
         'cities' => 'array',
+        'valid_terrain_cell_count' => 'integer',
+        'terrain_cell_count' => 'integer',
         'previous_population_recorded_at' => 'datetime',
         'last_pulled_at' => 'datetime',
     ];
@@ -84,5 +88,43 @@ class SwcPlanet extends Model
     public function system(): BelongsTo
     {
         return $this->belongsTo(SwcSystem::class, 'system_id');
+    }
+
+    // Terrain codes nothing should ever be considered to "occupy" — Ocean, River, Volcanic.
+    public const EXCLUDED_TERRAIN_CODES = ['g', 'h', 'm'];
+
+    /**
+     * Counts cells in a terrain grid that are not excluded terrain and not inside a city.
+     * Pure function over raw decoded arrays so it can be reused by sync and backfill code
+     * without needing a hydrated model.
+     *
+     * @param array $terrainGrid Decoded `terrain_grid` array: [{x,y,code,...}, ...]
+     * @param array $cities Decoded `cities` array: [{x,y,...}, ...]
+     * @return array{valid: int, total: int}
+     */
+    public static function computeTerrainCellCounts(array $terrainGrid, array $cities): array
+    {
+        if ($terrainGrid === []) {
+            return ['valid' => 0, 'total' => 0];
+        }
+
+        $cityCells = [];
+        foreach ($cities as $city) {
+            if (isset($city['x'], $city['y'])) {
+                $cityCells[$city['x'] . ':' . $city['y']] = true;
+            }
+        }
+
+        $valid = 0;
+        foreach ($terrainGrid as $cell) {
+            $code = $cell['code'] ?? null;
+            $key = ($cell['x'] ?? null) . ':' . ($cell['y'] ?? null);
+            if (in_array($code, self::EXCLUDED_TERRAIN_CODES, true) || isset($cityCells[$key])) {
+                continue;
+            }
+            $valid++;
+        }
+
+        return ['valid' => $valid, 'total' => count($terrainGrid)];
     }
 }

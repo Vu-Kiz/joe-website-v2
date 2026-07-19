@@ -27,6 +27,8 @@ import PayClaimsPanel from "../components/tools/jobs/PayClaimsPanel";
 import { getJobPayClaims } from "../api/jobs/jobPayRates";
 import MemberEntityStatsPanel from "../components/tools/MemberEntityStatsPanel";
 import HyperPlannerPanel from "../components/tools/HyperPlannerPanel";
+import BountyHuntingPanel from "../components/tools/BountyHuntingPanel";
+import { usePlayerLocation } from "../hooks/usePlayerLocation";
 import MemberGalacticArchivePanel from "../components/tools/MemberGalacticArchivePanel";
 import MemberCombatCalculatorPanel from "../components/tools/MemberCombatCalculatorPanel";
 import MemberWeaponHeatmapPanel from "../components/tools/MemberWeaponHeatmapPanel";
@@ -64,6 +66,7 @@ import rmIcon from "../assets/members/RMicon.png";
 import productionIcon from "../assets/members/ProductionIcon.png";
 import rmHaulerIcon from "../assets/members/RMHaulerIcon.png";
 import xpTrackerIcon from "../assets/members/XpTrackerIcon.png";
+import bountyIcon from "../assets/members/BountyIcon.png";
 import {
   getSwcAuthorizationStatus,
   type SwcAuthorizationStatus,
@@ -93,6 +96,7 @@ const TOOL_ICON_MAP: Record<string, string> = {
   production: productionIcon,
   xpTracker: xpTrackerIcon,
   recyclingCalculator: recyclingIcon,
+  bountyHunting: bountyIcon,
   admin: jawaLogo,
 };
 
@@ -113,7 +117,7 @@ const TOOL_CATEGORIES: Array<{ key: string; label: string; description: string; 
     key: "military",
     label: "Military Ops",
     description: "Combat planning and targeting tools.",
-    toolKeys: ["shipHeatmap", "weaponHeatmap"],
+    toolKeys: ["shipHeatmap", "weaponHeatmap", "bountyHunting"],
   },
   {
     key: "datacore",
@@ -129,7 +133,7 @@ const TOOL_CATEGORIES: Array<{ key: string; label: string; description: string; 
   },
 ];
 
-type MembersView = "overview" | "jobs" | "universe" | "stats" | "hyperplanner" | "biometrics" | "archive" | "shipHeatmap" | "weaponHeatmap" | "wreckingHelper" | "changelog" | "rmBrowser" | "haulCalculator" | "production" | "xpTracker" | "recyclingCalculator" | "kanban";
+type MembersView = "overview" | "jobs" | "universe" | "stats" | "hyperplanner" | "biometrics" | "archive" | "shipHeatmap" | "weaponHeatmap" | "wreckingHelper" | "changelog" | "rmBrowser" | "haulCalculator" | "production" | "xpTracker" | "recyclingCalculator" | "kanban" | "bountyHunting";
 type JobsView = "open" | "posted" | "taken" | "create" | "payClaims";
 type MembersToolCard = {
   key: string;
@@ -157,6 +161,7 @@ function parseMembersView(value: string | null): MembersView | null {
     case "production":
     case "recyclingCalculator":
     case "kanban":
+    case "bountyHunting":
       return value;
     case "dev-hub":
       return "kanban";
@@ -184,6 +189,7 @@ const MembersPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<SwcUser | null>(null);
   const [swcAuth, setSwcAuth] = useState<SwcAuthorizationStatus | null>(null);
+  const playerLocation = usePlayerLocation(Boolean(swcAuth?.has_character_location_access));
   const [jobs, setJobs] = useState<Job[]>([]);
   const [payableFactions, setPayableFactions] = useState<PayableFaction[]>([]);
   const [hasPendingPayments, setHasPendingPayments] = useState(false);
@@ -202,6 +208,7 @@ const MembersPage: React.FC = () => {
       : requestedMembersView ?? (location.state?.membersView === "universe" ? "universe" : "overview")
   );
   const [pendingHaulMaterials, setPendingHaulMaterials] = useState<Array<{ name: string; quantity: number }> | null>(null);
+  const [pendingHyperRoute, setPendingHyperRoute] = useState<{ from: string; to: string; shipUid: string | null; pilotingSkill: number } | null>(null);
   const [jobsView, setJobsView] = useState<JobsView>(
     requestedJobsView === "posted" || requestedJobsView === "taken" || requestedJobsView === "create" || requestedJobsView === "payClaims"
       ? requestedJobsView
@@ -212,11 +219,23 @@ const MembersPage: React.FC = () => {
   );
   const [mountUniversePanel, setMountUniversePanel] = useState<boolean>(requestedMembersView === "universe");
   const skipNextUrlSyncRef = useRef(false);
+  // Circuit breaker for the URL<->membersView sync below: GlitchTip has caught this
+  // pair of effects rapidly alternating tools_view between two views (e.g.
+  // universe/hyperplanner, universe/weaponHeatmap) with no user interaction in
+  // between, eventually tripping React's "Maximum update depth exceeded" (#185).
+  // The exact trigger wasn't reproducible locally, so this stops the loop outright
+  // — after a handful of navigations to the same two values in under a second, stop
+  // auto-navigating rather than let it spiral into a crash.
+  const recentNavTargetsRef = useRef<Array<{ query: string; at: number }>>([]);
   const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
 
   useEffect(() => {
     if (requestedMembersView) {
-      setMembersView(requestedMembersView);
+      // Guard against a no-op set — location.state gets a fresh object identity on
+      // every replace-navigate (including the URL-sync effect below pushing this
+      // same membersView back into the URL), so without this check the two effects
+      // can trigger each other in a tight setState loop (React error #185).
+      setMembersView((current) => (current === requestedMembersView ? current : requestedMembersView));
       return;
     }
 
@@ -227,7 +246,7 @@ const MembersPage: React.FC = () => {
     }
 
     if (location.state?.membersView === "universe") {
-      setMembersView("universe");
+      setMembersView((current) => (current === "universe" ? current : "universe"));
     }
   }, [location.state, requestedMembersView]);
 
@@ -328,6 +347,20 @@ const MembersPage: React.FC = () => {
     if (currentQuery === nextQuery) {
       return;
     }
+
+    // Loop breaker: if we're about to navigate to a query we've already hit twice
+    // within the last second (an A/B/A/B alternation at automated-loop speed, not
+    // a member manually clicking back and forth), stop — this is the exact shape
+    // of the runaway-navigation bug reported in GlitchTip (React error #185).
+    const now = Date.now();
+    const recentTargets = recentNavTargetsRef.current.filter((entry) => now - entry.at < 1000);
+    const repeatCount = recentTargets.filter((entry) => entry.query === nextQuery).length;
+    if (repeatCount >= 2) {
+      console.error("MembersPage: detected a tools_view navigation loop, aborting auto-navigation to", nextQuery);
+      recentNavTargetsRef.current = [];
+      return;
+    }
+    recentNavTargetsRef.current = [...recentTargets, { query: nextQuery, at: now }].slice(-6);
 
     navigate(
       {
@@ -697,6 +730,18 @@ const isLoggedIn = !!user;
             } satisfies MembersToolCard,
           ]
         : []),
+      ...(showMemberToolCards || showFreeToolCards
+        ? [
+            {
+              key: "bountyHunting",
+              title: "Bounty Hunting Tracking",
+              description:
+                "Triangulate a target's galaxy position from Tracking Fob bearing readings.",
+              actionLabel: "Open Bounty Hunting Tracking",
+              onClick: () => setMembersView("bountyHunting"),
+            } satisfies MembersToolCard,
+          ]
+        : []),
       ...(showMemberToolCards
         ? [
             {
@@ -1046,7 +1091,7 @@ const isLoggedIn = !!user;
                   <button
                     key={cat.key}
                     type="button"
-                    className="flex w-full sm:w-[calc(50%-6px)] xl:w-[calc(33.333%-8px)] flex-col items-center gap-4.5 rounded-xl border border-white/12 bg-white/5 p-6 text-center hover:bg-white/10 transition-colors cursor-pointer"
+                    className="flex w-full sm:w-[calc(50%-6px)] xl:w-[calc(33.333%-8px)] flex-col items-center gap-4.5 rounded-xl border border-white/12 bg-white/5 p-6 text-center hover:bg-white/10 transition-colors cursor-pointer font-tektur"
                     onClick={(e) => {
                       const rect = e.currentTarget.getBoundingClientRect();
                       setCategorySourceRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
@@ -1285,8 +1330,13 @@ const isLoggedIn = !!user;
 
       {membersView === "hyperplanner" && (
         <HyperPlannerPanel
-          onBack={() => setMembersView("overview")}
+          onBack={() => { setPendingHyperRoute(null); setMembersView("overview"); }}
           canRefreshStoredHyperlanes={canAccessSysadmin(user)}
+          playerLocation={playerLocation}
+          initialFrom={pendingHyperRoute?.from}
+          initialTo={pendingHyperRoute?.to}
+          initialShipUid={pendingHyperRoute?.shipUid}
+          initialPilotingSkill={pendingHyperRoute?.pilotingSkill}
         />
       )}
 
@@ -1382,6 +1432,24 @@ const isLoggedIn = !!user;
             </button>
           </div>
           <XpTrackerPanel />
+        </>
+      )}
+
+      {membersView === "bountyHunting" && (canSeeMemberOnlyTools || isLoggedIn) && (
+        <>
+          <div className="flex mb-4">
+            <button className={BTN} type="button" onClick={() => setMembersView("overview")}>
+              Back to Overview
+            </button>
+          </div>
+          <BountyHuntingPanel
+            playerLocation={playerLocation}
+            canSeeSuggestedScan={canSeeMemberOnlyTools || canSeePublicTools}
+            onPlanRoute={(from, to, shipUid, pilotingSkill) => {
+              setPendingHyperRoute({ from, to, shipUid, pilotingSkill });
+              setMembersView("hyperplanner");
+            }}
+          />
         </>
       )}
 

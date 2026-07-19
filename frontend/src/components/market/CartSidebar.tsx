@@ -23,8 +23,8 @@ function formatCredits(n: number): string {
   return n.toLocaleString() + " Credits";
 }
 
-const QTY_BTN = "bg-white/[0.06] border border-white/[0.12] rounded-[6px] text-white/70 cursor-pointer text-[0.9rem] leading-none px-[0.6rem] py-[0.3rem] transition-[background] duration-150 hover:not-disabled:bg-white/[0.12] hover:not-disabled:text-white disabled:opacity-35 disabled:cursor-default";
-const QTY_INPUT = "bg-white/[0.06] border border-white/[0.12] rounded-[6px] text-white text-[0.9rem] px-2 py-[0.3rem] text-center w-[70px]";
+const QTY_BTN = "bg-white/[0.06] border border-white/[0.12] rounded-[6px] text-white/70 cursor-pointer text-[0.9rem] leading-none px-[0.6rem] py-[0.3rem] transition-[background] duration-150 hover:not-disabled:bg-white/[0.12] hover:not-disabled:text-white disabled:opacity-35 disabled:cursor-default font-tektur";
+const QTY_INPUT = "bg-white/[0.06] border border-white/[0.12] rounded-[6px] text-white text-[0.9rem] px-2 py-[0.3rem] text-center w-[70px] font-tektur";
 
 const CartSidebar: React.FC<Props> = ({ onClose, hasPaymentsAccess }) => {
   const { items, remove, updateQty, clear } = useCart();
@@ -189,7 +189,7 @@ const CartSidebar: React.FC<Props> = ({ onClose, hasPaymentsAccess }) => {
                       </div>
                     )}
                   </div>
-                  <button className="shrink-0 bg-transparent border-0 text-white/[var(--text-muted,0.55)] cursor-pointer text-[0.8rem] px-[0.25rem] py-[0.1rem] hover:text-[#f87171]" type="button" onClick={() => remove(item.listing.id)}>✕</button>
+                  <button className="shrink-0 bg-transparent border-0 text-white/[var(--text-muted,0.55)] cursor-pointer text-[0.8rem] px-[0.25rem] py-[0.1rem] hover:text-[#f87171] font-tektur" type="button" onClick={() => remove(item.listing.id)}>✕</button>
                 </div>
               );
             })}

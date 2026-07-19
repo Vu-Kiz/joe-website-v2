@@ -632,7 +632,7 @@ const MemberCombatCalculatorPanel: React.FC = () => {
   // ─── Style helpers ──────────────────────────────────────────────────────────
 
   const pillCls = (active: boolean) =>
-    `px-[0.8rem] py-2 border rounded-full bg-white/3 text-inherit cursor-pointer transition-[border-color,background] duration-150 hover:border-[rgba(246,163,0,0.3)] hover:bg-[rgba(246,163,0,0.08)] disabled:opacity-50 disabled:cursor-not-allowed ${
+    `px-[0.8rem] py-2 border rounded-full bg-white/3 text-inherit cursor-pointer transition-[border-color,background] duration-150 hover:border-[rgba(246,163,0,0.3)] hover:bg-[rgba(246,163,0,0.08)] disabled:opacity-50 disabled:cursor-not-allowed  font-tektur${
       active
         ? "border-[rgba(246,163,0,0.55)] bg-[rgba(246,163,0,0.14)]"
         : "border-white/10"
@@ -642,7 +642,7 @@ const MemberCombatCalculatorPanel: React.FC = () => {
     "grid gap-[0.25rem] p-[0.8rem] border border-white/8 rounded-xl bg-white/2.5";
 
   const inputCls =
-    "w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/3 px-3 py-2.5 text-inherit";
+    "w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/3 px-3 py-2.5 text-inherit font-tektur";
 
   // ─── Squad builder slot row ─────────────────────────────────────────────────
 
@@ -700,7 +700,7 @@ const MemberCombatCalculatorPanel: React.FC = () => {
           {canRemove && (
             <button
               type="button"
-              className="shrink-0 w-8 h-8 flex items-center justify-center border border-white/10 rounded-full bg-white/3 text-white/50 hover:text-white hover:border-white/30 transition-colors cursor-pointer"
+              className="shrink-0 w-8 h-8 flex items-center justify-center border border-white/10 rounded-full bg-white/3 text-white/50 hover:text-white hover:border-white/30 transition-colors cursor-pointer font-tektur"
               onClick={onRemove}
               aria-label="Remove"
             >
@@ -769,7 +769,7 @@ const MemberCombatCalculatorPanel: React.FC = () => {
             </label>
             <div className="flex flex-col gap-2">
               <input
-                className={`${inputCls} w-22.5`}
+                className={`font-tektur${inputCls} w-22.5`}
                 type="number"
                 min={0}
                 max={359}
@@ -786,7 +786,7 @@ const MemberCombatCalculatorPanel: React.FC = () => {
                   <button
                     key={deg}
                     type="button"
-                    className={`px-[0.55rem] py-[0.3rem] border rounded-full text-[0.72rem] cursor-pointer transition-colors ${
+                    className={`px-[0.55rem] py-[0.3rem] border rounded-full text-[0.72rem] cursor-pointer transition-colors  font-tektur${
                       slot.engagementBearing === deg
                         ? "border-[rgba(246,163,0,0.55)] bg-[rgba(246,163,0,0.14)] text-[rgba(255,215,145,0.95)]"
                         : "border-white/10 bg-white/3 text-white/60 hover:border-white/30"
@@ -1428,7 +1428,7 @@ const MemberCombatCalculatorPanel: React.FC = () => {
             </div>
             <button
               type="button"
-              className={`${pillCls(false)} text-[0.82rem]`}
+              className={`font-tektur${pillCls(false)} text-[0.82rem]`}
               onClick={() => setSlotsA((prev) => [...prev, makeSlot()])}
             >
               + Add Ship
@@ -1443,14 +1443,14 @@ const MemberCombatCalculatorPanel: React.FC = () => {
             <div className="flex gap-2">
               <button
                 type="button"
-                className={`${pillCls(sideBMode === "single")} text-[0.82rem]`}
+                className={`font-tektur${pillCls(sideBMode === "single")} text-[0.82rem]`}
                 onClick={() => setSideBMode("single")}
               >
                 Single Squad
               </button>
               <button
                 type="button"
-                className={`${pillCls(sideBMode === "multi")} text-[0.82rem]`}
+                className={`font-tektur${pillCls(sideBMode === "multi")} text-[0.82rem]`}
                 onClick={() => setSideBMode("multi")}
               >
                 Multi-Opponent
@@ -1474,7 +1474,7 @@ const MemberCombatCalculatorPanel: React.FC = () => {
                 </div>
                 <button
                   type="button"
-                  className={`${pillCls(false)} text-[0.82rem]`}
+                  className={`font-tektur${pillCls(false)} text-[0.82rem]`}
                   onClick={() => setSingleSlotsB((prev) => [...prev, makeSlot()])}
                 >
                   + Add Ship
@@ -1497,7 +1497,7 @@ const MemberCombatCalculatorPanel: React.FC = () => {
                     >
                       <div className="flex items-center gap-2">
                         <input
-                          className={`${inputCls} flex-1 text-[0.82rem]`}
+                          className={`font-tektur${inputCls} flex-1 text-[0.82rem]`}
                           value={opp.label}
                           onChange={(e) =>
                             setOpponents((prev) =>
@@ -1510,7 +1510,7 @@ const MemberCombatCalculatorPanel: React.FC = () => {
                         />
                         <button
                           type="button"
-                          className="shrink-0 w-8 h-8 flex items-center justify-center border border-white/10 rounded-full bg-white/3 text-white/50 hover:text-white hover:border-white/30 transition-colors cursor-pointer"
+                          className="shrink-0 w-8 h-8 flex items-center justify-center border border-white/10 rounded-full bg-white/3 text-white/50 hover:text-white hover:border-white/30 transition-colors cursor-pointer font-tektur"
                           onClick={() =>
                             setOpponents((prev) =>
                               prev.length > 1
@@ -1538,7 +1538,7 @@ const MemberCombatCalculatorPanel: React.FC = () => {
                       </div>
                       <button
                         type="button"
-                        className={`${pillCls(false)} text-[0.82rem]`}
+                        className={`font-tektur${pillCls(false)} text-[0.82rem]`}
                         onClick={() =>
                           setOpponents((prev) =>
                             prev.map((o) =>
@@ -1554,7 +1554,7 @@ const MemberCombatCalculatorPanel: React.FC = () => {
                 })}
                 <button
                   type="button"
-                  className={`${pillCls(false)} text-[0.82rem]`}
+                  className={`font-tektur${pillCls(false)} text-[0.82rem]`}
                   onClick={() =>
                     setOpponents((prev) => [
                       ...prev,
@@ -1581,21 +1581,21 @@ const MemberCombatCalculatorPanel: React.FC = () => {
               <div className="flex gap-2 flex-wrap">
                 <button
                   type="button"
-                  className={`${pillCls(targeting === "focus")} text-[0.82rem]`}
+                  className={`font-tektur${pillCls(targeting === "focus")} text-[0.82rem]`}
                   onClick={() => setTargeting("focus")}
                 >
                   Focus Fire
                 </button>
                 <button
                   type="button"
-                  className={`${pillCls(targeting === "random")} text-[0.82rem]`}
+                  className={`font-tektur${pillCls(targeting === "random")} text-[0.82rem]`}
                   onClick={() => setTargeting("random")}
                 >
                   Random Target
                 </button>
                 <button
                   type="button"
-                  className={`${pillCls(targeting === "optimal")} text-[0.82rem]`}
+                  className={`font-tektur${pillCls(targeting === "optimal")} text-[0.82rem]`}
                   onClick={() => setTargeting("optimal")}
                 >
                   Optimal Target
@@ -1635,7 +1635,7 @@ const MemberCombatCalculatorPanel: React.FC = () => {
                   <button
                     key={n}
                     type="button"
-                    className={`${pillCls(runCount === n)} text-[0.82rem]`}
+                    className={`font-tektur${pillCls(runCount === n)} text-[0.82rem]`}
                     onClick={() => setRunCount(n)}
                   >
                     {n.toLocaleString()}
@@ -1651,7 +1651,7 @@ const MemberCombatCalculatorPanel: React.FC = () => {
 
             <button
               type="button"
-              className={`w-full min-h-11 rounded-[10px] border font-bold text-[0.9rem] transition-all duration-150 cursor-pointer ${
+              className={`w-full min-h-11 rounded-[10px] border font-bold text-[0.9rem] transition-all duration-150 cursor-pointer  font-tektur${
                 canRun
                   ? "border-[rgba(246,163,0,0.55)] bg-[rgba(246,163,0,0.14)] hover:bg-[rgba(246,163,0,0.22)] text-[rgba(255,215,145,0.95)]"
                   : "border-white/10 bg-white/3 text-white/30 cursor-not-allowed"
@@ -1673,7 +1673,7 @@ const MemberCombatCalculatorPanel: React.FC = () => {
           <section className="panel flex flex-col gap-3">
             <button
               type="button"
-              className="flex items-center justify-between w-full p-0 border-0 bg-transparent text-inherit cursor-pointer"
+              className="flex items-center justify-between w-full p-0 border-0 bg-transparent text-inherit cursor-pointer font-tektur"
               onClick={() => setShowSaved((v) => !v)}
             >
               <h3 className="h3 m-0">Saved Squads</h3>
@@ -1685,7 +1685,7 @@ const MemberCombatCalculatorPanel: React.FC = () => {
             {/* Save current setup */}
             <div className="flex gap-2">
               <input
-                className={`${inputCls} flex-1 text-[0.82rem]`}
+                className={`font-tektur${inputCls} flex-1 text-[0.82rem]`}
                 value={saveLabel}
                 onChange={(e) => setSaveLabel(e.target.value)}
                 placeholder="Name this setup…"
@@ -1693,7 +1693,7 @@ const MemberCombatCalculatorPanel: React.FC = () => {
               />
               <button
                 type="button"
-                className={`shrink-0 px-[0.8rem] py-2 border rounded-[10px] text-[0.82rem] font-medium cursor-pointer transition-[border-color,background] duration-150 ${
+                className={`shrink-0 px-[0.8rem] py-2 border rounded-[10px] text-[0.82rem] font-medium cursor-pointer transition-[border-color,background] duration-150  font-tektur${
                   canRun
                     ? "border-[rgba(246,163,0,0.45)] bg-[rgba(246,163,0,0.1)] text-[rgba(255,215,145,0.9)] hover:bg-[rgba(246,163,0,0.18)]"
                     : "border-white/10 bg-white/3 text-white/30 cursor-not-allowed"
@@ -1728,14 +1728,14 @@ const MemberCombatCalculatorPanel: React.FC = () => {
                       </div>
                       <button
                         type="button"
-                        className="shrink-0 px-[0.65rem] py-[0.35rem] border border-white/10 rounded-lg bg-white/3 text-[0.75rem] text-white/70 hover:text-white hover:border-white/30 transition-colors cursor-pointer"
+                        className="shrink-0 px-[0.65rem] py-[0.35rem] border border-white/10 rounded-lg bg-white/3 text-[0.75rem] text-white/70 hover:text-white hover:border-white/30 transition-colors cursor-pointer font-tektur"
                         onClick={() => handleLoad(sq)}
                       >
                         Load
                       </button>
                       <button
                         type="button"
-                        className="shrink-0 w-7 h-7 flex items-center justify-center border border-white/10 rounded-full bg-white/3 text-white/40 hover:text-red-400 hover:border-red-400/30 transition-colors cursor-pointer text-[0.8rem]"
+                        className="shrink-0 w-7 h-7 flex items-center justify-center border border-white/10 rounded-full bg-white/3 text-white/40 hover:text-red-400 hover:border-red-400/30 transition-colors cursor-pointer text-[0.8rem] font-tektur"
                         onClick={() => handleDelete(sq.id)}
                         aria-label="Delete"
                       >

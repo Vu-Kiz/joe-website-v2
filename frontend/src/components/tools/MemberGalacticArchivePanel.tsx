@@ -353,7 +353,7 @@ const MemberGalacticArchivePanel: React.FC<Props> = ({ onBack, isAdmin = false }
   };
 
   const archiveItemCls = (active: boolean) =>
-    "grid gap-1 text-left text-inherit border rounded-[14px] p-[12px_14px] cursor-pointer transition-[border-color,background,transform] duration-200 hover:border-[rgba(255,176,0,0.6)] hover:bg-[rgba(255,176,0,0.11)] hover:-translate-y-px " +
+    "grid gap-1 text-left text-inherit border rounded-[14px] p-[12px_14px] cursor-pointer transition-[border-color,background,transform] duration-200 hover:border-[rgba(255,176,0,0.6)] hover:bg-[rgba(255,176,0,0.11)] hover:-translate-y-px  font-tektur" +
     (active
       ? "border-[rgba(255,176,0,0.92)] bg-[rgba(255,176,0,0.14)] shadow-[inset_0_0_0_1px_rgba(255,176,0,0.2)]"
       : "border-[rgba(255,176,0,0.28)] bg-[rgba(255,176,0,0.06)]");

@@ -40,12 +40,12 @@ const TicketCreateModal: React.FC<Props> = ({ toolKey, toolLabel, onClose, onSuc
 
   return (
     <div
-      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[999] p-4"
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-999 p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-[#1a1d22] border border-white/[0.12] rounded-[14px] p-8 max-w-[500px] w-full flex flex-col gap-5">
+      <div className="bg-[#1a1d22] border border-white/12 rounded-[14px] p-8 max-w-125 w-full flex flex-col gap-5">
         <div>
-          <p className="text-[0.75rem] tracking-[0.1em] uppercase opacity-50 m-0 mb-1">{toolLabel}</p>
+          <p className="text-[0.75rem] tracking-widest uppercase opacity-50 m-0 mb-1">{toolLabel}</p>
           <h3 className="text-[1.1rem] font-semibold m-0">Report a Bug</h3>
         </div>
 
@@ -59,10 +59,10 @@ const TicketCreateModal: React.FC<Props> = ({ toolKey, toolLabel, onClose, onSuc
                   key={s}
                   type="button"
                   onClick={() => setSeverity(s)}
-                  className={`text-left px-3 py-2 rounded-[10px] border text-[0.82rem] transition-colors duration-100 ${
+                  className={`text-left px-3 py-2 rounded-[10px] border text-[0.82rem] transition-colors duration-100  font-tektur${
                     severity === s
                       ? "border-[rgba(245,213,70,0.5)] bg-[rgba(245,213,70,0.08)] text-[#f2c46f]"
-                      : "border-white/10 bg-transparent text-white/70 hover:border-white/20 hover:bg-white/[0.05]"
+                      : "border-white/10 bg-transparent text-white/70 hover:border-white/20 hover:bg-white/5"
                   }`}
                 >
                   {SEVERITY_LABELS[s]}
@@ -88,7 +88,7 @@ const TicketCreateModal: React.FC<Props> = ({ toolKey, toolLabel, onClose, onSuc
           <div className="flex flex-col gap-2">
             <label className="text-[0.8rem] opacity-60 uppercase tracking-[0.08em]">Description</label>
             <textarea
-              className={INPUT + " resize-none h-[120px]"}
+              className={INPUT + " resize-none h-30"}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What happened? What did you expect to happen?"

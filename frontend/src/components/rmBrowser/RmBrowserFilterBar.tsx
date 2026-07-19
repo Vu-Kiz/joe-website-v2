@@ -169,7 +169,7 @@ const RmBrowserFilterBar: React.FC<Props> = ({ filters, onChange, onSearch, load
               )}
             />
             {filters.sectorUid && (
-              <button type="button" className="absolute right-[6px] top-1/2 -translate-y-1/2 bg-none border-none text-white/40 cursor-pointer text-[1.1rem] leading-none px-1 hover:text-white/80" onClick={clearSector} title="Clear sector">
+              <button type="button" className="absolute right-[6px] top-1/2 -translate-y-1/2 bg-none border-none text-white/40 cursor-pointer text-[1.1rem] leading-none px-1 hover:text-white/80 font-tektur" onClick={clearSector} title="Clear sector">
                 ×
               </button>
             )}
@@ -202,7 +202,7 @@ const RmBrowserFilterBar: React.FC<Props> = ({ filters, onChange, onSearch, load
               )}
             />
             {filters.systemUid && (
-              <button type="button" className="absolute right-[6px] top-1/2 -translate-y-1/2 bg-none border-none text-white/40 cursor-pointer text-[1.1rem] leading-none px-1 hover:text-white/80" onClick={clearSystem} title="Clear system">
+              <button type="button" className="absolute right-[6px] top-1/2 -translate-y-1/2 bg-none border-none text-white/40 cursor-pointer text-[1.1rem] leading-none px-1 hover:text-white/80 font-tektur" onClick={clearSystem} title="Clear system">
                 ×
               </button>
             )}
@@ -230,7 +230,7 @@ const RmBrowserFilterBar: React.FC<Props> = ({ filters, onChange, onSearch, load
               renderSuggestion={(t) => <strong>{t.name ?? t.uid}</strong>}
             />
             {filters.typeUid && (
-              <button type="button" className="absolute right-[6px] top-1/2 -translate-y-1/2 bg-none border-none text-white/40 cursor-pointer text-[1.1rem] leading-none px-1 hover:text-white/80" onClick={clearType} title="Clear type">
+              <button type="button" className="absolute right-[6px] top-1/2 -translate-y-1/2 bg-none border-none text-white/40 cursor-pointer text-[1.1rem] leading-none px-1 hover:text-white/80 font-tektur" onClick={clearType} title="Clear type">
                 ×
               </button>
             )}

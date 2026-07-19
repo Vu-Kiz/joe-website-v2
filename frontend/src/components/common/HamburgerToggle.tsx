@@ -9,7 +9,7 @@ type HamburgerToggleProps = {
   decorative?: boolean;
 };
 
-const baseCls = "w-[26px] h-[22px] inline-flex flex-col justify-center items-stretch gap-[3px] bg-transparent border-none p-0 cursor-pointer shrink-0 focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2 disabled:cursor-default disabled:opacity-60";
+const baseCls = "w-[26px] h-[22px] inline-flex flex-col justify-center items-stretch gap-[3px] bg-transparent border-none p-0 cursor-pointer shrink-0 focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2 disabled:cursor-default disabled:opacity-60 font-tektur";
 
 const barBase = "h-[2px] rounded-sm bg-white origin-center transition-[transform,opacity] duration-150 ease-in-out";
 

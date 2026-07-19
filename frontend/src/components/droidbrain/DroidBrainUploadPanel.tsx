@@ -162,7 +162,7 @@ const DroidBrainUploadPanel: React.FC<Props> = ({
         <div className="flex justify-start items-center gap-[0.65rem] flex-wrap">
           <input
             id={compactInputId}
-            className="sr-only"
+            className="sr-only font-tektur"
             type="file"
             multiple
             accept=".xml,.rss,text/xml,application/xml,application/rss+xml"
@@ -265,7 +265,7 @@ const DroidBrainUploadPanel: React.FC<Props> = ({
         />
         <button
           type="button"
-          className="inline-flex min-h-10 items-center justify-center rounded-[12px] border border-[#f5d546]/35 bg-[#f5d546]/10 px-[0.95rem] py-[0.65rem] font-bold leading-none text-[#f2c46f] no-underline shadow-[inset_0_0_0_1px_rgba(245,213,70,0.08)] transition-[border-color,background,transform,box-shadow] duration-150 ease-out hover:enabled:-translate-y-px hover:enabled:border-[#f5d546]/45 hover:enabled:bg-[#f5d546]/15 disabled:cursor-not-allowed disabled:opacity-[0.55]"
+          className="inline-flex min-h-10 items-center justify-center rounded-[12px] border border-[#f5d546]/35 bg-[#f5d546]/10 px-[0.95rem] py-[0.65rem] font-bold leading-none text-[#f2c46f] no-underline shadow-[inset_0_0_0_1px_rgba(245,213,70,0.08)] transition-[border-color,background,transform,box-shadow] duration-150 ease-out hover:enabled:-translate-y-px hover:enabled:border-[#f5d546]/45 hover:enabled:bg-[#f5d546]/15 disabled:cursor-not-allowed disabled:opacity-[0.55] font-tektur"
           disabled={files.length === 0 || uploading}
           onClick={async () => {
             if (files.length === 0) {

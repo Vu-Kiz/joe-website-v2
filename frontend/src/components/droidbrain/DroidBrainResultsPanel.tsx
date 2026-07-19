@@ -145,7 +145,7 @@ const DroidBrainResultsPanel: React.FC<Props> = ({
                 {uid && !isRestrictedView ? (
                   <button
                     type="button"
-                    className="inline-flex min-h-[34px] items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.025] px-[0.8rem] py-2 text-[0.88rem] font-bold leading-none text-white/90 no-underline transition-[border-color,background,transform,box-shadow] duration-150 ease-out hover:enabled:-translate-y-px hover:enabled:border-[#f5d546]/[0.28] hover:enabled:bg-[#f5d546]/[0.07] disabled:cursor-not-allowed disabled:opacity-[0.55]"
+                    className="inline-flex min-h-[34px] items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.025] px-[0.8rem] py-2 text-[0.88rem] font-bold leading-none text-white/90 no-underline transition-[border-color,background,transform,box-shadow] duration-150 ease-out hover:enabled:-translate-y-px hover:enabled:border-[#f5d546]/[0.28] hover:enabled:bg-[#f5d546]/[0.07] disabled:cursor-not-allowed disabled:opacity-[0.55] font-tektur"
                     onClick={() => void openHistory(row)}
                     disabled={loadingHistory && isHistoryOpen}
                   >

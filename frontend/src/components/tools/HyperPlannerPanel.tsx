@@ -15,6 +15,7 @@ import {
 } from "../../api/universe/universe";
 import { BTN, BTN_SM, INPUT } from "../../utils/ui";
 import ReportBugButton from "../support/ReportBugButton";
+import type { CharacterLocation } from "../../api/member/characterLocation";
 
 function formatCoords(galx: number | null | undefined, galy: number | null | undefined) {
   if (!Number.isFinite(galx) || !Number.isFinite(galy)) {
@@ -104,12 +105,30 @@ function formatHopTooltip(
 type HyperPlannerPanelProps = {
   onBack: () => void;
   canRefreshStoredHyperlanes?: boolean;
+  playerLocation?: CharacterLocation | null;
+  // Pre-fills the route fields when arriving here from another tool (e.g. a
+  // suggested-scan or confirmed-target link from Bounty Hunting) — raw "galx,galy"
+  // strings, same format the planner already accepts for coordinate endpoints.
+  initialFrom?: string | null;
+  initialTo?: string | null;
+  // Carries over the ship/piloting skill the player already told another tool they're
+  // using, so they don't have to re-pick it here too.
+  initialShipUid?: string | null;
+  initialPilotingSkill?: number | null;
 };
 
 const HyperPlannerPanel: React.FC<HyperPlannerPanelProps> = ({
   onBack,
   canRefreshStoredHyperlanes = false,
+  playerLocation,
+  initialFrom,
+  initialTo,
+  initialShipUid,
+  initialPilotingSkill,
 }) => {
+  const myGalx = playerLocation?.galx ?? null;
+  const myGaly = playerLocation?.galy ?? null;
+  const hasPlayerLocation = myGalx != null && myGaly != null;
   const [systems, setSystems] = useState<StoredMapSystem[]>([]);
   const [loadingSystems, setLoadingSystems] = useState(true);
   const [systemsError, setSystemsError] = useState<string | null>(null);
@@ -229,6 +248,57 @@ const HyperPlannerPanel: React.FC<HyperPlannerPanelProps> = ({
     };
   }, []);
 
+  useEffect(() => {
+    if (initialFrom) {
+      setFromSystem(null);
+      setFromQuery(initialFrom);
+    }
+    if (initialTo) {
+      setToSystem(null);
+      setToQuery(initialTo);
+    }
+  }, [initialFrom, initialTo]);
+
+  useEffect(() => {
+    if (initialPilotingSkill != null) {
+      setPilotingSkill(initialPilotingSkill);
+    }
+  }, [initialPilotingSkill]);
+
+  // Ships load asynchronously, so the lookup has to wait for that list rather than
+  // running once on mount — runs again whenever `ships` changes, but since it's only
+  // populated once (and initialShipUid never changes after the initial hand-off), it
+  // won't clobber a selection the player makes manually afterward.
+  useEffect(() => {
+    if (!initialShipUid || ships.length === 0) return;
+    const match = ships.find((ship) => ship.uid === initialShipUid);
+    if (match) {
+      setSelectedShip(match);
+      setShipQuery(formatShipDisplay(match));
+    }
+  }, [initialShipUid, ships]);
+
+  // Once a genuine hand-off from another tool (Bounty Hunting's "Plan Route") has
+  // fully landed — route fields applied AND the matching ship resolved — plot it
+  // automatically rather than making the player click Plot Route again for data they
+  // already provided. Gated on `initialShipUid` specifically (not just "a ship is
+  // selected") so this never fires for an ordinary manual visit, and `autoPlotted`
+  // ensures it only ever fires once per hand-off.
+  const [autoPlotted, setAutoPlotted] = useState(false);
+  useEffect(() => {
+    if (autoPlotted) return;
+    if (!initialFrom || !initialTo || !initialShipUid) return;
+    if (fromQuery !== initialFrom || toQuery !== initialTo) return;
+    if (!selectedShip || selectedShip.uid !== initialShipUid) return;
+    setAutoPlotted(true);
+    handlePlan();
+    // handlePlan is a plain function recreated every render (not memoized) — omitted
+    // from deps deliberately, since including it would just make this effect "see" a
+    // new reference every render with no behavior change (the autoPlotted guard above
+    // already ensures handlePlan only actually runs once).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPlotted, initialFrom, initialTo, initialShipUid, fromQuery, toQuery, selectedShip]);
+
   const normalizedSystems = useMemo(
     () =>
       systems.map((system) => ({
@@ -302,6 +372,12 @@ const HyperPlannerPanel: React.FC<HyperPlannerPanelProps> = ({
   function handleSelectFrom(system: StoredMapSystem) {
     setFromSystem(system);
     setFromQuery(formatSystemDisplay(system));
+  }
+
+  function handleUseMyLocation() {
+    if (!hasPlayerLocation) return;
+    setFromSystem(null);
+    setFromQuery(`${myGalx}, ${myGaly}`);
   }
 
   function handleSelectTo(system: StoredMapSystem) {
@@ -505,7 +581,7 @@ const HyperPlannerPanel: React.FC<HyperPlannerPanelProps> = ({
 
   const FIELD_CLS = "flex flex-col gap-2";
   const SUGGESTIONS_CLS = "grid gap-[0.45rem] max-h-[22rem] overflow-auto";
-  const SUGGESTION_BASE = "grid gap-[0.2rem] p-[0.8rem_0.9rem] text-left border border-white/[0.12] rounded-[12px] bg-white/[0.03] text-inherit cursor-pointer transition-[border-color,transform,background] duration-[150ms] ease hover:border-[rgba(246,163,0,0.55)] hover:bg-[rgba(246,163,0,0.08)] hover:-translate-y-px focus-visible:border-[rgba(246,163,0,0.55)] focus-visible:bg-[rgba(246,163,0,0.08)] focus-visible:-translate-y-px";
+  const SUGGESTION_BASE = "grid gap-[0.2rem] p-[0.8rem_0.9rem] text-left border border-white/[0.12] rounded-[12px] bg-white/[0.03] text-inherit cursor-pointer transition-[border-color,transform,background] duration-[150ms] ease hover:border-[rgba(246,163,0,0.55)] hover:bg-[rgba(246,163,0,0.08)] hover:-translate-y-px focus-visible:border-[rgba(246,163,0,0.55)] focus-visible:bg-[rgba(246,163,0,0.08)] focus-visible:-translate-y-px font-tektur";
   const suggestionCls = (active: boolean) => SUGGESTION_BASE + (active ? " !border-[rgba(246,163,0,0.75)] !bg-[rgba(246,163,0,0.85)] !text-[#111]" : "");
   const SAVED_PLAN_CLS = SUGGESTION_BASE + " flex justify-between items-start gap-[0.85rem] cursor-default hover:!border-white/[0.12] hover:!bg-white/[0.03] hover:![transform:none] focus-visible:!border-white/[0.12] focus-visible:!bg-white/[0.03]";
   const CONTROLS_CLS = "grid grid-cols-[repeat(2,minmax(0,1fr))] gap-4 max-[960px]:grid-cols-1";
@@ -541,7 +617,14 @@ const HyperPlannerPanel: React.FC<HyperPlannerPanelProps> = ({
             <section className={CONTROLS_CLS}>
               <article className="panel flex flex-col gap-4">
                 <label className={FIELD_CLS}>
-                  <span className="small">From</span>
+                  <span className="small flex items-center justify-between gap-2">
+                    From
+                    {hasPlayerLocation && (
+                      <button className={BTN_SM} type="button" onClick={handleUseMyLocation}>
+                        Use My Location
+                      </button>
+                    )}
+                  </span>
                   <input
                     className={INPUT}
                     value={fromQuery}
@@ -809,7 +892,7 @@ const HyperPlannerPanel: React.FC<HyperPlannerPanelProps> = ({
             ) : null}
           </article>
 
-          <div className="grid [grid-template-columns:repeat(4,minmax(0,1fr))] gap-4 max-[960px]:grid-cols-2 max-[640px]:grid-cols-1">
+          <div className="grid grid-cols-4 gap-4 max-[960px]:grid-cols-2 max-[640px]:grid-cols-1">
             <article className="panel flex flex-col gap-4">
               <h3 className="m-0">Route</h3>
               <p className="small">

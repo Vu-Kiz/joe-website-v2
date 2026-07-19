@@ -255,7 +255,7 @@ const AdminSupportTicketsPanel: React.FC = () => {
               key={ticket.id}
               type="button"
               onClick={() => { setSelected(ticket); setReply(""); setReplyError(null); setShowPush(false); setPushSuccess(false); setPushError(null); }}
-              className="w-full text-left rounded-xl border px-4 py-3 transition-colors duration-100 border-white/8 bg-surface hover:border-white/20 hover:bg-white/[0.05]"
+              className="w-full text-left rounded-xl border px-4 py-3 transition-colors duration-100 border-white/8 bg-surface hover:border-white/20 hover:bg-white/[0.05] font-tektur"
             >
               <div className="flex items-start justify-between gap-2 mb-1">
                 <span className="text-[0.85rem] font-semibold leading-snug">{ticket.title}</span>

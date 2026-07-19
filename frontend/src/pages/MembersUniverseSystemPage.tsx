@@ -24,12 +24,12 @@ import ShipIconWreck from "../assets/map/ships/Wreck.png";
 import { BTN, SELECT_INPUT } from "../utils/ui";
 
 const layerToggleCls = (active: boolean) =>
-  "inline-flex min-h-10 items-center justify-center rounded-[12px] border px-[0.95rem] py-[0.65rem] font-bold leading-none no-underline transition-[border-color,background,transform,box-shadow] duration-150 ease-out cursor-pointer" +
+  "inline-flex min-h-10 items-center justify-center rounded-[12px] border px-[0.95rem] py-[0.65rem] font-bold leading-none no-underline transition-[border-color,background,transform,box-shadow] duration-150 ease-out cursor-pointer font-tektur" +
   (active
     ? " border-[rgba(246,163,0,0.6)] bg-[rgba(246,163,0,0.12)] text-white/[0.96]"
     : " border-white/[0.14] bg-transparent text-white/[0.72] hover:border-white/[0.24] hover:bg-white/[0.04]");
 const gridCellCls = (hasContent: boolean, isActive: boolean) =>
-  "relative flex items-center justify-center w-[78px] h-[78px] min-w-[78px] min-h-[78px] p-0 rounded-none border border-solid border-white/[0.08] bg-transparent text-left pointer-events-auto overflow-hidden transition-[border-color,background,box-shadow] duration-[140ms] ease hover:border-white/[0.16] hover:bg-white/[0.03] hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]" +
+  "relative flex items-center justify-center w-[78px] h-[78px] min-w-[78px] min-h-[78px] p-0 rounded-none border border-solid border-white/[0.08] bg-transparent text-left pointer-events-auto overflow-hidden transition-[border-color,background,box-shadow] duration-[140ms] ease hover:border-white/[0.16] hover:bg-white/[0.03] hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] font-tektur" +
   (hasContent ? " has-content" : "") +
   (isActive ? " !border-[rgba(246,163,0,0.68)] !bg-[rgba(246,163,0,0.08)] !shadow-[inset_0_0_0_1px_rgba(246,163,0,0.2)]" : "");
 const GRID_CELL_BODY_CLS = "relative flex items-center justify-center w-full h-full z-[1]";
@@ -832,7 +832,7 @@ const MembersUniverseSystemPage: React.FC = () => {
                                 return (
                                   <button key={f} type="button"
                                     onClick={() => setIffFilter(f)}
-                                    className={`text-[0.65rem] font-bold uppercase tracking-wider px-2 py-0.5 rounded border transition-colors ${iffFilter === f ? colour : "text-white/30 border-white/10 bg-transparent"}`}>
+                                    className={`text-[0.65rem] font-bold uppercase tracking-wider px-2 py-0.5 rounded border transition-colors  font-tektur${iffFilter === f ? colour : "text-white/30 border-white/10 bg-transparent"}`}>
                                     {label}
                                   </button>
                                 );
@@ -868,7 +868,7 @@ const MembersUniverseSystemPage: React.FC = () => {
                             <div key={key} className="rounded-[10px] border border-white/8 bg-white/4 overflow-hidden">
                               <button
                                 type="button"
-                                className="w-full grid grid-cols-[auto_1fr_auto] gap-[0.7rem] items-center p-3 text-left cursor-pointer hover:bg-white/3 transition-colors"
+                                className="w-full grid grid-cols-[auto_1fr_auto] gap-[0.7rem] items-center p-3 text-left cursor-pointer hover:bg-white/3 transition-colors font-tektur"
                                 onClick={() => setExpandedShips((prev) => {
                                   const next = new Set(prev);
                                   next.has(key) ? next.delete(key) : next.add(key);

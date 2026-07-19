@@ -22,7 +22,7 @@ const SiteLockedPage: React.FC<Props> = ({ message }) => {
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="rounded-xl border border-neutral-700 px-4 py-2"
+            className="rounded-xl border border-neutral-700 px-4 py-2 font-tektur"
           >
             Retry
           </button>

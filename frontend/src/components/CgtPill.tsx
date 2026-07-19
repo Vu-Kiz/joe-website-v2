@@ -132,7 +132,7 @@ const CgtPill: React.FC = () => {
     <div
       className={[
         "relative inline-flex items-center justify-center gap-[0.55rem]",
-        "min-h-[38px] min-w-[260px] px-[0.9rem] py-2",
+        "min-h-9.5 min-w-65 px-[0.9rem] py-2",
         "rounded-full whitespace-nowrap overflow-hidden shrink-0",
         "border shadow-[0_6px_18px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.04)]",
         "font-tektur",
@@ -140,7 +140,7 @@ const CgtPill: React.FC = () => {
           ? "border-[rgba(255,120,120,0.28)] text-[#ffb3b3]"
           : "border-[rgba(245,213,70,0.35)] text-[#f2c46f]",
         loading ? "opacity-90" : "",
-        "max-md:min-h-[34px] max-md:min-w-0 max-md:px-[0.75rem] max-md:py-[0.45rem] max-md:max-w-full",
+        "max-md:min-h-8.5 max-md:min-w-0 max-md:px-3 max-md:py-[0.45rem] max-md:max-w-full",
       ].filter(Boolean).join(" ")}
       style={failed ? { ...pillBg, ...pillBgError } : pillBg}
       title="Current Combine Galactic Time"

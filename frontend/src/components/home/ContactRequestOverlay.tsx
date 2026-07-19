@@ -3,13 +3,13 @@ import { submitContactRequest } from "../../api/content/contactRequests";
 import { BTN, BTN_GHOST } from "../../utils/ui";
 
 const OVERLAY_CLS = "fixed inset-0 z-[1200] flex items-center justify-center p-4";
-const BACKDROP_CLS = "absolute inset-0 border-0 bg-[rgba(0,0,0,0.72)] cursor-pointer";
+const BACKDROP_CLS = "absolute inset-0 border-0 bg-[rgba(0,0,0,0.72)] cursor-pointer font-tektur";
 const PANEL_CLS = "relative z-[1] w-[min(720px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] overflow-auto";
 const HEADER_CLS = "flex items-start justify-between gap-4 mb-4";
 const FORM_CLS = "flex flex-col gap-4";
 const FIELD_CLS = "flex flex-col gap-[0.45rem]";
 const FIELD_LABEL_CLS = "font-['Tektur',sans-serif] tracking-[0.04em] uppercase text-[0.82rem]";
-const FIELD_INPUT_CLS = "w-full min-h-[42px] p-[0.8rem_0.9rem] rounded-[12px] border border-[rgba(245,213,70,0.22)] bg-[rgba(0,0,0,0.28)] text-inherit resize-y";
+const FIELD_INPUT_CLS = "w-full min-h-[42px] p-[0.8rem_0.9rem] rounded-[12px] border border-[rgba(245,213,70,0.22)] bg-[rgba(0,0,0,0.28)] text-inherit resize-y font-tektur";
 const ACTIONS_CLS = "flex justify-start";
 
 type Props = {

@@ -65,7 +65,7 @@ type ShieldArcEntry = {
 };
 
 const uiButtonSmallBaseClass =
-  "inline-flex min-h-[34px] items-center justify-center rounded-[10px] border px-[0.8rem] py-2 text-[0.88rem] font-bold leading-none no-underline transition-[border-color,background,transform,box-shadow] duration-150 ease-out hover:enabled:-translate-y-px hover:enabled:border-[#f5d546]/[0.28] hover:enabled:bg-[#f5d546]/[0.07] disabled:cursor-not-allowed disabled:opacity-[0.55]";
+  "inline-flex min-h-[34px] items-center justify-center rounded-[10px] border px-[0.8rem] py-2 text-[0.88rem] font-bold leading-none no-underline transition-[border-color,background,transform,box-shadow] duration-150 ease-out hover:enabled:-translate-y-px hover:enabled:border-[#f5d546]/[0.28] hover:enabled:bg-[#f5d546]/[0.07] disabled:cursor-not-allowed disabled:opacity-[0.55] font-tektur";
 const uiButtonSoftClass = "border-white/10 bg-white/[0.025] text-white/90";
 const uiButtonPrimaryClass =
   "border-[#f5d546]/35 bg-[#f5d546]/10 text-[#f2c46f] shadow-[inset_0_0_0_1px_rgba(245,213,70,0.08)] hover:enabled:border-[#f5d546]/45 hover:enabled:bg-[#f5d546]/15";
@@ -875,7 +875,7 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
           </div>
 
           <input
-            className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit"
+            className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit font-tektur"
             type="text"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -909,7 +909,7 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
               <button
                 key={item.key}
                 type="button"
-                className={`flex min-h-[168px] cursor-pointer flex-col justify-between gap-3 rounded-[14px] border p-3.5 text-left transition-colors ${selectedId === item.key ? "border-[#f5d546]/45 bg-[#f5d546]/10 shadow-[inset_0_0_0_1px_rgba(245,213,70,0.2)]" : "border-white/10 bg-white/[0.02] hover:border-[#f5d546]/30 hover:bg-[#f5d546]/[0.04]"}`}
+                className={`flex min-h-[168px] cursor-pointer flex-col justify-between gap-3 rounded-[14px] border p-3.5 text-left transition-colors  font-tektur${selectedId === item.key ? "border-[#f5d546]/45 bg-[#f5d546]/10 shadow-[inset_0_0_0_1px_rgba(245,213,70,0.2)]" : "border-white/10 bg-white/[0.02] hover:border-[#f5d546]/30 hover:bg-[#f5d546]/[0.04]"}`}
                 onClick={() => {
                   setSelectedId(item.key);
                   setSelectedSourceKind(item.primaryRecord.sourceKind);
@@ -971,7 +971,7 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
                   <button
                     key={preset.key}
                     type="button"
-                    className={`${uiButtonSmallBaseClass} flex flex-wrap gap-2 ${activeShieldArcPresetKey === preset.key ? uiButtonPrimaryClass : uiButtonSoftClass}`}
+                    className={`font-tektur${uiButtonSmallBaseClass} flex flex-wrap gap-2 ${activeShieldArcPresetKey === preset.key ? uiButtonPrimaryClass : uiButtonSoftClass}`}
                     onClick={() => applyShieldArcPreset(preset)}
                     title={preset.arcs.map((arc) => `${arc.name}: ${arc.percent.toFixed(2)}%`).join("\n")}
                   >
@@ -984,7 +984,7 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
                 {shieldArcDraftRows.map((row, index) => (
                   <div key={`${row.name}-${index}`} className="grid items-center gap-2.5 [grid-template-columns:minmax(0,1.4fr)_minmax(110px,0.7fr)_minmax(110px,0.7fr)_auto] max-[900px]:grid-cols-1">
                     <select
-                      className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit"
+                      className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit font-tektur"
                       value={row.name}
                       onChange={(event) => patchShieldArcRow(index, { name: event.target.value })}
                     >
@@ -994,7 +994,7 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
                       ))}
                     </select>
                     <input
-                      className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit"
+                      className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit font-tektur"
                       type="number"
                       min="0"
                       step="1"
@@ -1009,7 +1009,7 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
                       placeholder="Value"
                     />
                     <input
-                      className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit"
+                      className="w-full min-h-[42px] rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-inherit font-tektur"
                       type="number"
                       min="0"
                       step="0.01"
@@ -1081,7 +1081,7 @@ const AdminEntityStatsPanel: React.FC<{ user: SwcUser | null }> = ({ user }) => 
           ) : null}
 
           <textarea
-            className="min-h-[360px] w-full resize-y rounded-xl border border-white/10 bg-black/30 p-4 font-mono text-[0.92rem] leading-relaxed text-inherit"
+            className="min-h-[360px] w-full resize-y rounded-xl border border-white/10 bg-black/30 p-4 font-mono text-[0.92rem] leading-relaxed text-inherit font-tektur"
             value={editorValue}
             onChange={(event) => setEditorValue(event.target.value)}
             spellCheck={false}

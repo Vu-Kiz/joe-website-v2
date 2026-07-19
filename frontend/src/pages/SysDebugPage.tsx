@@ -937,14 +937,14 @@ const SysDebugPage: React.FC = () => {
           <nav className="flex flex-col gap-3" aria-label="Sys debug sections">
             <button
               type="button"
-              className={activeTab === "debug" ? "active" : undefined}
+              className={activeTab === "debug" ? "active font-tektur" : "font-tektur"}
               onClick={() => setActiveTab("debug")}
             >
               Debug Tools
             </button>
             <button
               type="button"
-              className={activeTab === "systemPuller" ? "active" : undefined}
+              className={activeTab === "systemPuller" ? "active font-tektur" : "font-tektur"}
               onClick={() => setActiveTab("systemPuller")}
             >
               System Puller

@@ -79,7 +79,7 @@ function SwcToolAccessSection<K extends string>({
 
             <div className="flex flex-wrap items-center gap-2">
               <button
-                className={`rounded-full border px-2.5 py-1.5 text-xs font-bold transition ${
+                className={`rounded-full border px-2.5 py-1.5 text-xs font-bold transition  font-tektur${
                   tool.enabled
                     ? "border-[#f5d546]/45 bg-[#f5d546]/15 text-[#ffe7a0]"
                     : "border-white/20 bg-white/10 text-white/85"

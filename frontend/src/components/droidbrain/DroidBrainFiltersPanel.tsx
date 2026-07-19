@@ -5,7 +5,7 @@ import { BTN, INPUT } from "../../utils/ui";
 const TYPEAHEAD_CLS = "relative min-w-0 w-full flex-[1_1_auto]";
 const TYPEAHEAD_LIST_CLS = "absolute top-[calc(100%+0.35rem)] left-0 right-0 z-[8] grid gap-[0.35rem] max-h-[260px] overflow-y-auto p-[0.45rem] rounded-[12px] border border-[rgba(246,163,0,0.18)] bg-[rgba(18,21,24,0.98)] shadow-[0_16px_40px_rgba(0,0,0,0.34)]";
 const typeaheadOptionCls = (active: boolean) =>
-  "grid gap-[0.15rem] p-[0.7rem_0.8rem] border border-white/[0.06] rounded-[10px] bg-white/[0.03] text-inherit text-left cursor-pointer transition-[border-color,background,transform] duration-[140ms] [&_strong]:leading-[1.2] hover:border-[rgba(246,163,0,0.26)] hover:bg-[rgba(246,163,0,0.08)] hover:-translate-y-px" +
+  "grid gap-[0.15rem] p-[0.7rem_0.8rem] border border-white/[0.06] rounded-[10px] bg-white/[0.03] text-inherit text-left cursor-pointer transition-[border-color,background,transform] duration-[140ms] [&_strong]:leading-[1.2] hover:border-[rgba(246,163,0,0.26)] hover:bg-[rgba(246,163,0,0.08)] hover:-translate-y-px font-tektur" +
   (active ? " !border-[rgba(246,163,0,0.4)] !bg-[rgba(246,163,0,0.12)]" : "");
 
 type Props = {

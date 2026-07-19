@@ -14,8 +14,8 @@ import FactionConsolePanel from "../components/faction/FactionConsolePanel";
 import { BTN_SM } from "../utils/ui";
 
 type Pill = { key: string; label: string; hue: number };
-type MemberToolKey = "galaxy" | "payments" | "fleet_command" | "market_personal" | "market_faction";
-type PublicToolKey = "payments" | "astrogation";
+type MemberToolKey = "galaxy" | "payments" | "fleet_command" | "market_personal" | "market_faction" | "location";
+type PublicToolKey = "payments" | "astrogation" | "location";
 type ToolCard<K extends string> = {
   key: K;
   title: string;
@@ -35,10 +35,12 @@ const AboutMe: React.FC = () => {
     fleet_command: true,
     market_personal: false,
     market_faction: false,
+    location: false,
   });
   const [selectedPublicTools, setSelectedPublicTools] = useState<Record<PublicToolKey, boolean>>({
     payments: true,
     astrogation: true,
+    location: false,
   });
   const [error, setError] = useState<string | null>(null);
   const [showTos, setShowTos] = useState(false);
@@ -60,10 +62,12 @@ const AboutMe: React.FC = () => {
             fleet_command: true,
             market_personal: false,
             market_faction: false,
+            location: false,
           });
           setSelectedPublicTools({
             payments: true,
             astrogation: true,
+            location: false,
           });
           setError(null);
         }
@@ -83,10 +87,12 @@ const AboutMe: React.FC = () => {
               fleet_command: swcAuthRes.data?.member_tool_preferences?.fleet_command ?? true,
               market_personal: swcAuthRes.data?.member_tool_preferences?.market_personal ?? false,
               market_faction: swcAuthRes.data?.member_tool_preferences?.market_faction ?? false,
+              location: swcAuthRes.data?.member_tool_preferences?.location ?? false,
             });
             setSelectedPublicTools({
               payments: swcAuthRes.data?.public_tool_preferences?.payments ?? true,
               astrogation: swcAuthRes.data?.public_tool_preferences?.astrogation ?? true,
+              location: swcAuthRes.data?.public_tool_preferences?.location ?? false,
             });
           }
         } catch {
@@ -98,10 +104,12 @@ const AboutMe: React.FC = () => {
               fleet_command: true,
               market_personal: false,
               market_faction: false,
+              location: false,
             });
             setSelectedPublicTools({
               payments: true,
               astrogation: true,
+              location: false,
             });
           }
         }
@@ -192,8 +200,8 @@ const AboutMe: React.FC = () => {
           token_expires_at: null,
           last_verified_at: null,
           revoked_at: null,
-          member_tool_preferences: { galaxy: true, payments: true, fleet_command: true, market_personal: false, market_faction: false },
-          public_tool_preferences: { payments: true, astrogation: true },
+          member_tool_preferences: { galaxy: true, payments: true, fleet_command: true, market_personal: false, market_faction: false, location: false },
+          public_tool_preferences: { payments: true, astrogation: true, location: false },
         }),
         member_tool_preferences: response.data.member_tool_preferences,
         public_tool_preferences: response.data.public_tool_preferences,
@@ -226,8 +234,8 @@ const AboutMe: React.FC = () => {
           token_expires_at: null,
           last_verified_at: null,
           revoked_at: null,
-          member_tool_preferences: { galaxy: true, payments: true, fleet_command: true, market_personal: false, market_faction: false },
-          public_tool_preferences: { payments: true, astrogation: true },
+          member_tool_preferences: { galaxy: true, payments: true, fleet_command: true, market_personal: false, market_faction: false, location: false },
+          public_tool_preferences: { payments: true, astrogation: true, location: false },
         }),
         member_tool_preferences: response.data.member_tool_preferences,
         public_tool_preferences: response.data.public_tool_preferences,
@@ -302,7 +310,14 @@ const AboutMe: React.FC = () => {
       enabled: selectedMemberTools.market_faction,
       accessNow: Boolean(swcAuth?.has_faction_inventory_access),
     },
-  ], [selectedMemberTools.galaxy, selectedMemberTools.payments, selectedMemberTools.fleet_command, selectedMemberTools.market_personal, selectedMemberTools.market_faction, swcAuth?.has_character_credits_write_access, swcAuth?.has_character_skills_access, swcAuth?.has_faction_inventory_access, swcAuth?.has_personal_inventory_access, swcAuth?.has_personal_events_access]);
+    {
+      key: "location",
+      title: "Live Location",
+      description: "Optional — share your live in-game location to sort the Vendor tool by distance and show your position on the astrogation map. Not required for either tool.",
+      enabled: selectedMemberTools.location,
+      accessNow: Boolean(swcAuth?.has_character_location_access),
+    },
+  ], [selectedMemberTools.galaxy, selectedMemberTools.payments, selectedMemberTools.fleet_command, selectedMemberTools.market_personal, selectedMemberTools.market_faction, selectedMemberTools.location, swcAuth?.has_character_credits_write_access, swcAuth?.has_character_skills_access, swcAuth?.has_faction_inventory_access, swcAuth?.has_personal_inventory_access, swcAuth?.has_personal_events_access, swcAuth?.has_character_location_access]);
 
   const isSubscriber = user?.tool_access_tier !== "none" && user?.tool_access_tier != null;
 
@@ -327,8 +342,16 @@ const AboutMe: React.FC = () => {
       accessNow: Boolean(swcAuth?.has_character_credits_write_access),
     });
 
+    cards.push({
+      key: "location",
+      title: "Live Location",
+      description: "Optional — share your live in-game location to sort the Vendor tool by distance and show your position on the astrogation map. Not required for either tool.",
+      enabled: Boolean(selectedPublicTools.location),
+      accessNow: Boolean(swcAuth?.has_character_location_access),
+    });
+
     return cards;
-  }, [isSubscriber, selectedPublicTools.astrogation, selectedPublicTools.payments, swcAuth?.has_personal_events_access, swcAuth?.has_character_credits_write_access]);
+  }, [isSubscriber, selectedPublicTools.astrogation, selectedPublicTools.payments, selectedPublicTools.location, swcAuth?.has_personal_events_access, swcAuth?.has_character_credits_write_access, swcAuth?.has_character_location_access]);
 
   if (loading) {
     return (

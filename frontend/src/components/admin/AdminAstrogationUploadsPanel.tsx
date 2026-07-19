@@ -12,7 +12,7 @@ import Pagination from "../common/Pagination";
 import { INPUT } from "../../utils/ui";
 
 const BTN_SM =
-  "inline-flex min-h-[34px] items-center justify-center rounded-[10px] border px-[0.8rem] py-2 text-[0.88rem] font-bold leading-none no-underline transition-[border-color,background,transform,box-shadow] duration-150 ease-out hover:enabled:-translate-y-px hover:enabled:border-[#f5d546]/[0.28] hover:enabled:bg-[#f5d546]/[0.07] disabled:cursor-not-allowed disabled:opacity-[0.55]";
+  "inline-flex min-h-[34px] items-center justify-center rounded-[10px] border px-[0.8rem] py-2 text-[0.88rem] font-bold leading-none no-underline transition-[border-color,background,transform,box-shadow] duration-150 ease-out hover:enabled:-translate-y-px hover:enabled:border-[#f5d546]/[0.28] hover:enabled:bg-[#f5d546]/[0.07] disabled:cursor-not-allowed disabled:opacity-[0.55] font-tektur";
 const BTN_PRIMARY =
   "border-[#f5d546]/35 bg-[#f5d546]/10 text-[#f2c46f] shadow-[inset_0_0_0_1px_rgba(245,213,70,0.08)] hover:enabled:border-[#f5d546]/45 hover:enabled:bg-[#f5d546]/15";
 const BTN_SOFT = "border-white/10 bg-white/[0.025] text-white/90";
@@ -306,7 +306,7 @@ const AdminAstrogationUploadsPanel: React.FC = () => {
                   <button
                     key={u.id}
                     type="button"
-                    className="flex items-center gap-2 px-3 py-2 text-left text-[0.88rem] hover:bg-white/[0.07] border-b border-white/5 last:border-b-0"
+                    className="flex items-center gap-2 px-3 py-2 text-left text-[0.88rem] hover:bg-white/[0.07] border-b border-white/5 last:border-b-0 font-tektur"
                     onMouseDown={(e) => { e.preventDefault(); selectUser(u); }}
                   >
                     <span className="font-semibold">{u.swc_handle ?? u.handle ?? `User #${u.id}`}</span>
@@ -319,7 +319,7 @@ const AdminAstrogationUploadsPanel: React.FC = () => {
 
           <button
             type="button"
-            className={`${BTN_SM} ${BTN_PRIMARY}`}
+            className={`font-tektur${BTN_SM} ${BTN_PRIMARY}`}
             onClick={handlePull}
             disabled={!selectedUser || pulling}
           >
@@ -381,7 +381,7 @@ const AdminAstrogationUploadsPanel: React.FC = () => {
           <div className="flex gap-2">
             <button
               type="button"
-              className={`${BTN_SM} ${BTN_SOFT}`}
+              className={`font-tektur${BTN_SM} ${BTN_SOFT}`}
               onClick={clearFilters}
               disabled={!hasActiveFilters && !pendingHandle}
             >
@@ -389,7 +389,7 @@ const AdminAstrogationUploadsPanel: React.FC = () => {
             </button>
             <button
               type="button"
-              className={`${BTN_SM} ${BTN_PRIMARY}`}
+              className={`font-tektur${BTN_SM} ${BTN_PRIMARY}`}
               onClick={applyFilters}
               disabled={loading}
             >
@@ -443,7 +443,7 @@ const AdminAstrogationUploadsPanel: React.FC = () => {
                             {hasDetail && (
                               <button
                                 type="button"
-                                className={`${BTN_SM} ${BTN_PRIMARY} !min-h-[28px] !py-1 !text-[0.8rem]`}
+                                className={`font-tektur${BTN_SM} ${BTN_PRIMARY} !min-h-[28px] !py-1 !text-[0.8rem]`}
                                 onClick={() => toggleExpanded(row.id)}
                               >
                                 {expanded ? "Hide" : "Detail"}
