@@ -311,6 +311,12 @@ function samplePolygonPoints(polygon: Polygon): Point[] {
 const CANDIDATE_RADII = [30, 60, 100, 150, 220];
 const CANDIDATE_ANGLE_STEPS = 16;
 
+// How far off, either side, the search ring is allowed to stray from the direction
+// toward the plausible region — wide enough to find a genuinely useful disambiguating
+// angle, narrow enough to guarantee it can never recommend backtracking the way you
+// came (the ±180° opposite direction is always excluded).
+const CANDIDATE_ARC_HALF_ANGLE_DEGREES = 90;
+
 // Ranks candidate next-scan positions around the current best region (the top
 // cluster's overlap polygon once there are 2+ scans, or the lone scan's own wedge with
 // just one) by how well each narrows things down, instead of guessing blindly — by
@@ -347,7 +353,8 @@ export function suggestNextScanPositions(
   scans: Scan[],
   knownPoints: GalaxyPoint[] = [],
   count = 8,
-  nearbySystems: Array<GalaxyPoint & { name?: string | null }> = []
+  nearbySystems: Array<GalaxyPoint & { name?: string | null }> = [],
+  originPoint?: GalaxyPoint | null
 ): Array<GalaxyPoint & { systemName?: string | null }> {
   if (scans.length === 0) return [];
 
@@ -365,7 +372,18 @@ export function suggestNextScanPositions(
   const { centroid: polygonCentroid, area: regionArea } = polygonCentroidAndArea(region);
   if (regionArea <= 0) return [];
 
-  const knownSamples = knownPoints.map((p) => ({ x: p.galx, y: p.galy }));
+  // Planets in the same system share the exact same galx/galy (that's the system-level
+  // position — sysx/sysy is the finer intra-system position, which no scan here ever
+  // resolves), so a system with several candidate planets would otherwise count as
+  // several independent "suspects" that always live or die together in every worst-case
+  // check below. Dedupe to distinct locations first — what's actually being narrowed
+  // down is which system, not which planet within it.
+  const knownSamples: Point[] = [];
+  for (const p of knownPoints) {
+    if (!knownSamples.some((s) => s.x === p.galx && s.y === p.galy)) {
+      knownSamples.push({ x: p.galx, y: p.galy });
+    }
+  }
   // With 2+ named candidates, the actual goal is telling THEM apart — blending in the
   // generic region-shape samples too let the broader region's geometry dilute and
   // outrank the disambiguation goal (e.g. recommending a scan that shrinks the overall
@@ -390,7 +408,49 @@ export function suggestNextScanPositions(
     return worstArea;
   }
 
-  const candidates: { point: Point; worstArea: number; systemName?: string | null }[] = [];
+  function containsPoint(polygon: Polygon, point: Point): boolean {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].x, yi = polygon[i].y;
+      const xj = polygon[j].x, yj = polygon[j].y;
+      const intersects = yi > point.y !== yj > point.y
+        && point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi;
+      if (intersects) inside = !inside;
+    }
+    return inside;
+  }
+
+  // With 2+ actual candidate worlds identified, what matters isn't how much map area
+  // survives a hypothetical reading — it's how many of those specific worlds would
+  // still be indistinguishable afterward. A scan that leaves a small area containing 4
+  // worlds is worse than one that leaves a bigger area containing just 1, so once real
+  // candidates are known, count survivors directly instead of using area as a proxy.
+  const useCandidateCountMetric = knownSamples.length >= 2;
+
+  function worstCaseSurvivorCountAt(candidate: Point): number {
+    let worstCount = 0;
+    for (const sample of samplePoints) {
+      if (sample.x === candidate.x && sample.y === candidate.y) continue;
+      const bearing = quantizeBearing(trueBearingBetween(candidate, sample));
+      const wedge = ensureCCW(buildWedgePolygon({ scanGalx: candidate.x, scanGaly: candidate.y, bearingDegrees: bearing }, radius));
+      const clipped = intersectConvexPolygons(region, wedge);
+      if (clipped.length < 3) continue;
+      const survivors = samplePoints.filter((other) => containsPoint(clipped, other)).length;
+      if (survivors > worstCount) worstCount = survivors;
+    }
+    return worstCount;
+  }
+
+  const candidates: { point: Point; worstCount: number; worstArea: number; systemName?: string | null }[] = [];
+
+  // worstCount only means something once there are actual worlds to count — otherwise
+  // it's left at 0 for every candidate and area alone decides, same as before.
+  function scoreCandidate(point: Point): { worstCount: number; worstArea: number } {
+    return {
+      worstCount: useCandidateCountMetric ? worstCaseSurvivorCountAt(point) : 0,
+      worstArea: worstCaseAreaAt(point),
+    };
+  }
 
   // The ring below starts at a nonzero radius, so without this the centroid itself —
   // the literal midpoint when there are exactly two known candidates, which is also
@@ -398,25 +458,53 @@ export function suggestNextScanPositions(
   // there are closest to opposite, and opposite bearings always round to different
   // compass points) — would never actually be tested as an option.
   if (Math.abs(centroid.x) <= GALAXY_BOUND && Math.abs(centroid.y) <= GALAXY_BOUND) {
-    candidates.push({ point: centroid, worstArea: worstCaseAreaAt(centroid) });
+    candidates.push({ point: centroid, ...scoreCandidate(centroid) });
+  }
+
+  // Anchor the search ring on the player's actual current position (when known) rather
+  // than the region's centroid — a centroid-anchored ring can sit far from the player
+  // entirely (e.g. a large single-scan wedge whose candidate worlds skew toward the far
+  // end), which is how this used to end up recommending scans clear across the galaxy.
+  // The ring is also bounded to a forward-facing arc toward the region's centroid, so
+  // it can never recommend backtracking in the opposite direction, while still leaving
+  // enough angular spread to find a genuinely useful disambiguating angle.
+  const hasOrigin = originPoint != null && Math.abs(originPoint.galx) <= GALAXY_BOUND && Math.abs(originPoint.galy) <= GALAXY_BOUND;
+  const ringOrigin = hasOrigin ? { x: originPoint!.galx, y: originPoint!.galy } : centroid;
+  const referenceBearing = hasOrigin ? trueBearingBetween(ringOrigin, centroid) : null;
+
+  function withinArc(angle: number): boolean {
+    if (referenceBearing == null) return true;
+    const diff = Math.abs(angle - referenceBearing) % 360;
+    return Math.min(diff, 360 - diff) <= CANDIDATE_ARC_HALF_ANGLE_DEGREES;
   }
 
   for (const candidateRadius of CANDIDATE_RADII) {
     for (let i = 0; i < CANDIDATE_ANGLE_STEPS; i++) {
-      const dir = bearingToUnitVector((i / CANDIDATE_ANGLE_STEPS) * 360);
-      const candidate = { x: centroid.x + dir.dx * candidateRadius, y: centroid.y + dir.dy * candidateRadius };
+      const angle = (i / CANDIDATE_ANGLE_STEPS) * 360;
+      if (!withinArc(angle)) continue;
+      const dir = bearingToUnitVector(angle);
+      const candidate = { x: ringOrigin.x + dir.dx * candidateRadius, y: ringOrigin.y + dir.dy * candidateRadius };
       if (Math.abs(candidate.x) > GALAXY_BOUND || Math.abs(candidate.y) > GALAXY_BOUND) continue;
-      candidates.push({ point: candidate, worstArea: worstCaseAreaAt(candidate) });
+      candidates.push({ point: candidate, ...scoreCandidate(candidate) });
     }
   }
 
+  // Named systems ride the hyperlane network and can be a great fast option — but only
+  // when they're actually in a useful direction. Without this check a system sitting
+  // behind you could still win purely on being close/well-connected, which is exactly
+  // the "opposite direction" problem the arc restriction above exists to prevent.
   for (const system of nearbySystems) {
     const point = { x: system.galx, y: system.galy };
-    candidates.push({ point, worstArea: worstCaseAreaAt(point), systemName: system.name });
+    if (hasOrigin && !withinArc(trueBearingBetween(ringOrigin, point))) continue;
+    candidates.push({ point, ...scoreCandidate(point), systemName: system.name });
   }
 
+  // Once real candidate worlds are known, rank by how many would survive the worst-case
+  // reading first — that's the actual "how much did this eliminate" question — and only
+  // fall back to area as a tie-breaker between equally-good survivor counts. Without any
+  // known worlds yet, worstCount is 0 for everything and area alone decides, same as before.
   return candidates
-    .sort((a, b) => a.worstArea - b.worstArea)
+    .sort((a, b) => (a.worstCount - b.worstCount) || (a.worstArea - b.worstArea))
     .slice(0, count)
     .map((c) => ({ galx: Math.round(c.point.x), galy: Math.round(c.point.y), systemName: c.systemName }));
 }

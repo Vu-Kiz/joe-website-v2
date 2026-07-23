@@ -336,8 +336,9 @@ const BountyHuntingPanel: React.FC<Props> = ({ playerLocation, onPlanRoute, canS
   // fresh value directly, so callers can pass it straight into refreshSuggestedScan
   // instead of reading the not-yet-updated state value in the same tick.
   async function refreshTrackingSystems(contract: BountyContract): Promise<StoredMapSystem[]> {
-    const galx = contract.accepted_galx ?? myGalx;
-    const galy = contract.accepted_galy ?? myGaly;
+    const anchor = contractAnchorPoint(contract);
+    const galx = anchor?.galx ?? null;
+    const galy = anchor?.galy ?? null;
     const searchPoints = [
       ...(galx != null && galy != null ? [{ galx, galy }] : []),
       ...contract.scans.map((s) => ({ galx: s.scan_galx, galy: s.scan_galy })),
@@ -345,6 +346,27 @@ const BountyHuntingPanel: React.FC<Props> = ({ playerLocation, onPlanRoute, canS
     const systems = await fetchNearbySystems(searchPoints);
     setTrackingSystems((current) => ({ ...current, [contract.id]: systems }));
     return systems;
+  }
+
+  // Recomputes trackingWorlds against the contract's current anchor point (accepted
+  // location, live SWC location, or — lacking those — the most recent scan). Mirrors
+  // refreshTrackingSystems: returns the fresh value directly so callers can pass it
+  // straight into refreshSuggestedScan instead of reading stale state in the same tick.
+  async function refreshTrackingWorlds(contract: BountyContract): Promise<CandidateWorld[]> {
+    const anchor = contractAnchorPoint(contract);
+    if (!anchor) {
+      setTrackingWorlds((current) => ({ ...current, [contract.id]: [] }));
+      return [];
+    }
+    try {
+      const res = await getCandidateBountyWorlds({ galx: anchor.galx, galy: anchor.galy, difficulty: contract.difficulty });
+      const worlds = res.ok ? res.data : [];
+      setTrackingWorlds((current) => ({ ...current, [contract.id]: worlds }));
+      return worlds;
+    } catch {
+      setTrackingWorlds((current) => ({ ...current, [contract.id]: [] }));
+      return [];
+    }
   }
 
   async function handleExpand(contract: BountyContract) {
@@ -361,38 +383,11 @@ const BountyHuntingPanel: React.FC<Props> = ({ playerLocation, onPlanRoute, canS
       return;
     }
 
-    const galx = contract.accepted_galx ?? myGalx;
-    const galy = contract.accepted_galy ?? myGaly;
-    const searchPoints = [
-      ...(galx != null && galy != null ? [{ galx, galy }] : []),
-      ...contract.scans.map((s) => ({ galx: s.scan_galx, galy: s.scan_galy })),
-    ];
-
-    if (galx == null || galy == null) {
-      // Candidate worlds need an anchor point for the distance sort (the backend
-      // returns every Darkness/Quests world galaxy-wide regardless, but still requires
-      // galx/galy to compute "units away"), so that fetch is skipped without one — but
-      // systems can still be searched around the scans alone.
-      setTrackingWorlds((current) => ({ ...current, [contract.id]: [] }));
-      const systems = await fetchNearbySystems(searchPoints);
-      setTrackingSystems((current) => ({ ...current, [contract.id]: systems }));
-      await refreshSuggestedScan(contract, [], undefined, undefined, systems);
-      return;
-    }
-    try {
-      const [worldsRes, systems] = await Promise.all([
-        getCandidateBountyWorlds({ galx, galy, difficulty: contract.difficulty }),
-        fetchNearbySystems(searchPoints),
-      ]);
-      const worlds = worldsRes.ok ? worldsRes.data : [];
-      setTrackingWorlds((current) => ({ ...current, [contract.id]: worlds }));
-      setTrackingSystems((current) => ({ ...current, [contract.id]: systems }));
-      await refreshSuggestedScan(contract, worlds, undefined, undefined, systems);
-    } catch {
-      setTrackingWorlds((current) => ({ ...current, [contract.id]: [] }));
-      setTrackingSystems((current) => ({ ...current, [contract.id]: [] }));
-      await refreshSuggestedScan(contract, [], undefined, undefined, []);
-    }
+    const [worlds, systems] = await Promise.all([
+      refreshTrackingWorlds(contract),
+      refreshTrackingSystems(contract),
+    ]);
+    await refreshSuggestedScan(contract, worlds, undefined, undefined, systems);
   }
 
   // With only one scan logged there's nothing to triangulate yet, but the bearing and
@@ -432,6 +427,26 @@ const BountyHuntingPanel: React.FC<Props> = ({ playerLocation, onPlanRoute, canS
       (a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
     )[0];
     return `${lastScan.scan_galx},${lastScan.scan_galy}`;
+  }
+
+  // Anchor point for the candidate-worlds distance sort: prefer an explicitly accepted
+  // location, then live SWC location (if that scope is linked), then fall back to the
+  // most recent scan's own coordinates — logging a scan requires no extra permissions,
+  // so this keeps candidate worlds working even for players without Location access.
+  function contractAnchorPoint(contract: BountyContract): { galx: number; galy: number } | null {
+    if (contract.accepted_galx != null && contract.accepted_galy != null) {
+      return { galx: contract.accepted_galx, galy: contract.accepted_galy };
+    }
+    if (myGalx != null && myGaly != null) {
+      return { galx: myGalx, galy: myGaly };
+    }
+    if (contract.scans.length > 0) {
+      const lastScan = [...contract.scans].sort(
+        (a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+      )[0];
+      return { galx: lastScan.scan_galx, galy: lastScan.scan_galy };
+    }
+    return null;
   }
 
   // A logged scan is often taken from right at a system the player is standing in —
@@ -591,15 +606,6 @@ const BountyHuntingPanel: React.FC<Props> = ({ playerLocation, onPlanRoute, canS
     setSuggestedScans((current) => ({ ...current, [contractId]: { ...(current[contractId] ?? DEFAULT_SUGGESTED_SCAN), ...patch } }));
   }
 
-  // How long a suggested next scan is allowed to take before it's discarded in favor
-  // of a less-tight-but-actually-practical option — this tool exists to save hunting
-  // time, not send the player on a half-galaxy detour for a marginally better cone.
-  // SWC's actual hyperlane travel times run in days, not minutes, even at a decent
-  // hyperspeed/piloting skill (confirmed against the real Hyper Planner — a routine
-  // ~300-400 unit hop takes 4-5 days at hyperspeed 6/skill 2), so the budget has to
-  // match that real scale rather than a real-world commute.
-  const SUGGESTED_SCAN_TIME_BUDGET_SECONDS = 24 * 60 * 60;
-
   async function refreshSuggestedScan(
     contract: BountyContract,
     worlds: CandidateWorld[],
@@ -624,9 +630,16 @@ const BountyHuntingPanel: React.FC<Props> = ({ playerLocation, onPlanRoute, canS
       return;
     }
 
-    const knownPoints = possibleLocationEntries
-      .map((entry) => entry.world ?? entry.cluster)
-      .map((p) => ({ galx: p.galx, galy: p.galy }));
+    // computePossibleLocations only ever resolves candidate worlds via triangulated
+    // cluster intersections, which need 2+ scans — with just one, there's no cluster
+    // yet, but the scan's own bearing wedge already narrows down which candidate worlds
+    // are even possible (the same set drawn as dots on the map), so use that directly
+    // rather than treating a single scan as having no known candidates at all.
+    const knownPoints = contract.scans.length === 1
+      ? worldsInScanWedge(contract.scans[0], worlds).map((w) => ({ galx: w.galx, galy: w.galy }))
+      : possibleLocationEntries
+        .map((entry) => entry.world ?? entry.cluster)
+        .map((p) => ({ galx: p.galx, galy: p.galy }));
 
     // Real systems are evaluated as candidates alongside the generic search ring, so a
     // well-positioned one can be suggested directly — travel to it can ride the actual
@@ -636,11 +649,22 @@ const BountyHuntingPanel: React.FC<Props> = ({ playerLocation, onPlanRoute, canS
       .filter((system) => system.galx != null && system.galy != null)
       .map((system) => ({ galx: system.galx as number, galy: system.galy as number, name: system.name }));
 
+    // Travel time is measured from wherever the last scan was taken — that's where
+    // the player actually is in the fiction of the hunt, not necessarily their live
+    // location right now. Also used below as a second candidate-ring anchor, so nearby
+    // options are actually in the pool alongside whatever the region's geometry alone
+    // would suggest.
+    const lastScan = [...contract.scans].sort(
+      (a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+    )[0];
+    const origin = `${lastScan.scan_galx},${lastScan.scan_galy}`;
+
     const candidates = suggestNextScanPositions(
       contract.scans.map((s) => ({ scanGalx: s.scan_galx, scanGaly: s.scan_galy, bearingDegrees: s.bearing_degrees, rangeBand: s.range_band })),
       knownPoints,
-      8,
-      nearbySystems
+      16,
+      nearbySystems,
+      { galx: lastScan.scan_galx, galy: lastScan.scan_galy }
     );
     if (candidates.length === 0) {
       updateSuggestedScanState(contract.id, { scan: null, travelTime: null, needsShip: false });
@@ -656,14 +680,6 @@ const BountyHuntingPanel: React.FC<Props> = ({ playerLocation, onPlanRoute, canS
       return;
     }
     updateSuggestedScanState(contract.id, { needsShip: false });
-
-    // Travel time is measured from wherever the last scan was taken — that's where
-    // the player actually is in the fiction of the hunt, not necessarily their live
-    // location right now.
-    const lastScan = [...contract.scans].sort(
-      (a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
-    )[0];
-    const origin = `${lastScan.scan_galx},${lastScan.scan_galy}`;
 
     updateSuggestedScanState(contract.id, { loading: true });
     try {
@@ -689,10 +705,12 @@ const BountyHuntingPanel: React.FC<Props> = ({ playerLocation, onPlanRoute, canS
         })
       );
 
-      // Results stay in the candidates' geometric best-to-worst order, so the first
-      // one within budget is both the most informative AND actually practical to reach.
-      const reachable = results.find((r) => r.seconds <= SUGGESTED_SCAN_TIME_BUDGET_SECONDS);
-      const chosen = reachable ?? results.reduce((fastest, r) => (r.seconds < fastest.seconds ? r : fastest), results[0]);
+      // `candidates` are already pre-filtered to the ~16 most informative geometric
+      // options (best worst-case area reduction) — travel time is what actually
+      // determines whether a suggestion saves hunting time or wastes it, so pick the
+      // fastest-to-reach option among those, not just the single most "optimal" cone
+      // regardless of how far away it is.
+      const chosen = results.reduce((fastest, r) => (r.seconds < fastest.seconds ? r : fastest), results[0]);
       updateSuggestedScanState(contract.id, { scan: chosen.candidate, travelTime: chosen.formatted });
     } finally {
       updateSuggestedScanState(contract.id, { loading: false });
@@ -744,8 +762,11 @@ const BountyHuntingPanel: React.FC<Props> = ({ playerLocation, onPlanRoute, canS
         setContracts((current) => current.map((c) => (c.id === contract.id ? res.data : c)));
         resetScanForm(contract.id);
         await syncTriangulatedEstimate(res.data);
-        const systems = await refreshTrackingSystems(res.data);
-        await refreshSuggestedScan(res.data, trackingWorlds[contract.id] ?? [], undefined, undefined, systems);
+        const [worlds, systems] = await Promise.all([
+          refreshTrackingWorlds(res.data),
+          refreshTrackingSystems(res.data),
+        ]);
+        await refreshSuggestedScan(res.data, worlds, undefined, undefined, systems);
       }
     } catch (err: unknown) {
       updateScanForm(contract.id, { error: err instanceof Error ? err.message : (form.editingScanId != null ? "Failed to update scan." : "Failed to log scan.") });
@@ -761,8 +782,11 @@ const BountyHuntingPanel: React.FC<Props> = ({ playerLocation, onPlanRoute, canS
         setContracts((current) => current.map((c) => (c.id === contract.id ? res.data : c)));
         if (getScanForm(contract.id).editingScanId === scanId) resetScanForm(contract.id);
         await syncTriangulatedEstimate(res.data);
-        const systems = await refreshTrackingSystems(res.data);
-        await refreshSuggestedScan(res.data, trackingWorlds[contract.id] ?? [], undefined, undefined, systems);
+        const [worlds, systems] = await Promise.all([
+          refreshTrackingWorlds(res.data),
+          refreshTrackingSystems(res.data),
+        ]);
+        await refreshSuggestedScan(res.data, worlds, undefined, undefined, systems);
       }
     } catch {
       // ignore — list refresh on next load will reconcile
