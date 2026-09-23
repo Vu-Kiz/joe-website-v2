@@ -6,7 +6,14 @@ import "./styles/tailwind.css";
 import { getApiBaseUrl, initCsrf } from "./api/core/auth";
 import { initMonitoring } from "./lib/monitoring";
 
-initMonitoring();
+try {
+  initMonitoring();
+} catch (err) {
+  // Never let monitoring (Sentry/OpenReplay) block the app from mounting —
+  // e.g. browser extensions that also patch document.adoptedStyleSheets
+  // can make this throw synchronously.
+  console.error("initMonitoring failed", err);
+}
 
 const Root: React.FC = () => {
   useEffect(() => {
