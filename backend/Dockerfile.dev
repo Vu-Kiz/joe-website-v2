@@ -1,5 +1,5 @@
 # backend/Dockerfile.dev
-FROM php:8.4-apache
+FROM php:8.4.27-apache
 
 # System dependencies + PHP extensions for Laravel
 RUN apt-get update && apt-get install -y \
