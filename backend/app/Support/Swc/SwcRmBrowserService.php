@@ -39,7 +39,8 @@ class SwcRmBrowserService
 
         $ownerUid = '20:' . $factionSwcUid;
         $allEntities = [];
-        $startIndex = 0;
+        // SWC start_index is 1-based
+        $startIndex = 1;
         $pageSize = 200;
         $maxPages = 50;
 

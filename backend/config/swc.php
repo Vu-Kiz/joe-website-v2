@@ -17,7 +17,7 @@ return [
         'payments' => 'character_read character_credits character_credits_write faction_credits_read faction_credits_write character_privileges',
         'fleet_command' => 'character_read character_skills',
         'market_personal' => 'personal_inv_overview personal_inv_ships_all personal_inv_vehicles_all personal_inv_materials_all personal_inv_items_all personal_inv_droids_all personal_inv_stations_all personal_inv_cities_all personal_inv_facilities_all personal_inv_npcs_all personal_inv_creatures_all',
-        'market_faction' => 'faction_inv_overview faction_inv_ships_all faction_inv_vehicles_all faction_inv_materials_all faction_inv_items_all faction_inv_droids_all faction_inv_stations_all character_privileges',
+        'market_faction' => 'faction_inv_overview faction_inv_ships_all faction_inv_vehicles_all faction_inv_materials_all faction_inv_items_all faction_inv_droids_all faction_inv_stations_all faction_inv_cities_all faction_inv_facilities_all faction_inv_npcs_all faction_inv_creatures_all character_privileges',
         'location' => 'character_location',
     ],
     'public_tools_scope' => env('SWC_OAUTH_PUBLIC_TOOLS_SCOPE', 'character_read character_credits character_credits_write'),
@@ -30,7 +30,7 @@ return [
     'creditlog_scope' => env('SWC_OAUTH_CREDITLOG_SCOPE','character_read character_credits character_credits_write faction_credits_read faction_credits_write character_privileges'),
     'events_scope'  => env('SWC_OAUTH_EVENTS_SCOPE', 'character_events'),
     'debug_scope'   => env('SWC_OAUTH_DEBUG_SCOPE', 'character_all faction_all messages_all'),
-    'market_faction_scope' => env('SWC_OAUTH_MARKET_FACTION_SCOPE', 'personal_inv_overview personal_inv_ships_all personal_inv_vehicles_all personal_inv_materials_all personal_inv_items_all personal_inv_droids_all personal_inv_stations_all personal_inv_cities_all personal_inv_facilities_all personal_inv_npcs_all personal_inv_creatures_all faction_inv_overview faction_inv_ships_all faction_inv_vehicles_all faction_inv_materials_all faction_inv_items_all faction_inv_droids_all faction_inv_stations_all character_privileges'),
+    'market_faction_scope' => env('SWC_OAUTH_MARKET_FACTION_SCOPE', 'personal_inv_overview personal_inv_ships_all personal_inv_vehicles_all personal_inv_materials_all personal_inv_items_all personal_inv_droids_all personal_inv_stations_all personal_inv_cities_all personal_inv_facilities_all personal_inv_npcs_all personal_inv_creatures_all faction_inv_overview faction_inv_ships_all faction_inv_vehicles_all faction_inv_materials_all faction_inv_items_all faction_inv_droids_all faction_inv_stations_all faction_inv_cities_all faction_inv_facilities_all faction_inv_npcs_all faction_inv_creatures_all character_privileges'),
 
     'access_type'   => env('SWC_OAUTH_ACCESS_TYPE', 'offline'),
     'member_tools_access_type' => env('SWC_OAUTH_MEMBER_TOOLS_ACCESS_TYPE', 'offline'),

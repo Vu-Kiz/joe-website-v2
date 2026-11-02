@@ -6,6 +6,7 @@ namespace App\Support\Swc;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Log;
 
 class SwcInventoryService
 {
@@ -54,7 +55,8 @@ class SwcInventoryService
         ?string $tag = null
     ): array {
         $allEntities = [];
-        $startEntity = 0;
+        // SWC start_index is 1-based
+        $startEntity = 1;
 
         for ($page = 0; $page < $maxPages; $page++) {
             $query = [
@@ -64,7 +66,7 @@ class SwcInventoryService
 
             $tagQuery = '';
             if ($tag !== null) {
-                $encodedTag = str_replace(' ', '+', $tag);
+                $encodedTag = urlencode($tag);
                 $tagQuery = '&filter_type[0]=tags&filter_value[0]=' . $encodedTag . '&filter_inclusion[0]=includes';
             }
 
@@ -194,7 +196,17 @@ class SwcInventoryService
             . rawurlencode($tag)
             . '/';
 
-        $response = SwcHttp::make($accessToken)->put($url);
+        $response = SwcHttp::make($accessToken)
+            ->withBody('{}', 'application/json')
+            ->put($url);
+
+        if (!$response->ok()) {
+            Log::warning('SWC applyTag failed', [
+                'url' => $url,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+        }
 
         return [
             'ok' => $response->ok(),
@@ -215,7 +227,9 @@ class SwcInventoryService
             . rawurlencode($tag)
             . '/';
 
-        $response = SwcHttp::make($accessToken)->delete($url);
+        $response = SwcHttp::make($accessToken)
+            ->withBody('{}', 'application/json')
+            ->delete($url);
 
         return [
             'ok' => $response->ok(),
@@ -234,7 +248,9 @@ class SwcInventoryService
             . $this->encodeUid($entityUid)
             . '/tags/';
 
-        $response = SwcHttp::make($accessToken)->delete($url);
+        $response = SwcHttp::make($accessToken)
+            ->withBody('{}', 'application/json')
+            ->delete($url);
 
         return [
             'ok' => $response->ok(),

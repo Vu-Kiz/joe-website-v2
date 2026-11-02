@@ -198,7 +198,7 @@ class SwcAuthController extends Controller
             returnToSessionKey: null,
             returnTo: null,
             redirectUri: (string) Config::get('swc.redirect_uri', ''),
-            scope: (string) Config::get('swc.market_faction_scope', 'personal_inv_overview personal_inv_ships_all personal_inv_vehicles_all personal_inv_materials_all personal_inv_items_all personal_inv_droids_all personal_inv_stations_all personal_inv_cities_all personal_inv_facilities_all personal_inv_npcs_all personal_inv_creatures_all faction_inv_overview faction_inv_ships_all faction_inv_vehicles_all faction_inv_materials_all faction_inv_items_all faction_inv_droids_all faction_inv_stations_all character_privileges'),
+            scope: (string) Config::get('swc.market_faction_scope', 'personal_inv_overview personal_inv_ships_all personal_inv_vehicles_all personal_inv_materials_all personal_inv_items_all personal_inv_droids_all personal_inv_stations_all personal_inv_cities_all personal_inv_facilities_all personal_inv_npcs_all personal_inv_creatures_all faction_inv_overview faction_inv_ships_all faction_inv_vehicles_all faction_inv_materials_all faction_inv_items_all faction_inv_droids_all faction_inv_stations_all faction_inv_cities_all faction_inv_facilities_all faction_inv_npcs_all faction_inv_creatures_all character_privileges'),
             accessType: (string) Config::get('swc.market_faction_access_type', 'offline'),
             authContext: SwcAuthorization::CONTEXT_MARKET_FACTION
         );
