@@ -15,6 +15,10 @@ class SkillsToolController extends Controller
 {
     protected const SNAPSHOT_TTL_HOURS = 24;
 
+    // Forced refreshes still skip snapshots fetched within this window so repeated
+    // clicks (or several officers refreshing at once) don't hammer the SWC API.
+    protected const FORCE_REFRESH_MIN_AGE_SECONDS = 60;
+
     public function __construct(
         protected SwcSkillsToolService $swcSkillsToolService
     ) {
@@ -50,6 +54,50 @@ class SkillsToolController extends Controller
         return response()->json([
             'ok' => true,
             'data' => $row,
+            'skill_plan' => $snapshot?->skill_plan ?? null,
+        ]);
+    }
+
+    /**
+     * Force a fresh pull of the caller's own skills from SWC, ignoring the 24h cache.
+     */
+    public function refreshMySkills(Request $request): JsonResponse
+    {
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        if (!$user->swc_character_id) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No SWC character linked to your account.',
+            ], 422);
+        }
+
+        $snapshot = SkillsToolMemberSkillSnapshot::query()
+            ->where('user_id', $user->id)
+            ->first();
+
+        $refresh = $this->refreshMemberSnapshot($user, $snapshot, true);
+        $snapshot = $refresh['snapshot'];
+        $result = $refresh['result'];
+
+        if ($result !== null && ($result['ok'] ?? false) !== true) {
+            $status = (int) (($result['status'] ?? null) ?: 502);
+
+            return response()->json([
+                'ok' => false,
+                'message' => (string) (($result['message'] ?? null) ?: 'Failed to refresh skills from SWC.'),
+                'upstream_status' => $result['upstream_status'] ?? null,
+            ], $status >= 400 ? $status : 502);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'data' => $this->buildRosterMatrixRow($user, $snapshot),
             'skill_plan' => $snapshot?->skill_plan ?? null,
         ]);
     }
@@ -138,12 +186,27 @@ class SkillsToolController extends Controller
 
     public function rosterMatrix(Request $request): JsonResponse
     {
-        $user = $request->user();
-
-        if (!$user) {
+        if (!$request->user()) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
+        return $this->rosterMatrixResponse(false);
+    }
+
+    /**
+     * Force a fresh pull of every roster member's skills from SWC, ignoring the 24h cache.
+     */
+    public function refreshRosterMatrix(Request $request): JsonResponse
+    {
+        if (!$request->user()) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        return $this->rosterMatrixResponse(true);
+    }
+
+    protected function rosterMatrixResponse(bool $force): JsonResponse
+    {
         $members = User::query()
             ->where('is_joe_member', true)
             ->whereNotNull('swc_character_id')
@@ -155,7 +218,7 @@ class SkillsToolController extends Controller
                 'swc_avatar_url',
             ]);
 
-        $this->refreshRosterSnapshots($members);
+        $this->refreshRosterSnapshots($members, $force);
 
         $snapshots = SkillsToolMemberSkillSnapshot::query()
             ->whereIn('user_id', $members->pluck('id')->all())
@@ -237,7 +300,7 @@ class SkillsToolController extends Controller
         ]);
     }
 
-    protected function refreshRosterSnapshots(EloquentCollection $members): void
+    protected function refreshRosterSnapshots(EloquentCollection $members, bool $force = false): void
     {
         /** @var User $member */
         foreach ($members as $member) {
@@ -245,18 +308,18 @@ class SkillsToolController extends Controller
                 ->where('user_id', $member->id)
                 ->first();
 
-            if ($this->isSnapshotFresh($snapshot)) {
+            if ($this->isSnapshotFresh($snapshot, $force)) {
                 continue;
             }
 
-            $this->refreshMemberSnapshot($member, $snapshot);
+            $this->refreshMemberSnapshot($member, $snapshot, $force);
         }
     }
 
     /**
      * @return array{snapshot: SkillsToolMemberSkillSnapshot|null, result: array|null}
      */
-    protected function refreshMemberSnapshot(User $member, ?SkillsToolMemberSkillSnapshot $existingSnapshot = null): array
+    protected function refreshMemberSnapshot(User $member, ?SkillsToolMemberSkillSnapshot $existingSnapshot = null, bool $force = false): array
     {
         $canonicalUid = '1:' . (string) $member->swc_character_id;
         $lockKey = sprintf('skills_tool_refresh_member:%d', (int) $member->id);
@@ -275,7 +338,7 @@ class SkillsToolController extends Controller
                 ->where('user_id', $member->id)
                 ->first();
 
-            if ($this->isSnapshotFresh($snapshot)) {
+            if ($this->isSnapshotFresh($snapshot, $force)) {
                 return [
                     'snapshot' => $snapshot,
                     'result' => null,
@@ -320,13 +383,17 @@ class SkillsToolController extends Controller
         }
     }
 
-    protected function isSnapshotFresh(?SkillsToolMemberSkillSnapshot $snapshot): bool
+    protected function isSnapshotFresh(?SkillsToolMemberSkillSnapshot $snapshot, bool $force = false): bool
     {
         if (!$snapshot || !$snapshot->fetched_at || !is_array($snapshot->skills_payload)) {
             return false;
         }
 
-        return $snapshot->fetched_at->gte(now()->subHours(self::SNAPSHOT_TTL_HOURS));
+        $threshold = $force
+            ? now()->subSeconds(self::FORCE_REFRESH_MIN_AGE_SECONDS)
+            : now()->subHours(self::SNAPSHOT_TTL_HOURS);
+
+        return $snapshot->fetched_at->gte($threshold);
     }
 
     protected function buildRosterMatrixRow(User $member, ?SkillsToolMemberSkillSnapshot $snapshot): array

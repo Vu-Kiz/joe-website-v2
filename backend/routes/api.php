@@ -597,6 +597,7 @@ Route::middleware(['auth:sanctum', 'require_any:is_joe_member,is_admin,is_sysadm
 
 Route::middleware(['auth:sanctum', 'require_any:is_joe_member,can_access_fleet_commander,is_admin,is_sysadmin'])->group(function () {
     Route::get('/fleet/my-skills', [SkillsToolController::class, 'mySkills']);
+    Route::post('/fleet/my-skills/refresh', [SkillsToolController::class, 'refreshMySkills'])->middleware('throttle:5,1');
     Route::get('/fleet/skill-plan', [SkillsToolController::class, 'getPlan']);
     Route::post('/fleet/skill-plan', [SkillsToolController::class, 'savePlan']);
 });
@@ -604,5 +605,6 @@ Route::middleware(['auth:sanctum', 'require_any:is_joe_member,can_access_fleet_c
 Route::middleware(['auth:sanctum', 'require_any:can_access_fleet_commander,is_admin,is_sysadmin'])->group(function () {
     Route::get('/fleet/members', [SkillsToolController::class, 'members']);
     Route::get('/fleet/roster-matrix', [SkillsToolController::class, 'rosterMatrix']);
+    Route::post('/fleet/roster-matrix/refresh', [SkillsToolController::class, 'refreshRosterMatrix'])->middleware('throttle:2,5');
     Route::get('/fleet/member-skills/{uid}', [SkillsToolController::class, 'memberSkills']);
 });

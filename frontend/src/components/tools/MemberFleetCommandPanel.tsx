@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { getFleetRosterMatrix, getMySkills, getSkillPlan, saveSkillPlan, type FleetRosterMatrixRow } from "../../api/universe/fleetCommander";
+import { getFleetRosterMatrix, getMySkills, getSkillPlan, refreshFleetRosterMatrix, refreshMySkills, saveSkillPlan, type FleetRosterMatrixRow } from "../../api/universe/fleetCommander";
 import type { SwcAuthorizationStatus } from "../../api/members/swcAuthorization";
 import type { SwcUser } from "../../api/core/auth";
 import { BTN, INPUT } from "../../utils/ui";
@@ -157,6 +157,8 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
   const [activeTab, setActiveTab] = useState<BiometricsTab>(canSeeRoster ? "roster" : "planner");
   const [membersLoading, setMembersLoading] = useState(false);
   const [membersLoaded, setMembersLoaded] = useState(false);
+  const [rosterRefreshing, setRosterRefreshing] = useState(false);
+  const [plannerRefreshing, setPlannerRefreshing] = useState(false);
   const [filter, setFilter] = useState("");
   const [skillsError, setSkillsError] = useState<string | null>(null);
   const [matrixRows, setMatrixRows] = useState<FleetRosterMatrixRow[]>([]);
@@ -357,23 +359,60 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
         fetchedPlan = response.skill_plan ?? null;
       }
 
-      if (myRow) {
-        const snapshot = Object.fromEntries(
-          allMetrics.map((m) => [m.key, myRow![m.key] ?? 0])
-        ) as Record<MetricKey, number>;
-        setPlannerBaseline(snapshot);
-        setPlannerLevels({ ...snapshot });
-      }
-
-      if (fetchedPlan && typeof fetchedPlan === "object") {
-        setServerPlan(fetchedPlan as Record<MetricKey, number>);
-      }
-      setPlanLoaded(false);
+      applyPlannerSnapshot(myRow, fetchedPlan);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to load member skills.";
       setSkillsError(message);
     } finally {
       setMembersLoading(false);
+    }
+  }
+
+  function applyPlannerSnapshot(myRow: FleetRosterMatrixRow | null, fetchedPlan: Record<string, number> | null) {
+    if (myRow) {
+      const snapshot = Object.fromEntries(
+        allMetrics.map((m) => [m.key, myRow[m.key] ?? 0])
+      ) as Record<MetricKey, number>;
+      setPlannerBaseline(snapshot);
+      setPlannerLevels({ ...snapshot });
+    }
+
+    if (fetchedPlan && typeof fetchedPlan === "object") {
+      setServerPlan(fetchedPlan as Record<MetricKey, number>);
+    }
+    setPlanLoaded(false);
+  }
+
+  // Force a live pull from SWC for every roster member (skips the 24h server cache).
+  async function handleRefreshRoster() {
+    try {
+      setRosterRefreshing(true);
+      setSkillsError(null);
+      const response = await refreshFleetRosterMatrix();
+      setMatrixRows(response.data ?? []);
+      setMembersLoaded(true);
+    } catch (error: unknown) {
+      setSkillsError(error instanceof Error ? error.message : "Failed to refresh roster skills from SWC.");
+    } finally {
+      setRosterRefreshing(false);
+    }
+  }
+
+  // Force a live pull of the viewer's own skills from SWC and rebase the planner on them.
+  async function handleRefreshPlanner() {
+    try {
+      setPlannerRefreshing(true);
+      setSkillsError(null);
+      const response = await refreshMySkills();
+      const myRow = response.data ?? null;
+      applyPlannerSnapshot(myRow, response.skill_plan ?? null);
+      if (myRow) {
+        setMatrixRows((rows) => rows.map((r) => (r.id === myRow.id ? myRow : r)));
+      }
+    } catch (error: unknown) {
+      setSkillsError(error instanceof Error ? error.message : "Failed to refresh your skills from SWC.");
+    } finally {
+      setPlannerRefreshing(false);
     }
   }
 
@@ -421,6 +460,15 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
               >
                 {membersLoading ? "Loading…" : "Load My Skills"}
               </button>
+              <button
+                className={BTN}
+                type="button"
+                onClick={() => { void handleRefreshPlanner(); }}
+                disabled={plannerRefreshing || membersLoading}
+                title="Pull your current skills straight from SWC instead of the cached copy"
+              >
+                {plannerRefreshing ? "Refreshing…" : "Refresh from SWC"}
+              </button>
               <span className="small" style={{ opacity: 0.85 }}>
                 Level increases planned: <strong>{plannerSpent}</strong>
               </span>
@@ -445,6 +493,9 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
                 <span className="small" style={{ color: "#ff9f9f" }}>{planSaveError}</span>
               )}
             </div>
+            {skillsError ? (
+              <p className="small" style={{ color: "#ff9f9f", marginTop: 0 }}>{skillsError}</p>
+            ) : null}
 
             <div className="grid grid-cols-[repeat(3,1fr)] gap-[0.7rem] mb-[0.85rem] max-[768px]:grid-cols-[repeat(2,1fr)] max-[480px]:grid-cols-1">
               {metricGroups.map((group) => (
@@ -516,9 +567,18 @@ const MemberFleetCommandPanel: React.FC<Props> = ({
             className={BTN}
             type="button"
             onClick={loadMembers}
-            disabled={membersLoading}
+            disabled={membersLoading || rosterRefreshing}
           >
-            {membersLoading ? "Loading skills..." : membersLoaded ? "Refresh Skills" : "Load Skills"}
+            {membersLoading ? "Loading skills..." : membersLoaded ? "Reload Skills" : "Load Skills"}
+          </button>
+          <button
+            className={BTN}
+            type="button"
+            onClick={() => { void handleRefreshRoster(); }}
+            disabled={rosterRefreshing || membersLoading}
+            title="Pull every member's current skills straight from SWC instead of the cached copies (can take a while)"
+          >
+            {rosterRefreshing ? "Refreshing from SWC…" : "Refresh from SWC"}
           </button>
           <input
             type="text"

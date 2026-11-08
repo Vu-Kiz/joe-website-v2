@@ -55,12 +55,30 @@ export async function getFleetRosterMatrix() {
   }>(`/fleet/roster-matrix`);
 }
 
+// Bypasses the server's 24h snapshot cache and pulls every roster member live from SWC.
+export async function refreshFleetRosterMatrix() {
+  return apiFetch<{
+    ok: true;
+    generated_at: string;
+    data: FleetRosterMatrixRow[];
+  }>(`/fleet/roster-matrix/refresh`, { method: "POST" });
+}
+
 export async function getMySkills() {
   return apiFetch<{
     ok: true;
     data: FleetRosterMatrixRow;
     skill_plan: Record<string, number> | null;
   }>(`/fleet/my-skills`);
+}
+
+// Bypasses the server's 24h snapshot cache and pulls the caller's skills live from SWC.
+export async function refreshMySkills() {
+  return apiFetch<{
+    ok: true;
+    data: FleetRosterMatrixRow;
+    skill_plan: Record<string, number> | null;
+  }>(`/fleet/my-skills/refresh`, { method: "POST" });
 }
 
 export async function getSkillPlan() {
